@@ -4,6 +4,7 @@ import android.content.Context
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.WholphinApplication
 import com.github.damontecres.wholphin.data.JellyfinServerDao
@@ -66,6 +67,16 @@ class SwitchServerViewModel
                         servers = allServers,
                     )
                 }
+
+                // WeaselFin: when a server URL is pinned at build time and none is configured
+                // yet, add it automatically so first launch goes straight to sign-in instead of
+                // asking the user to type a URL with a D-pad. Blank on all upstream flavors, so
+                // this is a no-op for them.
+                if (allServers.isEmpty() && BuildConfig.DEFAULT_SERVER_URL.isNotBlank()) {
+                    addServer(BuildConfig.DEFAULT_SERVER_URL, false)
+                    return@launchIO
+                }
+
                 allServers.forEach { server ->
                     internalTestServer(server.server)
                 }

@@ -78,6 +78,11 @@ configure<ApplicationExtension> {
         testInstrumentationRunner = "com.github.damontecres.wholphin.test.WholphinTestRunner"
 
         buildConfigField("long", "BUILD_TIME", System.currentTimeMillis().toString())
+
+        // WeaselFin: pinned server URL. Blank for every upstream flavor so behaviour is
+        // unchanged; only the `weaselfin` flavor overrides it. Declared here so
+        // BuildConfig.DEFAULT_SERVER_URL exists for all flavors and the source compiles.
+        buildConfigField("String", "DEFAULT_SERVER_URL", "\"\"")
     }
 
     signingConfigs {
@@ -147,6 +152,16 @@ configure<ApplicationExtension> {
             manifestPlaceholders += mapOf(featureLeanback to false)
             setFeatureFlag(featureUpdate, true)
             setFeatureFlag(featureDiscover, true)
+        }
+        // WeaselFin (DaCrib) — mirrors `default` exactly, which is the only flavor with
+        // DISCOVER_ENABLED (the Seerr integration), plus the pinned server URL.
+        // Do NOT base this on `firetv`: that ships with Seerr disabled.
+        create("weaselfin") {
+            dimension = "version"
+            manifestPlaceholders += mapOf(featureLeanback to false)
+            setFeatureFlag(featureUpdate, true)
+            setFeatureFlag(featureDiscover, true)
+            buildConfigField("String", "DEFAULT_SERVER_URL", "\"https://media.theweasel.tv\"")
         }
         create("appstore") {
             dimension = "version"
