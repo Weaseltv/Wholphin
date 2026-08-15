@@ -158,6 +158,7 @@ configure<ApplicationExtension> {
         // Do NOT base this on `firetv`: that ships with Seerr disabled.
         create("weaselfin") {
             dimension = "version"
+            applicationId = "tv.theweasel.player"
             manifestPlaceholders += mapOf(featureLeanback to false)
             setFeatureFlag(featureUpdate, true)
             setFeatureFlag(featureDiscover, true)

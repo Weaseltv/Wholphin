@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Flavor+buildType combination source set. Highest precedence in Android's
+     resource merge order, which is what this needs: app/src/debug defines
+     app_name="Wholphin (Debug)", and BUILD TYPE beats FLAVOR, so the weaselfin
+     flavor's override alone was losing. Release is unaffected (no debug
+     override exists), but the debug build is what gets sideloaded for testing,
+     so it must carry the right name too. -->
+<resources>
+    <string name="app_name" translatable="false">WeaselFin (Debug)</string>
+    <string name="app_name_long" translatable="false">WeaselFin (Debug)</string>
+</resources>

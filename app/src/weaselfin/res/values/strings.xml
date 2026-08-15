@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WeaselFin overrides. Flavor source set, so app/src/main is untouched and
+     rebases against upstream stay clean. D-1: the name is WeaselFin, never
+     "WeaselTV" - the IPTV app owns that tile name on the launcher. -->
+<resources>
+    <string name="app_name" translatable="false">WeaselFin</string>
+    <string name="app_name_long" translatable="false">WeaselFin</string>
+</resources>
