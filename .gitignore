@@ -64,3 +64,11 @@ app/src/main/jnilibs
 app/src/main/jnilibs/
 scripts/mpv/deps/
 scripts/mpv/prefix/
+
+# WeaselFin — signing material. Belt and braces: *.jks, *.keystore and
+# local.properties are already covered above, but this repo is PUBLIC and a
+# committed key cannot be un-published.
+keystore.properties
+signing.properties
+*.p12
+*.pepk

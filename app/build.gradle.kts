@@ -101,6 +101,36 @@ configure<ApplicationExtension> {
                 enableV4Signing = true
             }
         }
+
+        // WeaselFin: local release signing.
+        //
+        // 🛑 Credentials are read from local.properties, which is gitignored. They are
+        // never hardcoded and never placed in a tracked file: this fork's GitHub repo is
+        // PUBLIC, so a keystore or passphrase committed here would be compromised
+        // permanently and the signing identity would have to be abandoned — which would
+        // break updates for every installed device.
+        //
+        // Activated by `release.signing.config=weaselfin` in local.properties, which is
+        // upstream's own hook (see buildTypes.release below). This block is skipped
+        // entirely on any machine that has not set it up, so upstream builds and CI are
+        // unaffected.
+        val weaselfinProps = project.rootProject.file("local.properties")
+        if (weaselfinProps.exists()) {
+            val props = Properties().apply { weaselfinProps.inputStream().use { load(it) } }
+            val storePath = props["weaselfin.storeFile"]?.toString()
+            if (!storePath.isNullOrBlank()) {
+                create("weaselfin") {
+                    storeFile = file(storePath)
+                    storePassword = props["weaselfin.storePassword"]?.toString()
+                    keyAlias = props["weaselfin.keyAlias"]?.toString()
+                    keyPassword = props["weaselfin.keyPassword"]?.toString()
+                    enableV1Signing = true
+                    enableV2Signing = true
+                    enableV3Signing = true
+                    enableV4Signing = true
+                }
+            }
+        }
     }
 
     buildTypes {
