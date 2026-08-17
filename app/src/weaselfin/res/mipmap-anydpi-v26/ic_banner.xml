@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WeaselFin: upstream wraps the banner in an <adaptive-icon> whose <background>
+     is an opaque colour, which renders as a solid block on the Android TV launcher
+     row while Jellyfin and TiviMate float over the wallpaper. A plain bitmap keeps
+     the PNG's alpha, so the tile matches the rest of the row. -->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@mipmap/ic_banner_art"
+    android:gravity="fill_horizontal|center_vertical" />
