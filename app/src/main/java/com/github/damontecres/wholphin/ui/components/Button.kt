@@ -34,6 +34,9 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.ProvideTextStyle
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.ui.theme.PrismaticDuration
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
 
 /**
  * This is a re-implementation of [androidx.tv.material3.Button] with altered sizing, padding, colors, etc
@@ -67,7 +70,27 @@ fun Button(
     border: ClickableSurfaceBorder =
         ClickableSurfaceDefaults.border(
             border = Border.None,
-            focusedBorder = Border.None,
+            // WeaselTV (handoff §3): every focusable surface takes the 3dp animated
+            // rainbow ring. Buttons previously showed focus only through a fill change,
+            // which the handoff explicitly replaces. CircleShape gives a circle on the
+            // round action buttons and a pill on the wide Play control - both correct.
+            focusedBorder =
+                if (isWeaselTv()) {
+                    Border(
+                        border =
+                            BorderStroke(
+                                width = 3.dp,
+                                brush =
+                                    rememberPrismaticBrush(
+                                        PrismaticDuration.FOCUS_BORDER,
+                                        widthPx = 260f,
+                                    ),
+                            ),
+                        shape = CircleShape,
+                    )
+                } else {
+                    Border.None
+                },
             pressedBorder = Border.None,
             disabledBorder = Border.None,
             focusedDisabledBorder =

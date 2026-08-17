@@ -61,6 +61,10 @@ import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import java.util.UUID
+import androidx.compose.ui.graphics.SolidColor
+import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.PrismaticDuration
 
 /**
  * Display a list of users plus option to add a new one or switch servers
@@ -235,8 +239,26 @@ private fun UserIconCard(
                         Border(
                             border =
                                 BorderStroke(
-                                    width = 3.dp,
-                                    color = MaterialTheme.colorScheme.onSurface,
+
+                                    width = if (isWeaselTv()) 4.dp else 3.dp,
+
+                                    brush =
+
+                                        if (isWeaselTv()) {
+
+                                            rememberPrismaticBrush(
+
+                                                PrismaticDuration.FOCUS_BORDER,
+
+                                                widthPx = 240f,
+
+                                            )
+
+                                        } else {
+
+                                            SolidColor(MaterialTheme.colorScheme.onSurface)
+
+                                        },
                                 ),
                             shape = CircleShape,
                         ),
@@ -393,8 +415,26 @@ private fun AddUserCard(
                         Border(
                             border =
                                 BorderStroke(
-                                    width = 3.dp,
-                                    color = MaterialTheme.colorScheme.onSurface,
+
+                                    width = if (isWeaselTv()) 4.dp else 3.dp,
+
+                                    brush =
+
+                                        if (isWeaselTv()) {
+
+                                            rememberPrismaticBrush(
+
+                                                PrismaticDuration.FOCUS_BORDER,
+
+                                                widthPx = 240f,
+
+                                            )
+
+                                        } else {
+
+                                            SolidColor(MaterialTheme.colorScheme.onSurface)
+
+                                        },
                                 ),
                             shape = CircleShape,
                         ),
