@@ -89,6 +89,7 @@ import org.jellyfin.sdk.model.api.MediaSegmentDto
 import org.jellyfin.sdk.model.extensions.ticks
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 
 /**
  * Possible actions the user can take during playback
@@ -464,7 +465,11 @@ fun PlaybackButton(
         colors =
             ClickableSurfaceDefaults.colors(
                 containerColor = AppColors.TransparentBlack25,
-                focusedContainerColor = selectedColor,
+                // WeaselTV (handoff §5): transport buttons stay translucent circles and
+                // let the prismatic ring carry focus. Filling them solid on focus would
+                // make every transport control compete with the primary Play control.
+                focusedContainerColor =
+                    if (isWeaselTv()) AppColors.TransparentBlack25 else selectedColor,
             ),
         contentPadding = PaddingValues(4.dp),
         interactionSource = interactionSource,
@@ -505,7 +510,11 @@ fun PlaybackFaButton(
         colors =
             ClickableSurfaceDefaults.colors(
                 containerColor = AppColors.TransparentBlack25,
-                focusedContainerColor = selectedColor,
+                // WeaselTV (handoff §5): transport buttons stay translucent circles and
+                // let the prismatic ring carry focus. Filling them solid on focus would
+                // make every transport control compete with the primary Play control.
+                focusedContainerColor =
+                    if (isWeaselTv()) AppColors.TransparentBlack25 else selectedColor,
             ),
         contentPadding = PaddingValues(4.dp),
         interactionSource = interactionSource,

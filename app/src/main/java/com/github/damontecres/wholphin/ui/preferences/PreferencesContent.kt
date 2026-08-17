@@ -85,6 +85,9 @@ import com.github.damontecres.wholphin.util.LoadingState
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.util.Locale
+import androidx.compose.ui.graphics.Color
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.weaselTitleStyle
 
 @Composable
 fun PreferencesContent(
@@ -199,8 +202,20 @@ fun PreferencesContent(
         ) {
             Text(
                 text = stringResource(screenTitle),
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface,
+                // Page title (handoff §3): rainbow brush on WeaselTV, untouched elsewhere.
+                // Colour must be Unspecified when a brush is active or the solid colour
+                // wins and the text renders flat.
+                style =
+                    weaselTitleStyle(
+                        base = MaterialTheme.typography.headlineSmall,
+                        widthPx = 520f,
+                    ),
+                color =
+                    if (isWeaselTv()) {
+                        Color.Unspecified
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
                 textAlign = TextAlign.Center,
                 modifier =
                     Modifier

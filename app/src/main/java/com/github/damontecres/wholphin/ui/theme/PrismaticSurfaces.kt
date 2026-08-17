@@ -18,6 +18,8 @@ import androidx.tv.material3.Glow
 import androidx.tv.material3.LocalTextStyle
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.ui.theme.colors.WeaselTvColors
+import androidx.tv.material3.ListItemBorder
+import androidx.tv.material3.ListItemDefaults
 
 /**
  * Shared prismatic surface treatments (handoff §3, §5).
@@ -95,6 +97,22 @@ fun weaselSurfaceBorder(
             Border(
                 border = BorderStroke(3.dp, brush),
                 shape = shape,
+            ),
+    )
+}
+
+/**
+ * Focused settings/preference rows (handoff §5). Same ring as everywhere else.
+ */
+@Composable
+fun weaselListItemBorder(): ListItemBorder {
+    if (!isWeaselTv()) return ListItemDefaults.border()
+    val brush = rememberPrismaticBrush(PrismaticDuration.FOCUS_BORDER, widthPx = 700f)
+    return ListItemDefaults.border(
+        focusedBorder =
+            Border(
+                border = BorderStroke(3.dp, brush),
+                shape = RoundedCornerShape(WeaselRadius.Row),
             ),
     )
 }

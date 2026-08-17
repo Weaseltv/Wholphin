@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.tv.material3.ListItem
+import com.github.damontecres.wholphin.ui.theme.weaselListItemBorder
 
 @Composable
 fun ClickPreference(
@@ -16,6 +17,7 @@ fun ClickPreference(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) {
     ListItem(
+        border = weaselListItemBorder(),
         selected = false,
         onClick = onClick,
         onLongClick = onLongClick,

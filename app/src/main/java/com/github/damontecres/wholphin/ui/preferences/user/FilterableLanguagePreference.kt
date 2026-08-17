@@ -32,6 +32,7 @@ import com.github.damontecres.wholphin.util.WholphinDispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.milliseconds
+import com.github.damontecres.wholphin.ui.theme.weaselListItemBorder
 
 /**
  * A filterable list of language choices ([PreferredLanguageType])
@@ -104,6 +105,7 @@ fun FilterableLanguagePreference(
                     HorizontalDivider()
                 } else {
                     ListItem(
+                        border = weaselListItemBorder(),
                         selected = false,
                         onClick = {
                             onClickOption.invoke(option)

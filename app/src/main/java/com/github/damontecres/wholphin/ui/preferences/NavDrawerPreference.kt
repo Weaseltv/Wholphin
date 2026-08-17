@@ -66,6 +66,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import com.github.damontecres.wholphin.ui.theme.weaselListItemBorder
 
 data class NavDrawerPin(
     val id: String,
@@ -230,6 +231,7 @@ fun NavDrawerPreferenceListItem(
                     .heightIn(min = 40.dp),
         ) {
             ListItem(
+                border = weaselListItemBorder(),
                 selected = false,
                 headlineContent = {
                     Text(

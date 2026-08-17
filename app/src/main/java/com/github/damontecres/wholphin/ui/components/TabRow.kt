@@ -43,6 +43,9 @@ import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
 import timber.log.Timber
+import com.github.damontecres.wholphin.ui.theme.PrismaticDuration
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
 
 @Composable
 fun TabRow(
@@ -178,13 +181,24 @@ fun TabIndicator(
         } else {
             Color.Transparent
         }
+    // WeaselTV: the active indicator carries the animated rainbow. The handoff shows a
+    // ring around the selected tab, but it also states layouts do not change - so the
+    // existing underline is re-themed rather than restructured into a ring.
+    val prismatic = isWeaselTv() && (selected || (rowActive && focused))
+    val brush = rememberPrismaticBrush(PrismaticDuration.FOCUS_BORDER, widthPx = 180f)
     Box(
         modifier =
             modifier
-                .height(2.dp)
+                .height(if (isWeaselTv()) 3.dp else 2.dp)
                 .fillMaxWidth()
                 .width(width)
-                .background(backgroundColor),
+                .then(
+                    if (prismatic) {
+                        Modifier.background(brush)
+                    } else {
+                        Modifier.background(backgroundColor)
+                    },
+                ),
     )
 }
 

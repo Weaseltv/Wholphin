@@ -13,6 +13,7 @@ import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.ui.theme.LocalTheme
 import com.github.damontecres.wholphin.ui.theme.colors.WeaselTvColors
 import androidx.compose.ui.graphics.Color
+import com.github.damontecres.wholphin.ui.theme.weaselListItemBorder
 
 @Composable
 fun SwitchPreference(
@@ -45,6 +46,7 @@ fun SwitchPreference(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) {
     ListItem(
+        border = weaselListItemBorder(),
         selected = false,
         onClick = onClick,
         onLongClick = onLongClick,
