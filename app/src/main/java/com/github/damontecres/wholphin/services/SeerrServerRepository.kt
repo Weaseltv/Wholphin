@@ -1,6 +1,8 @@
 package com.github.damontecres.wholphin.services
 
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.api.seerr.SeerrApiClient
+import com.github.damontecres.wholphin.api.seerr.SeerrQuickConnectException
 import com.github.damontecres.wholphin.api.seerr.model.AuthJellyfinPostRequest
 import com.github.damontecres.wholphin.api.seerr.model.AuthLocalPostRequest
 import com.github.damontecres.wholphin.api.seerr.model.PublicSettings
@@ -21,8 +23,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import org.jellyfin.sdk.model.api.ImageType
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.Duration.Companion.seconds
@@ -146,6 +150,58 @@ class SeerrServerRepository
             }
         }
 
+        /**
+         * WeaselFin: connect this Jellyfin user to the pinned Seerr server with no
+         * interaction at all, reusing the Jellyfin session they just signed in with.
+         *
+         * Called only when the user has no Seerr account configured yet. Returns false
+         * when nothing is pinned (every upstream flavor), so the normal manual setup
+         * flow is untouched.
+         *
+         * Failures are logged and surfaced through [error]; they never block sign-in,
+         * because a customer must still be able to watch when the request service is
+         * down.
+         */
+        suspend fun provisionPinnedServer(): Boolean {
+            val pinned = BuildConfig.DEFAULT_SEERR_URL
+            if (pinned.isBlank()) return false
+            val jellyfinUser = serverRepository.currentUser ?: return false
+
+            val url = createSeerrApiUrl(pinned)
+            var stored = seerrServerDao.getServer(url)
+            if (stored == null) {
+                seerrServerDao.addServer(SeerrServer(url = url))
+                stored = seerrServerDao.getServer(url)
+            }
+            val server = stored?.server ?: return false
+
+            return try {
+                seerrApi.update(server.url, null)
+                val userConfig =
+                    seerrQuickConnectLogin(seerrApi.api) { code ->
+                        serverRepository.authorizeQuickConnect(code)
+                    }
+                val seerrUser =
+                    SeerrUser(
+                        jellyfinUserRowId = jellyfinUser.rowId,
+                        serverId = server.id,
+                        authMethod = SeerrAuthMethod.QUICK_CONNECT,
+                        username = null,
+                        // Nothing to store: the session came from Jellyfin, and a new
+                        // one is minted the same way on every sign-in.
+                        password = null,
+                        credential = null,
+                    )
+                seerrServerDao.addUser(seerrUser)
+                set(server, seerrUser, userConfig)
+                Timber.i("Connected to the pinned Seerr server silently")
+                true
+            } catch (ex: Exception) {
+                Timber.w(ex, "Silent Seerr connect failed for %s", server.url)
+                false
+            }
+        }
+
         suspend fun testConnection(
             authMethod: SeerrAuthMethod,
             url: String,
@@ -216,11 +272,52 @@ data class CurrentSeerr(
                 config.hasPermission(SeerrPermission.REQUEST_4K_TV)
 }
 
+/**
+ * WeaselFin: the whole silent Quick Connect exchange.
+ *
+ * 1. ask Seerr to start Quick Connect  -> it returns a code and a secret
+ * 2. approve that code against Jellyfin using the token this device ALREADY holds
+ * 3. hand the secret back to Seerr     -> it issues a normal per-user session
+ *
+ * 🛑 SECURITY: [authorizeCode] is only ever called with the code returned by step 1
+ * in this same invocation. The code is never read from user input, an intent, a
+ * notification or storage, and never leaves this function — so the app cannot be
+ * induced to approve an attacker's Quick Connect request.
+ *
+ * The whole exchange is bounded by [QUICK_CONNECT_TIMEOUT_MS] so a server that
+ * accepts the connection but never answers surfaces an error instead of hanging a
+ * TV on a spinner.
+ */
+private const val QUICK_CONNECT_TIMEOUT_MS = 20_000L
+
+suspend fun seerrQuickConnectLogin(
+    client: SeerrApiClient,
+    authorizeCode: suspend (String) -> Boolean,
+): User =
+    withTimeoutOrNull(QUICK_CONNECT_TIMEOUT_MS) {
+        val started = client.quickConnectInitiate()
+        require(started.code.isNotBlank() && started.secret.isNotBlank()) {
+            "Media server returned an incomplete Quick Connect response."
+        }
+        Timber.i("Seerr Quick Connect initiated; approving our own code")
+
+        if (!authorizeCode(started.code)) {
+            throw SeerrQuickConnectException(
+                "Could not approve the request service automatically.",
+            )
+        }
+        client.quickConnectAuthenticate(started.secret)
+        client.usersApi.authMeGet()
+    } ?: throw SeerrQuickConnectException(
+        "The request service did not respond. Please try again.",
+    )
+
 suspend fun seerrLogin(
     client: SeerrApiClient,
     authMethod: SeerrAuthMethod,
     username: String?,
     password: String?,
+    authorizeQuickConnect: (suspend (String) -> Boolean)? = null,
 ): User =
     when (authMethod) {
         SeerrAuthMethod.LOCAL -> {
@@ -245,6 +342,18 @@ suspend fun seerrLogin(
 
         SeerrAuthMethod.API_KEY -> {
             client.usersApi.authMeGet()
+        }
+
+        SeerrAuthMethod.QUICK_CONNECT -> {
+            // Requires a live Jellyfin session to approve with; callers that cannot
+            // supply one fail loudly here rather than silently falling back to a
+            // password prompt the customer has no password for.
+            val authorize =
+                authorizeQuickConnect
+                    ?: throw SeerrQuickConnectException(
+                        "Sign in to the media server first.",
+                    )
+            seerrQuickConnectLogin(client, authorize)
         }
     }
 

@@ -67,42 +67,54 @@ class UserSwitchListener
                 if (BuildConfig.DISCOVER_ENABLED) {
                     // Check for seerr server
                     launchIO {
-                        seerrServerDao
-                            .getUsersByJellyfinUser(user.rowId)
-                            .lastOrNull()
-                            ?.let { seerrUser ->
-                                val server =
-                                    seerrServerDao.getServer(seerrUser.serverId)?.server
-                                if (server != null) {
-                                    Timber.i("Found a seerr user & server")
-                                    try {
-                                        seerrApi.update(server.url, seerrUser.credential)
-                                        val userConfig =
-                                            if (seerrUser.authMethod != SeerrAuthMethod.API_KEY) {
-                                                seerrLogin(
-                                                    seerrApi.api,
-                                                    seerrUser.authMethod,
-                                                    seerrUser.username,
-                                                    seerrUser.password,
-                                                )
-                                            } else {
-                                                seerrApi.api.usersApi.authMeGet()
+                        val existing =
+                            seerrServerDao
+                                .getUsersByJellyfinUser(user.rowId)
+                                .lastOrNull()
+                        if (existing == null) {
+                            // WeaselFin: nothing configured yet. If this build pins a
+                            // Seerr server, connect to it silently using the Jellyfin
+                            // session that was just established. No-op when unpinned.
+                            seerrServerRepository.provisionPinnedServer()
+                            return@launchIO
+                        }
+                        existing.let { seerrUser ->
+                            val server =
+                                seerrServerDao.getServer(seerrUser.serverId)?.server
+                            if (server != null) {
+                                Timber.i("Found a seerr user & server")
+                                try {
+                                    seerrApi.update(server.url, seerrUser.credential)
+                                    val userConfig =
+                                        if (seerrUser.authMethod != SeerrAuthMethod.API_KEY) {
+                                            seerrLogin(
+                                                seerrApi.api,
+                                                seerrUser.authMethod,
+                                                seerrUser.username,
+                                                seerrUser.password,
+                                            ) { code ->
+                                                // Only ever the code Seerr just issued
+                                                // to us; see seerrQuickConnectLogin.
+                                                serverRepository.authorizeQuickConnect(code)
                                             }
-                                        seerrServerRepository.set(
-                                            server,
-                                            seerrUser,
-                                            userConfig,
-                                        )
-                                    } catch (ex: Exception) {
-                                        Timber.w(
-                                            ex,
-                                            "Error logging into %s",
-                                            server.url,
-                                        )
-                                        seerrServerRepository.error(server, seerrUser, ex)
-                                    }
+                                        } else {
+                                            seerrApi.api.usersApi.authMeGet()
+                                        }
+                                    seerrServerRepository.set(
+                                        server,
+                                        seerrUser,
+                                        userConfig,
+                                    )
+                                } catch (ex: Exception) {
+                                    Timber.w(
+                                        ex,
+                                        "Error logging into %s",
+                                        server.url,
+                                    )
+                                    seerrServerRepository.error(server, seerrUser, ex)
                                 }
                             }
+                        }
                     }
                 }
             }

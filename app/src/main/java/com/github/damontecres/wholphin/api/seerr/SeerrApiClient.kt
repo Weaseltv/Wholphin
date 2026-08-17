@@ -5,9 +5,13 @@ import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import okhttp3.Call
 import okhttp3.Cookie
 import okhttp3.CookieJar
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.RequestBody.Companion.toRequestBody
 import timber.log.Timber
 
 class SeerrApiClient(
@@ -61,7 +65,82 @@ class SeerrApiClient(
     val tvApi by create(::TvApi)
     val usersApi by create(::UsersApi)
     val watchlistApi by create(::WatchlistApi)
+
+    /**
+     * WeaselFin: Seerr's Quick Connect login endpoints.
+     *
+     * These exist in stock Seerr (server/routes/auth.ts) but are absent from the
+     * generated client, whose OpenAPI spec predates them. They are therefore called
+     * directly — deliberately through the SAME OkHttp instance as everything else, so
+     * the session cookie Seerr sets on success lands in the shared cookie jar and every
+     * later call is authenticated exactly as if the user had typed a password.
+     *
+     * Timeouts are inherited from the shared client, so a server that never answers
+     * fails rather than hanging.
+     */
+    fun quickConnectInitiate(): SeerrQuickConnect {
+        val req =
+            okhttp3.Request
+                .Builder()
+                .url("${baseUrl.removeSuffix("/")}/api/v1/auth/jellyfin/quickconnect/initiate")
+                .post(ByteArray(0).toRequestBody(null, 0, 0))
+                .build()
+        client.newCall(req).execute().use { resp ->
+            val body = resp.body.string()
+            if (!resp.isSuccessful) {
+                throw SeerrQuickConnectException(
+                    when (resp.code) {
+                        403 -> "Quick Connect is not enabled on the media server."
+                        else -> "Could not start Quick Connect (HTTP ${resp.code})."
+                    },
+                )
+            }
+            return json.decodeFromString<SeerrQuickConnect>(body)
+        }
+    }
+
+    /**
+     * Exchanges an approved secret for a Seerr session. The cookie jar captures the
+     * session cookie; nothing is persisted by the caller.
+     */
+    fun quickConnectAuthenticate(secret: String) {
+        val payload = json.encodeToString(SeerrQuickConnectSecret(secret))
+        val req =
+            okhttp3.Request
+                .Builder()
+                .url("${baseUrl.removeSuffix("/")}/api/v1/auth/jellyfin/quickconnect/authenticate")
+                .post(payload.toRequestBody("application/json".toMediaType()))
+                .build()
+        client.newCall(req).execute().use { resp ->
+            if (!resp.isSuccessful) {
+                throw SeerrQuickConnectException(
+                    when (resp.code) {
+                        403 -> "This account is not permitted to use the request service."
+                        else -> "Quick Connect sign-in was rejected (HTTP ${resp.code})."
+                    },
+                )
+            }
+        }
+    }
+
+    private val json = Json { ignoreUnknownKeys = true }
 }
+
+@Serializable
+data class SeerrQuickConnect(
+    val code: String,
+    val secret: String,
+)
+
+@Serializable
+private data class SeerrQuickConnectSecret(
+    val secret: String,
+)
+
+/** Carries a message fit to show a customer on a TV, never a raw stack trace. */
+class SeerrQuickConnectException(
+    message: String,
+) : Exception(message)
 
 private class SeerrCookieJar : CookieJar {
     private val cookies = mutableMapOf<String, List<Cookie>>()

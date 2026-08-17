@@ -69,6 +69,13 @@ enum class SeerrAuthMethod {
     LOCAL,
     JELLYFIN,
     API_KEY,
+
+    /**
+     * WeaselFin: sign in to Seerr using the Jellyfin session the user already has,
+     * with no password and no prompt. Appended last on purpose — Room persists this
+     * enum, so inserting a value anywhere else would reinterpret existing rows.
+     */
+    QUICK_CONNECT,
 }
 
 /**

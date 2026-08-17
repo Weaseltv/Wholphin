@@ -92,6 +92,10 @@ configure<ApplicationExtension> {
         // key differs from the installed app, so pointing a fork's updater at upstream
         // offers users a download that can never install.
         buildConfigField("String", "UPDATE_REPO", "\"damontecres/Wholphin\"")
+
+        // WeaselFin: pinned Seerr URL. Blank for every upstream flavor, so the Seerr
+        // setup flow is completely unchanged for them; only `weaselfin` overrides it.
+        buildConfigField("String", "DEFAULT_SEERR_URL", "\"\"")
     }
 
     signingConfigs {
@@ -203,6 +207,7 @@ configure<ApplicationExtension> {
             setFeatureFlag(featureDiscover, true)
             buildConfigField("String", "DEFAULT_SERVER_URL", "\"https://media.theweasel.tv\"")
             buildConfigField("String", "UPDATE_REPO", "\"Weaseltv/Wholphin\"")
+            buildConfigField("String", "DEFAULT_SEERR_URL", "\"https://requests.theweasel.tv\"")
         }
         create("appstore") {
             dimension = "version"

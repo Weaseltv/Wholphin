@@ -97,6 +97,14 @@ class SwitchSeerrViewModel
                                 passwordOrApiKey,
                             )
                         }
+
+                        // WeaselFin: provisioned automatically on sign-in, never
+                        // selected in the manual add-server flow. Unreachable, but
+                        // enumerated so a future auth method still fails compilation
+                        // here rather than silently falling into an `else`.
+                        SeerrAuthMethod.QUICK_CONNECT -> {
+                            Timber.w("Quick Connect is not a manual add-server option")
+                        }
                     }
                     serverConnectionStatus.update { LoadingState.Success }
                 } else {
