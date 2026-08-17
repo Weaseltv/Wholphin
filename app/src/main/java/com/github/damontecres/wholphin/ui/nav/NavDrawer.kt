@@ -98,6 +98,22 @@ import org.jellyfin.sdk.model.api.CollectionType
 import timber.log.Timber
 import java.util.UUID
 import javax.inject.Inject
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.tv.material3.Border
+import androidx.tv.material3.NavigationDrawerItemColors
+import com.github.damontecres.wholphin.ui.theme.LocalPrismaticEnabled
+import com.github.damontecres.wholphin.ui.theme.PrismaticDuration
+import com.github.damontecres.wholphin.ui.theme.WeaselRadius
+import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
+import androidx.compose.foundation.border
 
 @HiltViewModel
 class NavDrawerViewModel
@@ -451,6 +467,7 @@ fun NavDrawer(
                             val interactionSource = remember { MutableInteractionSource() }
                             NavItem(
                                 library = it,
+                                railSlot = index + RailRainbow.LIBRARY_SLOT_OFFSET,
                                 selected = selectedIndex == index,
                                 moreExpanded = moreExpanded,
                                 drawerOpen = isOpen,
@@ -495,6 +512,7 @@ fun NavDrawer(
                                 val interactionSource = remember { MutableInteractionSource() }
                                 NavItem(
                                     library = it,
+                                    railSlot = adjustedIndex + RailRainbow.LIBRARY_SLOT_OFFSET,
                                     selected = selectedIndex == adjustedIndex,
                                     moreExpanded = moreExpanded,
                                     drawerOpen = isOpen,
@@ -619,9 +637,10 @@ fun NavigationDrawerScope.IconNavItem(
 ) {
     val focused by interactionSource.collectIsFocusedAsState()
     NavigationDrawerItem(
-        modifier = modifier,
+        modifier = modifier.weaselDrawerItemRing(focused),
         selected = false,
         onClick = onClick,
+        colors = weaselDrawerItemColors(Color.Unspecified),
         leadingContent = {
             val color =
                 railColor?.let { railTint(it, selected) }
@@ -630,7 +649,7 @@ fun NavigationDrawerScope.IconNavItem(
                 icon,
                 contentDescription = null,
                 tint = color,
-                modifier = Modifier.size(DrawerIconSize),
+                modifier = Modifier.size(DrawerIconSize).railSelectedGlow(color, selected),
             )
         },
         supportingContent =
@@ -662,6 +681,7 @@ fun NavigationDrawerScope.NavItem(
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     containerColor: Color = Color.Unspecified,
+    railSlot: Int = 0,
 ) {
     val context = LocalContext.current
     val useFont = library !is ServerNavDrawerItem || library.type != CollectionType.LIVETV
@@ -696,18 +716,21 @@ fun NavigationDrawerScope.NavItem(
         }
     val focused by interactionSource.collectIsFocusedAsState()
     NavigationDrawerItem(
-        modifier = modifier,
+        modifier = modifier.weaselDrawerItemRing(focused),
         selected = false,
         onClick = onClick,
-        colors =
-            NavigationDrawerItemDefaults.colors(
-                containerColor = containerColor,
-            ),
+        colors = weaselDrawerItemColors(containerColor),
         leadingContent = {
             val color =
-                railIconColor(library, selected)
+                railIconColor(railSlot, selected)
                     ?: navItemColor(selected, focused, drawerOpen)
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .railSelectedGlow(color, selected),
+                contentAlignment = Alignment.Center,
+            ) {
                 if (useFont) {
                     Text(
                         text = stringResource(icon),
@@ -765,8 +788,94 @@ object RailRainbow {
     val Favorites = Color(0xFFFF7A00)
     val Settings = Color(0xFFFF2EF7)
 
-    /** Extra libraries continue the wheel in library order. */
-    val Wheel = listOf(Settings, Search, Home, Movies, Shows, Music, Favorites)
+    /**
+     * Every rail colour, in handoff order.
+     *
+     * Colours are assigned by POSITION in the rail, not by library type. Keying off
+     * CollectionType meant every movie library rendered the same red and every TV
+     * library the same yellow - three identical reds in a row on the owner's rail.
+     * Rotating by position guarantees neighbours always differ and only repeats after
+     * a full cycle of seven, which is the widest spread seven colours allow.
+     */
+    val Wheel = listOf(Search, Home, Movies, Shows, Music, Favorites, Settings)
+
+    /** Search occupies slot 0 and Home slot 1, so library items start here. */
+    const val LIBRARY_SLOT_OFFSET = 2
+}
+
+/**
+ * WeaselTV rail selector.
+ *
+ * The stock drawer fills the focused row with a near-white surface, which fights the
+ * graphite palette and is the one thing on the rail that is not themed. Here the fill
+ * goes transparent and focus is carried by the same prismatic ring every other
+ * focusable surface uses, so the rail matches the rest of the app.
+ */
+@Composable
+fun weaselDrawerItemColors(containerColor: Color): NavigationDrawerItemColors =
+    if (LocalTheme.current == AppThemeColors.WEASELTV) {
+        NavigationDrawerItemDefaults.colors(
+            containerColor = Color.Transparent,
+            focusedContainerColor = Color.Transparent,
+            selectedContainerColor = Color.Transparent,
+            pressedContainerColor = Color.Transparent,
+            focusedSelectedContainerColor = Color.Transparent,
+        )
+    } else {
+        NavigationDrawerItemDefaults.colors(containerColor = containerColor)
+    }
+
+/**
+ * The prismatic focus ring for a rail row.
+ *
+ * Applied as a modifier because `NavigationDrawerItem` exposes no `border` parameter -
+ * unlike Card and the clickable Surfaces, which do.
+ */
+@Composable
+fun Modifier.weaselDrawerItemRing(focused: Boolean): Modifier {
+    if (!focused || LocalTheme.current != AppThemeColors.WEASELTV) return this
+    val brush = rememberPrismaticBrush(PrismaticDuration.FOCUS_BORDER, widthPx = 420f)
+    return this.border(
+        width = 3.dp,
+        brush = brush,
+        shape = RoundedCornerShape(WeaselRadius.Row),
+    )
+}
+
+/**
+ * Pulsing halo behind the SELECTED rail icon, in that icon's own colour.
+ *
+ * Deliberately its own transition rather than the shared prismatic driver: that one
+ * sweeps linearly for gradients, whereas this needs to breathe (Reverse). Only ever one
+ * of these is alive at a time, because only one rail item is selected.
+ */
+@Composable
+fun Modifier.railSelectedGlow(
+    color: Color,
+    selected: Boolean,
+): Modifier {
+    if (!selected || LocalTheme.current != AppThemeColors.WEASELTV) return this
+    if (!LocalPrismaticEnabled.current) {
+        return this.drawBehind {
+            drawCircle(color.copy(alpha = .35f), radius = size.minDimension * .78f)
+        }
+    }
+    val pulse by rememberInfiniteTransition(label = "railGlow").animateFloat(
+        initialValue = .30f,
+        targetValue = 1f,
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(1400, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+        label = "railGlowPulse",
+    )
+    return this.drawBehind {
+        drawCircle(
+            color = color.copy(alpha = .42f * pulse),
+            radius = size.minDimension * (.62f + .22f * pulse),
+        )
+    }
 }
 
 @Composable
@@ -784,26 +893,11 @@ fun railTint(
 @Composable
 @ReadOnlyComposable
 fun railIconColor(
-    library: NavDrawerItem,
+    slot: Int,
     selected: Boolean,
 ): Color? {
     if (LocalTheme.current != AppThemeColors.WEASELTV) return null
-    val base =
-        when (library) {
-            NavDrawerItem.Favorites -> RailRainbow.Favorites
-            NavDrawerItem.Discover -> RailRainbow.Search
-            NavDrawerItem.More -> RailRainbow.Settings
-            is ServerNavDrawerItem ->
-                when (library.type) {
-                    CollectionType.MOVIES -> RailRainbow.Movies
-                    CollectionType.TVSHOWS -> RailRainbow.Shows
-                    CollectionType.MUSIC -> RailRainbow.Music
-                    else ->
-                        RailRainbow.Wheel[
-                            kotlin.math.abs(library.hashCode()) % RailRainbow.Wheel.size,
-                        ]
-                }
-        }
+    val base = RailRainbow.Wheel[((slot % RailRainbow.Wheel.size) + RailRainbow.Wheel.size) % RailRainbow.Wheel.size]
     return railTint(base, selected)
 }
 
