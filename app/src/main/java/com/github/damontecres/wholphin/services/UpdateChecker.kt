@@ -129,7 +129,7 @@ class UpdateChecker
 
         suspend fun getRelease(version: Version): Release? {
             val url =
-                "https://api.github.com/repos/damontecres/Wholphin/releases/tags/v${version.major}.${version.minor}.${version.patch}"
+                "https://api.github.com/repos/${BuildConfig.UPDATE_REPO}/releases/tags/v${version.major}.${version.minor}.${version.patch}"
             return withContext(WholphinDispatchers.IO) {
                 val request =
                     Request

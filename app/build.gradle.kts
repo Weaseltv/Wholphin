@@ -83,6 +83,15 @@ configure<ApplicationExtension> {
         // unchanged; only the `weaselfin` flavor overrides it. Declared here so
         // BuildConfig.DEFAULT_SERVER_URL exists for all flavors and the source compiles.
         buildConfigField("String", "DEFAULT_SERVER_URL", "\"\"")
+
+        // WeaselFin: which GitHub repo the in-app updater checks. Upstream's value here, so
+        // every upstream flavor behaves exactly as before; only the `weaselfin` flavor
+        // overrides it.
+        //
+        // 🛑 A fork MUST override this. Android refuses to install an update whose signing
+        // key differs from the installed app, so pointing a fork's updater at upstream
+        // offers users a download that can never install.
+        buildConfigField("String", "UPDATE_REPO", "\"damontecres/Wholphin\"")
     }
 
     signingConfigs {
@@ -193,6 +202,7 @@ configure<ApplicationExtension> {
             setFeatureFlag(featureUpdate, true)
             setFeatureFlag(featureDiscover, true)
             buildConfigField("String", "DEFAULT_SERVER_URL", "\"https://media.theweasel.tv\"")
+            buildConfigField("String", "UPDATE_REPO", "\"Weaseltv/Wholphin\"")
         }
         create("appstore") {
             dimension = "version"

@@ -563,7 +563,9 @@ sealed interface AppPreference<Pref, T> {
         val UpdateUrl =
             AppStringPreference<AppPreferences>(
                 title = R.string.update_url,
-                defaultValue = "https://api.github.com/repos/damontecres/Wholphin/releases/latest",
+                // Repo comes from BuildConfig so a fork's updater points at its OWN releases.
+                // Unchanged for upstream flavors, which set UPDATE_REPO to damontecres/Wholphin.
+                defaultValue = "https://api.github.com/repos/${BuildConfig.UPDATE_REPO}/releases/latest",
                 getter = { it.updateUrl },
                 setter = { prefs, value ->
                     prefs.update { updateUrl = value }
