@@ -32,6 +32,8 @@ import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.components.ViewOptionImageType
 import com.github.damontecres.wholphin.ui.enableMarquee
 import kotlinx.coroutines.delay
+import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
+import com.github.damontecres.wholphin.ui.theme.weaselCardBorder
 
 /**
  * Card for use in [com.github.damontecres.wholphin.ui.detail.CardGrid]
@@ -81,6 +83,8 @@ fun GridCard(
                 CardDefaults.colors(
                     containerColor = Color.Transparent,
                 ),
+            border = weaselCardBorder(),
+            glow = weaselCardGlow(),
         ) {
             ItemCardImage(
                 item = item,

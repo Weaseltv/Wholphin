@@ -68,6 +68,13 @@ import org.jellyfin.sdk.model.api.SortOrder
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.tv.material3.ClickableSurfaceDefaults
+import com.github.damontecres.wholphin.ui.theme.PrismaticDuration
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
+import com.github.damontecres.wholphin.ui.theme.colors.WeaselTvColors
 
 /**
  * Standard row of [ExpandablePlayButton] including Play (or Resume & Restart), Mark played, & More
@@ -302,17 +309,57 @@ fun ExpandablePlayButton(
     enabled: Boolean = true,
 ) {
     val isFocused = interactionSource.collectIsFocusedAsState().value
+    // WeaselTV (handoff §3): the primary Play/Resume control is a fully-rounded pill
+    // filled with the animated rainbow, with dark ink on top. Every OTHER action button
+    // stays a translucent circle, which is what keeps this one reading as primary.
+    val prismatic = isWeaselTv()
+    val fill = rememberPrismaticBrush(PrismaticDuration.BUTTON_FILL, widthPx = 420f)
     Button(
         onClick = { onClick.invoke(resume) },
         enabled = enabled,
         modifier =
-            modifier.requiredSizeIn(
-                minWidth = MinButtonSize,
-                minHeight = MinButtonSize,
-                maxHeight = MinButtonSize,
-            ),
+            modifier
+                .requiredSizeIn(
+                    minWidth = MinButtonSize,
+                    minHeight = MinButtonSize,
+                    maxHeight = MinButtonSize,
+                ).then(
+                    if (prismatic) {
+                        Modifier.background(brush = fill, shape = CircleShape)
+                    } else {
+                        Modifier
+                    },
+                ),
         contentPadding = DefaultButtonPadding,
         interactionSource = interactionSource,
+        colors =
+            if (prismatic) {
+                // Transparent container so the brush behind it is what shows. Ink is
+                // #02131A in every state - white on neon is unreadable and the handoff
+                // forbids it.
+                ClickableSurfaceDefaults.colors(
+                    containerColor = Color.Transparent,
+                    contentColor = WeaselTvColors.OnNeon,
+                    focusedContainerColor = Color.Transparent,
+                    focusedContentColor = WeaselTvColors.OnNeon,
+                    pressedContainerColor = Color.Transparent,
+                    pressedContentColor = WeaselTvColors.OnNeon,
+                )
+            } else {
+                // Verbatim from Button.kt's own default, so nothing changes off-theme.
+                ClickableSurfaceDefaults.colors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
+                    contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                    focusedContainerColor = MaterialTheme.colorScheme.onSurface,
+                    focusedContentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                    pressedContainerColor = MaterialTheme.colorScheme.onSurface,
+                    pressedContentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                    disabledContainerColor =
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                    disabledContentColor =
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                )
+            },
     ) {
         Box(
             contentAlignment = Alignment.Center,

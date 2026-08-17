@@ -43,6 +43,9 @@ import com.github.damontecres.wholphin.ui.gt
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.logCoilError
 import org.jellyfin.sdk.model.api.ImageType
+import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.PrismaticDuration
 
 /**
  * Display an image for an item with optional overlay data
@@ -265,13 +268,20 @@ fun ItemCardImageOverlay(
             }
         }
 
+        // Watch-progress strip animates the rainbow on WeaselTV (handoff §3).
+        val watchProgressBrush =
+            rememberPrismaticBrush(PrismaticDuration.PROGRESS_FILL, widthPx = 260f)
         if (watchedPercent != null && watchedPercent > 0 && watchedPercent < 100) {
             Box(
                 modifier =
                     Modifier
                         .align(Alignment.BottomStart)
-                        .background(
-                            MaterialTheme.colorScheme.tertiary,
+                        .then(
+                            if (isWeaselTv()) {
+                                Modifier.background(watchProgressBrush)
+                            } else {
+                                Modifier.background(MaterialTheme.colorScheme.tertiary)
+                            },
                         ).clip(RectangleShape)
                         .height(Cards.playedPercentHeight)
                         .fillMaxWidth((watchedPercent / 100.0).toFloat()),

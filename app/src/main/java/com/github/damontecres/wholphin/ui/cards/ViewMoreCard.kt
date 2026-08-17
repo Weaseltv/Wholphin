@@ -41,6 +41,8 @@ import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.enableMarquee
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import kotlinx.coroutines.delay
+import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
+import com.github.damontecres.wholphin.ui.theme.weaselCardBorder
 
 @Composable
 fun ViewMoreCard(
@@ -92,6 +94,8 @@ fun ViewMoreCard(
                 CardDefaults.colors(
                     containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp),
                 ),
+            border = weaselCardBorder(),
+            glow = weaselCardGlow(),
         ) {
             Box(
                 contentAlignment = Alignment.Center,

@@ -47,6 +47,8 @@ import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.enableMarquee
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import kotlinx.coroutines.delay
+import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
+import com.github.damontecres.wholphin.ui.theme.weaselCardBorder
 
 @Composable
 fun DiscoverItemCard(
@@ -91,6 +93,8 @@ fun DiscoverItemCard(
                 CardDefaults.colors(
                     containerColor = Color.Transparent,
                 ),
+            border = weaselCardBorder(),
+            glow = weaselCardGlow(),
         ) {
             Box(
                 modifier =

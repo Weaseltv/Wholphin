@@ -35,6 +35,8 @@ import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.enableMarquee
 import kotlinx.coroutines.delay
 import org.jellyfin.sdk.model.api.ImageType
+import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
+import com.github.damontecres.wholphin.ui.theme.weaselCardBorder
 
 /**
  * A Card for a TV Show Season, but can generally show most items
@@ -158,6 +160,8 @@ fun SeasonCard(
                 CardDefaults.colors(
                     containerColor = Color.Transparent,
                 ),
+            border = weaselCardBorder(),
+            glow = weaselCardGlow(),
         ) {
             Box(
                 modifier =

@@ -44,6 +44,8 @@ import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import kotlinx.coroutines.delay
 import org.jellyfin.sdk.model.UUID
 import org.jellyfin.sdk.model.api.PersonKind
+import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
+import com.github.damontecres.wholphin.ui.theme.weaselCardBorder
 
 /**
  * A Card for a [Person] such as an actor or director
@@ -105,18 +107,26 @@ fun PersonCard(
             onLongClick = onLongClick,
             interactionSource = interactionSource,
             shape = CardDefaults.shape(CircleShape),
+            // Cast circles are round, so the ring has to follow the shape. Falls back
+            // to the original solid-border treatment on every non-WeaselTV theme.
             border =
-                CardDefaults.border(
-                    focusedBorder =
-                        Border(
-                            border =
-                                BorderStroke(
-                                    width = 3.dp,
-                                    color = MaterialTheme.colorScheme.border,
+                weaselCardBorder(
+                    shape = CircleShape,
+                    widthPx = 220f,
+                    fallback =
+                        CardDefaults.border(
+                            focusedBorder =
+                                Border(
+                                    border =
+                                        BorderStroke(
+                                            width = 3.dp,
+                                            color = MaterialTheme.colorScheme.border,
+                                        ),
+                                    shape = CircleShape,
                                 ),
-                            shape = CircleShape,
                         ),
                 ),
+            glow = weaselCardGlow(),
             colors =
                 CardDefaults.colors(
                     containerColor = Color.Transparent,

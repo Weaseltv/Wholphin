@@ -36,6 +36,8 @@ import com.github.damontecres.wholphin.ui.components.Studio
 import com.github.damontecres.wholphin.ui.setup.rememberIdColor
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import java.util.UUID
+import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
+import com.github.damontecres.wholphin.ui.theme.weaselCardBorder
 
 @Composable
 fun StudioCard(
@@ -75,6 +77,8 @@ fun StudioCard(
             CardDefaults.colors(
                 containerColor = Color.Transparent,
             ),
+        border = weaselCardBorder(),
+        glow = weaselCardGlow(),
     ) {
         Box(
             contentAlignment = Alignment.Center,

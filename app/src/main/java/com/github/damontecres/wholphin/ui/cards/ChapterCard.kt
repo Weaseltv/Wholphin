@@ -33,6 +33,8 @@ import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.formatDuration
 import com.github.damontecres.wholphin.ui.roundSeconds
 import org.jellyfin.sdk.model.api.ImageType
+import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
+import com.github.damontecres.wholphin.ui.theme.weaselCardBorder
 
 /**
  * Card for a [com.github.damontecres.wholphin.data.model.Chapter]
@@ -64,6 +66,8 @@ fun ChapterCard(
         onClick = onClick,
         onLongClick = onLongClick,
         interactionSource = interactionSource,
+        border = weaselCardBorder(),
+        glow = weaselCardGlow(),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             AsyncImage(

@@ -48,6 +48,11 @@ import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.enableMarquee
 import org.jellyfin.sdk.model.api.ImageType
+import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
+import com.github.damontecres.wholphin.ui.theme.weaselCardBorder
+import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.PrismaticDuration
 
 /**
  * Displays an image as a card. If no image is available, the name will be shown instead
@@ -112,6 +117,8 @@ fun BannerCard(
             CardDefaults.colors(
 //                containerColor = Color.Transparent,
             ),
+        border = weaselCardBorder(),
+        glow = weaselCardGlow(),
     ) {
         Box(
             modifier =
@@ -182,13 +189,20 @@ fun BannerCard(
                     fontFamily = FontAwesome,
                 )
             }
+            // Watch-progress strip animates the rainbow on WeaselTV (handoff §3).
+            val watchProgressBrush =
+                rememberPrismaticBrush(PrismaticDuration.PROGRESS_FILL, widthPx = 260f)
             if (playPercent > 0 && playPercent < 100) {
                 Box(
                     modifier =
                         Modifier
                             .align(Alignment.BottomStart)
-                            .background(
-                                MaterialTheme.colorScheme.tertiary,
+                            .then(
+                                if (isWeaselTv()) {
+                                    Modifier.background(watchProgressBrush)
+                                } else {
+                                    Modifier.background(MaterialTheme.colorScheme.tertiary)
+                                },
                             ).clip(RectangleShape)
                             .height(Cards.playedPercentHeight)
                             .fillMaxWidth((playPercent / 100).toFloat()),
