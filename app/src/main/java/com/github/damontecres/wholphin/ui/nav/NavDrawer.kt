@@ -781,16 +781,23 @@ fun NavigationDrawerScope.NavItem(
  * reads as a rainbow at rest rather than only lighting up on focus.
  */
 object RailRainbow {
-    val Search = Color(0xFF63C7FF)
-    val Home = Color(0xFF7E57C2)
-    val Movies = Color(0xFFFF3B55)
-    val Shows = Color(0xFFFFF700)
-    val Music = Color(0xFFA7FF3B)
-    val Favorites = Color(0xFFFF7A00)
-    val Settings = Color(0xFFFF2EF7)
+    // Brighter neon set, at the owner's request: the handoff's rail table read muted on
+    // a real TV - notably #7E57C2 (dusty violet) and #63C7FF (pale blue).
+    //
+    // Five of the seven are lifted verbatim from the brand's OWN neon accents in
+    // DiagnosticsTokens.Accent - the same token file the prismatic ring came from - so
+    // this is brighter AND more on-brand than inventing a palette. Only the orange is
+    // outside that set, pushed up from #FF7A00 because no neon orange exists there.
+    val Search = Color(0xFF00F0FF) // Accent.CYAN    (was #63C7FF)
+    val Home = Color(0xFFC026FF) // Accent.VIOLET  (was #7E57C2)
+    val Movies = Color(0xFFFF3B55) // Accent.RED
+    val Shows = Color(0xFFFFF700) // Accent.YELLOW
+    val Music = Color(0xFF39FF14) // Accent.GREEN   (was #A7FF3B)
+    val Favorites = Color(0xFFFF9100) // neon orange   (was #FF7A00)
+    val Settings = Color(0xFFFF2EF7) // Accent.MAGENTA
 
     /**
-     * Every rail colour, in handoff order.
+     * Every rail colour, in order.
      *
      * Colours are assigned by POSITION in the rail, not by library type. Keying off
      * CollectionType meant every movie library rendered the same red and every TV
