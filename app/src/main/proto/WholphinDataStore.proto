@@ -122,6 +122,9 @@ enum AppThemeColors {
   OLED_BLACK = 5;
   RED = 6;
   BROWN = 7;
+  // WeaselFin brand theme. Appended last - these values are persisted, so inserting
+  // anywhere else would silently repaint every existing user's app.
+  WEASELTV = 8;
 }
 
 enum EdgeStyle{

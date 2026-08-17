@@ -317,6 +317,7 @@
     <string name="advanced_settings">Advanced Settings</string>
     <string name="advanced_ui">Advanced UI</string>
     <string name="app_theme">Application Theme</string>
+    <string name="weaseltv" translatable="false">WeaselTV</string>
     <string name="auto_check_for_updates">Automatically check for updates</string>
     <string name="auto_play_next_delay">Delay before playing next up</string>
     <string name="auto_play_next">Auto play next up</string>
@@ -611,6 +612,7 @@
         <item>@string/black</item>
         <item>@string/red</item>
         <item>@string/brown</item>
+        <item>@string/weaseltv</item>
     </string-array>
 
     <string name="skip_ignore">Ignore</string>

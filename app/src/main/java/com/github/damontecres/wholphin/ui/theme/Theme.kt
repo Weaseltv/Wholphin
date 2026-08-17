@@ -8,6 +8,7 @@ import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.ui.theme.colors.BlueThemeColors
 import com.github.damontecres.wholphin.ui.theme.colors.BoldBlueThemeColors
 import com.github.damontecres.wholphin.ui.theme.colors.BrownThemeColors
+import com.github.damontecres.wholphin.ui.theme.colors.WeaselTvThemeColors
 import com.github.damontecres.wholphin.ui.theme.colors.GreenThemeColors
 import com.github.damontecres.wholphin.ui.theme.colors.OledThemeColors
 import com.github.damontecres.wholphin.ui.theme.colors.OrangeThemeColors
@@ -27,6 +28,7 @@ fun getThemeColors(appThemeColors: AppThemeColors): ThemeColors =
         AppThemeColors.BOLD_BLUE -> BoldBlueThemeColors
         AppThemeColors.RED -> RedThemeColors
         AppThemeColors.BROWN -> BrownThemeColors
+        AppThemeColors.WEASELTV -> WeaselTvThemeColors
         AppThemeColors.UNRECOGNIZED -> PurpleThemeColors
     }
 
@@ -51,8 +53,12 @@ fun WholphinTheme(
             MaterialTheme(
                 colorScheme = colorScheme,
                 typography = AppTypography,
-                content = content,
-            )
+            ) {
+                // One shared prismatic driver for the whole app. Installed here so every
+                // screen — and every @Preview — gets it without remembering to wrap.
+                // Inert for non-WeaselTV themes: nothing reads the brush unless it opts in.
+                PrismaticAnimationHost(content = content)
+            }
         }
     }
 }

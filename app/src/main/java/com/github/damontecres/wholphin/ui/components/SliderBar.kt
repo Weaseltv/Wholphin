@@ -148,6 +148,7 @@ fun sliderActiveColor(focused: Boolean): Color {
         AppThemeColors.ORANGE,
         AppThemeColors.RED,
         AppThemeColors.BROWN,
+        AppThemeColors.WEASELTV,
         -> {
             MaterialTheme.colorScheme.border
         }
@@ -203,5 +204,8 @@ fun sliderInactiveColor(focused: Boolean): Color {
                 MaterialTheme.colorScheme.primaryContainer
             }
         }
+
+        // theme-tokens.json progressBar.trackColor
+        AppThemeColors.WEASELTV -> Color.White.copy(alpha = .16f)
     }
 }

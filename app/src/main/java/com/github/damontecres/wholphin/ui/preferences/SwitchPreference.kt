@@ -11,6 +11,8 @@ import androidx.tv.material3.SwitchColors
 import androidx.tv.material3.SwitchDefaults
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.ui.theme.LocalTheme
+import com.github.damontecres.wholphin.ui.theme.colors.WeaselTvColors
+import androidx.compose.ui.graphics.Color
 
 @Composable
 fun SwitchPreference(
@@ -85,6 +87,17 @@ fun SwitchColors(): SwitchColors {
             SwitchDefaults.colors(
                 checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
                 uncheckedThumbColor = MaterialTheme.colorScheme.onPrimary,
+            )
+        }
+
+        AppThemeColors.WEASELTV -> {
+            SwitchDefaults.colors(
+                checkedTrackColor = WeaselTvColors.NeonCyan,
+                checkedThumbColor = Color.White,
+                checkedBorderColor = WeaselTvColors.NeonCyan,
+                uncheckedTrackColor = Color.White.copy(alpha = .14f),
+                uncheckedThumbColor = WeaselTvColors.TextMuted,
+                uncheckedBorderColor = WeaselTvColors.Hairline,
             )
         }
     }

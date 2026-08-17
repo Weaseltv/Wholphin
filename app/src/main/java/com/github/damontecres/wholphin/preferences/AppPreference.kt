@@ -493,7 +493,11 @@ sealed interface AppPreference<Pref, T> {
         val ThemeColors =
             AppChoicePreference<AppPreferences, AppThemeColors>(
                 title = R.string.app_theme,
-                defaultValue = AppThemeColors.PURPLE,
+                // Flavor-selectable so WeaselFin starts on its brand theme while every
+                // upstream flavor still starts on PURPLE.
+                defaultValue =
+                    runCatching { AppThemeColors.valueOf(BuildConfig.DEFAULT_THEME) }
+                        .getOrDefault(AppThemeColors.PURPLE),
                 getter = { it.interfacePreferences.appThemeColors },
                 setter = { prefs, value ->
                     prefs.updateInterfacePreferences { appThemeColors = value }

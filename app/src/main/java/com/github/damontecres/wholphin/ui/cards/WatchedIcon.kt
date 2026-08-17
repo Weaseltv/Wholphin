@@ -18,6 +18,7 @@ import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.theme.LocalTheme
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
+import com.github.damontecres.wholphin.ui.theme.colors.WeaselTvColors
 
 @Composable
 fun WatchedIcon(
@@ -47,6 +48,7 @@ fun WatchedIconBackground(): Color =
         AppThemeColors.BOLD_BLUE,
         AppThemeColors.RED,
         AppThemeColors.BROWN,
+        AppThemeColors.WEASELTV,
         -> MaterialTheme.colorScheme.border.copy(alpha = 1f)
 
         AppThemeColors.OLED_BLACK -> MaterialTheme.colorScheme.secondaryContainer
@@ -65,6 +67,10 @@ fun WatchedIconColor(): Color =
         AppThemeColors.RED,
         AppThemeColors.BROWN,
         -> Color.White // MaterialTheme.colorScheme.onSurface
+
+        // Dark ink on the neon circle. White on neon is unreadable and is called out
+        // in the handoff as never allowed.
+        AppThemeColors.WEASELTV -> WeaselTvColors.OnNeon
     }
 
 @PreviewTvSpec

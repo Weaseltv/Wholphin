@@ -403,6 +403,7 @@ fun NavDrawer(
                             val interactionSource = remember { MutableInteractionSource() }
                             IconNavItem(
                                 text = stringResource(R.string.search),
+                                railColor = RailRainbow.Search,
                                 icon = Icons.Default.Search,
                                 selected = selectedIndex == SEARCH_INDEX,
                                 drawerOpen = isOpen,
@@ -424,6 +425,7 @@ fun NavDrawer(
                             val interactionSource = remember { MutableInteractionSource() }
                             IconNavItem(
                                 text = stringResource(R.string.home),
+                                railColor = RailRainbow.Home,
                                 icon = Icons.Default.Home,
                                 selected = selectedIndex == HOME_INDEX,
                                 drawerOpen = isOpen,
@@ -522,6 +524,7 @@ fun NavDrawer(
                             val interactionSource = remember { MutableInteractionSource() }
                             IconNavItem(
                                 text = stringResource(R.string.settings),
+                                railColor = RailRainbow.Settings,
                                 icon = Icons.Default.Settings,
                                 selected = false,
                                 drawerOpen = isOpen,
@@ -612,6 +615,7 @@ fun NavigationDrawerScope.IconNavItem(
     modifier: Modifier = Modifier,
     subtext: String? = null,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    railColor: Color? = null,
 ) {
     val focused by interactionSource.collectIsFocusedAsState()
     NavigationDrawerItem(
@@ -619,7 +623,9 @@ fun NavigationDrawerScope.IconNavItem(
         selected = false,
         onClick = onClick,
         leadingContent = {
-            val color = navItemColor(selected, focused, drawerOpen)
+            val color =
+                railColor?.let { railTint(it, selected) }
+                    ?: navItemColor(selected, focused, drawerOpen)
             Icon(
                 icon,
                 contentDescription = null,
@@ -698,7 +704,9 @@ fun NavigationDrawerScope.NavItem(
                 containerColor = containerColor,
             ),
         leadingContent = {
-            val color = navItemColor(selected, focused, drawerOpen)
+            val color =
+                railIconColor(library, selected)
+                    ?: navItemColor(selected, focused, drawerOpen)
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 if (useFont) {
                     Text(
@@ -740,6 +748,65 @@ fun NavigationDrawerScope.NavItem(
     }
 }
 
+/**
+ * WeaselTV rail rainbow (handoff §4). Fixed colours per slot, top to bottom.
+ *
+ * Returns null for every other theme so their rail is untouched.
+ *
+ * Selected gets full colour; unselected the same colour at 85% alpha — so the rail
+ * reads as a rainbow at rest rather than only lighting up on focus.
+ */
+object RailRainbow {
+    val Search = Color(0xFF63C7FF)
+    val Home = Color(0xFF7E57C2)
+    val Movies = Color(0xFFFF3B55)
+    val Shows = Color(0xFFFFF700)
+    val Music = Color(0xFFA7FF3B)
+    val Favorites = Color(0xFFFF7A00)
+    val Settings = Color(0xFFFF2EF7)
+
+    /** Extra libraries continue the wheel in library order. */
+    val Wheel = listOf(Settings, Search, Home, Movies, Shows, Music, Favorites)
+}
+
+@Composable
+@ReadOnlyComposable
+fun railTint(
+    color: Color,
+    selected: Boolean,
+): Color? =
+    if (LocalTheme.current == AppThemeColors.WEASELTV) {
+        if (selected) color else color.copy(alpha = .85f)
+    } else {
+        null
+    }
+
+@Composable
+@ReadOnlyComposable
+fun railIconColor(
+    library: NavDrawerItem,
+    selected: Boolean,
+): Color? {
+    if (LocalTheme.current != AppThemeColors.WEASELTV) return null
+    val base =
+        when (library) {
+            NavDrawerItem.Favorites -> RailRainbow.Favorites
+            NavDrawerItem.Discover -> RailRainbow.Search
+            NavDrawerItem.More -> RailRainbow.Settings
+            is ServerNavDrawerItem ->
+                when (library.type) {
+                    CollectionType.MOVIES -> RailRainbow.Movies
+                    CollectionType.TVSHOWS -> RailRainbow.Shows
+                    CollectionType.MUSIC -> RailRainbow.Music
+                    else ->
+                        RailRainbow.Wheel[
+                            kotlin.math.abs(library.hashCode()) % RailRainbow.Wheel.size,
+                        ]
+                }
+        }
+    return railTint(base, selected)
+}
+
 @Composable
 @ReadOnlyComposable
 fun navItemColor(
@@ -774,6 +841,7 @@ fun navItemColor(
                     AppThemeColors.ORANGE,
                     AppThemeColors.RED,
                     AppThemeColors.BROWN,
+                    AppThemeColors.WEASELTV,
                     -> MaterialTheme.colorScheme.border
 
                     AppThemeColors.BOLD_BLUE,

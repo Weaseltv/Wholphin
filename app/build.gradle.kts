@@ -96,6 +96,10 @@ configure<ApplicationExtension> {
         // WeaselFin: pinned Seerr URL. Blank for every upstream flavor, so the Seerr
         // setup flow is completely unchanged for them; only `weaselfin` overrides it.
         buildConfigField("String", "DEFAULT_SEERR_URL", "\"\"")
+
+        // WeaselFin: which AppThemeColors value a fresh install starts on. Upstream
+        // flavors keep PURPLE, so their default is unchanged.
+        buildConfigField("String", "DEFAULT_THEME", "\"PURPLE\"")
     }
 
     signingConfigs {
@@ -208,6 +212,7 @@ configure<ApplicationExtension> {
             buildConfigField("String", "DEFAULT_SERVER_URL", "\"https://media.theweasel.tv\"")
             buildConfigField("String", "UPDATE_REPO", "\"Weaseltv/Wholphin\"")
             buildConfigField("String", "DEFAULT_SEERR_URL", "\"https://requests.theweasel.tv\"")
+            buildConfigField("String", "DEFAULT_THEME", "\"WEASELTV\"")
         }
         create("appstore") {
             dimension = "version"
