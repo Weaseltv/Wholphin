@@ -77,12 +77,17 @@ class SeerrApiClient(
      *
      * Timeouts are inherited from the shared client, so a server that never answers
      * fails rather than hanging.
+     *
+     * 🛑 baseUrl ALREADY ENDS IN /api/v1 (see createSeerrApiUrl), which is why the paths
+     * below start at /auth and not /api/v1/auth. Adding the prefix here produced
+     * .../api/v1/api/v1/auth/... -> 404 -> the flow failed silently and Seerr never
+     * connected. Same doubled-segment fingerprint as the qBittorrent mount bug.
      */
     fun quickConnectInitiate(): SeerrQuickConnect {
         val req =
             okhttp3.Request
                 .Builder()
-                .url("${baseUrl.removeSuffix("/")}/api/v1/auth/jellyfin/quickconnect/initiate")
+                .url(quickConnectUrl(baseUrl, "initiate"))
                 .post(ByteArray(0).toRequestBody(null, 0, 0))
                 .build()
         client.newCall(req).execute().use { resp ->
@@ -108,7 +113,7 @@ class SeerrApiClient(
         val req =
             okhttp3.Request
                 .Builder()
-                .url("${baseUrl.removeSuffix("/")}/api/v1/auth/jellyfin/quickconnect/authenticate")
+                .url(quickConnectUrl(baseUrl, "authenticate"))
                 .post(payload.toRequestBody("application/json".toMediaType()))
                 .build()
         client.newCall(req).execute().use { resp ->
@@ -136,6 +141,19 @@ data class SeerrQuickConnect(
 private data class SeerrQuickConnectSecret(
     val secret: String,
 )
+
+/**
+ * Builds a Quick Connect endpoint URL.
+ *
+ * 🛑 [baseUrl] ALREADY ENDS IN `/api/v1` — see `createSeerrApiUrl`, and note the generated
+ * client declares its paths as `/auth/jellyfin`, not `/api/v1/auth/jellyfin`. Prefixing
+ * again here yields `/api/v1/api/v1/...`, which 404s; the connect then fails silently and
+ * Seerr never signs in. Extracted so a test can hold that invariant.
+ */
+internal fun quickConnectUrl(
+    baseUrl: String,
+    endpoint: String,
+): String = "${baseUrl.removeSuffix("/")}/auth/jellyfin/quickconnect/$endpoint"
 
 /** Carries a message fit to show a customer on a TV, never a raw stack trace. */
 class SeerrQuickConnectException(
