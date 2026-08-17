@@ -23,6 +23,9 @@ import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ImageType
+import androidx.compose.ui.graphics.Color
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.weaselTitleStyle
 
 @Composable
 fun TitleOrLogo(
@@ -56,11 +59,22 @@ private fun Title(
     title: String?,
     modifier: Modifier = Modifier,
 ) {
+    // WeaselTV (handoff §3): hero titles carry the animated rainbow text brush.
+    // weaselTitleStyle returns the base style untouched on every other theme, and it
+    // also supplies weight 800 + tight tracking, so the SemiBold below only applies
+    // when the brush is not in play.
+    val heroStyle =
+        weaselTitleStyle(
+            base = MaterialTheme.typography.headlineMedium,
+            widthPx = 700f,
+        )
     Text(
         text = title ?: "",
-        color = MaterialTheme.colorScheme.onSurface,
-        style = MaterialTheme.typography.headlineMedium,
-        fontWeight = FontWeight.SemiBold,
+        // A brush and a solid colour cannot both win; leave colour unset when the
+        // brush is active or the text renders flat.
+        color = if (isWeaselTv()) Color.Unspecified else MaterialTheme.colorScheme.onSurface,
+        style = heroStyle,
+        fontWeight = if (isWeaselTv()) null else FontWeight.SemiBold,
         maxLines = 2,
         overflow = TextOverflow.Ellipsis,
         modifier = modifier,
