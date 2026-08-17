@@ -115,6 +115,16 @@ class UpdateViewModel
         private var downloadJob: Job? = null
 
         fun installRelease(release: Release) {
+            // Ask for permission BEFORE downloading. Granting it restarts the app, so
+            // doing this first means the restart costs nothing instead of stranding the
+            // user on a spinner owned by a killed process.
+            if (!updater.canInstallPackages()) {
+                Timber.i("Install permission not granted yet; sending user to settings first")
+                _state.update { it.copy(needsInstallPermission = true) }
+                updater.requestInstallPermission()
+                return
+            }
+            _state.update { it.copy(needsInstallPermission = false) }
             downloadJob =
                 viewModelScope.launchIO {
                     try {
@@ -156,6 +166,8 @@ class UpdateViewModel
 data class InstallUpdateState(
     val loading: LoadingState = LoadingState.Pending,
     val downloading: Boolean = false,
+    /** True once we have bounced the user to the install-permission screen. */
+    val needsInstallPermission: Boolean = false,
     val release: Release? = null,
     val contentLength: Long = -1L,
 )

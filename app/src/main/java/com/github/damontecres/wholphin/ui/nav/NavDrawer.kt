@@ -114,6 +114,7 @@ import com.github.damontecres.wholphin.ui.theme.PrismaticDuration
 import com.github.damontecres.wholphin.ui.theme.WeaselRadius
 import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
 import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.Brush
 
 @HiltViewModel
 class NavDrawerViewModel
@@ -649,7 +650,7 @@ fun NavigationDrawerScope.IconNavItem(
                 icon,
                 contentDescription = null,
                 tint = color,
-                modifier = Modifier.size(DrawerIconSize).railSelectedGlow(color, selected),
+                modifier = Modifier.size(DrawerIconSize).railFocusGlow(color, focused),
             )
         },
         supportingContent =
@@ -728,7 +729,7 @@ fun NavigationDrawerScope.NavItem(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .railSelectedGlow(color, selected),
+                        .railFocusGlow(color, focused),
                 contentAlignment = Alignment.Center,
             ) {
                 if (useFont) {
@@ -843,37 +844,70 @@ fun Modifier.weaselDrawerItemRing(focused: Boolean): Modifier {
 }
 
 /**
- * Pulsing halo behind the SELECTED rail icon, in that icon's own colour.
+ * Neon bloom radiating from the FOCUSED rail icon, pulsing in brightness.
  *
- * Deliberately its own transition rather than the shared prismatic driver: that one
- * sweeps linearly for gradients, whereas this needs to breathe (Reverse). Only ever one
- * of these is alive at a time, because only one rail item is selected.
+ * Bound to focus, not selection: the glow has to travel with the selector as the user
+ * scrolls the rail. Tying it to the selected page left it stranded on the current page
+ * while the highlight moved away.
+ *
+ * Drawn as a radial gradient that fades to transparent rather than a flat disc, so it
+ * reads as light coming off the glyph instead of a coloured circle behind it. The pulse
+ * modulates brightness; the radius barely moves, which is what makes it breathe rather
+ * than throb.
+ *
+ * Its own transition, not the shared prismatic driver: that one sweeps linearly for
+ * gradients, this needs to reverse. Only one exists at a time - only one item has focus.
  */
 @Composable
-fun Modifier.railSelectedGlow(
+fun Modifier.railFocusGlow(
     color: Color,
-    selected: Boolean,
+    focused: Boolean,
 ): Modifier {
-    if (!selected || LocalTheme.current != AppThemeColors.WEASELTV) return this
+    if (!focused || LocalTheme.current != AppThemeColors.WEASELTV) return this
     if (!LocalPrismaticEnabled.current) {
         return this.drawBehind {
-            drawCircle(color.copy(alpha = .35f), radius = size.minDimension * .78f)
+            val r = size.minDimension * 1.15f
+            drawCircle(
+                brush =
+                    Brush.radialGradient(
+                        colors =
+                            listOf(
+                                color.copy(alpha = .45f),
+                                color.copy(alpha = .18f),
+                                Color.Transparent,
+                            ),
+                        center = center,
+                        radius = r,
+                    ),
+                radius = r,
+            )
         }
     }
     val pulse by rememberInfiniteTransition(label = "railGlow").animateFloat(
-        initialValue = .30f,
+        initialValue = .35f,
         targetValue = 1f,
         animationSpec =
             infiniteRepeatable(
-                animation = tween(1400, easing = LinearEasing),
+                animation = tween(1900, easing = LinearEasing),
                 repeatMode = RepeatMode.Reverse,
             ),
         label = "railGlowPulse",
     )
     return this.drawBehind {
+        val r = size.minDimension * (1.05f + .12f * pulse)
         drawCircle(
-            color = color.copy(alpha = .42f * pulse),
-            radius = size.minDimension * (.62f + .22f * pulse),
+            brush =
+                Brush.radialGradient(
+                    colors =
+                        listOf(
+                            color.copy(alpha = .60f * pulse),
+                            color.copy(alpha = .24f * pulse),
+                            Color.Transparent,
+                        ),
+                    center = center,
+                    radius = r,
+                ),
+            radius = r,
         )
     }
 }

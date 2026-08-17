@@ -45,6 +45,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
+import android.provider.Settings
 
 /**
  * Checks if an app update is available
@@ -188,6 +189,33 @@ class UpdateChecker
                     Timber.w("Update check failed ${it.code}: ${it.message}")
                 }
                 return@use null
+            }
+        }
+
+        /**
+         * Can we hand an APK to the package installer yet?
+         *
+         * 🛑 This MUST be checked before downloading. Granting
+         * REQUEST_INSTALL_PACKAGES causes Android to kill the app's process, so if the
+         * grant happens after the download has started the app dies mid-flow and the
+         * user is left staring at a progress spinner belonging to a dead process. Asking
+         * first means the kill lands at a harmless moment - nothing downloaded, nothing
+         * on screen - which is exactly why Downloader never appears to hang.
+         */
+        fun canInstallPackages(): Boolean =
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
+                context.packageManager.canRequestPackageInstalls()
+
+        /** Sends the user to the per-app "install unknown apps" screen. */
+        fun requestInstallPermission() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val intent =
+                    Intent(
+                        Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        Uri.parse("package:" + context.packageName),
+                    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                runCatching { context.startActivity(intent) }
+                    .onFailure { Timber.w(it, "Could not open install-permission settings") }
             }
         }
 
