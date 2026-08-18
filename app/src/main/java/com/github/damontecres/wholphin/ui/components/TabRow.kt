@@ -46,6 +46,11 @@ import timber.log.Timber
 import com.github.damontecres.wholphin.ui.theme.PrismaticDuration
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import com.github.damontecres.wholphin.ui.theme.colors.WeaselTvColors
 
 @Composable
 fun TabRow(
@@ -143,23 +148,60 @@ fun Tab(
                     tabWidth = with(density) { it.size.width.toDp() }
                 },
     ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            modifier = Modifier,
-        ) {
-            Text(
-                text = title,
-                fontSize = 16.sp,
-                color = contentColor,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
-            TabIndicator(
-                selected = selected,
-                rowActive = rowActive,
-                focused = focused,
-                tabWidth = tabWidth,
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-            )
+        if (isWeaselTv()) {
+            // Handoff §5 / mockup 05: season tabs are PILLS - panel-deep fill with a
+            // hairline, and the active one wrapped in a thin prismatic ring. This is a
+            // deliberate exception to the handoff's "layouts do not change" note, made
+            // on the owner's instruction: the underline is replaced outright.
+            val active = selected || (rowActive && focused)
+            val ringBrush =
+                rememberPrismaticBrush(PrismaticDuration.FOCUS_BORDER, widthPx = 200f)
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier =
+                    Modifier
+                        .clip(CircleShape)
+                        .background(WeaselTvColors.PanelDeep)
+                        .then(
+                            if (active) {
+                                Modifier.border(2.5.dp, ringBrush, CircleShape)
+                            } else {
+                                Modifier.border(1.dp, WeaselTvColors.Hairline, CircleShape)
+                            },
+                        ).padding(horizontal = 20.dp, vertical = 8.dp),
+            ) {
+                Text(
+                    text = title,
+                    fontSize = 16.sp,
+                    // Active tab reads solid white and bolder; inactive stays muted.
+                    color =
+                        if (active) {
+                            WeaselTvColors.TextPrimary
+                        } else {
+                            WeaselTvColors.TextMuted
+                        },
+                    fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+                )
+            }
+        } else {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier,
+            ) {
+                Text(
+                    text = title,
+                    fontSize = 16.sp,
+                    color = contentColor,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+                TabIndicator(
+                    selected = selected,
+                    rowActive = rowActive,
+                    focused = focused,
+                    tabWidth = tabWidth,
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                )
+            }
         }
     }
 }
