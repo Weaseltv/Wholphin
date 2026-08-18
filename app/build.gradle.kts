@@ -100,6 +100,10 @@ configure<ApplicationExtension> {
         // WeaselFin: which AppThemeColors value a fresh install starts on. Upstream
         // flavors keep PURPLE, so their default is unchanged.
         buildConfigField("String", "DEFAULT_THEME", "\"PURPLE\"")
+
+        // WeaselFin: base name of the release asset the updater looks for, and of the
+        // downloaded APK. Upstream's own name here so every upstream flavor is unchanged.
+        buildConfigField("String", "UPDATE_ASSET_NAME", "\"Wholphin\"")
     }
 
     signingConfigs {
@@ -213,6 +217,7 @@ configure<ApplicationExtension> {
             buildConfigField("String", "UPDATE_REPO", "\"Weaseltv/Wholphin\"")
             buildConfigField("String", "DEFAULT_SEERR_URL", "\"https://requests.theweasel.tv\"")
             buildConfigField("String", "DEFAULT_THEME", "\"WEASELTV\"")
+            buildConfigField("String", "UPDATE_ASSET_NAME", "\"WeaselFin\"")
         }
         create("appstore") {
             dimension = "version"

@@ -5,4 +5,11 @@
 <resources>
     <string name="app_name" translatable="false">WeaselFin</string>
     <string name="app_name_long" translatable="false">WeaselFin</string>
+
+    <!-- Upstream leaks its own product name into user-visible copy. These are the
+         places it actually shows: the display-preset picker in Settings, and the
+         toast shown immediately after every update. -->
+    <string name="display_preset_default">WeaselFin Default</string>
+    <string name="display_preset_compact">WeaselFin Compact</string>
+    <string name="updated_toast">WeaselFin updated to %s</string>
 </resources>

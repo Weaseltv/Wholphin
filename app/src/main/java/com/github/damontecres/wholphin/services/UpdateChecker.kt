@@ -58,8 +58,18 @@ class UpdateChecker
         @param:StandardOkHttpClient private val okHttpClient: OkHttpClient,
     ) {
         companion object {
-            const val ASSET_NAME = "Wholphin"
-            const val APK_NAME = "$ASSET_NAME.apk"
+            /**
+             * Base name of the release asset to download, and of the file written to
+             * Downloads. Flavor-configurable so a fork does not show upstream's product
+             * name to its users - it is visible both in the release notes and as the
+             * filename Android displays while installing.
+             *
+             * 🛑 Changing this BREAKS auto-update for already-installed builds: they look
+             * for the OLD name and will not find the new asset. Releases must carry BOTH
+             * names until the old builds are gone.
+             */
+            val ASSET_NAME = BuildConfig.UPDATE_ASSET_NAME
+            val APK_NAME = "$ASSET_NAME.apk"
 
             private const val APK_MIME_TYPE = "application/vnd.android.package-archive"
 
