@@ -209,7 +209,15 @@ configure<ApplicationExtension> {
         // Do NOT base this on `firetv`: that ships with Seerr disabled.
         create("weaselfin") {
             dimension = "version"
-            applicationId = "tv.theweasel.player"
+            // Install identity for the shipped WeaselFin build. Scoped to THIS flavor only:
+            // `default`, `appstore` and `firetv` inherit defaultConfig's upstream id and are
+            // untouched. Only applicationId is changed -- the Kotlin `namespace` above stays
+            // upstream's, because namespace is internal (it only decides where BuildConfig/R
+            // are generated) while applicationId alone controls install identity.
+            // D-33: changed from tv.theweasel.player. An applicationId change means existing
+            // installs CANNOT update in place -- every installed device needs a one-time
+            // uninstall + reinstall. See runbooks/weaselfin-app-id-change.md.
+            applicationId = "tv.theweasel.weaselfin"
             manifestPlaceholders += mapOf(featureLeanback to false)
             setFeatureFlag(featureUpdate, true)
             setFeatureFlag(featureDiscover, true)
