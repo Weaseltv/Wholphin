@@ -164,7 +164,12 @@ class NavDrawerService
                             isRecordingFolder = it.id in recordingFolders,
                         )
                     }
-            return libraries
+            // Sort here rather than only in updateNavDrawer: the home page builds its default
+            // rows from getFilteredUserLibraries, so ordering the rail alone left the home page
+            // in raw server order. Sorting at the source means both follow the same list.
+            // sortedBy is stable, so any library the flavor does not name keeps its server
+            // position, and upstream flavors (blank DEFAULT_NAV_ORDER) are unaffected.
+            return libraries.sortedBy { weaselLibraryOrder(it.name) }
         }
 
         /**
@@ -286,4 +291,23 @@ private fun defaultNavOrder(
     val name = runCatching { item.name(context) }.getOrNull() ?: return Int.MAX_VALUE
     val byName = wanted.indexOfFirst { it.equals(name, ignoreCase = true) }
     return if (byName >= 0) byName else Int.MAX_VALUE
+}
+
+
+/**
+ * Position of a library in the flavor's preferred order, matched on NAME.
+ *
+ * [Int.MAX_VALUE] for anything the flavor does not name, and for every upstream flavor, where
+ * [BuildConfig.DEFAULT_NAV_ORDER] is blank - a stable sort then leaves the list exactly as the
+ * server returned it.
+ */
+private fun weaselLibraryOrder(name: String): Int {
+    val order = BuildConfig.DEFAULT_NAV_ORDER
+    if (order.isBlank()) return Int.MAX_VALUE
+    val idx =
+        order
+            .split(',')
+            .map { it.trim() }
+            .indexOfFirst { it.equals(name.trim(), ignoreCase = true) }
+    return if (idx >= 0) idx else Int.MAX_VALUE
 }
