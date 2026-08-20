@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WeaselFin resource-shrinker keep rules.
+
+     A flavor keep.xml REPLACES main's rather than merging with it, so upstream's
+     @raw/aboutlibraries rule is repeated here deliberately. Dropping it would strip
+     the about-libraries data from WeaselFin release builds only.
+
+     The ic_nav_* drawables are referenced by NAME at runtime (see WeaselNavIcons),
+     never as R.drawable.*, so R8 cannot see the reference and shrank all twelve out
+     of the release APK - debug builds were fine because shrinking is off there. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/aboutlibraries,@drawable/ic_nav_*" />
