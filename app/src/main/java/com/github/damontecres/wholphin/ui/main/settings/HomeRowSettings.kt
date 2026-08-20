@@ -25,6 +25,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.tv.material3.ListItem
 import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
@@ -260,7 +261,7 @@ internal object Options {
     val ViewOptionsCardHeight =
         AppSliderPreference<HomeRowViewOptions>(
             title = R.string.height,
-            defaultValue = Cards.HEIGHT_2X3_DP.toLong(),
+            defaultValue = BuildConfig.DEFAULT_CARD_HEIGHT_DP.toLong(),
             min = 64L,
             max = Cards.HEIGHT_2X3_DP + 64L,
             interval = 4,

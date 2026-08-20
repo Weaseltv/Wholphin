@@ -421,6 +421,7 @@ fun NavDrawer(
                             IconNavItem(
                                 text = stringResource(R.string.search),
                                 railColor = RailRainbow.Search,
+                                weaselIcon = WeaselNavIcons.search,
                                 icon = Icons.Default.Search,
                                 selected = selectedIndex == SEARCH_INDEX,
                                 drawerOpen = isOpen,
@@ -443,6 +444,7 @@ fun NavDrawer(
                             IconNavItem(
                                 text = stringResource(R.string.home),
                                 railColor = RailRainbow.Home,
+                                weaselIcon = WeaselNavIcons.home,
                                 icon = Icons.Default.Home,
                                 selected = selectedIndex == HOME_INDEX,
                                 drawerOpen = isOpen,
@@ -544,6 +546,7 @@ fun NavDrawer(
                             IconNavItem(
                                 text = stringResource(R.string.settings),
                                 railColor = RailRainbow.Settings,
+                                weaselIcon = WeaselNavIcons.settings,
                                 icon = Icons.Default.Settings,
                                 selected = false,
                                 drawerOpen = isOpen,
@@ -635,23 +638,39 @@ fun NavigationDrawerScope.IconNavItem(
     subtext: String? = null,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     railColor: Color? = null,
+    weaselIcon: Pair<String, Long>? = null,
 ) {
     val focused by interactionSource.collectIsFocusedAsState()
+    val context = LocalContext.current
     NavigationDrawerItem(
         modifier = modifier.weaselDrawerItemRing(focused),
         selected = false,
         onClick = onClick,
         colors = weaselDrawerItemColors(Color.Unspecified),
         leadingContent = {
+            // WeaselFin ships its own drawable + tint for the fixed items. Null on every
+            // upstream flavor, where the Material vector below is used exactly as before.
+            val weasel =
+                remember(weaselIcon) { weaselIcon?.let { WeaselNavIcons.fixed(context, it) } }
             val color =
-                railColor?.let { railTint(it, selected) }
+                weasel?.second?.let { railTint(it, selected) }
+                    ?: railColor?.let { railTint(it, selected) }
                     ?: navItemColor(selected, focused, drawerOpen)
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(DrawerIconSize).railFocusGlow(color, focused),
-            )
+            if (weasel != null) {
+                Icon(
+                    painter = painterResource(weasel.first),
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(DrawerIconSize).railFocusGlow(color, focused),
+                )
+            } else {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(DrawerIconSize).railFocusGlow(color, focused),
+                )
+            }
         },
         supportingContent =
             subtext?.let {
@@ -732,7 +751,17 @@ fun NavigationDrawerScope.NavItem(
                         .railFocusGlow(color, focused),
                 contentAlignment = Alignment.Center,
             ) {
-                if (useFont) {
+                // WeaselFin ships its own drawable set; null on every upstream flavor, which
+                // falls through to the Font Awesome glyph exactly as before.
+                val weasel = remember(library) { WeaselNavIcons.navIconFor(context, library) }
+                if (weasel != null) {
+                    Icon(
+                        painter = painterResource(weasel.first),
+                        contentDescription = null,
+                        tint = weasel.second,
+                        modifier = Modifier.size(DrawerIconSize),
+                    )
+                } else if (useFont) {
                     Text(
                         text = stringResource(icon),
                         textAlign = TextAlign.Center,
@@ -1003,3 +1032,73 @@ fun navItemColor(
 val DrawerState.isOpen: Boolean get() = this.currentValue.isOpen
 
 val DrawerValue.isOpen: Boolean get() = this == DrawerValue.Open
+
+/**
+ * WeaselFin nav rail icon + colour set.
+ *
+ * Drawables live ONLY in the `weaselfin` flavor's res/drawable. Main code therefore cannot
+ * reference `R.drawable.ic_nav_*` directly - that would fail to compile for every upstream
+ * flavor - so they are resolved BY NAME at runtime. On any flavor without them the lookup
+ * returns 0, [WeaselNavIcons.navIconFor] returns null, and the original Font Awesome glyph
+ * path runs unchanged. That is what keeps this flavor-only with no upstream behaviour diff.
+ *
+ * Builtins match on their stable [NavDrawerItem.id]; server libraries match on NAME, because
+ * a library's id differs per server and cannot be baked into a build.
+ */
+internal object WeaselNavIcons {
+    private const val LASER_YELLOW = 0xFFFFE600L
+    private const val SPRING_MINT = 0xFF00FF8AL
+    private const val HYPER_BLUE = 0xFF5268FFL
+    private const val NEON_ORANGE = 0xFFFF7A00L
+    private const val NEON_CYAN = 0xFF00F5FFL
+    private const val ELECTRIC_MAGENTA = 0xFFE500FFL
+    private const val NEON_CHARTREUSE = 0xFFB6FF00L
+    private const val LASER_RED = 0xFFFF1744L
+    private const val ELECTRIC_AZURE = 0xFF00A3FFL
+    private const val ELECTRIC_VIOLET = 0xFF9B3DFFL
+    private const val ACID_GREEN = 0xFF39FF14L
+    private const val HOT_PINK = 0xFFFF2D95L
+
+    /** Key is a NavDrawerItem id for builtins, or a lowercased library name for server items. */
+    private val map: Map<String, Pair<String, Long>> =
+        mapOf(
+            "a_favorites" to ("ic_nav_favorites" to HYPER_BLUE),
+            "a_discover" to ("ic_nav_requests" to NEON_ORANGE),
+            "movies" to ("ic_nav_movies" to NEON_CYAN),
+            "tv shows" to ("ic_nav_tvshows" to ELECTRIC_MAGENTA),
+            "stand up comedy" to ("ic_nav_standup" to NEON_CHARTREUSE),
+            "ufc" to ("ic_nav_ufc" to LASER_RED),
+            "boxing" to ("ic_nav_boxing" to ELECTRIC_AZURE),
+            "4k movies (lan)" to ("ic_nav_4k_movies" to ELECTRIC_VIOLET),
+            "4k tv shows (lan)" to ("ic_nav_4k_tv" to ACID_GREEN),
+        )
+
+    /** Fixed items, rendered outside the dynamic list. */
+    val search = "ic_nav_search" to LASER_YELLOW
+    val home = "ic_nav_home" to SPRING_MINT
+    val settings = "ic_nav_settings" to HOT_PINK
+
+    private fun resId(
+        context: Context,
+        name: String,
+    ): Int = context.resources.getIdentifier(name, "drawable", context.packageName)
+
+    /** Icon and tint for a nav item, or null to fall back to upstream's glyph. */
+    fun navIconFor(
+        context: Context,
+        item: NavDrawerItem,
+    ): Pair<Int, Color>? {
+        val key = if (item is ServerNavDrawerItem) item.name.trim().lowercase() else item.id
+        val entry = map[key] ?: return null
+        return fixed(context, entry)
+    }
+
+    /** Icon and tint for a fixed entry, or null when this flavor does not ship it. */
+    fun fixed(
+        context: Context,
+        entry: Pair<String, Long>,
+    ): Pair<Int, Color>? {
+        val id = resId(context, entry.first)
+        return if (id != 0) id to Color(entry.second.toInt()) else null
+    }
+}

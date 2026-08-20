@@ -3,6 +3,7 @@ package com.github.damontecres.wholphin.services
 import android.content.Context
 import com.github.damontecres.wholphin.data.ServerPreferencesDao
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.NavPinType
 import com.github.damontecres.wholphin.services.hilt.DefaultCoroutineScope
@@ -228,9 +229,12 @@ class NavDrawerService
             val moreItems = mutableListOf<NavDrawerItem>()
             allItems
                 // Sort by order if non-default, existing items before customize will have -1 value
-                // New items from the server will get Int.MAX_VALUE
+                // Otherwise fall back to the flavor's preferred order, then to Int.MAX_VALUE
                 // Items the user doesn't have access to anymore will be skipped
-                .sortedBy { navDrawerPins[it.id]?.order?.takeIf { it >= 0 } ?: Int.MAX_VALUE }
+                .sortedBy {
+                    navDrawerPins[it.id]?.order?.takeIf { order -> order >= 0 }
+                        ?: defaultNavOrder(it, context)
+                }
                 .forEach {
                     // Assume pinned if unknown
                     val pinned = navDrawerPins[it.id]?.type ?: NavPinType.PINNED
@@ -258,3 +262,28 @@ data class NavDrawerItemState(
 )
 
 val UserDto.tvAccess: Boolean get() = policy?.enableLiveTvAccess == true
+
+
+/**
+ * The flavor's preferred nav rail order.
+ *
+ * Matches builtins by their stable [NavDrawerItem.id] (e.g. `a_favorites`) and server libraries
+ * by NAME, because a library's id differs per server and cannot be baked into a build.
+ *
+ * 🛑 Only consulted when the user has NOT pinned or reordered that item themselves - a real user
+ * preference always wins. Blank for every upstream flavor, where this returns [Int.MAX_VALUE] for
+ * everything and the original "builtins first, then server order" behaviour is preserved exactly.
+ */
+private fun defaultNavOrder(
+    item: NavDrawerItem,
+    context: Context,
+): Int {
+    val order = BuildConfig.DEFAULT_NAV_ORDER
+    if (order.isBlank()) return Int.MAX_VALUE
+    val wanted = order.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+    val byId = wanted.indexOf(item.id)
+    if (byId >= 0) return byId
+    val name = runCatching { item.name(context) }.getOrNull() ?: return Int.MAX_VALUE
+    val byName = wanted.indexOfFirst { it.equals(name, ignoreCase = true) }
+    return if (byName >= 0) byName else Int.MAX_VALUE
+}

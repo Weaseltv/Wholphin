@@ -84,6 +84,17 @@ configure<ApplicationExtension> {
         // BuildConfig.DEFAULT_SERVER_URL exists for all flavors and the source compiles.
         buildConfigField("String", "DEFAULT_SERVER_URL", "\"\"")
 
+        // WeaselFin: default home-row card height in dp. 172 is upstream's Cards.HEIGHT_2X3_DP,
+        // so every upstream flavor is unchanged; only `weaselfin` overrides it. The Settings
+        // slider is untouched -- this moves the DEFAULT only.
+        buildConfigField("int", "DEFAULT_CARD_HEIGHT_DP", "172")
+
+        // WeaselFin: preferred nav-rail order, by NavDrawerItem id for builtins and by library
+        // NAME for server libraries. Empty for upstream flavors, which keeps the existing
+        // behaviour exactly (builtins first, then libraries in server order).
+        // Only applies where the user has not pinned/reordered anything themselves.
+        buildConfigField("String", "DEFAULT_NAV_ORDER", "\"\"")
+
         // WeaselFin: which GitHub repo the in-app updater checks. Upstream's value here, so
         // every upstream flavor behaves exactly as before; only the `weaselfin` flavor
         // overrides it.
@@ -226,6 +237,12 @@ configure<ApplicationExtension> {
             buildConfigField("String", "DEFAULT_SEERR_URL", "\"https://requests.theweasel.tv\"")
             buildConfigField("String", "DEFAULT_THEME", "\"WEASELTV\"")
             buildConfigField("String", "UPDATE_ASSET_NAME", "\"WeaselFin\"")
+            buildConfigField("int", "DEFAULT_CARD_HEIGHT_DP", "144")
+            buildConfigField(
+                "String",
+                "DEFAULT_NAV_ORDER",
+                "\"a_favorites,a_discover,Movies,TV Shows,Stand Up Comedy,UFC,Boxing,4K Movies (LAN),4K TV Shows (LAN)\"",
+            )
         }
         create("appstore") {
             dimension = "version"

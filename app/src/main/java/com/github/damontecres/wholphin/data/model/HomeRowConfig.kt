@@ -2,6 +2,7 @@
 
 package com.github.damontecres.wholphin.data.model
 
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.preferences.PrefContentScale
 import com.github.damontecres.wholphin.ui.AspectRatio
 import com.github.damontecres.wholphin.ui.Cards
@@ -223,7 +224,7 @@ const val SUPPORTED_HOME_PAGE_SETTINGS_VERSION = 1
  */
 @Serializable
 data class HomeRowViewOptions(
-    val heightDp: Int = Cards.HEIGHT_2X3_DP,
+    val heightDp: Int = BuildConfig.DEFAULT_CARD_HEIGHT_DP,
     val spacing: Int = 16,
     val contentScale: PrefContentScale = PrefContentScale.FILL,
     val aspectRatio: AspectRatio = AspectRatio.TALL,

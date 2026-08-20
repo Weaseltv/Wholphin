@@ -1,0 +1,146 @@
+{
+  "family": "Set A - Cinematic Solid",
+  "viewport": [
+    960,
+    960
+  ],
+  "sizeDp": [
+    24,
+    24
+  ],
+  "fill": "#FFFFFF",
+  "icons": [
+    {
+      "file": "ic_nav_search.xml",
+      "label": "Search",
+      "pathCount": 2,
+      "alphaBounds": {
+        "left": 110,
+        "top": 110,
+        "right": 864,
+        "bottom": 834
+      }
+    },
+    {
+      "file": "ic_nav_home.xml",
+      "label": "Home",
+      "pathCount": 1,
+      "alphaBounds": {
+        "left": 89,
+        "top": 100,
+        "right": 870,
+        "bottom": 829
+      }
+    },
+    {
+      "file": "ic_nav_favorites.xml",
+      "label": "Favorites",
+      "pathCount": 1,
+      "alphaBounds": {
+        "left": 90,
+        "top": 149,
+        "right": 860,
+        "bottom": 849
+      }
+    },
+    {
+      "file": "ic_nav_requests.xml",
+      "label": "Discover / Requests",
+      "pathCount": 3,
+      "alphaBounds": {
+        "left": 110,
+        "top": 110,
+        "right": 849,
+        "bottom": 819
+      }
+    },
+    {
+      "file": "ic_nav_movies.xml",
+      "label": "Movies",
+      "pathCount": 2,
+      "alphaBounds": {
+        "left": 100,
+        "top": 80,
+        "right": 859,
+        "bottom": 839
+      }
+    },
+    {
+      "file": "ic_nav_tvshows.xml",
+      "label": "TV Shows",
+      "pathCount": 3,
+      "alphaBounds": {
+        "left": 120,
+        "top": 120,
+        "right": 839,
+        "bottom": 869
+      }
+    },
+    {
+      "file": "ic_nav_standup.xml",
+      "label": "Stand Up Comedy",
+      "pathCount": 4,
+      "alphaBounds": {
+        "left": 160,
+        "top": 120,
+        "right": 799,
+        "bottom": 869
+      }
+    },
+    {
+      "file": "ic_nav_ufc.xml",
+      "label": "UFC",
+      "pathCount": 2,
+      "alphaBounds": {
+        "left": 90,
+        "top": 90,
+        "right": 869,
+        "bottom": 869
+      }
+    },
+    {
+      "file": "ic_nav_boxing.xml",
+      "label": "Boxing",
+      "pathCount": 3,
+      "alphaBounds": {
+        "left": 139,
+        "top": 105,
+        "right": 820,
+        "bottom": 844
+      }
+    },
+    {
+      "file": "ic_nav_4k_movies.xml",
+      "label": "4K Movies (LAN)",
+      "pathCount": 4,
+      "alphaBounds": {
+        "left": 110,
+        "top": 70,
+        "right": 849,
+        "bottom": 849
+      }
+    },
+    {
+      "file": "ic_nav_4k_tv.xml",
+      "label": "4K TV Shows (LAN)",
+      "pathCount": 4,
+      "alphaBounds": {
+        "left": 110,
+        "top": 90,
+        "right": 849,
+        "bottom": 849
+      }
+    },
+    {
+      "file": "ic_nav_settings.xml",
+      "label": "Settings",
+      "pathCount": 1,
+      "alphaBounds": {
+        "left": 106,
+        "top": 96,
+        "right": 856,
+        "bottom": 863
+      }
+    }
+  ]
+}

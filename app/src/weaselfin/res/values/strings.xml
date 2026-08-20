@@ -12,4 +12,24 @@
     <string name="display_preset_default">WeaselFin Default</string>
     <string name="display_preset_compact">WeaselFin Compact</string>
     <string name="updated_toast">WeaselFin updated to %s</string>
+    <!-- Nav rail renames, owner-approved 2026-08-19.
+
+         "Discover" -> "Requests": the tab opens Seerr, so the old name described the
+         browsing rather than the thing customers actually do there.
+
+         "Favorites" -> "Watchlist": migrating Plex users already know this word for
+         exactly this behaviour - mark something already in the library that you intend
+         to watch later, then open the list on movie night. "Favorites" invites a
+         different reading ("things I loved").
+
+         NOTE: `discovered_servers` is deliberately NOT changed - that is server
+         discovery on the sign-in screen and has nothing to do with this tab. -->
+    <string name="discover">Requests</string>
+    <string name="discover_tv">Request TV Shows</string>
+    <string name="discover_movies">Request Movies</string>
+
+    <string name="favorites">Watchlist</string>
+    <string name="add_favorite">Add to Watchlist</string>
+    <string name="remove_favorite">Remove from Watchlist</string>
+    <string name="favorite_items_title">Watchlist %s</string>
 </resources>
