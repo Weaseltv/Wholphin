@@ -237,7 +237,6 @@ configure<ApplicationExtension> {
             buildConfigField("String", "DEFAULT_SEERR_URL", "\"https://requests.theweasel.tv\"")
             buildConfigField("String", "DEFAULT_THEME", "\"WEASELTV\"")
             buildConfigField("String", "UPDATE_ASSET_NAME", "\"WeaselFin\"")
-            buildConfigField("int", "DEFAULT_CARD_HEIGHT_DP", "144")
             buildConfigField(
                 "String",
                 "DEFAULT_NAV_ORDER",
