@@ -153,7 +153,17 @@ fun Tab(
             // hairline, and the active one wrapped in a thin prismatic ring. This is a
             // deliberate exception to the handoff's "layouts do not change" note, made
             // on the owner's instruction: the underline is replaced outright.
-            val active = selected || (rowActive && focused)
+            // EXACTLY ONE ring at a time. While the row holds focus the ring follows
+            // focus; when focus leaves the row it falls back to the selected tab so the
+            // current page is still identifiable. The previous `selected || focused`
+            // drew BOTH - the selected tab kept its ring while a second one appeared on
+            // whatever you moved to, which reads as the ring duplicating rather than
+            // moving.
+            val showRing = if (rowActive) focused else selected
+            // Emphasis is a SEPARATE concern from the ring: the current page and the
+            // tab under focus both stay solid white, so moving focus does not make the
+            // page you are on look inactive.
+            val emphasized = selected || (rowActive && focused)
             val ringBrush =
                 rememberPrismaticBrush(PrismaticDuration.FOCUS_BORDER, widthPx = 200f)
             Box(
@@ -163,7 +173,7 @@ fun Tab(
                         .clip(CircleShape)
                         .background(WeaselTvColors.PanelDeep)
                         .then(
-                            if (active) {
+                            if (showRing) {
                                 Modifier.border(2.5.dp, ringBrush, CircleShape)
                             } else {
                                 Modifier.border(1.dp, WeaselTvColors.Hairline, CircleShape)
@@ -175,12 +185,12 @@ fun Tab(
                     fontSize = 16.sp,
                     // Active tab reads solid white and bolder; inactive stays muted.
                     color =
-                        if (active) {
+                        if (emphasized) {
                             WeaselTvColors.TextPrimary
                         } else {
                             WeaselTvColors.TextMuted
                         },
-                    fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+                    fontWeight = if (emphasized) FontWeight.Bold else FontWeight.Normal,
                 )
             }
         } else {
