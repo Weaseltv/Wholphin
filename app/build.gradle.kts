@@ -215,20 +215,28 @@ configure<ApplicationExtension> {
             setFeatureFlag(featureUpdate, true)
             setFeatureFlag(featureDiscover, true)
         }
-        // WeaselFin (DaCrib) — mirrors `default` exactly, which is the only flavor with
+        // WeaselPlex (DaCrib) — mirrors `default` exactly, which is the only flavor with
         // DISCOVER_ENABLED (the Seerr integration), plus the pinned server URL.
         // Do NOT base this on `firetv`: that ships with Seerr disabled.
+        //
+        // The FLAVOR stays named `weaselfin` deliberately. Renaming it would rename the
+        // source dir, the signing-config key, every local.properties key and every Gradle
+        // task -- a large noisy diff for zero user-visible gain. Nothing a user sees comes
+        // from the flavor name.
         create("weaselfin") {
             dimension = "version"
-            // Install identity for the shipped WeaselFin build. Scoped to THIS flavor only:
+            // Install identity for the shipped build. Scoped to THIS flavor only:
             // `default`, `appstore` and `firetv` inherit defaultConfig's upstream id and are
             // untouched. Only applicationId is changed -- the Kotlin `namespace` above stays
             // upstream's, because namespace is internal (it only decides where BuildConfig/R
             // are generated) while applicationId alone controls install identity.
-            // D-33: changed from tv.theweasel.player. An applicationId change means existing
-            // installs CANNOT update in place -- every installed device needs a one-time
-            // uninstall + reinstall. See runbooks/weaselfin-app-id-change.md.
-            applicationId = "tv.theweasel.weaselfin"
+            // D-33: tv.theweasel.player -> tv.theweasel.weaselfin.
+            // R1 (2026-08-25): -> tv.theweasel.weaselplex for the WeaselPlex rename.
+            // 🛑 An applicationId change means existing installs CANNOT update in place --
+            // the new build installs ALONGSIDE the old one. Every installed device needs a
+            // one-time uninstall + reinstall. See runbooks/weaselfin-app-id-change.md.
+            // Done now because it costs 2 devices today and ~50 after Phase 5 begins.
+            applicationId = "tv.theweasel.weaselplex"
             manifestPlaceholders += mapOf(featureLeanback to false)
             setFeatureFlag(featureUpdate, true)
             setFeatureFlag(featureDiscover, true)
@@ -236,6 +244,10 @@ configure<ApplicationExtension> {
             buildConfigField("String", "UPDATE_REPO", "\"Weaseltv/Wholphin\"")
             buildConfigField("String", "DEFAULT_SEERR_URL", "\"https://requests.theweasel.tv\"")
             buildConfigField("String", "DEFAULT_THEME", "\"WEASELTV\"")
+            // 🛑 Deliberately still "WeaselFin" (ruling R5, 2026-08-25). The in-app updater
+            // matches the GitHub release asset by FILENAME, so renaming this and the assets
+            // together would mean shipping both names in the transition release, as
+            // v1.0.6-18 had to. Not worth it: the asset name is invisible to users.
             buildConfigField("String", "UPDATE_ASSET_NAME", "\"WeaselFin\"")
             buildConfigField(
                 "String",

@@ -73,6 +73,13 @@ class WholphinApplication :
 //            )
         }
         OkHttp.initialize(this)
+        // Product name for the user-visible crash dialog, read from app_name so EVERY
+        // flavor is correct automatically: upstream flavors keep their own name, the
+        // rebranded flavor gets its own. This was hardcoded to "Wholphin", which meant a
+        // rebranded build told the user a product name they had never heard of at the
+        // worst possible moment. Captured out here because the initAcra lambda has its
+        // own receiver and getString would not resolve against the Application inside it.
+        val productName = getString(R.string.app_name)
         initAcra {
             buildConfigClass = BuildConfig::class.java
             reportFormat = StringFormat.JSON
@@ -97,9 +104,9 @@ class WholphinApplication :
                 )
             dialog {
                 text =
-                    "Wholphin has crashed! Would you like to attempt to " +
+                    "$productName has crashed! Would you like to attempt to " +
                     "send a crash report to your Jellyfin server?"
-                title = "Wholphin Crash Report"
+                title = "$productName Crash Report"
                 positiveButtonText = "Send"
                 negativeButtonText = "Do not send"
             }

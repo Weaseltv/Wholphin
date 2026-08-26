@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- WeaselFin overrides. Flavor source set, so app/src/main is untouched and
-     rebases against upstream stay clean. D-1: the name is WeaselFin, never
-     "WeaselTV" - the IPTV app owns that tile name on the launcher. -->
+<!-- WeaselPlex overrides. Flavor source set, so app/src/main is untouched and
+     rebases against upstream stay clean. D-1 as amended 2026-08-25: the name is
+     WeaselPlex, never "WeaselTV" - the IPTV app owns that tile name on the launcher. -->
 <resources>
-    <string name="app_name" translatable="false">WeaselFin</string>
-    <string name="app_name_long" translatable="false">WeaselFin</string>
+    <string name="app_name" translatable="false">WeaselPlex</string>
+    <string name="app_name_long" translatable="false">WeaselPlex</string>
 
     <!-- Upstream leaks its own product name into user-visible copy. These are the
          places it actually shows: the display-preset picker in Settings, and the
          toast shown immediately after every update. -->
-    <string name="display_preset_default">WeaselFin Default</string>
-    <string name="display_preset_compact">WeaselFin Compact</string>
-    <string name="updated_toast">WeaselFin updated to %s</string>
+    <string name="display_preset_default">WeaselPlex Default</string>
+    <string name="display_preset_compact">WeaselPlex Compact</string>
+    <string name="updated_toast">WeaselPlex updated to %s</string>
     <!-- Nav rail renames, owner-approved 2026-08-19.
 
          "Discover" -> "Requests": the tab opens Seerr, so the old name described the
