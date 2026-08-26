@@ -92,6 +92,34 @@ data class Version(
         }
 
         /**
+         * Parse a version string, tolerating trailing junk after a valid version.
+         *
+         * [tryFromString] uses `matchEntire`, so a versionName carrying more than one
+         * `-<n>-g<sha>` suffix fails outright. That happens when a release is tagged with
+         * the OUTPUT of `git describe` rather than a plain `vX.Y.Z`: the next describe
+         * appends a second suffix, producing e.g. `1.0.6-23-ge2420b3e-0-ge2420b3e`.
+         *
+         * A malformed version must never be fatal - [fromString] throwing on it took the
+         * whole Settings page down, because the update check reads the installed version
+         * first. This falls back to the leading valid portion so callers get a usable
+         * version instead of an exception.
+         */
+        fun fromStringLenient(version: String?): Version? {
+            if (version == null) {
+                return null
+            }
+            return tryFromString(version) ?: VERSION_REGEX.find(version)?.let { m ->
+                Version(
+                    m.groups[1]!!.value.toInt(),
+                    m.groups[2]!!.value.toInt(),
+                    m.groups[3]!!.value.toInt(),
+                    m.groups[5]?.value?.toInt(),
+                    m.groups[6]?.value,
+                )
+            }
+        }
+
+        /**
          * Attempt to parse a version string or else return null
          */
         fun tryFromString(version: String?): Version? {

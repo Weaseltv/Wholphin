@@ -56,7 +56,10 @@ class AppUpgradeHandler
         private val rememberedTabDao: RememberedTabDao,
     ) {
         val pkgInfo: PackageInfo get() = context.packageManager.getPackageInfo(context.packageName, 0)
-        val currentVersion: Version get() = Version.fromString(pkgInfo.versionName!!)
+        // Lenient for the same reason as UpdateChecker.getInstalledVersion(): a
+        // versionName that carries a doubled `-<n>-g<sha>` suffix must not throw.
+        val currentVersion: Version
+            get() = Version.fromStringLenient(pkgInfo.versionName) ?: Version(0, 0, 0)
 
         fun needUpgrade(): Boolean {
             val prefs = PreferenceManager.getDefaultSharedPreferences(context)

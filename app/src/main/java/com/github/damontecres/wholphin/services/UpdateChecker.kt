@@ -135,7 +135,11 @@ class UpdateChecker
          */
         fun getInstalledVersion(): Version {
             val pkgInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            return Version.fromString(pkgInfo.versionName!!)
+            // Lenient: an unparseable versionName must not take down the caller. The
+            // update check is the first thing the Settings page runs, so throwing here
+            // crashed the whole page instantly and repeatably.
+            return Version.fromStringLenient(pkgInfo.versionName)
+                ?: Version(0, 0, 0)
         }
 
         suspend fun getRelease(version: Version): Release? {
