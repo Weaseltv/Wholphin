@@ -1,8 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- WeaselFin: upstream wraps the banner in an <adaptive-icon> whose <background>
+<!-- WeaselPlex: upstream wraps the banner in an <adaptive-icon> whose <background>
      is an opaque colour, which renders as a solid block on the Android TV launcher
      row while Jellyfin and TiviMate float over the wallpaper. A plain bitmap keeps
-     the PNG's alpha, so the tile matches the rest of the row. -->
+     the PNG's alpha, so the tile matches the rest of the row.
+
+     🛑 gravity MUST be "fill", not "fill_horizontal|center_vertical".
+     fill_horizontal scales the bitmap to the bounds' WIDTH but leaves the height at
+     the source's natural size, so the launcher measures a smaller effective drawable
+     and draws the tile correspondingly smaller. Measured on the SHIELD launcher row:
+     WeaselCheck, which points android:banner straight at a PNG, rendered 534px wide
+     while this tile rendered 296px from a banner of the same 640x360 size and the
+     same ~85% content fill. "fill" scales both axes, matching a plain BitmapDrawable.
+     The banner and the tile box are both 16:9, so filling both axes does not
+     distort. -->
 <bitmap xmlns:android="http://schemas.android.com/apk/res/android"
     android:src="@mipmap/ic_banner_art"
-    android:gravity="fill_horizontal|center_vertical" />
+    android:gravity="fill" />
