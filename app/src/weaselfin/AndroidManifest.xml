@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Flavor manifest, WeaselPlex only. Upstream flavors are untouched.
+
+  Points android:banner at a PLAIN PNG instead of @mipmap/ic_banner, which resolves
+  to the anydpi-v26 <bitmap> XML wrapper.
+
+  Why: the launcher tile rendered at roughly half the size of comparable apps.
+  Measured on the SHIELD row, both from 640x360 banners with ~85% content fill --
+  WeaselCheck 534px wide, this tile 296px. The manifests differ in exactly one way:
+
+    WeaselCheck  banner=res/drawable-mdpi-v4/signal_check_banner.png   plain PNG
+    WeaselPlex   banner=res/wH.xml                                     bitmap XML
+
+  Changing the wrapper's gravity from fill_horizontal|center_vertical to fill was
+  tried first and moved the rendered width not at all -- still exactly 296px -- so
+  the wrapper itself, not its gravity, is what the launcher measures differently.
+
+  ic_banner_art has no anydpi variant, only real PNGs at mdpi/hdpi/xhdpi/xxhdpi/
+  xxxhdpi, so this resolves to a BitmapDrawable with honest intrinsic bounds.
+
+  The anydpi wrapper is deliberately left in place for @mipmap/ic_banner: deleting
+  it would fall through to the main source set's <adaptive-icon>, whose opaque
+  background renders the tile as a solid block on the launcher row.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:banner="@mipmap/ic_banner_art"
+        tools:replace="android:banner" />
+
+</manifest>
