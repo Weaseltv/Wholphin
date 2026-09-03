@@ -23,14 +23,15 @@ fun DiscoverPage(
     preferences: UserPreferences,
     modifier: Modifier = Modifier,
 ) {
+    // WeaselPlex: the Requests page is a search box first and a request history second.
+    // Upstream's Discover, Movies and TV Shows browse tabs are hidden (the composables stay
+    // in the tree for the detail pages that still use them); Search is the first tab so the
+    // page opens ready to type, and the old "Request" tab is labelled History.
     val tabs =
         remember {
             listOf(
-                TabDetails(R.string.discover),
-                TabDetails(R.string.request),
                 TabDetails(R.string.search),
-                TabDetails(R.string.movies_title),
-                TabDetails(R.string.tv_shows_title),
+                TabDetails(R.string.requests_history),
             )
         }
     var showHeader by rememberSaveable { mutableStateOf(true) }
@@ -42,32 +43,8 @@ fun DiscoverPage(
         showTabs = showHeader,
     ) { tabIndex, tabDetails ->
         when (tabIndex) {
-            // Discover
-            0 -> {
-                SeerrDiscoverPage(
-                    preferences = preferences,
-                    positionCallback = { showHeader = it.row < 1 },
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .focusRequester(tabDetails.contentFocusRequester),
-                )
-            }
-
-            // Requests
-            1 -> {
-                SeerrRequestsPage(
-                    focusRequesterOnEmpty = tabDetails.tabFocusRequester,
-                    positionCallback = { columns, index -> showHeader = index < columns },
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .focusRequester(tabDetails.contentFocusRequester),
-                )
-            }
-
             // Search
-            2 -> {
+            0 -> {
                 DiscoverSearchPage(
                     preferences = preferences,
                     positionCallback = { columns, index -> showHeader = index < columns },
@@ -78,34 +55,10 @@ fun DiscoverPage(
                 )
             }
 
-            // Movies
-            3 -> {
-                DiscoverRequestGrid(
-                    viewModelKey = "movies",
-                    showTitle = false,
-                    destination =
-                        Destination.DiscoverMoreResult(
-                            DiscoverRequestType.DISCOVER_MOVIES,
-                            0,
-                        ),
-                    positionCallback = { columns, index -> showHeader = index < columns },
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .focusRequester(tabDetails.contentFocusRequester),
-                )
-            }
-
-            // TV
-            4 -> {
-                DiscoverRequestGrid(
-                    viewModelKey = "tv",
-                    showTitle = false,
-                    destination =
-                        Destination.DiscoverMoreResult(
-                            DiscoverRequestType.DISCOVER_TV,
-                            0,
-                        ),
+            // History (upstream's Requests tab: current and prior requests)
+            1 -> {
+                SeerrRequestsPage(
+                    focusRequesterOnEmpty = tabDetails.tabFocusRequester,
                     positionCallback = { columns, index -> showHeader = index < columns },
                     modifier =
                         Modifier
