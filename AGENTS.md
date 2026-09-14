@@ -5,3 +5,7 @@
 - Notion MCP: Claude is Connected on T3 workers. Codex needs a one-time `codex mcp login notion` on that machine (OAuth is machine-local).
 - Do not invent new Products from chat folders. Link work to existing Products rows.
 - No production secrets in the repo.
+
+## Android ship workflow
+
+Official publish = merge to `main` -> tag that merge commit -> APK from the tag. No pre-merge device check required.
