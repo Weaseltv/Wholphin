@@ -2,6 +2,10 @@
 
 -keep class com.github.damontecres.wholphin.mpv.MPVLib { *; }
 
+# AudioCodecSupport queries the optional ffmpeg extension via reflection
+-keep class androidx.media3.decoder.ffmpeg.FfmpegLibrary { *; }
+-dontwarn androidx.media3.decoder.ffmpeg.FfmpegLibrary
+
 -keep class * extends com.google.protobuf.GeneratedMessageLite { *; }
 -keepclassmembers class * extends com.google.protobuf.GeneratedMessageLite {
   <fields>;
