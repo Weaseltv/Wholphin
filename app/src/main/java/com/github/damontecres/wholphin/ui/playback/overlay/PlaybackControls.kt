@@ -81,6 +81,7 @@ import com.github.damontecres.wholphin.ui.seekForward
 import com.github.damontecres.wholphin.ui.skipStringRes
 import com.github.damontecres.wholphin.ui.theme.LocalTheme
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import kotlinx.coroutines.delay
@@ -90,7 +91,6 @@ import org.jellyfin.sdk.model.api.MediaSegmentDto
 import org.jellyfin.sdk.model.extensions.ticks
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
-import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 
 /**
  * Possible actions the user can take during playback

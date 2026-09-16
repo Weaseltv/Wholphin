@@ -47,12 +47,12 @@ import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.enableMarquee
-import org.jellyfin.sdk.model.api.ImageType
-import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
-import com.github.damontecres.wholphin.ui.theme.weaselCardBorder
-import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
-import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.PrismaticDuration
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
+import com.github.damontecres.wholphin.ui.theme.weaselCardBorder
+import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
+import org.jellyfin.sdk.model.api.ImageType
 
 /**
  * Displays an image as a card. If no image is available, the name will be shown instead

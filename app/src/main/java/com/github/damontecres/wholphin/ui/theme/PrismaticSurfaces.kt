@@ -15,13 +15,13 @@ import androidx.tv.material3.CardGlow
 import androidx.tv.material3.ClickableSurfaceBorder
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Glow
+import androidx.tv.material3.ListItemBorder
+import androidx.tv.material3.ListItemDefaults
 import androidx.tv.material3.LocalTextStyle
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.ui.theme.colors.WeaselTvColors
-import androidx.tv.material3.ListItemBorder
-import androidx.tv.material3.ListItemDefaults
 
-/**
+/*
  * Shared prismatic surface treatments (handoff §3, §5).
  *
  * Every helper returns the stock value unless the WeaselTV theme is active, so these

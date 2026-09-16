@@ -33,6 +33,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -57,14 +58,13 @@ import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.components.DialogItem
 import com.github.damontecres.wholphin.ui.components.DialogPopup
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
+import com.github.damontecres.wholphin.ui.theme.PrismaticDuration
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import java.util.UUID
-import androidx.compose.ui.graphics.SolidColor
-import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
-import com.github.damontecres.wholphin.ui.theme.isWeaselTv
-import com.github.damontecres.wholphin.ui.theme.PrismaticDuration
 
 /**
  * Display a list of users plus option to add a new one or switch servers
@@ -239,25 +239,16 @@ private fun UserIconCard(
                         Border(
                             border =
                                 BorderStroke(
-
                                     width = if (isWeaselTv()) 4.dp else 3.dp,
-
                                     brush =
 
                                         if (isWeaselTv()) {
-
                                             rememberPrismaticBrush(
-
                                                 PrismaticDuration.FOCUS_BORDER,
-
                                                 widthPx = 240f,
-
                                             )
-
                                         } else {
-
                                             SolidColor(MaterialTheme.colorScheme.onSurface)
-
                                         },
                                 ),
                             shape = CircleShape,
@@ -415,25 +406,16 @@ private fun AddUserCard(
                         Border(
                             border =
                                 BorderStroke(
-
                                     width = if (isWeaselTv()) 4.dp else 3.dp,
-
                                     brush =
 
                                         if (isWeaselTv()) {
-
                                             rememberPrismaticBrush(
-
                                                 PrismaticDuration.FOCUS_BORDER,
-
                                                 widthPx = 240f,
-
                                             )
-
                                         } else {
-
                                             SolidColor(MaterialTheme.colorScheme.onSurface)
-
                                         },
                                 ),
                             shape = CircleShape,

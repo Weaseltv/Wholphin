@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.compositeOver
@@ -26,7 +27,6 @@ import androidx.tv.material3.MaterialTheme
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.ui.handleDPadKeyEvents
 import com.github.damontecres.wholphin.ui.theme.LocalTheme
-import androidx.compose.ui.graphics.Brush
 import com.github.damontecres.wholphin.ui.theme.PrismaticDuration
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
@@ -241,6 +241,8 @@ fun sliderInactiveColor(focused: Boolean): Color {
         }
 
         // theme-tokens.json progressBar.trackColor
-        AppThemeColors.WEASELTV -> Color.White.copy(alpha = .16f)
+        AppThemeColors.WEASELTV -> {
+            Color.White.copy(alpha = .16f)
+        }
     }
 }

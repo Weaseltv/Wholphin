@@ -58,6 +58,7 @@ class AppUpgradeHandler
         private val rememberedTabDao: RememberedTabDao,
     ) {
         val pkgInfo: PackageInfo get() = context.packageManager.getPackageInfo(context.packageName, 0)
+
         // Lenient for the same reason as UpdateChecker.getInstalledVersion(): a
         // versionName that carries a doubled `-<n>-g<sha>` suffix must not throw.
         val currentVersion: Version

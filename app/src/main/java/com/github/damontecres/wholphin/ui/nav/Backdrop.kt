@@ -36,9 +36,9 @@ import coil3.request.transitionFactory
 import com.github.damontecres.wholphin.preferences.BackdropStyle
 import com.github.damontecres.wholphin.services.BackdropResult
 import com.github.damontecres.wholphin.ui.CrossFadeFactory
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 
 /**
  * Shows the current backdrop images provided by [com.github.damontecres.wholphin.services.BackdropService]

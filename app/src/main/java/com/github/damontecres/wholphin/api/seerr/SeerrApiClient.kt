@@ -2,11 +2,11 @@ package com.github.damontecres.wholphin.api.seerr
 
 import com.github.damontecres.wholphin.api.seerr.infrastructure.ApiClient
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import okhttp3.Call
 import okhttp3.Cookie
 import okhttp3.CookieJar
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType

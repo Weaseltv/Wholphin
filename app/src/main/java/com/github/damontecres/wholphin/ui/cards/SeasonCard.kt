@@ -33,10 +33,10 @@ import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.enableMarquee
+import com.github.damontecres.wholphin.ui.theme.weaselCardBorder
+import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
 import kotlinx.coroutines.delay
 import org.jellyfin.sdk.model.api.ImageType
-import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
-import com.github.damontecres.wholphin.ui.theme.weaselCardBorder
 
 /**
  * A Card for a TV Show Season, but can generally show most items
