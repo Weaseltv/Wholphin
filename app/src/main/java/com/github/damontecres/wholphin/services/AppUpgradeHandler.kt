@@ -432,7 +432,13 @@ class AppUpgradeHandler
                 }
             }
 
-            if (previous.isEqualOrBefore(Version.fromString("1.0.6-7-g0"))) {
+            // WeaselPlex: our shipped builds were v1.0.6-18 through v1.1.1, all carrying the
+            // bad preferAc3Surround default from upstream v1.0.6, so upstream's 1.0.6-7 cutoff
+            // above would skip every installed device. Clear the stale flag for anything up to
+            // and including v1.1.1 as well, with the same experimental-settings guard.
+            if (previous.isEqualOrBefore(Version.fromString("1.0.6-7-g0")) ||
+                previous.isEqualOrBefore(Version.fromString("1.1.1-0-g0"))
+            ) {
                 // preferAc3Surround was mistaken enabled by default, reset it only if the user hasn't enabled experimental settings
                 appPreferences.updateData {
                     if (!it.experimentalPreferences.enabled) {
