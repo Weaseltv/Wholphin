@@ -8,4 +8,17 @@
 
 ## Android ship workflow
 
-Official publish = merge to `main` -> tag that merge commit -> APK from the tag. No pre-merge device check required.
+Official publish = merge to `weaselfin` -> tag that merge commit -> signed APK from the tag. No pre-merge device check required.
+
+Ship branch is **`weaselfin`** (not upstream `main`). All WeaselPlex release tags (`v1.1.x`, etc.) are on `weaselfin`. Do not publish from `main` unless the owner explicitly changes that policy.
+
+Release signing: release builds need the WeaselFin signing keystore (same key as prior installs). Unsigned APKs will not upgrade over existing installs. Prefer building the signed release on a host that already has the keystore; do not commit keystore files or passwords.
+
+
+## Distribution (WeaselPlex Android TV)
+
+- **New installs:** APK hosted on VPS/website + downloader code `9216225`.
+- **In-app updates:** GitHub Releases on `Weaseltv/Wholphin` (not `theweasel.tv` direct-distribution).
+- After tagging: upload signed assets named `WeaselFin-release.apk` / `WeaselFin-release-arm64-v8a.apk` (exact names).
+- GitHub release **title** must be exactly `vX.Y.Z` (no `— WeaselPlex` suffix) or the in-app updater reports no update available.
+- Do not use the removed GitHub Actions Create release workflow; build/sign on VPS or ThinkCentre.
