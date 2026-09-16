@@ -14,6 +14,7 @@ import org.jellyfin.sdk.model.api.SubtitleDeliveryMethod
 import org.jellyfin.sdk.model.api.VideoRangeType
 import org.jellyfin.sdk.model.deviceprofile.DeviceProfileBuilder
 import org.jellyfin.sdk.model.deviceprofile.buildDeviceProfile
+import timber.log.Timber
 
 private val downmixSupportedAudioCodecs =
     arrayOf(
@@ -72,6 +73,7 @@ fun createDeviceProfile(
     decodeAv1: Boolean,
     jellyfinTenEleven: Boolean,
     preferAc3ForSurround: Boolean,
+    audioCodecSupport: AudioCodecSupport = AudioCodecSupport.ALL,
 ) = buildDeviceProfile {
     val allowedAudioCodecs =
         when {
@@ -88,7 +90,12 @@ fun createDeviceProfile(
             else -> {
                 supportedAudioCodecs
             }
-        }
+        }.filter { audioCodecSupport.isSupported(it) }
+            .toTypedArray()
+            .also { allowed ->
+                val dropped = supportedAudioCodecs.filterNot { it in allowed }
+                if (dropped.isNotEmpty()) Timber.i("Audio codecs not advertised: %s", dropped)
+            }
 
     val supportsHevc = mediaTest.supportsHevc()
     val supportsHevcMain10 = mediaTest.supportsHevcMain10()

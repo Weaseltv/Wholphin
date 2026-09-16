@@ -247,6 +247,11 @@ class MediaCodecCapabilitiesTest(
 
     fun supportsVc1(): Boolean = hasCodecForMime(MimeTypes.VIDEO_VC1)
 
+    /**
+     * Whether the device has a MediaCodec decoder for the given audio mime type
+     */
+    fun supportsAudioMime(mime: String): Boolean = hasCodecForMime(mime)
+
     private fun getDecoderLevel(
         mime: String,
         profile: Int,

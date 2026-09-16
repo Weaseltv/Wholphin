@@ -33,8 +33,21 @@ val av1ModuleExists =
     providers.provider { project.file("libs/lib-decoder-av1-release.aar").exists() }
 val mpvModuleExists =
     providers.provider { project.file("libs/wholphin-mpv-release.aar").exists() }
+// Must match the check in settings.gradle.kts which registers the repository
 val extensionsRepoActive =
-    providers.provider { project.hasProperty("WholphinExtensionsUsername") }
+    providers.gradleProperty("WholphinExtensionsUsername").map { it.isNotBlank() }.orElse(false)
+
+// Release builds must bundle the native extensions (ffmpeg audio decoders, dav1d, libmpv).
+// Without the ffmpeg decoder, AC3/EAC3/DTS/TrueHD audio is silent on devices that lack a
+// hardware decoder, and the MPV backend does not work at all. Shipping such a build is
+// almost always a mistake (missing GitHub Packages credentials on the build host).
+// Opt out for a one-off with -PWholphinAllowMissingExtensions=true
+val allowMissingExtensions =
+    providers.gradleProperty("WholphinAllowMissingExtensions").map { it.toBoolean() }.orElse(false)
+val isReleaseBuild =
+    providers.provider {
+        gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }
+    }
 
 // See https://issuetracker.google.com/issues/402800800
 val isBuildingBundle =
@@ -479,6 +492,13 @@ dependencies {
     } else if (extensionsRepoActive.get()) {
         logger.info("Using prebuilt ffmpeg decoder")
         implementation(libs.wholphin.extensions.ffmpeg)
+    } else if (isReleaseBuild.get() && !allowMissingExtensions.get()) {
+        throw GradleException(
+            "Media3 ffmpeg decoder was NOT found. Release builds require the Wholphin extensions: " +
+                "set WholphinExtensionsUsername/WholphinExtensionsPassword in ~/.gradle/gradle.properties " +
+                "or place lib-decoder-ffmpeg-release.aar in app/libs. " +
+                "Override with -PWholphinAllowMissingExtensions=true",
+        )
     } else {
         logger.warn("Media3 ffmpeg decoder was NOT found")
     }

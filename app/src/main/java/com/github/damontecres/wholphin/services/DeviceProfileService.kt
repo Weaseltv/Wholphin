@@ -4,9 +4,11 @@ import android.content.Context
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.AssPlaybackMode
 import com.github.damontecres.wholphin.preferences.ExperimentalPreferences
+import com.github.damontecres.wholphin.preferences.MediaExtensionStatus
 import com.github.damontecres.wholphin.preferences.PlaybackOverrides
 import com.github.damontecres.wholphin.preferences.enabled
 import com.github.damontecres.wholphin.util.WholphinDispatchers
+import com.github.damontecres.wholphin.util.profile.AudioCodecSupport
 import com.github.damontecres.wholphin.util.profile.MediaCodecCapabilitiesTest
 import com.github.damontecres.wholphin.util.profile.createDeviceProfile
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -65,6 +67,12 @@ class DeviceProfileService
                                 decodeAv1 = prefs.overrides.decodeAv1,
                                 preferAc3ForSurround = appPrefs.experimentalPreferences.enabled { preferAc3Surround },
                                 jellyfinTenEleven = newConfig.jellyfinTenEleven,
+                                audioCodecSupport =
+                                    AudioCodecSupport.forExoPlayer(
+                                        context = context,
+                                        mediaTest = mediaCodecCapabilitiesTest,
+                                        ffmpegEnabled = newConfig.overrides.mediaExtensionsEnabled != MediaExtensionStatus.MES_DISABLED,
+                                    ),
                             )
                     }
                     this@DeviceProfileService.deviceProfile!!
