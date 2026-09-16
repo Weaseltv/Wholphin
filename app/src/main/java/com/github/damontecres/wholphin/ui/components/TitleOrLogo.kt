@@ -21,6 +21,7 @@ import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
+import com.github.damontecres.wholphin.ui.logCoilError
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ImageType
 import androidx.compose.ui.graphics.Color
@@ -43,6 +44,10 @@ fun TitleOrLogo(
                 model = logoImageUrl,
                 contentDescription = title,
                 contentScale = ContentScale.Fit,
+                onError = {
+                    logCoilError(logoImageUrl, it.result)
+                    imageError = true
+                },
                 modifier =
                     Modifier
                         .height(HeaderUtils.logoHeight)
@@ -127,6 +132,10 @@ fun SimpleTitleOrLogo(
                 model = logoImageUrl,
                 contentDescription = item?.title,
                 contentScale = ContentScale.Fit,
+                onError = {
+                    logCoilError(logoImageUrl, it.result)
+                    imageError = true
+                },
                 modifier = Modifier.fillMaxSize(),
             )
         } else {

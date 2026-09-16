@@ -13,9 +13,11 @@ import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.RememberedTab
 import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.AppPreferences
+import com.github.damontecres.wholphin.preferences.ExperimentalPreference
 import com.github.damontecres.wholphin.preferences.ScreensaverPreference
 import com.github.damontecres.wholphin.preferences.update
 import com.github.damontecres.wholphin.preferences.updateAdvancedPreferences
+import com.github.damontecres.wholphin.preferences.updateExperimentalPreferences
 import com.github.damontecres.wholphin.preferences.updateHomePagePreferences
 import com.github.damontecres.wholphin.preferences.updateInterfacePreferences
 import com.github.damontecres.wholphin.preferences.updateLiveTvPreferences
@@ -418,6 +420,34 @@ class AppUpgradeHandler
                 appPreferences.updateData {
                     it.updateSubtitlePreferences {
                         useSeparateHdr = it.interfacePreferences.shouldEnableSeparateHdrToggle()
+                    }
+                }
+            }
+
+            if (previous.isEqualOrBefore(Version.fromString("1.0.6-0-g0"))) {
+                appPreferences.updateData {
+                    it.updateScreensaverPreferences {
+                        dimPercent = ScreensaverPreference.DimPercentage.defaultValue.toInt()
+                    }
+                }
+            }
+
+            // WeaselPlex: our shipped builds were v1.0.6-18 through v1.1.1, all carrying the
+            // bad preferAc3Surround default from upstream v1.0.6, so upstream's 1.0.6-7 cutoff
+            // above would skip every installed device. Clear the stale flag for anything up to
+            // and including v1.1.1 as well, with the same experimental-settings guard.
+            if (previous.isEqualOrBefore(Version.fromString("1.0.6-7-g0")) ||
+                previous.isEqualOrBefore(Version.fromString("1.1.1-0-g0"))
+            ) {
+                // preferAc3Surround was mistaken enabled by default, reset it only if the user hasn't enabled experimental settings
+                appPreferences.updateData {
+                    if (!it.experimentalPreferences.enabled) {
+                        it.updateExperimentalPreferences {
+                            preferAc3Surround =
+                                ExperimentalPreference.PreferAc3ForSurround.defaultValue
+                        }
+                    } else {
+                        it
                     }
                 }
             }

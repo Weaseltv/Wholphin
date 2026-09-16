@@ -1344,6 +1344,14 @@ val screensaverPreferences =
                     ScreensaverPreference.Start,
                 ),
         ),
+        PreferenceGroup(
+            title = R.string.dim_screen,
+            preferences =
+                listOf(
+                    ScreensaverPreference.DimToggle,
+                    ScreensaverPreference.DimPercentage,
+                ),
+        ),
     )
 
 data class AppSwitchPreference<Pref>(
