@@ -58,6 +58,7 @@ import com.github.damontecres.wholphin.preferences.SkipSegmentPreferences
 import com.github.damontecres.wholphin.preferences.advancedPreferences
 import com.github.damontecres.wholphin.preferences.basicPreferences
 import com.github.damontecres.wholphin.preferences.experimentalPreferences
+import com.github.damontecres.wholphin.preferences.lazyListWrapScrolling
 import com.github.damontecres.wholphin.preferences.screensaverPreferences
 import com.github.damontecres.wholphin.preferences.updatePlaybackPreferences
 import com.github.damontecres.wholphin.services.Release
@@ -102,6 +103,9 @@ fun PreferencesContent(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
+    val firstFocusRequester = remember { FocusRequester() }
+    val lastFocusRequester = remember { FocusRequester() }
+
     var focusedIndex by rememberSaveable { mutableStateOf(Pair(0, 0)) }
     val state = rememberLazyListState()
     var preferences by remember { mutableStateOf(initialPreferences) }
@@ -138,7 +142,7 @@ fun PreferencesContent(
         }
     }
 
-    val movementSounds = true
+    val movementSounds = false
     val installedVersion = updateVM.currentVersion
     val updateAvailable =
         remember(updateState.release) {
@@ -188,6 +192,12 @@ fun PreferencesContent(
         }
     }
 
+    val showUpdate =
+        UpdateChecker.ACTIVE &&
+            preferenceScreenOption == PreferenceScreenOption.BASIC &&
+            preferences.autoCheckForUpdates &&
+            updateAvailable
+
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn() + slideInHorizontally { it / 2 },
@@ -229,11 +239,7 @@ fun PreferencesContent(
                 contentPadding = PaddingValues(16.dp),
                 modifier = Modifier.fillMaxSize(),
             ) {
-                if (UpdateChecker.ACTIVE &&
-                    preferenceScreenOption == PreferenceScreenOption.BASIC &&
-                    preferences.autoCheckForUpdates &&
-                    updateAvailable
-                ) {
+                if (showUpdate) {
                     item {
                         val updateFocusRequester = remember { FocusRequester() }
                         LaunchedEffect(Unit) {
@@ -252,6 +258,7 @@ fun PreferencesContent(
                             modifier =
                                 Modifier
                                     .focusRequester(updateFocusRequester)
+                                    .focusRequester(firstFocusRequester)
                                     .playSoundOnFocus(movementSounds),
                         )
                     }
@@ -277,15 +284,25 @@ fun PreferencesContent(
                                 .flatten()
                     groupPreferences.forEachIndexed { prefIndex, pref ->
                         pref as AppPreference<AppPreferences, Any>
+                        val isFirst = groupIndex == 0 && prefIndex == 0 && !showUpdate
+                        val isLast =
+                            groupIndex == prefList.lastIndex && prefIndex == groupPreferences.lastIndex
                         item {
                             val interactionSource = remember { MutableInteractionSource() }
+                            val focused = interactionSource.collectIsFocusedAsState().value
                             val focusModifier =
                                 Modifier
                                     .ifElse(
                                         groupIndex == focusedIndex.first && prefIndex == focusedIndex.second,
                                         Modifier.focusRequester(focusRequester),
+                                    ).lazyListWrapScrolling(
+                                        state,
+                                        focused,
+                                        isFirst,
+                                        isLast,
+                                        firstFocusRequester,
+                                        lastFocusRequester,
                                     )
-                            val focused = interactionSource.collectIsFocusedAsState().value
                             LaunchedEffect(focused) {
                                 if (focused) {
                                     focusedIndex = Pair(groupIndex, prefIndex)
