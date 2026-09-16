@@ -66,7 +66,9 @@ fun WatchedIconColor(): Color =
         AppThemeColors.OLED_BLACK,
         AppThemeColors.RED,
         AppThemeColors.BROWN,
-        -> Color.White // MaterialTheme.colorScheme.onSurface
+        -> Color.White
+
+        // MaterialTheme.colorScheme.onSurface
 
         // Dark ink on the neon circle. White on neon is unreadable and is called out
         // in the handoff as never allowed.

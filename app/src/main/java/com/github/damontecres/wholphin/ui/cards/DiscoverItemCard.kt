@@ -46,9 +46,9 @@ import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.enableMarquee
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
-import kotlinx.coroutines.delay
-import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
 import com.github.damontecres.wholphin.ui.theme.weaselCardBorder
+import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
+import kotlinx.coroutines.delay
 
 @Composable
 fun DiscoverItemCard(

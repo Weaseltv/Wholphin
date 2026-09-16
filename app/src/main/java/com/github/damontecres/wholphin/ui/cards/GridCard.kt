@@ -31,9 +31,9 @@ import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.components.ViewOptionImageType
 import com.github.damontecres.wholphin.ui.enableMarquee
-import kotlinx.coroutines.delay
-import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
 import com.github.damontecres.wholphin.ui.theme.weaselCardBorder
+import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
+import kotlinx.coroutines.delay
 
 /**
  * Card for use in [com.github.damontecres.wholphin.ui.detail.CardGrid]

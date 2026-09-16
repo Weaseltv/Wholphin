@@ -35,9 +35,9 @@ import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.components.Studio
 import com.github.damontecres.wholphin.ui.setup.rememberIdColor
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
-import java.util.UUID
-import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
 import com.github.damontecres.wholphin.ui.theme.weaselCardBorder
+import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
+import java.util.UUID
 
 @Composable
 fun StudioCard(

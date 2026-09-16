@@ -1,9 +1,9 @@
 package com.github.damontecres.wholphin.services
 
 import android.content.Context
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.ServerPreferencesDao
 import com.github.damontecres.wholphin.data.ServerRepository
-import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.NavPinType
 import com.github.damontecres.wholphin.services.hilt.DefaultCoroutineScope
@@ -239,8 +239,7 @@ class NavDrawerService
                 .sortedBy {
                     navDrawerPins[it.id]?.order?.takeIf { order -> order >= 0 }
                         ?: defaultNavOrder(it, context)
-                }
-                .forEach {
+                }.forEach {
                     // Assume pinned if unknown
                     val pinned = navDrawerPins[it.id]?.type ?: NavPinType.PINNED
                     if (pinned == NavPinType.PINNED) {
@@ -270,7 +269,6 @@ data class NavDrawerItemState(
 
 val UserDto.tvAccess: Boolean get() = policy?.enableLiveTvAccess == true
 
-
 /**
  * The flavor's preferred nav rail order.
  *
@@ -294,7 +292,6 @@ private fun defaultNavOrder(
     val byName = wanted.indexOfFirst { it.equals(name, ignoreCase = true) }
     return if (byName >= 0) byName else Int.MAX_VALUE
 }
-
 
 /**
  * Position of a library in the flavor's preferred order, matched on NAME.

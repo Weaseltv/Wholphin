@@ -37,7 +37,9 @@ fun AddSeerServerDialog(
         // WeaselFin: Quick Connect is established automatically from the Jellyfin
         // session the user already has, so it is deliberately never offered as a
         // manual choice here and cannot be reached from this dialog.
-        SeerrAuthMethod.QUICK_CONNECT -> Unit
+        SeerrAuthMethod.QUICK_CONNECT -> {
+            Unit
+        }
 
         SeerrAuthMethod.LOCAL,
         SeerrAuthMethod.JELLYFIN,

@@ -27,12 +27,12 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.ui.components.SearchEditTextBox
 import com.github.damontecres.wholphin.ui.components.SelectedLeadingContent
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
+import com.github.damontecres.wholphin.ui.theme.weaselListItemBorder
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.milliseconds
-import com.github.damontecres.wholphin.ui.theme.weaselListItemBorder
 
 /**
  * A filterable list of language choices ([PreferredLanguageType])

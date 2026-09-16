@@ -42,10 +42,10 @@ import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.gt
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.logCoilError
-import org.jellyfin.sdk.model.api.ImageType
-import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
-import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.PrismaticDuration
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
+import org.jellyfin.sdk.model.api.ImageType
 
 /**
  * Display an image for an item with optional overlay data

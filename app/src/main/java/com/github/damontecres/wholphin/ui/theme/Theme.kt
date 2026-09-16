@@ -8,12 +8,12 @@ import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.ui.theme.colors.BlueThemeColors
 import com.github.damontecres.wholphin.ui.theme.colors.BoldBlueThemeColors
 import com.github.damontecres.wholphin.ui.theme.colors.BrownThemeColors
-import com.github.damontecres.wholphin.ui.theme.colors.WeaselTvThemeColors
 import com.github.damontecres.wholphin.ui.theme.colors.GreenThemeColors
 import com.github.damontecres.wholphin.ui.theme.colors.OledThemeColors
 import com.github.damontecres.wholphin.ui.theme.colors.OrangeThemeColors
 import com.github.damontecres.wholphin.ui.theme.colors.PurpleThemeColors
 import com.github.damontecres.wholphin.ui.theme.colors.RedThemeColors
+import com.github.damontecres.wholphin.ui.theme.colors.WeaselTvThemeColors
 
 val LocalTheme =
     compositionLocalOf<AppThemeColors> { AppThemeColors.PURPLE }
