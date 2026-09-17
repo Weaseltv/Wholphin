@@ -12,7 +12,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -40,6 +42,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.datastore.core.DataStore
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -59,6 +62,10 @@ import com.github.damontecres.wholphin.ui.AppColors
 import com.github.damontecres.wholphin.ui.CrossFadeFactory
 import com.github.damontecres.wholphin.ui.nav.TOP_SCRIM_ALPHA
 import com.github.damontecres.wholphin.ui.nav.TOP_SCRIM_END_FRACTION
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.NeonBrandRow
+import com.github.damontecres.wholphin.ui.theme.NeonType
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import javax.inject.Inject
@@ -117,7 +124,7 @@ fun AppScreensaverContent(
 ) {
     Box(
         modifier
-            .background(Color.Black),
+            .background(if (isWeaselTv()) NeonBoard.Stage else Color.Black),
     ) {
         val infiniteTransition = rememberInfiniteTransition()
         val scale by infiniteTransition.animateFloat(
@@ -288,15 +295,34 @@ fun ScreensaverPlaceholder(
         modifier = modifier,
     ) { align ->
         Box(Modifier.fillMaxSize()) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.displaySmall,
-                color = MaterialTheme.colorScheme.error,
-                modifier =
-                    Modifier
-                        .align(align)
-                        .padding(40.dp),
-            )
+            if (isWeaselTv()) {
+                // Neon Board (T12): the brand mark drifts every cycle to avoid burn-in.
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier =
+                        Modifier
+                            .align(align)
+                            .padding(48.dp),
+                ) {
+                    NeonBrandRow(mascotSize = NeonBoard.Size.ScreensaverMark, wordmarkSize = 36.sp, glow = true)
+                    Text(
+                        text = text,
+                        style = NeonType.small(),
+                        color = NeonBoard.Mid,
+                    )
+                }
+            } else {
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.displaySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier =
+                        Modifier
+                            .align(align)
+                            .padding(40.dp),
+                )
+            }
         }
     }
 }

@@ -34,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -47,7 +48,9 @@ import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.MaterialTheme
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 
 /**
  * An input field for text customized for TV entry
@@ -194,7 +197,7 @@ fun SearchEditTextBox(
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = stringResource(R.string.search),
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                tint = if (isWeaselTv()) NeonBoard.Volt else MaterialTheme.colorScheme.onPrimaryContainer,
             )
         },
         enabled = enabled,
@@ -283,7 +286,7 @@ fun EditTextBox(
                         prefix = null,
                         suffix = null,
                         supportingText = supportingText,
-                        shape = CircleShape,
+                        shape = if (isWeaselTv()) RectangleShape else CircleShape,
                         singleLine = true,
                         enabled = enabled,
                         isError = false,
@@ -301,7 +304,7 @@ fun EditTextBox(
                                 interactionSource = interactionSource,
                                 modifier = Modifier,
                                 colors = colors,
-                                shape = CircleShape,
+                                shape = if (isWeaselTv()) RectangleShape else CircleShape,
                                 focusedIndicatorLineThickness = 4.dp,
                                 unfocusedIndicatorLineThickness = 0.dp,
                             )
@@ -323,7 +326,8 @@ fun SearchEditTextBox(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     readOnly: Boolean = false,
-    height: Dp = 40.dp,
+    // Neon Board: the search strip is 56dp with the volt glyph.
+    height: Dp = if (isWeaselTv()) 56.dp else 40.dp,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) {
     EditTextBox(
@@ -346,7 +350,7 @@ fun SearchEditTextBox(
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = stringResource(R.string.search),
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                tint = if (isWeaselTv()) NeonBoard.Volt else MaterialTheme.colorScheme.onPrimaryContainer,
             )
         },
         enabled = enabled,

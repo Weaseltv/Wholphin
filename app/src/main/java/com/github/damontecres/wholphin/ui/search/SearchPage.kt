@@ -73,6 +73,10 @@ import com.github.damontecres.wholphin.ui.detail.GridItemDetails
 import com.github.damontecres.wholphin.ui.detail.livetv.ProgramDialog
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.onMain
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.NeonType
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.titleStringRes
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.WholphinDispatchers
@@ -760,15 +764,15 @@ fun SearchResultPlaceholder(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier.padding(bottom = 32.dp),
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onBackground,
+        ItemRowTitle(
+            title = title,
+            accent = if (messageColor == MaterialTheme.colorScheme.error) NeonBoard.Red else LocalNeonAccent.current,
+            modifier = Modifier.padding(start = 0.dp),
         )
         Text(
             text = message,
-            style = MaterialTheme.typography.titleMedium,
-            color = messageColor,
+            style = if (isWeaselTv()) NeonType.rowSubtitle() else MaterialTheme.typography.titleMedium,
+            color = if (isWeaselTv() && messageColor == MaterialTheme.colorScheme.onBackground) NeonBoard.Mid else messageColor,
         )
     }
 }

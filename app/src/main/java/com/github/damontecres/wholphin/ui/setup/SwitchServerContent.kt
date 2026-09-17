@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -50,6 +51,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.tv.material3.ListItem
@@ -69,6 +71,12 @@ import com.github.damontecres.wholphin.ui.dimAndBlur
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.rememberInt
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.NeonBrandRow
+import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
+import com.github.damontecres.wholphin.ui.theme.NeonRule
+import com.github.damontecres.wholphin.ui.theme.NeonType
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.LoadingState
 import timber.log.Timber
@@ -122,17 +130,28 @@ private fun SwitchServerContentInternal(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text(
-                    text = stringResource(R.string.select_server),
-                    style = MaterialTheme.typography.displaySmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                // Invisible subtitle placeholder to mirror the server name line on the Select User screen
-                Text(
-                    text = "Server placeholder",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Color.Transparent,
-                )
+                if (isWeaselTv()) {
+                    NeonBrandRow(mascotSize = 40.dp, wordmarkSize = 34.sp)
+                    NeonEyebrow(text = stringResource(R.string.app_name), accent = NeonBoard.Mid)
+                    Text(
+                        text = stringResource(R.string.select_server).uppercase(),
+                        style = NeonType.pageTitle(),
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    NeonRule(modifier = Modifier.width(320.dp))
+                } else {
+                    Text(
+                        text = stringResource(R.string.select_server),
+                        style = MaterialTheme.typography.displaySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    // Invisible subtitle placeholder to mirror the server name line on the Select User screen
+                    Text(
+                        text = "Server placeholder",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.Transparent,
+                    )
+                }
             }
 
             // Horizontal scrollable list of server icons - centered

@@ -165,6 +165,11 @@ object NeonType {
     @ReadOnlyComposable
     fun playerTitle(): TextStyle = condensed(28.sp, fallback = MaterialTheme.typography.headlineSmall)
 
+    /** Any other Condensed 800 uppercase title (e.g. the 30sp state title). */
+    @Composable
+    @ReadOnlyComposable
+    fun condensedTitle(size: TextUnit): TextStyle = condensed(size, fallback = MaterialTheme.typography.headlineSmall)
+
     /** Row titles and section rules: 22. */
     @Composable
     @ReadOnlyComposable

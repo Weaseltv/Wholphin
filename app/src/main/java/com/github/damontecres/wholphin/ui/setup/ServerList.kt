@@ -18,12 +18,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Icon
@@ -35,7 +37,9 @@ import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.components.CircularProgress
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceGlow
 import org.jellyfin.sdk.model.api.PublicSystemInfo
 import java.util.UUID
 
@@ -113,7 +117,10 @@ fun ServerIconCard(
     val serverColor = rememberIdColor(server.id)
 
     // Card dimensions - circular card
-    val cardSize = Cards.serverUserCircle
+    // Neon Board (T9): square 120dp tiles, `card2` with a 1dp `line2` edge, scale 1.06 on focus.
+    val neon = isWeaselTv()
+    val tileShape = if (neon) RectangleShape else CircleShape
+    val cardSize = if (neon) NeonBoard.Size.UserTile else Cards.serverUserCircle
 
     val displayText =
         remember(server) {
@@ -134,17 +141,21 @@ fun ServerIconCard(
             onLongClick = if (allowDelete) onLongClick else null,
             interactionSource = interactionSource,
             modifier = Modifier.size(cardSize),
-            shape = ClickableSurfaceDefaults.shape(shape = CircleShape),
+            shape = ClickableSurfaceDefaults.shape(shape = tileShape),
             colors =
                 ClickableSurfaceDefaults.colors(
                     containerColor =
-                        if (isCurrentServer) {
+                        if (neon) {
+                            NeonBoard.Card2
+                        } else if (isCurrentServer) {
                             serverColor.copy(alpha = 0.7f)
                         } else {
                             serverColor.copy(alpha = 0.5f)
                         },
                     focusedContainerColor =
-                        if (isCurrentServer) {
+                        if (neon) {
+                            NeonBoard.chipOn(NeonBoard.Volt)
+                        } else if (isCurrentServer) {
                             serverColor.copy(alpha = 0.9f)
                         } else {
                             serverColor.copy(alpha = 0.7f)
@@ -152,6 +163,7 @@ fun ServerIconCard(
                 ),
             border =
                 ClickableSurfaceDefaults.border(
+                    border = if (neon) Border(border = BorderStroke(1.dp, NeonBoard.Line2), shape = tileShape) else Border.None,
                     focusedBorder =
                         Border(
                             border =
@@ -160,10 +172,11 @@ fun ServerIconCard(
                                     width = if (isWeaselTv()) 1.dp else 3.dp,
                                     color = if (isWeaselTv()) NeonBoard.Volt else MaterialTheme.colorScheme.onSurface,
                                 ),
-                            shape = CircleShape,
+                            shape = tileShape,
                         ),
                 ),
-            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.2f),
+            glow = neonSurfaceGlow(NeonBoard.Volt, elevation = 24.dp, alpha = .5f),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = if (neon) 1.06f else 1.2f),
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -249,7 +262,9 @@ fun AddServerCard(
     val addServerColor = MaterialTheme.colorScheme.surfaceVariant
 
     // Card dimensions - circular card (same as server cards)
-    val cardSize = Cards.height2x3 * 0.75f // ~120dp
+    val neon = isWeaselTv()
+    val tileShape = if (neon) RectangleShape else CircleShape
+    val cardSize = if (neon) NeonBoard.Size.UserTile else Cards.height2x3 * 0.75f // ~120dp
 
     Column(
         modifier = modifier,
@@ -264,14 +279,15 @@ fun AddServerCard(
                 Modifier
                     .size(cardSize)
                     .testTag("add_server"),
-            shape = ClickableSurfaceDefaults.shape(shape = CircleShape),
+            shape = ClickableSurfaceDefaults.shape(shape = tileShape),
             colors =
                 ClickableSurfaceDefaults.colors(
-                    containerColor = addServerColor.copy(alpha = 0.4f),
-                    focusedContainerColor = addServerColor.copy(alpha = 0.6f),
+                    containerColor = if (neon) NeonBoard.Card2 else addServerColor.copy(alpha = 0.4f),
+                    focusedContainerColor = if (neon) NeonBoard.chipOn(NeonBoard.Volt) else addServerColor.copy(alpha = 0.6f),
                 ),
             border =
                 ClickableSurfaceDefaults.border(
+                    border = if (neon) Border(border = BorderStroke(1.dp, NeonBoard.Line2), shape = tileShape) else Border.None,
                     focusedBorder =
                         Border(
                             border =
@@ -280,10 +296,11 @@ fun AddServerCard(
                                     width = if (isWeaselTv()) 1.dp else 3.dp,
                                     color = if (isWeaselTv()) NeonBoard.Volt else MaterialTheme.colorScheme.onSurface,
                                 ),
-                            shape = CircleShape,
+                            shape = tileShape,
                         ),
                 ),
-            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.2f),
+            glow = neonSurfaceGlow(NeonBoard.Volt, elevation = 24.dp, alpha = .5f),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = if (neon) 1.06f else 1.2f),
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),

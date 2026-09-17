@@ -2,6 +2,7 @@ package com.github.damontecres.wholphin.ui.setup
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,7 +37,11 @@ import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.components.BasicDialog
 import com.github.damontecres.wholphin.ui.components.TextButton
 import com.github.damontecres.wholphin.ui.playback.isEnterKey
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.neonUpper
 
 @Composable
 fun PinEntry(
@@ -50,8 +55,8 @@ fun PinEntry(
         modifier = modifier,
     ) {
         Text(
-            text = stringResource(R.string.enter_pin),
-            style = MaterialTheme.typography.headlineLarge,
+            text = stringResource(R.string.enter_pin).neonUpper(),
+            style = if (isWeaselTv()) NeonType.dialogTitle() else MaterialTheme.typography.headlineLarge,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.align(Alignment.CenterHorizontally),
         )
@@ -202,6 +207,34 @@ fun PinEntryDots(
     count: Int,
     modifier: Modifier = Modifier,
 ) {
+    if (isWeaselTv()) {
+        // Neon Board (T9): four 56×68 `card2` cells; filled cells take a volt border and glow.
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = modifier.padding(vertical = 8.dp),
+        ) {
+            repeat(maxOf(4, count)) { index ->
+                val filled = index < count
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier =
+                        Modifier
+                            .size(width = 56.dp, height = 68.dp)
+                            .background(NeonBoard.Card2)
+                            .border(1.dp, if (filled) NeonBoard.Volt else NeonBoard.Line2),
+                ) {
+                    if (filled) {
+                        Box(
+                            Modifier
+                                .size(12.dp)
+                                .background(NeonBoard.Volt),
+                        )
+                    }
+                }
+            }
+        }
+        return
+    }
     Row(
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         modifier =
