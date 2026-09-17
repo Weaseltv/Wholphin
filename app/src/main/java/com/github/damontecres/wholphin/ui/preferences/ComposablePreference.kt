@@ -36,6 +36,9 @@ import com.github.damontecres.wholphin.ui.components.DialogParams
 import com.github.damontecres.wholphin.ui.components.DialogPopup
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.nav.Destination
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.NeonType
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import kotlinx.coroutines.launch
 import java.io.File
@@ -273,11 +276,11 @@ fun <T> ComposablePreference(
 
 val PreferenceTitleStyle: TextStyle
     @Composable @ReadOnlyComposable
-    get() = MaterialTheme.typography.titleSmall
+    get() = if (isWeaselTv()) NeonType.settingsLabel() else MaterialTheme.typography.titleSmall
 
 val PreferenceSummaryStyle: TextStyle
     @Composable @ReadOnlyComposable
-    get() = MaterialTheme.typography.bodySmall
+    get() = if (isWeaselTv()) NeonType.settingsValue().copy(color = NeonBoard.Volt) else MaterialTheme.typography.bodySmall
 
 @Composable
 fun PreferenceTitle(

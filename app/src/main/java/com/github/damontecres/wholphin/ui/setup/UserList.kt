@@ -63,6 +63,7 @@ import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceGlow
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import java.util.UUID
@@ -205,7 +206,10 @@ private fun UserIconCard(
     var imageError by remember { mutableStateOf(false) }
 
     // Card dimensions - circular card
-    val cardSize = Cards.serverUserCircle
+    // Neon Board (T9): square 120dp tiles, `card2` with a 1dp `line2` edge, scale 1.06 on focus.
+    val neon = isWeaselTv()
+    val tileShape = if (neon) RectangleShape else CircleShape
+    val cardSize = if (neon) NeonBoard.Size.UserTile else Cards.serverUserCircle
 
     Column(
         modifier = modifier,
@@ -218,17 +222,21 @@ private fun UserIconCard(
             onLongClick = onLongClick,
             interactionSource = interactionSource,
             modifier = Modifier.size(cardSize),
-            shape = ClickableSurfaceDefaults.shape(shape = CircleShape),
+            shape = ClickableSurfaceDefaults.shape(shape = tileShape),
             colors =
                 ClickableSurfaceDefaults.colors(
                     containerColor =
-                        if (isCurrentUser) {
+                        if (neon) {
+                            NeonBoard.Card2
+                        } else if (isCurrentUser) {
                             userColor.copy(alpha = 0.7f)
                         } else {
                             userColor.copy(alpha = 0.5f)
                         },
                     focusedContainerColor =
-                        if (isCurrentUser) {
+                        if (neon) {
+                            NeonBoard.chipOn(NeonBoard.Volt)
+                        } else if (isCurrentUser) {
                             userColor.copy(alpha = 0.9f)
                         } else {
                             userColor.copy(alpha = 0.7f)
@@ -236,6 +244,7 @@ private fun UserIconCard(
                 ),
             border =
                 ClickableSurfaceDefaults.border(
+                    border = if (neon) Border(border = BorderStroke(1.dp, NeonBoard.Line2), shape = tileShape) else Border.None,
                     focusedBorder =
                         Border(
                             border =
@@ -244,10 +253,11 @@ private fun UserIconCard(
                                     width = if (isWeaselTv()) 1.dp else 3.dp,
                                     color = if (isWeaselTv()) NeonBoard.Volt else MaterialTheme.colorScheme.onSurface,
                                 ),
-                            shape = CircleShape,
+                            shape = tileShape,
                         ),
                 ),
-            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.2f),
+            glow = neonSurfaceGlow(NeonBoard.Volt, elevation = 24.dp, alpha = .5f),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = if (neon) 1.06f else 1.2f),
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -262,7 +272,7 @@ private fun UserIconCard(
                         modifier =
                             Modifier
                                 .fillMaxSize()
-                                .clip(CircleShape),
+                                .clip(tileShape),
                     )
                 } else {
                     // Show big bold first letter of username
@@ -275,9 +285,11 @@ private fun UserIconCard(
                     Text(
                         text = firstLetter,
                         style =
-                            MaterialTheme.typography.displayLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                            ),
+                            if (neon) {
+                                NeonType.numeral(40.sp).copy(fontWeight = FontWeight.ExtraBold)
+                            } else {
+                                MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.Bold)
+                            },
                         color = MaterialTheme.colorScheme.onSurface,
                         textAlign = TextAlign.Center,
                     )
@@ -379,7 +391,9 @@ private fun AddUserCard(
     val addUserColor = MaterialTheme.colorScheme.surfaceVariant
 
     // Card dimensions - circular card (same as user cards)
-    val cardSize = Cards.height2x3 * 0.75f // ~120dp
+    val neon = isWeaselTv()
+    val tileShape = if (neon) RectangleShape else CircleShape
+    val cardSize = if (neon) NeonBoard.Size.UserTile else Cards.height2x3 * 0.75f // ~120dp
 
     Column(
         modifier = modifier,
@@ -391,14 +405,15 @@ private fun AddUserCard(
             onClick = onClick,
             interactionSource = interactionSource,
             modifier = Modifier.size(cardSize),
-            shape = ClickableSurfaceDefaults.shape(shape = CircleShape),
+            shape = ClickableSurfaceDefaults.shape(shape = tileShape),
             colors =
                 ClickableSurfaceDefaults.colors(
-                    containerColor = addUserColor.copy(alpha = 0.4f),
-                    focusedContainerColor = addUserColor.copy(alpha = 0.6f),
+                    containerColor = if (neon) NeonBoard.Card2 else addUserColor.copy(alpha = 0.4f),
+                    focusedContainerColor = if (neon) NeonBoard.chipOn(NeonBoard.Volt) else addUserColor.copy(alpha = 0.6f),
                 ),
             border =
                 ClickableSurfaceDefaults.border(
+                    border = if (neon) Border(border = BorderStroke(1.dp, NeonBoard.Line2), shape = tileShape) else Border.None,
                     focusedBorder =
                         Border(
                             border =
@@ -407,10 +422,11 @@ private fun AddUserCard(
                                     width = if (isWeaselTv()) 1.dp else 3.dp,
                                     color = if (isWeaselTv()) NeonBoard.Volt else MaterialTheme.colorScheme.onSurface,
                                 ),
-                            shape = CircleShape,
+                            shape = tileShape,
                         ),
                 ),
-            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.2f),
+            glow = neonSurfaceGlow(NeonBoard.Volt, elevation = 24.dp, alpha = .5f),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = if (neon) 1.06f else 1.2f),
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),

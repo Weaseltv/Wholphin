@@ -17,6 +17,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
+import com.github.damontecres.wholphin.ui.theme.NeonLoadingMark
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import kotlinx.coroutines.delay
 import kotlin.time.Duration
@@ -55,13 +57,18 @@ fun LoadingPage(
                 .focusRequester(focusRequester)
                 .focusable(focusEnabled),
     ) {
-        CircularProgressIndicator(
-            color = MaterialTheme.colorScheme.border,
-            modifier =
-                Modifier
-                    .align(Alignment.Center)
-                    .size(48.dp),
-        )
+        if (isWeaselTv()) {
+            // Neon Board (T12): the stage with the mascot, wordmark and a volt progress rule.
+            NeonLoadingMark(Modifier.align(Alignment.Center))
+        } else {
+            CircularProgressIndicator(
+                color = MaterialTheme.colorScheme.border,
+                modifier =
+                    Modifier
+                        .align(Alignment.Center)
+                        .size(48.dp),
+            )
+        }
     }
 }
 
@@ -92,13 +99,17 @@ fun DelayedLoadingPage(
                 .focusable(focusEnabled),
     ) {
         if (show) {
-            CircularProgressIndicator(
-                color = MaterialTheme.colorScheme.border,
-                modifier =
-                    Modifier
-                        .align(Alignment.Center)
-                        .size(48.dp),
-            )
+            if (isWeaselTv()) {
+                NeonLoadingMark(Modifier.align(Alignment.Center))
+            } else {
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.border,
+                    modifier =
+                        Modifier
+                            .align(Alignment.Center)
+                            .size(48.dp),
+                )
+            }
         }
     }
 }

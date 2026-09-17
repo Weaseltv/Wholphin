@@ -79,7 +79,7 @@ fun NeonBoardFocusRecipe(modifier: Modifier = Modifier) {
                         .padding(horizontal = NeonBoard.Size.OverscanX, vertical = NeonBoard.Size.OverscanY),
             ) {
                 ProvideNeonAccent(NeonBoard.Orange) {
-                    NeonEyebrow("Focus recipe · replaces the prismatic ring")
+                    NeonEyebrow("Focus recipe · one state for everything")
                     Text(text = "ONE FOCUS STATE FOR EVERYTHING", style = NeonType.pageTitle(), color = NeonBoard.Text)
                     Text(
                         text =
