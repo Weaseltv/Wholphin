@@ -36,7 +36,6 @@ import coil3.request.transitionFactory
 import com.github.damontecres.wholphin.preferences.BackdropStyle
 import com.github.damontecres.wholphin.services.BackdropResult
 import com.github.damontecres.wholphin.ui.CrossFadeFactory
-import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -150,10 +149,6 @@ fun Backdrop(
         )
     }
     if (backdropStyle != BackdropStyle.BACKDROP_NONE) {
-        // Handoff §5: keep Jellyfin's artwork and the graphite scrims, then add a faint
-        // cyan/violet ambient bloom over them. Evaluated here because DrawScope is not a
-        // composable scope.
-        val ambientBloom = isWeaselTv()
         Box(
             modifier = modifier.fillMaxSize(),
         ) {
@@ -215,42 +210,6 @@ fun Backdrop(
                                     ),
                                 blendMode = BlendMode.DstIn,
                             )
-                            if (ambientBloom) {
-                                // Drawn LAST, after the DstIn fades, so the wash carries
-                                // past the edge of the artwork into the graphite instead
-                                // of being masked away with it - which is what the
-                                // mockups show. Plus blend adds light rather than
-                                // tinting, so the artwork underneath is not muddied.
-                                // Both stay at or under the 20% alpha the handoff caps.
-                                drawRect(
-                                    brush =
-                                        Brush.radialGradient(
-                                            colors =
-                                                listOf(
-                                                    Color(0x33C026FF),
-                                                    Color.Transparent,
-                                                ),
-                                            center =
-                                                Offset(size.width * .78f, size.height * .18f),
-                                            radius = size.minDimension * .85f,
-                                        ),
-                                    blendMode = BlendMode.Plus,
-                                )
-                                drawRect(
-                                    brush =
-                                        Brush.radialGradient(
-                                            colors =
-                                                listOf(
-                                                    Color(0x2600F0FF),
-                                                    Color.Transparent,
-                                                ),
-                                            center =
-                                                Offset(size.width * .62f, size.height * .92f),
-                                            radius = size.minDimension * .75f,
-                                        ),
-                                    blendMode = BlendMode.Plus,
-                                )
-                            }
                         },
             )
         }

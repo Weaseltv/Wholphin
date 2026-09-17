@@ -5,7 +5,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.tv.material3.ListItem
-import com.github.damontecres.wholphin.ui.theme.weaselListItemBorder
+import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
+import com.github.damontecres.wholphin.ui.theme.neonListItemColors
+import com.github.damontecres.wholphin.ui.theme.neonListItemGlow
+import com.github.damontecres.wholphin.ui.theme.neonListItemShape
 
 @Composable
 fun ClickPreference(
@@ -17,7 +20,10 @@ fun ClickPreference(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) {
     ListItem(
-        border = weaselListItemBorder(),
+        shape = neonListItemShape(),
+        colors = neonListItemColors(),
+        border = neonListItemBorder(),
+        glow = neonListItemGlow(),
         selected = false,
         onClick = onClick,
         onLongClick = onLongClick,

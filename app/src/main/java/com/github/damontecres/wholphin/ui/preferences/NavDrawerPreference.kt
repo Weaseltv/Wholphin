@@ -56,7 +56,10 @@ import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.main.settings.MoveDirection
 import com.github.damontecres.wholphin.ui.nav.NavDrawerItem
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
-import com.github.damontecres.wholphin.ui.theme.weaselListItemBorder
+import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
+import com.github.damontecres.wholphin.ui.theme.neonListItemColors
+import com.github.damontecres.wholphin.ui.theme.neonListItemGlow
+import com.github.damontecres.wholphin.ui.theme.neonListItemShape
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -231,7 +234,10 @@ fun NavDrawerPreferenceListItem(
                     .heightIn(min = 40.dp),
         ) {
             ListItem(
-                border = weaselListItemBorder(),
+                shape = neonListItemShape(),
+                colors = neonListItemColors(),
+                border = neonListItemBorder(),
+                glow = neonListItemGlow(),
                 selected = false,
                 headlineContent = {
                     Text(

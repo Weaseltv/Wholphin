@@ -12,7 +12,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -23,8 +22,8 @@ import coil3.compose.AsyncImage
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.logCoilError
+import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
-import com.github.damontecres.wholphin.ui.theme.weaselTitleStyle
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ImageType
 
@@ -64,22 +63,14 @@ private fun Title(
     title: String?,
     modifier: Modifier = Modifier,
 ) {
-    // WeaselTV (handoff §3): hero titles carry the animated rainbow text brush.
-    // weaselTitleStyle returns the base style untouched on every other theme, and it
-    // also supplies weight 800 + tight tracking, so the SemiBold below only applies
-    // when the brush is not in play.
-    val heroStyle =
-        weaselTitleStyle(
-            base = MaterialTheme.typography.headlineMedium,
-            widthPx = 700f,
-        )
+    // Neon Board: the text title is the fallback when the server has no logo, and it is
+    // Barlow Condensed 800 uppercase in one solid color. No brush.
+    val neon = isWeaselTv()
     Text(
-        text = title ?: "",
-        // A brush and a solid colour cannot both win; leave colour unset when the
-        // brush is active or the text renders flat.
-        color = if (isWeaselTv()) Color.Unspecified else MaterialTheme.colorScheme.onSurface,
-        style = heroStyle,
-        fontWeight = if (isWeaselTv()) null else FontWeight.SemiBold,
+        text = (title ?: "").let { if (neon) it.uppercase() else it },
+        color = MaterialTheme.colorScheme.onSurface,
+        style = if (neon) NeonType.hero() else MaterialTheme.typography.headlineMedium,
+        fontWeight = if (neon) null else FontWeight.SemiBold,
         maxLines = 2,
         overflow = TextOverflow.Ellipsis,
         modifier = modifier,

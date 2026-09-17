@@ -21,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -39,9 +40,12 @@ import com.github.damontecres.wholphin.ui.AspectRatio
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.enableMarquee
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
-import com.github.damontecres.wholphin.ui.theme.weaselCardBorder
-import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
+import com.github.damontecres.wholphin.ui.theme.neonCardBorder
+import com.github.damontecres.wholphin.ui.theme.neonCardGlow
+import com.github.damontecres.wholphin.ui.theme.neonCardScale
+import com.github.damontecres.wholphin.ui.theme.neonCardShape
 import kotlinx.coroutines.delay
 
 @Composable
@@ -53,6 +57,7 @@ fun ViewMoreCard(
     aspectRatio: AspectRatio = AspectRatio.TALL,
     size: DpSize = DpSize(width = Cards.height2x3 * aspectRatio.ratio, height = Cards.height2x3),
     showTitle: Boolean = true,
+    accent: Color = LocalNeonAccent.current,
 ) {
     val focused by interactionSource.collectIsFocusedAsState()
     var focusedAfterDelay by remember { mutableStateOf(false) }
@@ -94,8 +99,10 @@ fun ViewMoreCard(
                 CardDefaults.colors(
                     containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp),
                 ),
-            border = weaselCardBorder(),
-            glow = weaselCardGlow(),
+            shape = neonCardShape(),
+            scale = neonCardScale(),
+            border = neonCardBorder(accent),
+            glow = neonCardGlow(accent),
         ) {
             Box(
                 contentAlignment = Alignment.Center,

@@ -2,120 +2,98 @@ package com.github.damontecres.wholphin.ui.theme.colors
 
 import androidx.compose.ui.graphics.Color
 import androidx.tv.material3.darkColorScheme
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.ThemeColors
 
 /**
- * WeaselTV "Signal Graphite" — the WeaselFin brand theme.
+ * WeaselTV "Neon Board" — the WeaselPlex brand theme, shared with the iOS app, the
+ * Android phone app and the website (design handoff 2026-09-16).
  *
- * Values are taken verbatim from the approved design handoff (`theme-tokens.json`);
- * none are invented here. The animated prismatic rainbow that pairs with this palette
- * lives in `ui/theme/Prismatic.kt`.
+ * Tokens live in [NeonBoard]; this only maps them onto the tv-material3 and Material3
+ * color schemes. The enum value stays `WEASELTV` because it is the stored preference;
+ * the flavor's strings label it "WeaselPlex".
  *
- * The TV app always renders dark, so the light schemes deliberately mirror the dark
- * ones rather than inventing a light palette that would never be seen — and that, if
- * it ever were, would put unreadable neon on white.
+ * `border` is the stock focus border color. Every focusable surface overrides it with
+ * its section or type accent through the `neon*` helpers, so it is the quiet `line2`
+ * hairline rather than a neon, which keeps any surface not yet converted from shouting.
+ *
+ * The TV app always renders dark, so the light schemes deliberately mirror the dark ones.
  */
-object WeaselTvColors {
-    val Background = Color(0xFF0A0C12)
-    val Panel = Color(0xFF101927)
-    val PanelDeep = Color(0xFF0B111B)
-    val Hairline = Color(0xFF1F2737)
-    val Scrim = Color(0xF0020408)
-
-    val TextPrimary = Color(0xFFEAF2FF)
-    val TextMuted = Color(0xFF8FA2BD)
-
-    /** Dark ink for use on any bright neon or rainbow fill. Never white — it vanishes. */
-    val OnNeon = Color(0xFF02131A)
-
-    val NeonCyan = Color(0xFF00F0FF)
-    val StarYellow = Color(0xFFFFF700)
-    val FavoriteHeart = Color(0xFFFF3B55)
-    val LiveGreen = Color(0xFF39FF14)
-}
-
 val WeaselTvThemeColors =
     object : ThemeColors {
-        private val background = WeaselTvColors.Background
-        private val panel = WeaselTvColors.Panel
-        private val panelDeep = WeaselTvColors.PanelDeep
-        private val hairline = WeaselTvColors.Hairline
-        private val text = WeaselTvColors.TextPrimary
-        private val textMuted = WeaselTvColors.TextMuted
-        private val neon = WeaselTvColors.NeonCyan
-        private val onNeon = WeaselTvColors.OnNeon
+        private val stage = NeonBoard.Stage
+        private val card = NeonBoard.Card
+        private val card2 = NeonBoard.Card2
+        private val text = NeonBoard.Text
+        private val mid = NeonBoard.Mid
+        private val volt = NeonBoard.Volt
+        private val onAccent = NeonBoard.OnAccent
 
-        private val errorDark = WeaselTvColors.FavoriteHeart
-        private val onErrorDark = onNeon
-        private val errorContainerDark = Color(0xFF5C1622)
-        private val onErrorContainerDark = Color(0xFFFFDAD6)
+        private val errorContainer = Color(0xFF3A0F15)
+        private val onErrorContainer = Color(0xFFFFD9DC)
 
         private fun scheme() =
             darkColorScheme(
-                primary = neon,
-                onPrimary = onNeon,
-                primaryContainer = panel,
+                primary = volt,
+                onPrimary = onAccent,
+                primaryContainer = card,
                 onPrimaryContainer = text,
-                secondary = WeaselTvColors.LiveGreen,
-                onSecondary = onNeon,
-                secondaryContainer = panelDeep,
+                secondary = NeonBoard.Green,
+                onSecondary = onAccent,
+                secondaryContainer = card2,
                 onSecondaryContainer = text,
-                // Card watch-progress uses tertiary as the static fallback wherever an
-                // animated brush cannot be applied, so it must read as the same accent.
-                tertiary = neon,
-                onTertiary = onNeon,
-                tertiaryContainer = panelDeep,
+                tertiary = NeonBoard.Orange,
+                onTertiary = onAccent,
+                tertiaryContainer = card2,
                 onTertiaryContainer = text,
-                error = errorDark,
-                onError = onErrorDark,
-                errorContainer = errorContainerDark,
-                onErrorContainer = onErrorContainerDark,
-                background = background,
+                error = NeonBoard.Red,
+                onError = onAccent,
+                errorContainer = errorContainer,
+                onErrorContainer = onErrorContainer,
+                background = stage,
                 onBackground = text,
-                surface = background,
+                surface = stage,
                 onSurface = text,
-                surfaceVariant = panel,
-                onSurfaceVariant = textMuted,
-                scrim = WeaselTvColors.Scrim,
+                surfaceVariant = card,
+                onSurfaceVariant = mid,
+                scrim = NeonBoard.Scrim,
                 inverseSurface = text,
-                inverseOnSurface = background,
-                inversePrimary = neon,
-                // `border` is what the app reaches for on focus. Kept neon so that any
-                // surface not yet converted to the animated brush still reads as
-                // WeaselTV rather than falling back to another theme's accent.
-                border = neon,
+                inverseOnSurface = stage,
+                inversePrimary = volt,
+                border = NeonBoard.Line2,
+                borderVariant = NeonBoard.Line,
             )
 
         private fun materialScheme() =
             androidx.compose.material3.darkColorScheme(
-                primary = neon,
-                onPrimary = onNeon,
-                primaryContainer = panel,
+                primary = volt,
+                onPrimary = onAccent,
+                primaryContainer = card,
                 onPrimaryContainer = text,
-                secondary = WeaselTvColors.LiveGreen,
-                onSecondary = onNeon,
-                secondaryContainer = panelDeep,
+                secondary = NeonBoard.Green,
+                onSecondary = onAccent,
+                secondaryContainer = card2,
                 onSecondaryContainer = text,
-                tertiary = neon,
-                onTertiary = onNeon,
-                tertiaryContainer = panelDeep,
+                tertiary = NeonBoard.Orange,
+                onTertiary = onAccent,
+                tertiaryContainer = card2,
                 onTertiaryContainer = text,
-                error = errorDark,
-                onError = onErrorDark,
-                errorContainer = errorContainerDark,
-                onErrorContainer = onErrorContainerDark,
-                background = background,
+                error = NeonBoard.Red,
+                onError = onAccent,
+                errorContainer = errorContainer,
+                onErrorContainer = onErrorContainer,
+                background = stage,
                 onBackground = text,
-                surface = background,
+                surface = stage,
                 onSurface = text,
-                surfaceVariant = panel,
-                onSurfaceVariant = textMuted,
-                outline = hairline,
-                outlineVariant = hairline,
-                scrim = WeaselTvColors.Scrim,
+                surfaceVariant = card,
+                onSurfaceVariant = mid,
+                outline = NeonBoard.Line2,
+                outlineVariant = NeonBoard.Line,
+                scrim = NeonBoard.Scrim,
                 inverseSurface = text,
-                inverseOnSurface = background,
-                inversePrimary = neon,
+                inverseOnSurface = stage,
+                inversePrimary = volt,
             )
 
         override val lightSchemeMaterial = materialScheme()

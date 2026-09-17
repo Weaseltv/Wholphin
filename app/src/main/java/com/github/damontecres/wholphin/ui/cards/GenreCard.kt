@@ -31,9 +31,12 @@ import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.components.Genre
 import com.github.damontecres.wholphin.ui.setup.rememberIdColor
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
-import com.github.damontecres.wholphin.ui.theme.weaselCardBorder
-import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
+import com.github.damontecres.wholphin.ui.theme.neonCardBorder
+import com.github.damontecres.wholphin.ui.theme.neonCardGlow
+import com.github.damontecres.wholphin.ui.theme.neonCardScale
+import com.github.damontecres.wholphin.ui.theme.neonCardShape
 import java.util.UUID
 
 @Composable
@@ -62,6 +65,7 @@ fun GenreCard(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    accent: Color = LocalNeonAccent.current,
 ) {
     val background = rememberIdColor(genreId).copy(alpha = .6f)
     Card(
@@ -73,8 +77,10 @@ fun GenreCard(
             CardDefaults.colors(
                 containerColor = Color.Transparent,
             ),
-        border = weaselCardBorder(),
-        glow = weaselCardGlow(),
+        shape = neonCardShape(),
+        scale = neonCardScale(),
+        border = neonCardBorder(accent),
+        glow = neonCardGlow(accent),
     ) {
         Box(
             contentAlignment = Alignment.Center,

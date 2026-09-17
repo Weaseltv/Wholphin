@@ -31,8 +31,12 @@ import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.components.ViewOptionImageType
 import com.github.damontecres.wholphin.ui.enableMarquee
-import com.github.damontecres.wholphin.ui.theme.weaselCardBorder
-import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.neonAccentFor
+import com.github.damontecres.wholphin.ui.theme.neonCardBorder
+import com.github.damontecres.wholphin.ui.theme.neonCardGlow
+import com.github.damontecres.wholphin.ui.theme.neonCardScale
+import com.github.damontecres.wholphin.ui.theme.neonCardShape
 import kotlinx.coroutines.delay
 
 /**
@@ -45,6 +49,7 @@ fun GridCard(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    accent: Color = neonAccentFor(item),
     imageAspectRatio: Float = AspectRatios.TALL,
     imageContentScale: ContentScale = ContentScale.Fit,
     imageType: ViewOptionImageType = ViewOptionImageType.PRIMARY,
@@ -83,8 +88,10 @@ fun GridCard(
                 CardDefaults.colors(
                     containerColor = Color.Transparent,
                 ),
-            border = weaselCardBorder(),
-            glow = weaselCardGlow(),
+            shape = neonCardShape(),
+            scale = neonCardScale(),
+            border = neonCardBorder(accent),
+            glow = neonCardGlow(accent),
         ) {
             ItemCardImage(
                 item = item,
@@ -101,6 +108,7 @@ fun GridCard(
                 contentScale = imageContentScale,
                 fillWidth = fillWidth,
                 fillHeight = fillHeight,
+                accent = accent,
                 modifier =
                     Modifier
                         .fillMaxWidth()

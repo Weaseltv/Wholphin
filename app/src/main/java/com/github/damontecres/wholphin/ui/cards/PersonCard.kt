@@ -40,9 +40,11 @@ import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.enableMarquee
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
-import com.github.damontecres.wholphin.ui.theme.weaselCardBorder
-import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
+import com.github.damontecres.wholphin.ui.theme.neonCardBorder
+import com.github.damontecres.wholphin.ui.theme.neonCardGlow
+import com.github.damontecres.wholphin.ui.theme.neonCardScale
 import kotlinx.coroutines.delay
 import org.jellyfin.sdk.model.UUID
 import org.jellyfin.sdk.model.api.PersonKind
@@ -78,6 +80,7 @@ fun PersonCard(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    accent: Color = LocalNeonAccent.current,
 ) {
     val hideOverlayDelay = 1_000L
 
@@ -109,10 +112,11 @@ fun PersonCard(
             shape = CardDefaults.shape(CircleShape),
             // Cast circles are round, so the ring has to follow the shape. Falls back
             // to the original solid-border treatment on every non-WeaselTV theme.
+            // People are the one round surface in the Neon Board; the ring follows.
             border =
-                weaselCardBorder(
+                neonCardBorder(
+                    accent = accent,
                     shape = CircleShape,
-                    widthPx = 220f,
                     fallback =
                         CardDefaults.border(
                             focusedBorder =
@@ -126,7 +130,8 @@ fun PersonCard(
                                 ),
                         ),
                 ),
-            glow = weaselCardGlow(),
+            glow = neonCardGlow(accent),
+            scale = neonCardScale(),
             colors =
                 CardDefaults.colors(
                     containerColor = Color.Transparent,

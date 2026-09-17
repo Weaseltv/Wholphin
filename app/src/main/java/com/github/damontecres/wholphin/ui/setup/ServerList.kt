@@ -18,7 +18,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -35,9 +34,8 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.components.CircularProgress
-import com.github.damontecres.wholphin.ui.theme.PrismaticDuration
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
-import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
 import org.jellyfin.sdk.model.api.PublicSystemInfo
 import java.util.UUID
 
@@ -158,17 +156,9 @@ fun ServerIconCard(
                         Border(
                             border =
                                 BorderStroke(
-                                    width = if (isWeaselTv()) 3.dp else 3.dp,
-                                    brush =
-
-                                        if (isWeaselTv()) {
-                                            rememberPrismaticBrush(
-                                                PrismaticDuration.FOCUS_BORDER,
-                                                widthPx = 240f,
-                                            )
-                                        } else {
-                                            SolidColor(MaterialTheme.colorScheme.onSurface)
-                                        },
+                                    // Neon Board: the one focus recipe, a 1dp volt border.
+                                    width = if (isWeaselTv()) 1.dp else 3.dp,
+                                    color = if (isWeaselTv()) NeonBoard.Volt else MaterialTheme.colorScheme.onSurface,
                                 ),
                             shape = CircleShape,
                         ),
@@ -286,17 +276,9 @@ fun AddServerCard(
                         Border(
                             border =
                                 BorderStroke(
-                                    width = if (isWeaselTv()) 3.dp else 3.dp,
-                                    brush =
-
-                                        if (isWeaselTv()) {
-                                            rememberPrismaticBrush(
-                                                PrismaticDuration.FOCUS_BORDER,
-                                                widthPx = 240f,
-                                            )
-                                        } else {
-                                            SolidColor(MaterialTheme.colorScheme.onSurface)
-                                        },
+                                    // Neon Board: the one focus recipe, a 1dp volt border.
+                                    width = if (isWeaselTv()) 1.dp else 3.dp,
+                                    color = if (isWeaselTv()) NeonBoard.Volt else MaterialTheme.colorScheme.onSurface,
                                 ),
                             shape = CircleShape,
                         ),

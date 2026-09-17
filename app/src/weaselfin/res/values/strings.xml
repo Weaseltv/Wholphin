@@ -32,4 +32,7 @@
     <string name="add_favorite">Add to Watchlist</string>
     <string name="remove_favorite">Remove from Watchlist</string>
     <string name="favorite_items_title">Watchlist %s</string>
+
+    <!-- The stored preference value stays WEASELTV; only the label customers see changes. -->
+    <string name="weaseltv" translatable="false">WeaselPlex</string>
 </resources>

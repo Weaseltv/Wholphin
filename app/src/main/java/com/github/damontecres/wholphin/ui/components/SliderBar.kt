@@ -18,7 +18,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.compositeOver
@@ -26,10 +25,9 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.ui.handleDPadKeyEvents
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.LocalTheme
-import com.github.damontecres.wholphin.ui.theme.PrismaticDuration
-import com.github.damontecres.wholphin.ui.theme.isWeaselTv
-import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
 
 /**
  * A TV capable control for choosing a value
@@ -98,25 +96,8 @@ fun SliderBar(
                     strokeWidth = size.height,
                     cap = StrokeCap.Round,
                 )
-                val activeBrush = colors.activeBrush
-                if (activeBrush != null) {
-                    drawLine(
-                        brush = activeBrush,
-                        start = Offset(x = 0f, y = yOffset),
-                        end = Offset(x = size.width.times(percent), y = yOffset),
-                        strokeWidth = size.height,
-                        cap = StrokeCap.Round,
-                    )
-                }
                 drawLine(
-                    color =
-                        if (activeBrush != null) {
-                            Color.Transparent
-                        } else if (isFocused) {
-                            colors.activeFocused
-                        } else {
-                            colors.activeUnfocused
-                        },
+                    color = if (isFocused) colors.activeFocused else colors.activeUnfocused,
                     start = Offset(x = 0f, y = yOffset),
                     end =
                         Offset(
@@ -142,11 +123,6 @@ data class SliderColors(
     val activeUnfocused: Color,
     val inactiveFocused: Color,
     val inactiveUnfocused: Color,
-    /**
-     * When set, the filled portion is painted with this instead of the flat colour.
-     * Null on every theme except WeaselTV, so nothing else changes.
-     */
-    val activeBrush: Brush? = null,
 ) {
     companion object {
         @Composable
@@ -156,15 +132,6 @@ data class SliderColors(
                 activeUnfocused = sliderActiveColor(false),
                 inactiveFocused = sliderInactiveColor(true),
                 inactiveUnfocused = sliderInactiveColor(false),
-                activeBrush =
-                    if (isWeaselTv()) {
-                        rememberPrismaticBrush(
-                            PrismaticDuration.PROGRESS_FILL,
-                            widthPx = 900f,
-                        )
-                    } else {
-                        null
-                    },
             )
     }
 }
@@ -183,9 +150,13 @@ fun sliderActiveColor(focused: Boolean): Color {
         AppThemeColors.ORANGE,
         AppThemeColors.RED,
         AppThemeColors.BROWN,
-        AppThemeColors.WEASELTV,
         -> {
             MaterialTheme.colorScheme.border
+        }
+
+        // Neon Board: the fill is the page's accent.
+        AppThemeColors.WEASELTV -> {
+            LocalNeonAccent.current
         }
 
         AppThemeColors.BOLD_BLUE -> {
@@ -240,9 +211,9 @@ fun sliderInactiveColor(focused: Boolean): Color {
             }
         }
 
-        // theme-tokens.json progressBar.trackColor
+        // Neon Board: the track is the `line2` hairline.
         AppThemeColors.WEASELTV -> {
-            Color.White.copy(alpha = .16f)
+            NeonBoard.Line2
         }
     }
 }

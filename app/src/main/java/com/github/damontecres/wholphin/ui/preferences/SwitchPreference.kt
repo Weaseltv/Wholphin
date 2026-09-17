@@ -4,7 +4,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.tv.material3.ListItem
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Switch
@@ -12,8 +11,11 @@ import androidx.tv.material3.SwitchColors
 import androidx.tv.material3.SwitchDefaults
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.ui.theme.LocalTheme
-import com.github.damontecres.wholphin.ui.theme.colors.WeaselTvColors
-import com.github.damontecres.wholphin.ui.theme.weaselListItemBorder
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
+import com.github.damontecres.wholphin.ui.theme.neonListItemColors
+import com.github.damontecres.wholphin.ui.theme.neonListItemGlow
+import com.github.damontecres.wholphin.ui.theme.neonListItemShape
 
 @Composable
 fun SwitchPreference(
@@ -46,7 +48,10 @@ fun SwitchPreference(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) {
     ListItem(
-        border = weaselListItemBorder(),
+        shape = neonListItemShape(),
+        colors = neonListItemColors(),
+        border = neonListItemBorder(),
+        glow = neonListItemGlow(),
         selected = false,
         onClick = onClick,
         onLongClick = onLongClick,
@@ -93,13 +98,14 @@ fun SwitchColors(): SwitchColors {
         }
 
         AppThemeColors.WEASELTV -> {
+            // Neon Board: track `line2` / volt, knob `mid` / `onAccent`.
             SwitchDefaults.colors(
-                checkedTrackColor = WeaselTvColors.NeonCyan,
-                checkedThumbColor = Color.White,
-                checkedBorderColor = WeaselTvColors.NeonCyan,
-                uncheckedTrackColor = Color.White.copy(alpha = .14f),
-                uncheckedThumbColor = WeaselTvColors.TextMuted,
-                uncheckedBorderColor = WeaselTvColors.Hairline,
+                checkedTrackColor = NeonBoard.Volt,
+                checkedThumbColor = NeonBoard.OnAccent,
+                checkedBorderColor = NeonBoard.Volt,
+                uncheckedTrackColor = NeonBoard.Line2,
+                uncheckedThumbColor = NeonBoard.Mid,
+                uncheckedBorderColor = NeonBoard.Line2,
             )
         }
     }

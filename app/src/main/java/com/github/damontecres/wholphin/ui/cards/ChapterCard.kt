@@ -15,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
@@ -32,8 +33,11 @@ import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.formatDuration
 import com.github.damontecres.wholphin.ui.roundSeconds
-import com.github.damontecres.wholphin.ui.theme.weaselCardBorder
-import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.neonCardBorder
+import com.github.damontecres.wholphin.ui.theme.neonCardGlow
+import com.github.damontecres.wholphin.ui.theme.neonCardScale
+import com.github.damontecres.wholphin.ui.theme.neonCardShape
 import org.jellyfin.sdk.model.api.ImageType
 
 /**
@@ -47,6 +51,7 @@ fun ChapterCard(
     cardHeight: Dp = 120.dp,
     onLongClick: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource? = null,
+    accent: Color = LocalNeonAccent.current,
 ) {
     val density = LocalDensity.current
     val imageUrlService = LocalImageUrlService.current
@@ -66,8 +71,10 @@ fun ChapterCard(
         onClick = onClick,
         onLongClick = onLongClick,
         interactionSource = interactionSource,
-        border = weaselCardBorder(),
-        glow = weaselCardGlow(),
+        shape = neonCardShape(),
+        scale = neonCardScale(),
+        border = neonCardBorder(accent),
+        glow = neonCardGlow(accent),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             AsyncImage(

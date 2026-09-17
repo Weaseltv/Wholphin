@@ -45,6 +45,10 @@ fun WholphinTheme(
             darkTheme -> themeColors.darkScheme
             else -> themeColors.lightScheme
         }
+    // Barlow only when the WeaselTV theme is active; every other theme keeps the stock
+    // typography, so upstream flavors are untouched even though the code path is shared.
+    val typography =
+        if (appThemeColors == AppThemeColors.WEASELTV) rememberNeonTypography() else AppTypography
     CompositionLocalProvider(LocalTheme provides appThemeColors) {
         androidx.compose.material3.MaterialTheme(
             colorScheme = if (darkTheme) themeColors.darkSchemeMaterial else themeColors.lightSchemeMaterial,
@@ -52,13 +56,9 @@ fun WholphinTheme(
         ) {
             MaterialTheme(
                 colorScheme = colorScheme,
-                typography = AppTypography,
-            ) {
-                // One shared prismatic driver for the whole app. Installed here so every
-                // screen — and every @Preview — gets it without remembering to wrap.
-                // Inert for non-WeaselTV themes: nothing reads the brush unless it opts in.
-                PrismaticAnimationHost(content = content)
-            }
+                typography = typography,
+                content = content,
+            )
         }
     }
 }

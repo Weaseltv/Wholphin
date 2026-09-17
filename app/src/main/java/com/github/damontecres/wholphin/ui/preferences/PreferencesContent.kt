@@ -35,7 +35,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -80,8 +79,9 @@ import com.github.damontecres.wholphin.ui.setup.UpdateViewModel
 import com.github.damontecres.wholphin.ui.setup.seerr.AddSeerServerDialog
 import com.github.damontecres.wholphin.ui.setup.seerr.SwitchSeerrViewModel
 import com.github.damontecres.wholphin.ui.showToast
+import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
-import com.github.damontecres.wholphin.ui.theme.weaselTitleStyle
+import com.github.damontecres.wholphin.ui.theme.neonUpper
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.ExceptionHandler
@@ -211,21 +211,10 @@ fun PreferencesContent(
             modifier = Modifier.background(MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)),
         ) {
             Text(
-                text = stringResource(screenTitle),
-                // Page title (handoff §3): rainbow brush on WeaselTV, untouched elsewhere.
-                // Colour must be Unspecified when a brush is active or the solid colour
-                // wins and the text renders flat.
-                style =
-                    weaselTitleStyle(
-                        base = MaterialTheme.typography.headlineSmall,
-                        widthPx = 520f,
-                    ),
-                color =
-                    if (isWeaselTv()) {
-                        Color.Unspecified
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
+                text = stringResource(screenTitle).neonUpper(),
+                // Neon Board page title: Barlow Condensed 800 uppercase, one solid color.
+                style = if (isWeaselTv()) NeonType.pageTitle() else MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
                 modifier =
                     Modifier
