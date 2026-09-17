@@ -15,6 +15,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -22,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.LocalContentColor
+import androidx.tv.material3.LocalTextStyle
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
@@ -30,6 +37,12 @@ import coil3.compose.AsyncImage
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.formatSeasonEpisode
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.NeonType
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceBorder
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceGlow
+import com.github.damontecres.wholphin.ui.theme.neonTally
 import java.time.LocalDateTime
 
 @Composable
@@ -42,9 +55,14 @@ fun Program(
     modifier: Modifier = Modifier,
 ) {
     val startedBeforeGuide = program.start.isBefore(guideStart)
+    // Neon Board (T7): square blocks with a 1dp `line` left edge; the current block is
+    // `nowFill` with a 3dp cyan tally; focused = `chipOn` + cyan border + glow.
+    val neon = isWeaselTv()
+    val now = LocalDateTime.now()
+    val isNow = remember(program) { now.isAfter(program.start) && now.isBefore(program.end) }
     val shape =
-        remember(startedBeforeGuide) {
-            val cornerSize = 4.dp
+        remember(startedBeforeGuide, neon) {
+            val cornerSize = if (neon) 0.dp else 4.dp
             if (startedBeforeGuide) {
                 RoundedCornerShape(
                     topEnd = cornerSize,
@@ -63,22 +81,51 @@ fun Program(
         shape = ClickableSurfaceDefaults.shape(shape),
         scale = ClickableSurfaceDefaults.scale(1f, 1f, .95f),
         colors =
-            ClickableSurfaceDefaults.colors(
-                containerColor =
-                    if (colorCode) {
-                        program.category?.color
-                            ?: MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)
-                    } else {
-                        MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)
-                    },
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                focusedContainerColor = MaterialTheme.colorScheme.inverseSurface,
-                focusedContentColor = MaterialTheme.colorScheme.inverseOnSurface,
-            ),
+            if (neon) {
+                ClickableSurfaceDefaults.colors(
+                    containerColor =
+                        if (colorCode && program.category?.color != null) {
+                            program.category.color
+                                .copy(alpha = .35f)
+                                .compositeOver(NeonBoard.Stage)
+                        } else if (isNow) {
+                            NeonBoard.nowFill(NeonBoard.Cyan)
+                        } else {
+                            NeonBoard.Stage
+                        },
+                    contentColor = if (isNow) NeonBoard.Text else NeonBoard.Mid,
+                    focusedContainerColor = NeonBoard.chipOn(NeonBoard.Cyan),
+                    focusedContentColor = NeonBoard.Text,
+                )
+            } else {
+                ClickableSurfaceDefaults.colors(
+                    containerColor =
+                        if (colorCode) {
+                            program.category?.color
+                                ?: MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)
+                        } else {
+                            MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)
+                        },
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    focusedContainerColor = MaterialTheme.colorScheme.inverseSurface,
+                    focusedContentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                )
+            },
+        border = neonSurfaceBorder(NeonBoard.Cyan, restWidth = 0.dp),
+        glow = neonSurfaceGlow(NeonBoard.Cyan),
         modifier =
             modifier
-                .padding(2.dp)
-                .fillMaxSize(),
+                .padding(if (neon) 0.dp else 2.dp)
+                .then(
+                    if (neon) {
+                        Modifier
+                            .drawBehind {
+                                drawRect(NeonBoard.Line, size = Size(1.dp.toPx(), size.height))
+                            }.neonTally(NeonBoard.Cyan, isNow)
+                    } else {
+                        Modifier
+                    },
+                ).fillMaxSize(),
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),
@@ -105,7 +152,8 @@ fun Program(
                 Text(
                     text = title,
                     color = LocalContentColor.current,
-                    fontSize = 16.sp,
+                    style = if (neon) NeonType.rowTitle() else LocalTextStyle.current,
+                    fontSize = if (neon) 15.sp else 16.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier,
@@ -149,20 +197,41 @@ fun Channel(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val neon = isWeaselTv()
     Surface(
         onClick = onClick,
         onLongClick = onLongClick,
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
+        shape = ClickableSurfaceDefaults.shape(if (neon) RectangleShape else RoundedCornerShape(8.dp)),
         scale = ClickableSurfaceDefaults.scale(1f, 1f, .95f),
         colors =
-            ClickableSurfaceDefaults.colors(
-                containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp),
-                focusedContainerColor = MaterialTheme.colorScheme.inverseSurface,
-            ),
+            if (neon) {
+                // Neon Board: the channel column is opaque `stage`, number `low`, focus recipe in cyan.
+                ClickableSurfaceDefaults.colors(
+                    containerColor = NeonBoard.Stage,
+                    contentColor = NeonBoard.Text,
+                    focusedContainerColor = NeonBoard.chipOn(NeonBoard.Cyan),
+                    focusedContentColor = NeonBoard.Text,
+                )
+            } else {
+                ClickableSurfaceDefaults.colors(
+                    containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp),
+                    focusedContainerColor = MaterialTheme.colorScheme.inverseSurface,
+                )
+            },
+        border = neonSurfaceBorder(NeonBoard.Cyan, restWidth = 0.dp),
+        glow = neonSurfaceGlow(NeonBoard.Cyan),
         modifier =
             modifier
                 .background(MaterialTheme.colorScheme.background)
-                .padding(2.dp)
+                .then(
+                    if (neon) {
+                        Modifier.drawBehind {
+                            drawRect(NeonBoard.Line, topLeft = Offset(0f, size.height - 1.dp.toPx()), size = Size(size.width, 1.dp.toPx()))
+                        }
+                    } else {
+                        Modifier
+                    },
+                ).padding(if (neon) 0.dp else 2.dp)
                 .fillMaxSize(),
     ) {
         Box(
@@ -178,7 +247,8 @@ fun Channel(
             ) {
                 Text(
                     text = channel.number ?: "",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = if (neon) NeonType.numeral(20.sp) else MaterialTheme.typography.bodyMedium,
+                    color = if (neon) NeonBoard.Low else Color.Unspecified,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier,

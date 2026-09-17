@@ -35,6 +35,8 @@ import com.github.damontecres.wholphin.ui.cards.ChapterCard
 import com.github.damontecres.wholphin.ui.components.HiddenFocusBox
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.playback.ControllerViewState
+import com.github.damontecres.wholphin.ui.theme.NeonType
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -88,7 +90,7 @@ fun ChapterRowOverlay(
         }
         Text(
             text = stringResource(R.string.chapters),
-            style = MaterialTheme.typography.titleLarge,
+            style = if (isWeaselTv()) NeonType.sectionTitle() else MaterialTheme.typography.titleLarge,
         )
         LazyRow(
             state = listState,
@@ -145,7 +147,7 @@ fun ChapterRowOverlay(
         if (hasNext) {
             Text(
                 text = stringResource(R.string.queue),
-                style = MaterialTheme.typography.titleLarge,
+                style = if (isWeaselTv()) NeonType.sectionTitle() else MaterialTheme.typography.titleLarge,
                 modifier =
                     Modifier
                         .padding(bottom = 8.dp)
