@@ -74,7 +74,7 @@ fun <T> ItemRow(
         LazyRow(
             state = state,
             horizontalArrangement = Arrangement.spacedBy(horizontalPadding),
-            contentPadding = PaddingValues(horizontal = horizontalPadding, vertical = 8.dp),
+            contentPadding = PaddingValues(horizontal = horizontalPadding, vertical = if (isWeaselTv()) 4.dp else 8.dp),
             modifier =
                 Modifier
                     .fillMaxWidth()
@@ -177,6 +177,6 @@ fun ItemRowTitle(
                 )
             }
         }
-        NeonRule(modifier = Modifier.padding(top = 6.dp), accent = accent)
+        NeonRule(modifier = Modifier.padding(top = 4.dp), accent = accent)
     }
 }

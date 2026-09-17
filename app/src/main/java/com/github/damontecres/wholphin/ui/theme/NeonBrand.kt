@@ -60,7 +60,7 @@ fun NeonMascot(
     val context = LocalContext.current
     val id =
         remember(context) {
-            context.resources.getIdentifier("weaselplex_mascot_white", "drawable", context.packageName).takeIf { it != 0 }
+            context.resources.getIdentifier("weaselplex_mascot", "drawable", context.packageName).takeIf { it != 0 }
         }
     if (id == null) return
     Image(
@@ -98,6 +98,21 @@ fun NeonBrandRow(
     modifier: Modifier = Modifier,
     glow: Boolean = false,
 ) {
+    // The owner ruled for the approved lettering in-app (2026-09-17): when the flavor ships
+    // the colour lockup it is used instead of the text wordmark; other flavors keep the text.
+    val context = LocalContext.current
+    val lockup =
+        remember(context) {
+            context.resources.getIdentifier("weaselplex_lockup", "drawable", context.packageName).takeIf { it != 0 }
+        }
+    if (lockup != null) {
+        Image(
+            painter = painterResource(lockup),
+            contentDescription = "WeaselPlex",
+            modifier = modifier.height(mascotSize * 1.6f),
+        )
+        return
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),

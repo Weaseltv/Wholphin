@@ -170,25 +170,41 @@ fun ProvideNeonAccent(
     content: @Composable () -> Unit,
 ) = CompositionLocalProvider(LocalNeonAccent provides accent, content = content)
 
-/** Sports libraries are cyan BY NAME, the same way the fork picks their icons by name. */
-private val SPORTS_LIBRARY_NAMES = setOf("boxing", "ufc")
+/**
+ * Owner ruling 2026-09-17: every rail item gets its OWN neon; only the 4K libraries share
+ * the colour of their regular movie / show counterparts. Built-ins match on id, libraries
+ * on name; anything unnamed falls back to its collection type.
+ */
+private val RAIL_ACCENT_BY_ID =
+    mapOf(
+        "a_favorites" to Color(0xFF5268FF), // hyper blue
+        "a_discover" to Color(0xFF00FF8A), // spring mint (Requests)
+        "a_more" to NeonBoard.Volt,
+    )
+private val RAIL_ACCENT_BY_NAME =
+    mapOf(
+        "stand up comedy" to Color(0xFFFF2EF7), // magenta
+        "boxing" to Color(0xFFFF2D95), // hot pink
+        "ufc" to Color(0xFF00A3FF), // azure
+    )
 
-/** Section accent for a nav rail item (README § Colors on this app). */
+/** Fixed rail items: Search cyan, Home volt, Settings violet, Now playing green. */
+object RailAccents {
+    val Search = NeonBoard.Cyan
+    val Home = NeonBoard.Volt
+    val Settings = Color(0xFFC026FF)
+    val NowPlaying = NeonBoard.Green
+}
+
+/** Section accent for a nav rail item: its own neon, or its collection type's colour. */
 fun sectionAccent(item: NavDrawerItem): Color =
     when (item) {
-        NavDrawerItem.Favorites,
-        NavDrawerItem.Discover,
-        NavDrawerItem.More,
-        -> {
-            NeonBoard.Volt
+        is ServerNavDrawerItem -> {
+            RAIL_ACCENT_BY_NAME[item.name.trim().lowercase()] ?: collectionAccent(item.type)
         }
 
-        is ServerNavDrawerItem -> {
-            if (item.name.trim().lowercase() in SPORTS_LIBRARY_NAMES) {
-                NeonBoard.Cyan
-            } else {
-                collectionAccent(item.type)
-            }
+        else -> {
+            RAIL_ACCENT_BY_ID[item.id] ?: NeonBoard.Volt
         }
     }
 
