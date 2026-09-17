@@ -61,6 +61,8 @@ import com.github.damontecres.wholphin.ui.discover.DiscoverRowData
 import com.github.damontecres.wholphin.ui.letNotEmpty
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberInt
+import com.github.damontecres.wholphin.ui.theme.ProvideNeonAccent
+import com.github.damontecres.wholphin.ui.theme.itemAccent
 import com.github.damontecres.wholphin.ui.util.ResStringProvider
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.DiscoverRequestType
@@ -151,93 +153,95 @@ fun MovieDetails(
                     viewModel.release()
                 }
             }
-            MovieDetailsContent(
-                preferences = preferences,
-                movie = movie,
-                state = state,
-                onClickItem = { index, item ->
-                    viewModel.navigateTo(item.destination())
-                },
-                onClickPerson = {
-                    viewModel.navigateTo(
-                        Destination.MediaItem(
-                            it.id,
-                            BaseItemKind.PERSON,
-                        ),
-                    )
-                },
-                playOnClick = {
-                    viewModel.navigateTo(
-                        Destination.Playback(
-                            movie.id,
-                            it.inWholeMilliseconds,
-                        ),
-                    )
-                },
-                overviewOnClick = {
-                    overviewDialog =
-                        ItemDetailsDialogInfo(movie)
-                },
-                moreOnClick = {
-                    showContextMenu =
-                        ContextMenu.ForBaseItem(
-                            fromLongClick = false,
-                            item = movie,
-                            chosenStreams = chosenStreams,
-                            showGoTo = false,
-                            showStreamChoices = true,
-                            canDelete = state.canDelete,
-                            canRemoveContinueWatching = false,
-                            canRemoveNextUp = false,
-                            actions = contextActions,
+            ProvideNeonAccent(itemAccent(movie)) {
+                MovieDetailsContent(
+                    preferences = preferences,
+                    movie = movie,
+                    state = state,
+                    onClickItem = { index, item ->
+                        viewModel.navigateTo(item.destination())
+                    },
+                    onClickPerson = {
+                        viewModel.navigateTo(
+                            Destination.MediaItem(
+                                it.id,
+                                BaseItemKind.PERSON,
+                            ),
                         )
-                },
-                watchOnClick = {
-                    viewModel.setWatched(movie.id, !movie.played)
-                },
-                favoriteOnClick = {
-                    viewModel.setFavorite(movie.id, !movie.favorite)
-                },
-                onLongClickPerson = { index, person ->
-                    showContextMenu =
-                        ContextMenu.ForPerson(
-                            fromLongClick = true,
-                            person = person,
-                            actions =
-                                PersonContextActions(
-                                    navigateTo = viewModel::navigateTo,
-                                    onClickFavorite = viewModel::setFavorite,
-                                ),
+                    },
+                    playOnClick = {
+                        viewModel.navigateTo(
+                            Destination.Playback(
+                                movie.id,
+                                it.inWholeMilliseconds,
+                            ),
                         )
-                },
-                onLongClickSimilar = { _, similar ->
-                    showContextMenu =
-                        ContextMenu.ForBaseItem(
-                            fromLongClick = true,
-                            item = similar,
-                            chosenStreams = null,
-                            showGoTo = true,
-                            showStreamChoices = false,
-                            canDelete = false,
-                            canRemoveContinueWatching = false,
-                            canRemoveNextUp = false,
-                            actions = contextActions,
-                        )
-                },
-                trailerOnClick = {
-                    TrailerService.onClick(context, it, viewModel::navigateTo)
-                },
-                onClickExtra = { index, extra ->
-                    viewModel.navigateTo(extra.destination)
-                },
-                onClickDiscover = { index, item ->
-                    viewModel.navigateTo(item.destination)
-                },
-                canDelete = state.canDelete,
-                onConfirmDelete = { state.movie?.let { viewModel.deleteItem(it) } },
-                onChooseVersion = { contextActions.onChooseVersion.invoke(movie, it) },
-                modifier = modifier,
-            )
+                    },
+                    overviewOnClick = {
+                        overviewDialog =
+                            ItemDetailsDialogInfo(movie)
+                    },
+                    moreOnClick = {
+                        showContextMenu =
+                            ContextMenu.ForBaseItem(
+                                fromLongClick = false,
+                                item = movie,
+                                chosenStreams = chosenStreams,
+                                showGoTo = false,
+                                showStreamChoices = true,
+                                canDelete = state.canDelete,
+                                canRemoveContinueWatching = false,
+                                canRemoveNextUp = false,
+                                actions = contextActions,
+                            )
+                    },
+                    watchOnClick = {
+                        viewModel.setWatched(movie.id, !movie.played)
+                    },
+                    favoriteOnClick = {
+                        viewModel.setFavorite(movie.id, !movie.favorite)
+                    },
+                    onLongClickPerson = { index, person ->
+                        showContextMenu =
+                            ContextMenu.ForPerson(
+                                fromLongClick = true,
+                                person = person,
+                                actions =
+                                    PersonContextActions(
+                                        navigateTo = viewModel::navigateTo,
+                                        onClickFavorite = viewModel::setFavorite,
+                                    ),
+                            )
+                    },
+                    onLongClickSimilar = { _, similar ->
+                        showContextMenu =
+                            ContextMenu.ForBaseItem(
+                                fromLongClick = true,
+                                item = similar,
+                                chosenStreams = null,
+                                showGoTo = true,
+                                showStreamChoices = false,
+                                canDelete = false,
+                                canRemoveContinueWatching = false,
+                                canRemoveNextUp = false,
+                                actions = contextActions,
+                            )
+                    },
+                    trailerOnClick = {
+                        TrailerService.onClick(context, it, viewModel::navigateTo)
+                    },
+                    onClickExtra = { index, extra ->
+                        viewModel.navigateTo(extra.destination)
+                    },
+                    onClickDiscover = { index, item ->
+                        viewModel.navigateTo(item.destination)
+                    },
+                    canDelete = state.canDelete,
+                    onConfirmDelete = { state.movie?.let { viewModel.deleteItem(it) } },
+                    onChooseVersion = { contextActions.onChooseVersion.invoke(movie, it) },
+                    modifier = modifier,
+                )
+            }
         }
     }
     showContextMenu?.let { contextMenu ->

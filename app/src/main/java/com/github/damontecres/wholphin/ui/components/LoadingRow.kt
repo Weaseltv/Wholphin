@@ -17,9 +17,14 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.cards.ItemRow
+import com.github.damontecres.wholphin.ui.cards.ItemRowTitle
 import com.github.damontecres.wholphin.ui.cards.SeasonCard
 import com.github.damontecres.wholphin.ui.data.RowColumn
 import com.github.damontecres.wholphin.ui.ifElse
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.NeonType
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.util.RowLoadingState
 
 @Composable
@@ -111,15 +116,15 @@ fun LoadingRowPlaceholder(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier.padding(bottom = 32.dp),
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onBackground,
+        ItemRowTitle(
+            title = title,
+            accent = if (messageColor == MaterialTheme.colorScheme.error) NeonBoard.Red else LocalNeonAccent.current,
+            modifier = Modifier.padding(start = 0.dp),
         )
         Text(
             text = message,
-            style = MaterialTheme.typography.titleMedium,
-            color = messageColor,
+            style = if (isWeaselTv()) NeonType.rowSubtitle() else MaterialTheme.typography.titleMedium,
+            color = if (isWeaselTv() && messageColor == MaterialTheme.colorScheme.onBackground) NeonBoard.Mid else messageColor,
         )
     }
 }

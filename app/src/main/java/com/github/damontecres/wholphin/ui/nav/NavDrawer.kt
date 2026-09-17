@@ -8,6 +8,7 @@ import androidx.compose.animation.core.animateIntOffsetAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -15,8 +16,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -50,7 +53,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -88,6 +94,7 @@ import com.github.damontecres.wholphin.ui.spacedByWithFooter
 import com.github.damontecres.wholphin.ui.theme.LocalTheme
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonType
+import com.github.damontecres.wholphin.ui.theme.ProvideNeonAccent
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonDrawerItemColors
 import com.github.damontecres.wholphin.ui.theme.neonIconGlow
@@ -318,8 +325,9 @@ fun NavDrawer(
         viewModel.setShowMore(false)
     }
 
-    val closedDrawerWidth = CollapsedDrawerItemWidth
-    val openDrawerWidth = ExpandedDrawerItemWidth
+    val closedDrawerWidth = collapsedDrawerItemWidth()
+    val openDrawerWidth = expandedDrawerItemWidth()
+    val neon = isWeaselTv()
     val offset by animateIntOffsetAsState(
         targetValue =
             IntOffset(
@@ -353,6 +361,9 @@ fun NavDrawer(
                     // Even though some must be clicked, focusing on it should clear other focused items
                     val interactionSource = remember { MutableInteractionSource() }
                     val userImageUrl = remember(user) { viewModel.getUserImage(user) }
+                    if (neon) {
+                        RailBrand(expanded = isOpen)
+                    }
                     ProfileIcon(
                         user = user,
                         imageUrl = userImageUrl,
@@ -558,18 +569,51 @@ fun NavDrawer(
         Box(
             modifier = Modifier.fillMaxSize(),
         ) {
-            // Drawer content
-            DestinationContent(
-                destination = destination,
-                preferences = preferences,
-                onClearBackdrop = onClearBackdrop,
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .offset {
-                            offset
-                        }.padding(start = closedDrawerWidth + 8.dp, end = 16.dp),
-            )
+            // Drawer content. Neon Board: content starts at x 120 (rail 72 at x 24 plus a
+            // 24dp gutter) and stops 48dp short of the right edge, the overscan safe area.
+            // The page takes the SECTION accent of the rail item it belongs to; details
+            // pages override it with their item's type accent.
+            val sectionAccent =
+                remember(selectedIndex, serviceState) {
+                    when {
+                        selectedIndex == NOW_PLAYING_INDEX -> {
+                            NeonBoard.Green
+                        }
+
+                        selectedIndex >= 0 -> {
+                            (serviceState.items + serviceState.moreItems)
+                                .getOrNull(selectedIndex)
+                                ?.let { sectionAccent(it) }
+                                ?: NeonBoard.Volt
+                        }
+
+                        else -> {
+                            NeonBoard.Volt
+                        }
+                    }
+                }
+            ProvideNeonAccent(sectionAccent) {
+                DestinationContent(
+                    destination = destination,
+                    preferences = preferences,
+                    onClearBackdrop = onClearBackdrop,
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .offset {
+                                offset
+                            }.then(
+                                if (neon) {
+                                    Modifier.padding(
+                                        start = NeonBoard.Size.OverscanX / 2 + closedDrawerWidth + NeonBoard.Size.OverscanX / 2,
+                                        end = NeonBoard.Size.OverscanX,
+                                    )
+                                } else {
+                                    Modifier.padding(start = closedDrawerWidth + 8.dp, end = 16.dp)
+                                },
+                            ),
+                )
+            }
             if (preferences.appPreferences.interfacePreferences.showClock) {
                 TimeDisplay()
             }
@@ -591,12 +635,16 @@ fun NavigationDrawerScope.ProfileIcon(
         modifier = modifier,
         selected = false,
         onClick = onClick,
+        shape = neonListItemShape(),
+        colors = neonDrawerItemColors(NeonBoard.Volt),
+        border = neonListItemBorder(NeonBoard.Volt),
+        glow = neonListItemGlow(NeonBoard.Volt),
         leadingContent = {
             UserIconCardImage(
                 id = user.id,
                 name = user.name,
                 imageUrl = imageUrl,
-                alpha = if (drawerOpen) 1f else .5f,
+                alpha = if (drawerOpen || isWeaselTv()) 1f else .5f,
                 modifier = Modifier.size(DrawerIconSize),
             )
         },
@@ -796,6 +844,47 @@ fun NavigationDrawerScope.NavItem(
 }
 
 /**
+ * The brand mark at the top of the rail: the white mascot (30dp) and, when the rail is
+ * expanded, the text wordmark — `WEASEL` in `text`, `PLEX` in volt, Barlow Condensed 800.
+ * The mascot drawable ships only in the `weaselfin` flavor and is resolved by name.
+ */
+@Composable
+fun RailBrand(
+    expanded: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val mascot = remember(context) { WeaselNavIcons.fixed(context, WeaselNavIcons.MASCOT) }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier =
+            modifier
+                .padding(start = if (expanded) 12.dp else 0.dp, top = 8.dp, bottom = 4.dp)
+                .height(38.dp),
+    ) {
+        if (mascot != null) {
+            Image(
+                painter = painterResource(mascot),
+                contentDescription = null,
+                modifier = Modifier.size(30.dp),
+            )
+        }
+        if (expanded) {
+            Text(
+                text =
+                    buildAnnotatedString {
+                        withStyle(SpanStyle(color = NeonBoard.Text)) { append("WEASEL") }
+                        withStyle(SpanStyle(color = NeonBoard.Volt)) { append("PLEX") }
+                    },
+                style = NeonType.wordmark(20.sp),
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+/**
  * Neon Board rail glyphs: `low` at rest, `text` when focused, the section accent when
  * selected. Null on every other theme so [navItemColor] runs unchanged for them.
  */
@@ -910,6 +999,7 @@ internal object WeaselNavIcons {
     const val SEARCH = "ic_nav_search"
     const val HOME = "ic_nav_home"
     const val SETTINGS = "ic_nav_settings"
+    const val MASCOT = "weaselplex_mascot_white"
 
     private fun resId(
         context: Context,

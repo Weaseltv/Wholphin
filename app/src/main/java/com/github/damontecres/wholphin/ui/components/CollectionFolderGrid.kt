@@ -25,6 +25,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -45,6 +46,11 @@ import com.github.damontecres.wholphin.ui.detail.GridItemDetails
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.main.HomePageHeader
 import com.github.damontecres.wholphin.ui.playback.scale
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
+import com.github.damontecres.wholphin.ui.theme.NeonRule
+import com.github.damontecres.wholphin.ui.theme.NeonType
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.util.ScrollToTopBringIntoViewSpec
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
@@ -270,15 +276,34 @@ val CollectionType.baseItemKinds: List<BaseItemKind>
 fun GridTitle(
     title: String,
     modifier: Modifier = Modifier,
-) = Text(
-    text = title,
-    style = MaterialTheme.typography.displaySmall,
-    color = MaterialTheme.colorScheme.onBackground,
-    textAlign = TextAlign.Center,
-    maxLines = 1,
-    overflow = TextOverflow.Ellipsis,
-    modifier = modifier.fillMaxWidth(),
-)
+    eyebrow: String? = null,
+) {
+    if (!isWeaselTv()) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.displaySmall,
+            color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = modifier.fillMaxWidth(),
+        )
+        return
+    }
+    // Neon Board page head: eyebrow, Condensed 40 uppercase title, then the section rule.
+    Column(modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        NeonEyebrow(text = eyebrow ?: stringResource(R.string.library))
+        Text(
+            text = title.uppercase(),
+            style = NeonType.pageTitle(),
+            color = NeonBoard.Text,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+        )
+        NeonRule(modifier = Modifier.padding(top = 6.dp))
+    }
+}
 
 data class GridClickActions(
     val onClickItem: (Int, BaseItem) -> Unit,

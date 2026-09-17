@@ -34,6 +34,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalContext
@@ -71,6 +72,7 @@ import com.github.damontecres.wholphin.ui.components.HeaderUtils
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.components.QuickDetails
 import com.github.damontecres.wholphin.ui.components.TitleOrLogo
+import com.github.damontecres.wholphin.ui.components.itemKindLabel
 import com.github.damontecres.wholphin.ui.components.rememberLogoUrl
 import com.github.damontecres.wholphin.ui.data.AddPlaylistViewModel
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialog
@@ -84,6 +86,12 @@ import com.github.damontecres.wholphin.ui.playback.isPlayKeyUp
 import com.github.damontecres.wholphin.ui.playback.playable
 import com.github.damontecres.wholphin.ui.playback.scale
 import com.github.damontecres.wholphin.ui.rememberPosition
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
+import com.github.damontecres.wholphin.ui.theme.NeonType
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.neonAccentFor
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.ScrollToTopBringIntoViewSpec
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
@@ -546,8 +554,27 @@ fun HomePageHeader(
 ) {
     val isEpisode = item?.type == BaseItemKind.EPISODE
     val dto = item?.data
+    val context = LocalContext.current
+    // Neon Board: eyebrow "KIND · GENRES" in the item's type accent above the title.
+    val eyebrow =
+        remember(item) {
+            if (item == null) {
+                null
+            } else {
+                listOfNotNull(
+                    itemKindLabel(context, item.type),
+                    dto
+                        ?.genres
+                        ?.take(2)
+                        ?.joinToString(" · ")
+                        ?.takeIf { it.isNotBlank() },
+                ).joinToString(" · ")
+            }
+        }
     HomePageHeader(
         title = item?.title,
+        eyebrow = eyebrow,
+        accent = neonAccentFor(item),
         subtitle = if (isEpisode) dto?.name else null,
         overview = dto?.overview,
         overviewTwoLines = isEpisode,
@@ -572,11 +599,16 @@ fun HomePageHeader(
     showLogo: Boolean,
     logoImageUrl: String?,
     modifier: Modifier = Modifier,
+    eyebrow: String? = null,
+    accent: Color = LocalNeonAccent.current,
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = modifier,
     ) {
+        if (isWeaselTv() && eyebrow != null) {
+            NeonEyebrow(text = eyebrow, accent = accent, modifier = Modifier.padding(bottom = 4.dp))
+        }
         TitleOrLogo(
             title = title,
             logoImageUrl = logoImageUrl,
@@ -601,8 +633,8 @@ fun HomePageHeader(
             if (overview.isNotNullOrBlank()) {
                 Text(
                     text = overview,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = if (isWeaselTv()) NeonType.body() else MaterialTheme.typography.bodyMedium,
+                    color = if (isWeaselTv()) NeonBoard.Mid else MaterialTheme.colorScheme.onSurface,
                     maxLines = if (overviewTwoLines) 2 else 3,
                     overflow = TextOverflow.Ellipsis,
                     modifier = overviewModifier,

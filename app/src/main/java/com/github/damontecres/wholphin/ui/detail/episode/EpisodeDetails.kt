@@ -45,6 +45,8 @@ import com.github.damontecres.wholphin.ui.data.ItemDetailsDialogInfo
 import com.github.damontecres.wholphin.ui.detail.PlaylistDialog
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberInt
+import com.github.damontecres.wholphin.ui.theme.ProvideNeonAccent
+import com.github.damontecres.wholphin.ui.theme.itemAccent
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import kotlinx.coroutines.launch
@@ -132,47 +134,49 @@ fun EpisodeDetails(
                     viewModel.release()
                 }
             }
-            EpisodeDetailsContent(
-                preferences = preferences,
-                ep = ep,
-                chosenStreams = state.chosenStreams,
-                playOnClick = {
-                    viewModel.navigateTo(
-                        Destination.Playback(
-                            ep.id,
-                            it.inWholeMilliseconds,
-                        ),
-                    )
-                },
-                overviewOnClick = {
-                    overviewDialog =
-                        ItemDetailsDialogInfo(ep)
-                },
-                moreOnClick = {
-                    showContextMenu =
-                        ContextMenu.ForBaseItem(
-                            fromLongClick = false,
-                            item = ep,
-                            chosenStreams = state.chosenStreams,
-                            showGoTo = false,
-                            showStreamChoices = true,
-                            canDelete = canDelete,
-                            canRemoveContinueWatching = false,
-                            canRemoveNextUp = false,
-                            actions = contextActions,
+            ProvideNeonAccent(itemAccent(ep)) {
+                EpisodeDetailsContent(
+                    preferences = preferences,
+                    ep = ep,
+                    chosenStreams = state.chosenStreams,
+                    playOnClick = {
+                        viewModel.navigateTo(
+                            Destination.Playback(
+                                ep.id,
+                                it.inWholeMilliseconds,
+                            ),
                         )
-                },
-                watchOnClick = {
-                    viewModel.setWatched(ep.id, !ep.played)
-                },
-                favoriteOnClick = {
-                    viewModel.setFavorite(ep.id, !ep.favorite)
-                },
-                canDelete = canDelete,
-                onConfirmDelete = { viewModel.deleteItem(ep) },
-                onChooseVersion = { contextActions.onChooseVersion.invoke(ep, it) },
-                modifier = modifier,
-            )
+                    },
+                    overviewOnClick = {
+                        overviewDialog =
+                            ItemDetailsDialogInfo(ep)
+                    },
+                    moreOnClick = {
+                        showContextMenu =
+                            ContextMenu.ForBaseItem(
+                                fromLongClick = false,
+                                item = ep,
+                                chosenStreams = state.chosenStreams,
+                                showGoTo = false,
+                                showStreamChoices = true,
+                                canDelete = canDelete,
+                                canRemoveContinueWatching = false,
+                                canRemoveNextUp = false,
+                                actions = contextActions,
+                            )
+                    },
+                    watchOnClick = {
+                        viewModel.setWatched(ep.id, !ep.played)
+                    },
+                    favoriteOnClick = {
+                        viewModel.setFavorite(ep.id, !ep.favorite)
+                    },
+                    canDelete = canDelete,
+                    onConfirmDelete = { viewModel.deleteItem(ep) },
+                    onChooseVersion = { contextActions.onChooseVersion.invoke(ep, it) },
+                    modifier = modifier,
+                )
+            }
         }
     }
     overviewDialog?.let { info ->

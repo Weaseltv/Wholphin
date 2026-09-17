@@ -26,6 +26,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -34,16 +35,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
@@ -59,6 +67,8 @@ import androidx.tv.material3.NavigationDrawerItemColors
 import androidx.tv.material3.NavigationDrawerItemDefaults
 import androidx.tv.material3.NavigationDrawerScope
 import androidx.tv.material3.rememberDrawerState
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 
 /**
  * This is a re-implementation of [androidx.tv.material3.ModalNavigationDrawer].
@@ -125,7 +135,34 @@ private fun DrawerSheet(
                 }
             }.focusGroup()
 
-    Box(modifier = internalModifier) {
+    // Neon Board: the rail sits 24dp inside the overscan safe area; when expanded it is a
+    // 240dp `card` panel with a 1dp `line2` edge and a depth shadow. Stock elsewhere.
+    val neon = isWeaselTv()
+    val open = drawerState.currentValue == DrawerValue.Open
+    val neonModifier =
+        if (neon) {
+            Modifier
+                .padding(start = NeonBoard.Size.OverscanX / 2)
+                .then(
+                    if (open) {
+                        Modifier
+                            .shadow(20.dp, RectangleShape, ambientColor = Color.Black, spotColor = Color.Black)
+                            .background(NeonBoard.Card)
+                            .drawBehind {
+                                drawRect(
+                                    color = NeonBoard.Line2,
+                                    topLeft = Offset(size.width - 1.dp.toPx(), 0f),
+                                    size = Size(1.dp.toPx(), size.height),
+                                )
+                            }
+                    } else {
+                        Modifier.background(NeonBoard.Stage)
+                    },
+                )
+        } else {
+            Modifier
+        }
+    Box(modifier = internalModifier.then(neonModifier)) {
         NavigationDrawerScopeImpl(drawerState.currentValue == DrawerValue.Open).apply {
             content(drawerState.currentValue)
         }
@@ -138,6 +175,17 @@ internal class NavigationDrawerScopeImpl(
 
 internal val CollapsedDrawerItemWidth = 64.dp
 internal val ExpandedDrawerItemWidth = 224.dp
+
+/** 72dp on the WeaselTV theme (`01-tokens-tv.md` § Sizes), stock 64dp elsewhere. */
+@Composable
+@ReadOnlyComposable
+internal fun collapsedDrawerItemWidth(): Dp = if (isWeaselTv()) NeonBoard.Size.RailCollapsed else CollapsedDrawerItemWidth
+
+/** 240dp on the WeaselTV theme, stock 224dp elsewhere. */
+@Composable
+@ReadOnlyComposable
+internal fun expandedDrawerItemWidth(): Dp = if (isWeaselTv()) NeonBoard.Size.RailExpanded else ExpandedDrawerItemWidth
+
 internal val DrawerIconSize = 24.dp
 internal val DrawerIconPadding = (ListItemDefaults.IconSize - DrawerIconSize) / 2
 internal val DrawerAnimationStiffness = Spring.StiffnessMedium
@@ -162,19 +210,21 @@ internal fun NavigationDrawerScope.NavigationDrawerItem(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {
+    val expandedWidth = expandedDrawerItemWidth()
+    val collapsedWidth = collapsedDrawerItemWidth()
     val animatedWidth by
         animateDpAsState(
             targetValue =
                 if (hasFocus) {
-                    ExpandedDrawerItemWidth
+                    expandedWidth
                 } else {
-                    CollapsedDrawerItemWidth
+                    collapsedWidth
                 },
             label = "NavigationDrawerItem width open/closed state of the drawer item",
         )
     val navDrawerItemHeight =
         if (supportingContent == null) {
-            NavigationDrawerItemDefaults.ContainerHeightOneLine
+            if (isWeaselTv()) NeonBoard.Size.RailRow else NavigationDrawerItemDefaults.ContainerHeightOneLine
         } else {
             NavigationDrawerItemDefaults.ContainerHeightTwoLine
         }
