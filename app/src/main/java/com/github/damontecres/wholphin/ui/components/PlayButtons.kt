@@ -5,7 +5,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -21,7 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSizeIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
@@ -63,12 +61,12 @@ import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.data.ChooseVersionParams
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
 import com.github.damontecres.wholphin.ui.ifElse
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.PreviewInteractionSource
-import com.github.damontecres.wholphin.ui.theme.PrismaticDuration
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
-import com.github.damontecres.wholphin.ui.theme.colors.WeaselTvColors
-import com.github.damontecres.wholphin.ui.theme.isWeaselTv
-import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
+import com.github.damontecres.wholphin.ui.theme.neonPrimaryBorder
+import com.github.damontecres.wholphin.ui.theme.neonPrimaryColors
+import com.github.damontecres.wholphin.ui.theme.neonPrimaryGlow
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
@@ -309,57 +307,41 @@ fun ExpandablePlayButton(
     enabled: Boolean = true,
 ) {
     val isFocused = interactionSource.collectIsFocusedAsState().value
-    // WeaselTV (handoff §3): the primary Play/Resume control is a fully-rounded pill
-    // filled with the animated rainbow, with dark ink on top. Every OTHER action button
-    // stays a translucent circle, which is what keeps this one reading as primary.
-    val prismatic = isWeaselTv()
-    val fill = rememberPrismaticBrush(PrismaticDuration.BUTTON_FILL, widthPx = 420f)
+    // Neon Board (`02-components-tv.md` § T5): the Play button is the PRIMARY in the item's
+    // type accent (movie orange, episode yellow, live green) with dark ink; every other
+    // action stays an outline. The page provides the accent through LocalNeonAccent.
+    val accent = LocalNeonAccent.current
     Button(
         onClick = { onClick.invoke(resume) },
         enabled = enabled,
         modifier =
-            modifier
-                .requiredSizeIn(
-                    minWidth = MinButtonSize,
-                    minHeight = MinButtonSize,
-                    maxHeight = MinButtonSize,
-                ).then(
-                    if (prismatic) {
-                        Modifier.background(brush = fill, shape = CircleShape)
-                    } else {
-                        Modifier
-                    },
-                ),
+            modifier.requiredSizeIn(
+                minWidth = MinButtonSize,
+                minHeight = MinButtonSize,
+                maxHeight = MinButtonSize,
+            ),
         contentPadding = DefaultButtonPadding,
         interactionSource = interactionSource,
         colors =
-            if (prismatic) {
-                // Transparent container so the brush behind it is what shows. Ink is
-                // #02131A in every state - white on neon is unreadable and the handoff
-                // forbids it.
-                ClickableSurfaceDefaults.colors(
-                    containerColor = Color.Transparent,
-                    contentColor = WeaselTvColors.OnNeon,
-                    focusedContainerColor = Color.Transparent,
-                    focusedContentColor = WeaselTvColors.OnNeon,
-                    pressedContainerColor = Color.Transparent,
-                    pressedContentColor = WeaselTvColors.OnNeon,
-                )
-            } else {
+            neonPrimaryColors(
+                accent = accent,
                 // Verbatim from Button.kt's own default, so nothing changes off-theme.
-                ClickableSurfaceDefaults.colors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
-                    contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                    focusedContainerColor = MaterialTheme.colorScheme.onSurface,
-                    focusedContentColor = MaterialTheme.colorScheme.inverseOnSurface,
-                    pressedContainerColor = MaterialTheme.colorScheme.onSurface,
-                    pressedContentColor = MaterialTheme.colorScheme.inverseOnSurface,
-                    disabledContainerColor =
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                    disabledContentColor =
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                )
-            },
+                fallback =
+                    ClickableSurfaceDefaults.colors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
+                        contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                        focusedContainerColor = MaterialTheme.colorScheme.onSurface,
+                        focusedContentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                        pressedContainerColor = MaterialTheme.colorScheme.onSurface,
+                        pressedContentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                        disabledContainerColor =
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        disabledContentColor =
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                    ),
+            ),
+        border = neonPrimaryBorder(),
+        glow = neonPrimaryGlow(accent),
     ) {
         Box(
             contentAlignment = Alignment.Center,

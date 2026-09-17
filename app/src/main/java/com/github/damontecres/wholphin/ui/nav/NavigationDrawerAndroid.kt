@@ -51,7 +51,10 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.DrawerState
 import androidx.tv.material3.DrawerValue
 import androidx.tv.material3.ListItem
+import androidx.tv.material3.ListItemBorder
 import androidx.tv.material3.ListItemDefaults
+import androidx.tv.material3.ListItemGlow
+import androidx.tv.material3.ListItemShape
 import androidx.tv.material3.NavigationDrawerItemColors
 import androidx.tv.material3.NavigationDrawerItemDefaults
 import androidx.tv.material3.NavigationDrawerScope
@@ -151,6 +154,11 @@ internal fun NavigationDrawerScope.NavigationDrawerItem(
     trailingContent: (@Composable () -> Unit)? = null,
     tonalElevation: Dp = NavigationDrawerItemDefaults.NavigationDrawerItemElevation,
     colors: NavigationDrawerItemColors = NavigationDrawerItemDefaults.colors(),
+    // Passed straight through to the underlying ListItem so the WeaselTV theme can apply
+    // its focus recipe (square, 1dp accent border, accent glow); stock values otherwise.
+    shape: ListItemShape = ListItemDefaults.shape(),
+    border: ListItemBorder = ListItemDefaults.border(),
+    glow: ListItemGlow = ListItemDefaults.glow(),
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {
@@ -205,6 +213,9 @@ internal fun NavigationDrawerScope.NavigationDrawerItem(
         tonalElevation = tonalElevation,
         colors = colors.toToggleableListItemColors(hasFocus),
         scale = ListItemDefaults.scale(1f, 1f),
+        shape = shape,
+        border = border,
+        glow = glow,
         interactionSource = interactionSource,
     )
 }

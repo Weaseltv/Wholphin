@@ -33,8 +33,12 @@ import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.enableMarquee
-import com.github.damontecres.wholphin.ui.theme.weaselCardBorder
-import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.neonAccentFor
+import com.github.damontecres.wholphin.ui.theme.neonCardBorder
+import com.github.damontecres.wholphin.ui.theme.neonCardGlow
+import com.github.damontecres.wholphin.ui.theme.neonCardScale
+import com.github.damontecres.wholphin.ui.theme.neonCardShape
 import kotlinx.coroutines.delay
 import org.jellyfin.sdk.model.api.ImageType
 
@@ -50,6 +54,7 @@ fun SeasonCard(
     modifier: Modifier = Modifier,
     imageWidth: Dp = Dp.Unspecified,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    accent: Color = neonAccentFor(item),
     showImageOverlay: Boolean = false,
     aspectRatio: Float = item?.aspectRatio ?: AspectRatios.TALL,
 ) {
@@ -64,6 +69,7 @@ fun SeasonCard(
         unplayedItemCount = item?.data?.userData?.unplayedItemCount ?: 0,
         playedPercentage = item?.data?.userData?.playedPercentage ?: 0.0,
         numberOfVersions = item?.data?.mediaSourceCount ?: 0,
+        accent = accent,
         onClick = onClick,
         onLongClick = onLongClick,
         modifier = modifier,
@@ -136,6 +142,7 @@ fun SeasonCard(
     imageHeight: Dp = Dp.Unspecified,
     imageWidth: Dp = Dp.Unspecified,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    accent: Color = LocalNeonAccent.current,
     showImageOverlay: Boolean = false,
     aspectRatio: Float = AspectRatios.TALL,
 ) {
@@ -168,8 +175,10 @@ fun SeasonCard(
                 CardDefaults.colors(
                     containerColor = Color.Transparent,
                 ),
-            border = weaselCardBorder(),
-            glow = weaselCardGlow(),
+            shape = neonCardShape(),
+            scale = neonCardScale(),
+            border = neonCardBorder(accent),
+            glow = neonCardGlow(accent),
         ) {
             Box(
                 modifier =
@@ -185,6 +194,7 @@ fun SeasonCard(
                     unwatchedCount = unplayedItemCount,
                     watchedPercent = playedPercentage,
                     numberOfVersions = numberOfVersions,
+                    accent = accent,
                     useFallbackText = false,
                     modifier =
                         Modifier

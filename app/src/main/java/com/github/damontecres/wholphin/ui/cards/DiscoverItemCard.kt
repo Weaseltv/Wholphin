@@ -45,9 +45,12 @@ import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.enableMarquee
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
-import com.github.damontecres.wholphin.ui.theme.weaselCardBorder
-import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
+import com.github.damontecres.wholphin.ui.theme.neonCardBorder
+import com.github.damontecres.wholphin.ui.theme.neonCardGlow
+import com.github.damontecres.wholphin.ui.theme.neonCardScale
+import com.github.damontecres.wholphin.ui.theme.neonCardShape
 import kotlinx.coroutines.delay
 
 @Composable
@@ -59,6 +62,7 @@ fun DiscoverItemCard(
     showOverlay: Boolean = true,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     width: Dp = Cards.height2x3 * AspectRatios.TALL,
+    accent: Color = LocalNeonAccent.current,
 ) {
     val focused by interactionSource.collectIsFocusedAsState()
     var focusedAfterDelay by remember { mutableStateOf(false) }
@@ -93,8 +97,10 @@ fun DiscoverItemCard(
                 CardDefaults.colors(
                     containerColor = Color.Transparent,
                 ),
-            border = weaselCardBorder(),
-            glow = weaselCardGlow(),
+            shape = neonCardShape(),
+            scale = neonCardScale(),
+            border = neonCardBorder(accent),
+            glow = neonCardGlow(accent),
         ) {
             Box(
                 modifier =

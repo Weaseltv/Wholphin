@@ -19,7 +19,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.relocation.bringIntoViewRequester
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -29,27 +28,27 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
-import com.github.damontecres.wholphin.ui.theme.PrismaticDuration
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
-import com.github.damontecres.wholphin.ui.theme.colors.WeaselTvColors
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
-import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
+import com.github.damontecres.wholphin.ui.theme.neonOverline
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
 import timber.log.Timber
@@ -225,48 +224,32 @@ fun Tab(
                 },
     ) {
         if (isWeaselTv()) {
-            // Handoff §5 / mockup 05: season tabs are PILLS - panel-deep fill with a
-            // hairline, and the active one wrapped in a thin prismatic ring. This is a
-            // deliberate exception to the handoff's "layouts do not change" note, made
-            // on the owner's instruction: the underline is replaced outright.
-            // EXACTLY ONE ring at a time. While the row holds focus the ring follows
-            // focus; when focus leaves the row it falls back to the selected tab so the
-            // current page is still identifiable. The previous `selected || focused`
-            // drew BOTH - the selected tab kept its ring while a second one appeared on
-            // whatever you moved to, which reads as the ring duplicating rather than
-            // moving.
-            val showRing = if (rowActive) focused else selected
-            // Emphasis is a SEPARATE concern from the ring: the current page and the
-            // tab under focus both stay solid white, so moving focus does not make the
-            // page you are on look inactive.
-            val emphasized = selected || (rowActive && focused)
-            val ringBrush =
-                rememberPrismaticBrush(PrismaticDuration.FOCUS_BORDER, widthPx = 200f)
+            // Neon Board (`02-components-tv.md` § T5): square 40dp tabs, 15 / 700 uppercase,
+            // `low` at rest; selected = accent label + 2dp overline with its glow; focused =
+            // `chipOn` fill + 1dp accent border. Nothing is round and nothing animates.
+            val accent = LocalNeonAccent.current
+            val showFocus = rowActive && focused
+            val labelColor =
+                when {
+                    selected -> accent
+                    showFocus -> NeonBoard.Text
+                    else -> NeonBoard.Low
+                }
             Box(
                 contentAlignment = Alignment.Center,
                 modifier =
                     Modifier
-                        .clip(CircleShape)
-                        .background(WeaselTvColors.PanelDeep)
-                        .then(
-                            if (showRing) {
-                                Modifier.border(2.5.dp, ringBrush, CircleShape)
-                            } else {
-                                Modifier.border(1.dp, WeaselTvColors.Hairline, CircleShape)
-                            },
-                        ).padding(horizontal = 20.dp, vertical = 8.dp),
+                        .height(NeonBoard.Size.Tab)
+                        .then(if (showFocus) Modifier.background(NeonBoard.chipOn(accent)) else Modifier)
+                        .then(if (showFocus) Modifier.border(1.dp, accent, RectangleShape) else Modifier)
+                        .neonOverline(accent, selected)
+                        .padding(horizontal = 16.dp),
             ) {
                 Text(
-                    text = title,
-                    fontSize = 16.sp,
-                    // Active tab reads solid white and bolder; inactive stays muted.
-                    color =
-                        if (emphasized) {
-                            WeaselTvColors.TextPrimary
-                        } else {
-                            WeaselTvColors.TextMuted
-                        },
-                    fontWeight = if (emphasized) FontWeight.Bold else FontWeight.Normal,
+                    text = title.uppercase(),
+                    style = NeonType.tab(),
+                    color = labelColor,
+                    maxLines = 1,
                 )
             }
         } else {
@@ -309,24 +292,13 @@ fun TabIndicator(
         } else {
             Color.Transparent
         }
-    // WeaselTV: the active indicator carries the animated rainbow. The handoff shows a
-    // ring around the selected tab, but it also states layouts do not change - so the
-    // existing underline is re-themed rather than restructured into a ring.
-    val prismatic = isWeaselTv() && (selected || (rowActive && focused))
-    val brush = rememberPrismaticBrush(PrismaticDuration.FOCUS_BORDER, widthPx = 180f)
     Box(
         modifier =
             modifier
-                .height(if (isWeaselTv()) 3.dp else 2.dp)
+                .height(2.dp)
                 .fillMaxWidth()
                 .width(width)
-                .then(
-                    if (prismatic) {
-                        Modifier.background(brush)
-                    } else {
-                        Modifier.background(backgroundColor)
-                    },
-                ),
+                .background(backgroundColor),
     )
 }
 

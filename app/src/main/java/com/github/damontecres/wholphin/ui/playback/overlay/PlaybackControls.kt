@@ -478,9 +478,8 @@ fun PlaybackButton(
         colors =
             ClickableSurfaceDefaults.colors(
                 containerColor = AppColors.TransparentBlack25,
-                // WeaselTV (handoff §5): transport buttons stay translucent circles and
-                // let the prismatic ring carry focus. Filling them solid on focus would
-                // make every transport control compete with the primary Play control.
+                // Neon Board: transport buttons are glass and let the accent border and
+                // glow carry focus; filling them solid would fight the primary Play control.
                 focusedContainerColor =
                     if (isWeaselTv()) AppColors.TransparentBlack25 else selectedColor,
             ),
@@ -523,9 +522,8 @@ fun PlaybackFaButton(
         colors =
             ClickableSurfaceDefaults.colors(
                 containerColor = AppColors.TransparentBlack25,
-                // WeaselTV (handoff §5): transport buttons stay translucent circles and
-                // let the prismatic ring carry focus. Filling them solid on focus would
-                // make every transport control compete with the primary Play control.
+                // Neon Board: transport buttons are glass and let the accent border and
+                // glow carry focus; filling them solid would fight the primary Play control.
                 focusedContainerColor =
                     if (isWeaselTv()) AppColors.TransparentBlack25 else selectedColor,
             ),

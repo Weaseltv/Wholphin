@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -34,9 +35,11 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.ProvideTextStyle
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
-import com.github.damontecres.wholphin.ui.theme.PrismaticDuration
+import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
-import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
+import com.github.damontecres.wholphin.ui.theme.neonOutlineColors
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceBorder
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceGlow
 
 /**
  * This is a re-implementation of [androidx.tv.material3.Button] with altered sizing, padding, colors, etc
@@ -50,57 +53,46 @@ fun Button(
     onLongClick: (() -> Unit)? = null,
     enabled: Boolean = true,
     scale: ClickableSurfaceScale = ClickableSurfaceDefaults.scale(),
-    glow: ClickableSurfaceGlow = ClickableSurfaceDefaults.glow(),
+    glow: ClickableSurfaceGlow = neonSurfaceGlow(),
     shape: ClickableSurfaceShape =
         ClickableSurfaceDefaults.shape(
-            shape = CircleShape,
+            // Neon Board: square everything except people avatars.
+            shape = if (isWeaselTv()) RectangleShape else CircleShape,
         ),
     colors: ClickableSurfaceColors =
-        ClickableSurfaceDefaults.colors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
-            contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-            focusedContainerColor = MaterialTheme.colorScheme.onSurface,
-            focusedContentColor = MaterialTheme.colorScheme.inverseOnSurface,
-            pressedContainerColor = MaterialTheme.colorScheme.onSurface,
-            pressedContentColor = MaterialTheme.colorScheme.inverseOnSurface,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-            disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+        neonOutlineColors(
+            fallback =
+                ClickableSurfaceDefaults.colors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
+                    contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                    focusedContainerColor = MaterialTheme.colorScheme.onSurface,
+                    focusedContentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                    pressedContainerColor = MaterialTheme.colorScheme.onSurface,
+                    pressedContentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                    disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                ),
         ),
     tonalElevation: Dp = 0.dp,
     border: ClickableSurfaceBorder =
-        ClickableSurfaceDefaults.border(
-            border = Border.None,
-            // WeaselTV (handoff §3): every focusable surface takes the 3dp animated
-            // rainbow ring. Buttons previously showed focus only through a fill change,
-            // which the handoff explicitly replaces. CircleShape gives a circle on the
-            // round action buttons and a pill on the wide Play control - both correct.
-            focusedBorder =
-                if (isWeaselTv()) {
-                    Border(
-                        border =
-                            BorderStroke(
-                                width = 3.dp,
-                                brush =
-                                    rememberPrismaticBrush(
-                                        PrismaticDuration.FOCUS_BORDER,
-                                        widthPx = 260f,
-                                    ),
-                            ),
-                        shape = CircleShape,
-                    )
-                } else {
-                    Border.None
-                },
-            pressedBorder = Border.None,
-            disabledBorder = Border.None,
-            focusedDisabledBorder =
-                Border(
-                    border =
-                        BorderStroke(
-                            width = 1.5.dp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
+        neonSurfaceBorder(
+            // The outline button: 1dp `line2` at rest, the accent when focused.
+            restWidth = 1.dp,
+            fallback =
+                ClickableSurfaceDefaults.border(
+                    border = Border.None,
+                    focusedBorder = Border.None,
+                    pressedBorder = Border.None,
+                    disabledBorder = Border.None,
+                    focusedDisabledBorder =
+                        Border(
+                            border =
+                                BorderStroke(
+                                    width = 1.5.dp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
+                                ),
+                            shape = CircleShape,
                         ),
-                    shape = CircleShape,
                 ),
         ),
     contentPadding: PaddingValues = DefaultButtonPadding,
@@ -121,7 +113,8 @@ fun Button(
         border = border,
         interactionSource = interactionSource,
     ) {
-        ProvideTextStyle(value = MaterialTheme.typography.labelLarge) {
+        // Button labels: Barlow 16 / 700 on the WeaselTV theme, the stock label elsewhere.
+        ProvideTextStyle(value = if (isWeaselTv()) NeonType.button() else MaterialTheme.typography.labelLarge) {
             Row(
                 modifier =
                     Modifier

@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
@@ -42,9 +43,11 @@ import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.gt
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.logCoilError
-import com.github.damontecres.wholphin.ui.theme.PrismaticDuration
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
-import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
+import com.github.damontecres.wholphin.ui.theme.neonAccentFor
+import com.github.damontecres.wholphin.ui.theme.neonProgress
 import org.jellyfin.sdk.model.api.ImageType
 
 /**
@@ -68,6 +71,7 @@ fun ItemCardImage(
     contentScale: ContentScale = ContentScale.Fit,
     fillWidth: Int? = null,
     fillHeight: Int? = null,
+    accent: Color = neonAccentFor(item),
 ) {
     val imageUrlService = LocalImageUrlService.current
     val imageUrl =
@@ -95,6 +99,7 @@ fun ItemCardImage(
         modifier = modifier,
         useFallbackText = useFallbackText,
         contentScale = contentScale,
+        accent = accent,
     )
 }
 
@@ -111,6 +116,7 @@ fun ItemCardImage(
     modifier: Modifier = Modifier,
     useFallbackText: Boolean = true,
     contentScale: ContentScale = ContentScale.Fit,
+    accent: Color = LocalNeonAccent.current,
     fallback: @Composable BoxScope.() -> Unit = {
         ItemCardImageFallback(
             name = name,
@@ -148,6 +154,7 @@ fun ItemCardImage(
                 unwatchedCount = unwatchedCount,
                 watchedPercent = watchedPercent,
                 numberOfVersions = numberOfVersions,
+                accent = accent,
                 modifier = Modifier,
             )
         }
@@ -205,6 +212,7 @@ fun ItemCardImageOverlay(
     watchedPercent: Double?,
     numberOfVersions: Int,
     modifier: Modifier = Modifier,
+    accent: Color = LocalNeonAccent.current,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         Row(
@@ -268,22 +276,20 @@ fun ItemCardImageOverlay(
             }
         }
 
-        // Watch-progress strip animates the rainbow on WeaselTV (handoff §3).
-        val watchProgressBrush =
-            rememberPrismaticBrush(PrismaticDuration.PROGRESS_FILL, widthPx = 260f)
         if (watchedPercent != null && watchedPercent > 0 && watchedPercent < 100) {
+            // Neon Board: a 3dp bar in the item's type accent with its glow.
             Box(
                 modifier =
                     Modifier
                         .align(Alignment.BottomStart)
                         .then(
                             if (isWeaselTv()) {
-                                Modifier.background(watchProgressBrush)
+                                Modifier.neonProgress(accent)
                             } else {
                                 Modifier.background(MaterialTheme.colorScheme.tertiary)
                             },
                         ).clip(RectangleShape)
-                        .height(Cards.playedPercentHeight)
+                        .height(if (isWeaselTv()) NeonBoard.Size.ProgressCard else Cards.playedPercentHeight)
                         .fillMaxWidth((watchedPercent / 100.0).toFloat()),
             )
         }

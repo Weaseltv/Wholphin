@@ -1,0 +1,15 @@
+{
+  "uniqueId": "com.google.fonts.barlow",
+  "developers": [
+    {
+      "name": "Jeremy Tribby"
+    }
+  ],
+  "artifactVersion": "1.408",
+  "description": "Barlow and Barlow Condensed, the WeaselPlex typefaces (WeaselTV theme only).",
+  "name": "Barlow",
+  "licenses": [
+    "ofl-1.1"
+  ],
+  "website": "https://github.com/jpt/barlow"
+}

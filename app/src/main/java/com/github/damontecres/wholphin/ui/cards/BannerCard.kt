@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -47,11 +48,15 @@ import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.enableMarquee
-import com.github.damontecres.wholphin.ui.theme.PrismaticDuration
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
-import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
-import com.github.damontecres.wholphin.ui.theme.weaselCardBorder
-import com.github.damontecres.wholphin.ui.theme.weaselCardGlow
+import com.github.damontecres.wholphin.ui.theme.neonAccentFor
+import com.github.damontecres.wholphin.ui.theme.neonCardBorder
+import com.github.damontecres.wholphin.ui.theme.neonCardGlow
+import com.github.damontecres.wholphin.ui.theme.neonCardScale
+import com.github.damontecres.wholphin.ui.theme.neonCardShape
+import com.github.damontecres.wholphin.ui.theme.neonProgress
 import org.jellyfin.sdk.model.api.ImageType
 
 /**
@@ -73,6 +78,7 @@ fun BannerCard(
     interactionSource: MutableInteractionSource? = null,
     imageType: ImageType = ImageType.PRIMARY,
     imageContentScale: ContentScale = ContentScale.FillBounds,
+    accent: Color = neonAccentFor(item),
     useSeriesForPrimary: Boolean = true,
 ) {
     val imageUrlService = LocalImageUrlService.current
@@ -117,8 +123,10 @@ fun BannerCard(
             CardDefaults.colors(
 //                containerColor = Color.Transparent,
             ),
-        border = weaselCardBorder(),
-        glow = weaselCardGlow(),
+        shape = neonCardShape(),
+        scale = neonCardScale(),
+        border = neonCardBorder(accent),
+        glow = neonCardGlow(accent),
     ) {
         Box(
             modifier =
@@ -189,22 +197,20 @@ fun BannerCard(
                     fontFamily = FontAwesome,
                 )
             }
-            // Watch-progress strip animates the rainbow on WeaselTV (handoff §3).
-            val watchProgressBrush =
-                rememberPrismaticBrush(PrismaticDuration.PROGRESS_FILL, widthPx = 260f)
             if (playPercent > 0 && playPercent < 100) {
+                // Neon Board: a 3dp bar in the item's type accent with its glow.
                 Box(
                     modifier =
                         Modifier
                             .align(Alignment.BottomStart)
                             .then(
                                 if (isWeaselTv()) {
-                                    Modifier.background(watchProgressBrush)
+                                    Modifier.neonProgress(accent)
                                 } else {
                                     Modifier.background(MaterialTheme.colorScheme.tertiary)
                                 },
                             ).clip(RectangleShape)
-                            .height(Cards.playedPercentHeight)
+                            .height(if (isWeaselTv()) NeonBoard.Size.ProgressCard else Cards.playedPercentHeight)
                             .fillMaxWidth((playPercent / 100).toFloat()),
                 )
             }
@@ -227,6 +233,7 @@ fun BannerCardWithTitle(
     cardHeight: Dp = 120.dp,
     aspectRatio: Float = AspectRatios.WIDE,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    accent: Color = neonAccentFor(item),
     imageType: ImageType = ImageType.PRIMARY,
     imageContentScale: ContentScale = ContentScale.FillBounds,
     useSeriesForPrimary: Boolean = item?.useSeriesForPrimary ?: true,
@@ -252,6 +259,7 @@ fun BannerCardWithTitle(
             cardHeight = cardHeight,
             aspectRatio = aspectRatio,
             interactionSource = interactionSource,
+            accent = accent,
             imageType = imageType,
             imageContentScale = imageContentScale,
             useSeriesForPrimary = useSeriesForPrimary,

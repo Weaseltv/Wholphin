@@ -3,19 +3,11 @@ package com.github.damontecres.wholphin.ui.nav
 import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.VisibilityThreshold
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateIntOffsetAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -31,7 +23,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Home
@@ -48,12 +39,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -69,14 +58,12 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.findViewTreeViewModelStoreOwner
 import androidx.lifecycle.viewModelScope
-import androidx.tv.material3.Border
 import androidx.tv.material3.DrawerState
 import androidx.tv.material3.DrawerValue
 import androidx.tv.material3.Icon
 import androidx.tv.material3.LocalContentColor
+import androidx.tv.material3.LocalTextStyle
 import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.NavigationDrawerItemColors
-import androidx.tv.material3.NavigationDrawerItemDefaults
 import androidx.tv.material3.NavigationDrawerScope
 import androidx.tv.material3.ProvideTextStyle
 import androidx.tv.material3.Text
@@ -98,11 +85,17 @@ import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.preferences.PreferenceScreenOption
 import com.github.damontecres.wholphin.ui.setup.UserIconCardImage
 import com.github.damontecres.wholphin.ui.spacedByWithFooter
-import com.github.damontecres.wholphin.ui.theme.LocalPrismaticEnabled
 import com.github.damontecres.wholphin.ui.theme.LocalTheme
-import com.github.damontecres.wholphin.ui.theme.PrismaticDuration
-import com.github.damontecres.wholphin.ui.theme.WeaselRadius
-import com.github.damontecres.wholphin.ui.theme.rememberPrismaticBrush
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.NeonType
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.neonDrawerItemColors
+import com.github.damontecres.wholphin.ui.theme.neonIconGlow
+import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
+import com.github.damontecres.wholphin.ui.theme.neonListItemGlow
+import com.github.damontecres.wholphin.ui.theme.neonListItemShape
+import com.github.damontecres.wholphin.ui.theme.neonTally
+import com.github.damontecres.wholphin.ui.theme.sectionAccent
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -383,6 +376,7 @@ fun NavDrawer(
                             text = stringResource(R.string.now_playing),
                             subtext = serviceState.nowPlayingTitle,
                             icon = Icons.Default.PlayArrow,
+                            accent = NeonBoard.Green,
                             selected = selectedIndex == NOW_PLAYING_INDEX,
                             drawerOpen = isOpen,
                             interactionSource = interactionSource,
@@ -420,8 +414,7 @@ fun NavDrawer(
                             val interactionSource = remember { MutableInteractionSource() }
                             IconNavItem(
                                 text = stringResource(R.string.search),
-                                railColor = RailRainbow.Search,
-                                weaselIcon = WeaselNavIcons.search,
+                                weaselIcon = WeaselNavIcons.SEARCH,
                                 icon = Icons.Default.Search,
                                 selected = selectedIndex == SEARCH_INDEX,
                                 drawerOpen = isOpen,
@@ -443,8 +436,7 @@ fun NavDrawer(
                             val interactionSource = remember { MutableInteractionSource() }
                             IconNavItem(
                                 text = stringResource(R.string.home),
-                                railColor = RailRainbow.Home,
-                                weaselIcon = WeaselNavIcons.home,
+                                weaselIcon = WeaselNavIcons.HOME,
                                 icon = Icons.Default.Home,
                                 selected = selectedIndex == HOME_INDEX,
                                 drawerOpen = isOpen,
@@ -470,7 +462,6 @@ fun NavDrawer(
                             val interactionSource = remember { MutableInteractionSource() }
                             NavItem(
                                 library = it,
-                                railSlot = index + RailRainbow.LIBRARY_SLOT_OFFSET,
                                 selected = selectedIndex == index,
                                 moreExpanded = moreExpanded,
                                 drawerOpen = isOpen,
@@ -515,7 +506,6 @@ fun NavDrawer(
                                 val interactionSource = remember { MutableInteractionSource() }
                                 NavItem(
                                     library = it,
-                                    railSlot = adjustedIndex + RailRainbow.LIBRARY_SLOT_OFFSET,
                                     selected = selectedIndex == adjustedIndex,
                                     moreExpanded = moreExpanded,
                                     drawerOpen = isOpen,
@@ -545,8 +535,7 @@ fun NavDrawer(
                             val interactionSource = remember { MutableInteractionSource() }
                             IconNavItem(
                                 text = stringResource(R.string.settings),
-                                railColor = RailRainbow.Settings,
-                                weaselIcon = WeaselNavIcons.settings,
+                                weaselIcon = WeaselNavIcons.SETTINGS,
                                 icon = Icons.Default.Settings,
                                 selected = false,
                                 drawerOpen = isOpen,
@@ -637,38 +626,38 @@ fun NavigationDrawerScope.IconNavItem(
     modifier: Modifier = Modifier,
     subtext: String? = null,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
-    railColor: Color? = null,
-    weaselIcon: Pair<String, Long>? = null,
+    weaselIcon: String? = null,
+    accent: Color = NeonBoard.Volt,
 ) {
     val focused by interactionSource.collectIsFocusedAsState()
     val context = LocalContext.current
     NavigationDrawerItem(
-        modifier = modifier.weaselDrawerItemRing(focused),
+        modifier = modifier.neonTally(accent, selected),
         selected = false,
         onClick = onClick,
-        colors = weaselDrawerItemColors(Color.Unspecified),
+        shape = neonListItemShape(),
+        colors = neonDrawerItemColors(accent),
+        border = neonListItemBorder(accent),
+        glow = neonListItemGlow(accent),
         leadingContent = {
-            // WeaselFin ships its own drawable + tint for the fixed items. Null on every
-            // upstream flavor, where the Material vector below is used exactly as before.
-            val weasel =
-                remember(weaselIcon) { weaselIcon?.let { WeaselNavIcons.fixed(context, it) } }
-            val color =
-                weasel?.second?.let { railTint(it, selected) }
-                    ?: railColor?.let { railTint(it, selected) }
-                    ?: navItemColor(selected, focused, drawerOpen)
+            // WeaselFin ships its own drawable for the fixed items. Null on every upstream
+            // flavor, where the Material vector below is used exactly as before.
+            val weasel = remember(weaselIcon) { weaselIcon?.let { WeaselNavIcons.fixed(context, it) } }
+            val color = railGlyphColor(accent, selected, focused) ?: navItemColor(selected, focused, drawerOpen)
+            val glyphModifier = Modifier.size(DrawerIconSize).neonIconGlow(accent, selected)
             if (weasel != null) {
                 Icon(
-                    painter = painterResource(weasel.first),
+                    painter = painterResource(weasel),
                     contentDescription = null,
                     tint = color,
-                    modifier = Modifier.size(DrawerIconSize).railFocusGlow(color, focused),
+                    modifier = glyphModifier,
                 )
             } else {
                 Icon(
                     icon,
                     contentDescription = null,
                     tint = color,
-                    modifier = Modifier.size(DrawerIconSize).railFocusGlow(color, focused),
+                    modifier = glyphModifier,
                 )
             }
         },
@@ -687,6 +676,7 @@ fun NavigationDrawerScope.IconNavItem(
             modifier = Modifier,
             text = text,
             maxLines = 1,
+            style = if (isWeaselTv()) NeonType.railLabel(selected) else LocalTextStyle.current,
         )
     }
 }
@@ -701,7 +691,6 @@ fun NavigationDrawerScope.NavItem(
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     containerColor: Color = Color.Unspecified,
-    railSlot: Int = 0,
 ) {
     val context = LocalContext.current
     val useFont = library !is ServerNavDrawerItem || library.type != CollectionType.LIVETV
@@ -734,21 +723,25 @@ fun NavigationDrawerScope.NavItem(
                 }
             }
         }
+    // Neon Board: the section accent — volt for the built-ins, the library's type color
+    // (movies orange, shows yellow, live green, Boxing / UFC cyan by name).
+    val accent = remember(library) { sectionAccent(library) }
     val focused by interactionSource.collectIsFocusedAsState()
     NavigationDrawerItem(
-        modifier = modifier.weaselDrawerItemRing(focused),
+        modifier = modifier.neonTally(accent, selected),
         selected = false,
         onClick = onClick,
-        colors = weaselDrawerItemColors(containerColor),
+        shape = neonListItemShape(),
+        colors = neonDrawerItemColors(accent, containerColor),
+        border = neonListItemBorder(accent),
+        glow = neonListItemGlow(accent),
         leadingContent = {
-            val color =
-                railIconColor(railSlot, selected)
-                    ?: navItemColor(selected, focused, drawerOpen)
+            val color = railGlyphColor(accent, selected, focused) ?: navItemColor(selected, focused, drawerOpen)
             Box(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .railFocusGlow(color, focused),
+                        .neonIconGlow(accent, selected),
                 contentAlignment = Alignment.Center,
             ) {
                 // WeaselFin ships its own drawable set; null on every upstream flavor, which
@@ -756,9 +749,9 @@ fun NavigationDrawerScope.NavItem(
                 val weasel = remember(library) { WeaselNavIcons.navIconFor(context, library) }
                 if (weasel != null) {
                     Icon(
-                        painter = painterResource(weasel.first),
+                        painter = painterResource(weasel),
                         contentDescription = null,
-                        tint = weasel.second,
+                        tint = color,
                         modifier = Modifier.size(DrawerIconSize),
                     )
                 } else if (useFont) {
@@ -797,178 +790,28 @@ fun NavigationDrawerScope.NavItem(
             modifier = Modifier,
             text = library.name(context),
             maxLines = 1,
+            style = if (isWeaselTv()) NeonType.railLabel(selected) else LocalTextStyle.current,
         )
     }
 }
 
 /**
- * WeaselTV rail rainbow (handoff §4). Fixed colours per slot, top to bottom.
- *
- * Returns null for every other theme so their rail is untouched.
- *
- * Selected gets full colour; unselected the same colour at 85% alpha — so the rail
- * reads as a rainbow at rest rather than only lighting up on focus.
- */
-object RailRainbow {
-    // Brighter neon set, at the owner's request: the handoff's rail table read muted on
-    // a real TV - notably #7E57C2 (dusty violet) and #63C7FF (pale blue).
-    //
-    // Five of the seven are lifted verbatim from the brand's OWN neon accents in
-    // DiagnosticsTokens.Accent - the same token file the prismatic ring came from - so
-    // this is brighter AND more on-brand than inventing a palette. Only the orange is
-    // outside that set, pushed up from #FF7A00 because no neon orange exists there.
-    val Search = Color(0xFF00F0FF) // Accent.CYAN    (was #63C7FF)
-    val Home = Color(0xFFC026FF) // Accent.VIOLET  (was #7E57C2)
-    val Movies = Color(0xFFFF3B55) // Accent.RED
-    val Shows = Color(0xFFFFF700) // Accent.YELLOW
-    val Music = Color(0xFF39FF14) // Accent.GREEN   (was #A7FF3B)
-    val Favorites = Color(0xFFFF9100) // neon orange   (was #FF7A00)
-    val Settings = Color(0xFFFF2EF7) // Accent.MAGENTA
-
-    /**
-     * Every rail colour, in order.
-     *
-     * Colours are assigned by POSITION in the rail, not by library type. Keying off
-     * CollectionType meant every movie library rendered the same red and every TV
-     * library the same yellow - three identical reds in a row on the owner's rail.
-     * Rotating by position guarantees neighbours always differ and only repeats after
-     * a full cycle of seven, which is the widest spread seven colours allow.
-     */
-    val Wheel = listOf(Search, Home, Movies, Shows, Music, Favorites, Settings)
-
-    /** Search occupies slot 0 and Home slot 1, so library items start here. */
-    const val LIBRARY_SLOT_OFFSET = 2
-}
-
-/**
- * WeaselTV rail selector.
- *
- * The stock drawer fills the focused row with a near-white surface, which fights the
- * graphite palette and is the one thing on the rail that is not themed. Here the fill
- * goes transparent and focus is carried by the same prismatic ring every other
- * focusable surface uses, so the rail matches the rest of the app.
+ * Neon Board rail glyphs: `low` at rest, `text` when focused, the section accent when
+ * selected. Null on every other theme so [navItemColor] runs unchanged for them.
  */
 @Composable
-fun weaselDrawerItemColors(containerColor: Color): NavigationDrawerItemColors =
-    if (LocalTheme.current == AppThemeColors.WEASELTV) {
-        NavigationDrawerItemDefaults.colors(
-            containerColor = Color.Transparent,
-            focusedContainerColor = Color.Transparent,
-            selectedContainerColor = Color.Transparent,
-            pressedContainerColor = Color.Transparent,
-            focusedSelectedContainerColor = Color.Transparent,
-        )
-    } else {
-        NavigationDrawerItemDefaults.colors(containerColor = containerColor)
-    }
-
-/**
- * The prismatic focus ring for a rail row.
- *
- * Applied as a modifier because `NavigationDrawerItem` exposes no `border` parameter -
- * unlike Card and the clickable Surfaces, which do.
- */
-@Composable
-fun Modifier.weaselDrawerItemRing(focused: Boolean): Modifier {
-    if (!focused || LocalTheme.current != AppThemeColors.WEASELTV) return this
-    val brush = rememberPrismaticBrush(PrismaticDuration.FOCUS_BORDER, widthPx = 420f)
-    return this.border(
-        width = 3.dp,
-        brush = brush,
-        shape = RoundedCornerShape(WeaselRadius.Row),
-    )
-}
-
-/**
- * Neon bloom radiating from the FOCUSED rail icon, pulsing in brightness.
- *
- * Bound to focus, not selection: the glow has to travel with the selector as the user
- * scrolls the rail. Tying it to the selected page left it stranded on the current page
- * while the highlight moved away.
- *
- * Drawn as a radial gradient that fades to transparent rather than a flat disc, so it
- * reads as light coming off the glyph instead of a coloured circle behind it. The pulse
- * modulates brightness; the radius barely moves, which is what makes it breathe rather
- * than throb.
- *
- * Its own transition, not the shared prismatic driver: that one sweeps linearly for
- * gradients, this needs to reverse. Only one exists at a time - only one item has focus.
- */
-@Composable
-fun Modifier.railFocusGlow(
-    color: Color,
+@ReadOnlyComposable
+fun railGlyphColor(
+    accent: Color,
+    selected: Boolean,
     focused: Boolean,
-): Modifier {
-    if (!focused || LocalTheme.current != AppThemeColors.WEASELTV) return this
-    if (!LocalPrismaticEnabled.current) {
-        return this.drawBehind {
-            val r = size.minDimension * 1.15f
-            drawCircle(
-                brush =
-                    Brush.radialGradient(
-                        colors =
-                            listOf(
-                                color.copy(alpha = .45f),
-                                color.copy(alpha = .18f),
-                                Color.Transparent,
-                            ),
-                        center = center,
-                        radius = r,
-                    ),
-                radius = r,
-            )
-        }
-    }
-    val pulse by rememberInfiniteTransition(label = "railGlow").animateFloat(
-        initialValue = .35f,
-        targetValue = 1f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(1900, easing = LinearEasing),
-                repeatMode = RepeatMode.Reverse,
-            ),
-        label = "railGlowPulse",
-    )
-    return this.drawBehind {
-        val r = size.minDimension * (1.05f + .12f * pulse)
-        drawCircle(
-            brush =
-                Brush.radialGradient(
-                    colors =
-                        listOf(
-                            color.copy(alpha = .60f * pulse),
-                            color.copy(alpha = .24f * pulse),
-                            Color.Transparent,
-                        ),
-                    center = center,
-                    radius = r,
-                ),
-            radius = r,
-        )
-    }
-}
-
-@Composable
-@ReadOnlyComposable
-fun railTint(
-    color: Color,
-    selected: Boolean,
-): Color? =
-    if (LocalTheme.current == AppThemeColors.WEASELTV) {
-        if (selected) color else color.copy(alpha = .85f)
-    } else {
-        null
-    }
-
-@Composable
-@ReadOnlyComposable
-fun railIconColor(
-    slot: Int,
-    selected: Boolean,
 ): Color? {
-    if (LocalTheme.current != AppThemeColors.WEASELTV) return null
-    val base = RailRainbow.Wheel[((slot % RailRainbow.Wheel.size) + RailRainbow.Wheel.size) % RailRainbow.Wheel.size]
-    return railTint(base, selected)
+    if (!isWeaselTv()) return null
+    return when {
+        selected -> accent
+        focused -> NeonBoard.Text
+        else -> NeonBoard.Low
+    }
 }
 
 @Composable
@@ -1034,7 +877,7 @@ val DrawerState.isOpen: Boolean get() = this.currentValue.isOpen
 val DrawerValue.isOpen: Boolean get() = this == DrawerValue.Open
 
 /**
- * WeaselFin nav rail icon + colour set.
+ * WeaselFin nav rail icon set (Set A).
  *
  * Drawables live ONLY in the `weaselfin` flavor's res/drawable. Main code therefore cannot
  * reference `R.drawable.ic_nav_*` directly - that would fail to compile for every upstream
@@ -1044,61 +887,48 @@ val DrawerValue.isOpen: Boolean get() = this == DrawerValue.Open
  *
  * Builtins match on their stable [NavDrawerItem.id]; server libraries match on NAME, because
  * a library's id differs per server and cannot be baked into a build.
+ *
+ * Colors are NOT here any more: the Neon Board tints every glyph the same way (`low` at
+ * rest, the section accent when selected), see [sectionAccent].
  */
 internal object WeaselNavIcons {
-    private const val LASER_YELLOW = 0xFFFFE600L
-    private const val SPRING_MINT = 0xFF00FF8AL
-    private const val HYPER_BLUE = 0xFF5268FFL
-    private const val NEON_ORANGE = 0xFFFF7A00L
-    private const val NEON_CYAN = 0xFF00F5FFL
-    private const val ELECTRIC_MAGENTA = 0xFFE500FFL
-    private const val NEON_CHARTREUSE = 0xFFB6FF00L
-    private const val LASER_RED = 0xFFFF1744L
-    private const val ELECTRIC_AZURE = 0xFF00A3FFL
-    private const val ELECTRIC_VIOLET = 0xFF9B3DFFL
-    private const val ACID_GREEN = 0xFF39FF14L
-    private const val HOT_PINK = 0xFFFF2D95L
-
     /** Key is a NavDrawerItem id for builtins, or a lowercased library name for server items. */
-    private val map: Map<String, Pair<String, Long>> =
+    private val map: Map<String, String> =
         mapOf(
-            "a_favorites" to ("ic_nav_favorites" to HYPER_BLUE),
-            "a_discover" to ("ic_nav_requests" to NEON_ORANGE),
-            "movies" to ("ic_nav_movies" to NEON_CYAN),
-            "tv shows" to ("ic_nav_tvshows" to ELECTRIC_MAGENTA),
-            "stand up comedy" to ("ic_nav_standup" to NEON_CHARTREUSE),
-            "ufc" to ("ic_nav_ufc" to LASER_RED),
-            "boxing" to ("ic_nav_boxing" to ELECTRIC_AZURE),
-            "4k movies (lan)" to ("ic_nav_4k_movies" to ELECTRIC_VIOLET),
-            "4k tv shows (lan)" to ("ic_nav_4k_tv" to ACID_GREEN),
+            "a_favorites" to "ic_nav_favorites",
+            "a_discover" to "ic_nav_requests",
+            "movies" to "ic_nav_movies",
+            "tv shows" to "ic_nav_tvshows",
+            "stand up comedy" to "ic_nav_standup",
+            "ufc" to "ic_nav_ufc",
+            "boxing" to "ic_nav_boxing",
+            "4k movies (lan)" to "ic_nav_4k_movies",
+            "4k tv shows (lan)" to "ic_nav_4k_tv",
         )
 
     /** Fixed items, rendered outside the dynamic list. */
-    val search = "ic_nav_search" to LASER_YELLOW
-    val home = "ic_nav_home" to SPRING_MINT
-    val settings = "ic_nav_settings" to HOT_PINK
+    const val SEARCH = "ic_nav_search"
+    const val HOME = "ic_nav_home"
+    const val SETTINGS = "ic_nav_settings"
 
     private fun resId(
         context: Context,
         name: String,
     ): Int = context.resources.getIdentifier(name, "drawable", context.packageName)
 
-    /** Icon and tint for a nav item, or null to fall back to upstream's glyph. */
+    /** Drawable for a nav item, or null to fall back to upstream's glyph. */
     fun navIconFor(
         context: Context,
         item: NavDrawerItem,
-    ): Pair<Int, Color>? {
+    ): Int? {
         val key = if (item is ServerNavDrawerItem) item.name.trim().lowercase() else item.id
         val entry = map[key] ?: return null
         return fixed(context, entry)
     }
 
-    /** Icon and tint for a fixed entry, or null when this flavor does not ship it. */
+    /** Drawable for a fixed entry, or null when this flavor does not ship it. */
     fun fixed(
         context: Context,
-        entry: Pair<String, Long>,
-    ): Pair<Int, Color>? {
-        val id = resId(context, entry.first)
-        return if (id != 0) id to Color(entry.second.toInt()) else null
-    }
+        name: String,
+    ): Int? = resId(context, name).takeIf { it != 0 }
 }

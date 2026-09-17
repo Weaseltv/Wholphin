@@ -27,7 +27,10 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.ui.components.SearchEditTextBox
 import com.github.damontecres.wholphin.ui.components.SelectedLeadingContent
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
-import com.github.damontecres.wholphin.ui.theme.weaselListItemBorder
+import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
+import com.github.damontecres.wholphin.ui.theme.neonListItemColors
+import com.github.damontecres.wholphin.ui.theme.neonListItemGlow
+import com.github.damontecres.wholphin.ui.theme.neonListItemShape
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import kotlinx.coroutines.delay
@@ -105,7 +108,10 @@ fun FilterableLanguagePreference(
                     HorizontalDivider()
                 } else {
                     ListItem(
-                        border = weaselListItemBorder(),
+                        shape = neonListItemShape(),
+                        colors = neonListItemColors(),
+                        border = neonListItemBorder(),
+                        glow = neonListItemGlow(),
                         selected = false,
                         onClick = {
                             onClickOption.invoke(option)
