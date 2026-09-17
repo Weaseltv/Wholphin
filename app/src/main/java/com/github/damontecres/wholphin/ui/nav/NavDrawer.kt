@@ -846,9 +846,9 @@ fun NavigationDrawerScope.NavItem(
 }
 
 /**
- * The brand mark at the top of the rail: the white mascot (30dp) and, when the rail is
- * expanded, the text wordmark — `WEASEL` in `text`, `PLEX` in volt, Barlow Condensed 800.
- * The mascot drawable ships only in the `weaselfin` flavor and is resolved by name.
+ * The brand mark at the top of the rail: the Media Dial mascot and, when the rail is
+ * expanded, the horizontal lockup (Neon Board B kit, 2026-09-17). Both drawables ship only
+ * in the `weaselfin` flavor and are resolved by name.
  */
 @Composable
 fun RailBrand(
@@ -869,7 +869,8 @@ fun RailBrand(
             Image(
                 painter = painterResource(lockup),
                 contentDescription = "WeaselPlex",
-                modifier = Modifier.height(44.dp),
+                // The lockup is ~3.9:1; 36dp keeps it inside the expanded rail's width.
+                modifier = Modifier.height(36.dp),
             )
         } else if (mascot != null) {
             Image(

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- WeaselFin brand palette. Values from the brand kit's brand-tokens.json. -->
+<!-- WeaselFin brand palette. Stage colour from the Neon Board B kit (2026-09-17). -->
 <resources>
-    <color name="ic_banner_background">#070A10</color>
-    <color name="ic_launcher_background">#070A10</color>
+    <color name="ic_banner_background">#050608</color>
+    <color name="ic_launcher_background">#050608</color>
 </resources>

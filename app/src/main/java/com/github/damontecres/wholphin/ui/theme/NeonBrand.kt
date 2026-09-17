@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 
 /**
- * The in-app brand: the white mascot beside the text wordmark, `WEASEL` in `text` and
+ * The in-app brand: the Media Dial mascot beside the text wordmark, `WEASEL` in `text` and
  * `PLEX` in volt, Barlow Condensed 800 uppercase (handoff README § Brand). The mascot
  * drawable ships only in the `weaselfin` flavor and is resolved by name; on any other
  * flavor only the wordmark renders.
