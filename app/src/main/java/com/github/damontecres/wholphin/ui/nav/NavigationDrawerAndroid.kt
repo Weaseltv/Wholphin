@@ -142,7 +142,6 @@ private fun DrawerSheet(
     val neonModifier =
         if (neon) {
             Modifier
-                .padding(start = NeonBoard.Size.OverscanX / 2)
                 .then(
                     if (open) {
                         Modifier

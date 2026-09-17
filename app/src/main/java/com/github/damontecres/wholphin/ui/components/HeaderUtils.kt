@@ -4,9 +4,11 @@ import android.content.Context
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.github.damontecres.wholphin.R
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import org.jellyfin.sdk.model.api.BaseItemKind
 
 object HeaderUtils {
@@ -24,6 +26,20 @@ object HeaderUtils {
         Modifier
             .padding(padding)
             .height(height)
+
+    /**
+     * The Home / Recommended header. Neon Board: 27dp overscan top, 16dp below, so the first
+     * row's cards and captions fit under the header without being cut at the bottom.
+     */
+    @Composable
+    fun homeModifier(): Modifier =
+        if (isWeaselTv()) {
+            Modifier
+                .padding(top = 27.dp, bottom = 12.dp, start = startPadding)
+                .height(172.dp)
+        } else {
+            modifier
+        }
 }
 
 /** A short, localized label for an item kind, used by eyebrows and card badges. */

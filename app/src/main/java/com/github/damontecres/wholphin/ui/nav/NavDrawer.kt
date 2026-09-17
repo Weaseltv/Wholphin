@@ -53,10 +53,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -95,6 +92,7 @@ import com.github.damontecres.wholphin.ui.theme.LocalTheme
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.ProvideNeonAccent
+import com.github.damontecres.wholphin.ui.theme.RailAccents
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonDrawerItemColors
 import com.github.damontecres.wholphin.ui.theme.neonIconGlow
@@ -387,7 +385,7 @@ fun NavDrawer(
                             text = stringResource(R.string.now_playing),
                             subtext = serviceState.nowPlayingTitle,
                             icon = Icons.Default.PlayArrow,
-                            accent = NeonBoard.Green,
+                            accent = RailAccents.NowPlaying,
                             selected = selectedIndex == NOW_PLAYING_INDEX,
                             drawerOpen = isOpen,
                             interactionSource = interactionSource,
@@ -426,6 +424,7 @@ fun NavDrawer(
                             IconNavItem(
                                 text = stringResource(R.string.search),
                                 weaselIcon = WeaselNavIcons.SEARCH,
+                                accent = RailAccents.Search,
                                 icon = Icons.Default.Search,
                                 selected = selectedIndex == SEARCH_INDEX,
                                 drawerOpen = isOpen,
@@ -547,6 +546,7 @@ fun NavDrawer(
                             IconNavItem(
                                 text = stringResource(R.string.settings),
                                 weaselIcon = WeaselNavIcons.SETTINGS,
+                                accent = RailAccents.Settings,
                                 icon = Icons.Default.Settings,
                                 selected = false,
                                 drawerOpen = isOpen,
@@ -604,9 +604,11 @@ fun NavDrawer(
                                 offset
                             }.then(
                                 if (neon) {
+                                    // Owner (2026-09-17): the rail sits on the screen edge and rows run
+                                    // to the right edge, so no overscan inset on either side.
                                     Modifier.padding(
-                                        start = NeonBoard.Size.OverscanX / 2 + closedDrawerWidth + NeonBoard.Size.OverscanX / 2,
-                                        end = NeonBoard.Size.OverscanX,
+                                        start = closedDrawerWidth + NeonBoard.Size.OverscanX / 2,
+                                        end = 8.dp,
                                     )
                                 } else {
                                     Modifier.padding(start = closedDrawerWidth + 8.dp, end = 16.dp)
@@ -855,30 +857,25 @@ fun RailBrand(
 ) {
     val context = LocalContext.current
     val mascot = remember(context) { WeaselNavIcons.fixed(context, WeaselNavIcons.MASCOT) }
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    val lockup = remember(context) { WeaselNavIcons.fixed(context, WeaselNavIcons.LOCKUP) }
+    Box(
+        contentAlignment = Alignment.CenterStart,
         modifier =
             modifier
                 .padding(start = if (expanded) 12.dp else 0.dp, top = 8.dp, bottom = 4.dp)
-                .height(38.dp),
+                .height(44.dp),
     ) {
-        if (mascot != null) {
+        if (expanded && lockup != null) {
+            Image(
+                painter = painterResource(lockup),
+                contentDescription = "WeaselPlex",
+                modifier = Modifier.height(44.dp),
+            )
+        } else if (mascot != null) {
             Image(
                 painter = painterResource(mascot),
-                contentDescription = null,
-                modifier = Modifier.size(30.dp),
-            )
-        }
-        if (expanded) {
-            Text(
-                text =
-                    buildAnnotatedString {
-                        withStyle(SpanStyle(color = NeonBoard.Text)) { append("WEASEL") }
-                        withStyle(SpanStyle(color = NeonBoard.Volt)) { append("PLEX") }
-                    },
-                style = NeonType.wordmark(20.sp),
-                maxLines = 1,
+                contentDescription = "WeaselPlex",
+                modifier = Modifier.size(44.dp),
             )
         }
     }
@@ -999,7 +996,8 @@ internal object WeaselNavIcons {
     const val SEARCH = "ic_nav_search"
     const val HOME = "ic_nav_home"
     const val SETTINGS = "ic_nav_settings"
-    const val MASCOT = "weaselplex_mascot_white"
+    const val MASCOT = "weaselplex_mascot"
+    const val LOCKUP = "weaselplex_lockup"
 
     private fun resId(
         context: Context,

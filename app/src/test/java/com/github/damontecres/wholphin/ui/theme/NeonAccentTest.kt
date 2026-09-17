@@ -25,27 +25,31 @@ class NeonAccentTest {
     )
 
     @Test
-    fun `built-in sections are volt`() {
-        assertEquals(NeonBoard.Volt, sectionAccent(NavDrawerItem.Favorites))
-        assertEquals(NeonBoard.Volt, sectionAccent(NavDrawerItem.Discover))
-        assertEquals(NeonBoard.Volt, sectionAccent(NavDrawerItem.More))
+    fun `every rail item has its own neon`() {
+        val accents =
+            listOf(
+                sectionAccent(NavDrawerItem.Favorites),
+                sectionAccent(NavDrawerItem.Discover),
+                sectionAccent(library("Movies", CollectionType.MOVIES)),
+                sectionAccent(library("TV Shows", CollectionType.TVSHOWS)),
+                sectionAccent(library("Stand Up Comedy", CollectionType.MOVIES)),
+                sectionAccent(library("Boxing", CollectionType.MOVIES)),
+                sectionAccent(library("UFC", CollectionType.TVSHOWS)),
+                sectionAccent(library("Live TV", CollectionType.LIVETV)),
+                RailAccents.Search,
+                RailAccents.Home,
+                RailAccents.Settings,
+            )
+        assertEquals(accents.size, accents.toSet().size)
     }
 
     @Test
-    fun `libraries take the color of their collection type`() {
-        assertEquals(NeonBoard.Orange, sectionAccent(library("Movies", CollectionType.MOVIES)))
+    fun `4K libraries share their regular counterpart's colour`() {
         assertEquals(NeonBoard.Orange, sectionAccent(library("4K Movies (LAN)", CollectionType.MOVIES)))
-        assertEquals(NeonBoard.Yellow, sectionAccent(library("TV Shows", CollectionType.TVSHOWS)))
+        assertEquals(NeonBoard.Yellow, sectionAccent(library("4K TV Shows (LAN)", CollectionType.TVSHOWS)))
         assertEquals(NeonBoard.Green, sectionAccent(library("Live TV", CollectionType.LIVETV)))
         assertEquals(NeonBoard.Volt, sectionAccent(library("Music", CollectionType.MUSIC)))
-        assertEquals(NeonBoard.Orange, sectionAccent(library("Stand Up Comedy", CollectionType.MOVIES)))
-    }
-
-    @Test
-    fun `sports libraries are cyan by name regardless of type`() {
-        assertEquals(NeonBoard.Cyan, sectionAccent(library("Boxing", CollectionType.MOVIES)))
-        assertEquals(NeonBoard.Cyan, sectionAccent(library("UFC", CollectionType.TVSHOWS)))
-        assertEquals(NeonBoard.Cyan, sectionAccent(library("  ufc ", CollectionType.MOVIES)))
+        assertEquals(sectionAccent(library("ufc", CollectionType.MOVIES)), sectionAccent(library("  UFC ", CollectionType.TVSHOWS)))
     }
 
     @Test
