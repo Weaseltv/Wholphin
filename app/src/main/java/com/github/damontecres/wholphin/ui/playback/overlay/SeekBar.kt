@@ -38,6 +38,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.key.KeyEventType
@@ -49,6 +51,9 @@ import com.github.damontecres.wholphin.ui.playback.ControllerViewState
 import com.github.damontecres.wholphin.ui.playback.calculateSeekAccelerationMultiplier
 import com.github.damontecres.wholphin.ui.playback.isDpadLeft
 import com.github.damontecres.wholphin.ui.playback.isDpadRight
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import kotlinx.coroutines.FlowPreview
 import timber.log.Timber
 import kotlin.time.Duration
@@ -200,14 +205,18 @@ private fun SeekBarDisplay(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    val color = MaterialTheme.colorScheme.border
+    // Neon Board (`02-components-tv.md` § T6): 4dp `line2` track, fill in the item's type
+    // accent with a 10dp glow, 14dp square thumb with a 2dp `text` ring. No sweep, no grow.
+    val neon = isWeaselTv()
+    val accent = LocalNeonAccent.current
+    val color = if (neon) accent else MaterialTheme.colorScheme.border
     val onSurface = MaterialTheme.colorScheme.onSurface
 
     val isFocused by interactionSource.collectIsFocusedAsState()
     var leftHandledByRepeat by remember { mutableStateOf(false) }
     var rightHandledByRepeat by remember { mutableStateOf(false) }
     val animatedIndicatorHeight by animateDpAsState(
-        targetValue = 6.dp.times((if (isFocused) 2f else 1f)),
+        targetValue = if (neon) NeonBoard.Size.SeekBar else 6.dp.times((if (isFocused) 2f else 1f)),
     )
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -281,9 +290,34 @@ private fun SeekBarDisplay(
                             }
                             return@onPreviewKeyEvent true
                         }
-                    }.focusable(enabled = enabled, interactionSource = interactionSource),
+                    }.focusable(enabled = enabled, interactionSource = interactionSource)
+                    .then(if (neon) Modifier.padding(vertical = 8.dp) else Modifier),
             onDraw = {
                 val yOffset = size.height.div(2)
+                if (neon) {
+                    val thumb = NeonBoard.Size.SeekThumb.toPx()
+                    val x = size.width.times(progress)
+                    drawRect(color = NeonBoard.Line2, topLeft = Offset(0f, 0f), size = Size(size.width, size.height))
+                    drawRect(color = NeonBoard.Mid.copy(alpha = .35f), size = Size(size.width.times(bufferedProgress), size.height))
+                    // Glow under the fill, then the solid fill so a box without shadows still reads.
+                    drawRect(
+                        brush =
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, accent.copy(alpha = .35f), Color.Transparent),
+                                startY = yOffset - 10.dp.toPx(),
+                                endY = yOffset + 10.dp.toPx(),
+                            ),
+                        topLeft = Offset(0f, yOffset - 10.dp.toPx()),
+                        size = Size(x, 20.dp.toPx()),
+                    )
+                    drawRect(color = accent, size = Size(x, size.height))
+                    if (enabled) {
+                        drawRect(color = NeonBoard.Text, topLeft = Offset(x - thumb / 2, yOffset - thumb / 2), size = Size(thumb, thumb))
+                        val inner = thumb - 4.dp.toPx()
+                        drawRect(color = accent, topLeft = Offset(x - inner / 2, yOffset - inner / 2), size = Size(inner, inner))
+                    }
+                    return@Canvas
+                }
                 drawLine(
                     color = onSurface.copy(alpha = 0.25f),
                     start = Offset(x = 0f, y = yOffset),

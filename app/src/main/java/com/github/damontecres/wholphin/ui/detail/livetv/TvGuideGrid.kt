@@ -28,14 +28,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.tv.material3.LocalTextStyle
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.SurfaceDefaults
@@ -57,6 +62,9 @@ import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.ui.rememberPosition
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.NeonType
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.LoadingState
 import com.github.damontecres.wholphin.util.WholphinDispatchers
@@ -380,14 +388,20 @@ fun TvGuideGridContent(
                     )
                 },
             ) {
+                // Neon Board (T7): the now-line is 2dp cyan with a 12dp dot at the top.
                 Surface(
                     colors =
                         SurfaceDefaults.colors(
-                            MaterialTheme.colorScheme.tertiary.copy(
-                                alpha = .25f,
-                            ),
+                            if (isWeaselTv()) NeonBoard.Cyan else MaterialTheme.colorScheme.tertiary.copy(alpha = .25f),
                         ),
-                    modifier = Modifier,
+                    modifier =
+                        if (isWeaselTv()) {
+                            Modifier.drawBehind {
+                                drawCircle(NeonBoard.Cyan, radius = 6.dp.toPx(), center = Offset(size.width / 2, 6.dp.toPx()))
+                            }
+                        } else {
+                            Modifier
+                        },
                 ) {
                     // Empty
                 }
@@ -415,11 +429,24 @@ fun TvGuideGridContent(
                             // The second is padded so there are gaps between times
                             // The first covers those gaps
                             .background(MaterialTheme.colorScheme.background)
-                            .padding(horizontal = 2.dp)
+                            .padding(horizontal = if (isWeaselTv()) 0.dp else 2.dp)
                             .fillMaxSize()
-                            .background(
-                                MaterialTheme.colorScheme.surfaceVariant,
-                                shape = RoundedCornerShape(4.dp),
+                            .then(
+                                if (isWeaselTv()) {
+                                    Modifier.drawBehind {
+                                        drawRect(NeonBoard.Line, size = Size(1.dp.toPx(), size.height))
+                                        drawRect(
+                                            NeonBoard.Line,
+                                            topLeft = Offset(0f, size.height - 1.dp.toPx()),
+                                            size = Size(size.width, 1.dp.toPx()),
+                                        )
+                                    }
+                                } else {
+                                    Modifier.background(
+                                        MaterialTheme.colorScheme.surfaceVariant,
+                                        shape = RoundedCornerShape(4.dp),
+                                    )
+                                },
                             ),
                 ) {
                     val guideTime = guideTimes[index]
@@ -432,10 +459,21 @@ fun TvGuideGridContent(
                                 .epochSecond * 1000,
                             DateUtils.FORMAT_SHOW_TIME or if (differentDay) DateUtils.FORMAT_SHOW_WEEKDAY else 0,
                         )
+                    val isCurrentSlot =
+                        remember(guideTime) {
+                            val now = LocalDateTime.now()
+                            !now.isBefore(guideTime) && now.isBefore(guideTime.plusMinutes(30))
+                        }
                     Text(
                         text = time.toString(),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(2.dp),
+                        color =
+                            when {
+                                !isWeaselTv() -> MaterialTheme.colorScheme.onSurface
+                                isCurrentSlot -> NeonBoard.Cyan
+                                else -> NeonBoard.Mid
+                            },
+                        style = if (isWeaselTv()) NeonType.numeral(15.sp) else LocalTextStyle.current,
+                        modifier = Modifier.padding(if (isWeaselTv()) 6.dp else 2.dp),
                     )
                 }
             }

@@ -7,6 +7,7 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.OptIn
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -80,8 +81,15 @@ import com.github.damontecres.wholphin.ui.seekBack
 import com.github.damontecres.wholphin.ui.seekForward
 import com.github.damontecres.wholphin.ui.skipStringRes
 import com.github.damontecres.wholphin.ui.theme.LocalTheme
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.neonGlassColors
+import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
+import com.github.damontecres.wholphin.ui.theme.neonListItemColors
+import com.github.damontecres.wholphin.ui.theme.neonListItemGlow
+import com.github.damontecres.wholphin.ui.theme.neonListItemShape
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import kotlinx.coroutines.delay
@@ -307,7 +315,7 @@ fun SeekTimecodes(
                 Text(
                     text = positionText,
                     color = MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = if (isWeaselTv()) NeonType.numeral(16.sp) else MaterialTheme.typography.labelLarge,
                     modifier =
                         Modifier
                             .padding(8.dp),
@@ -316,8 +324,8 @@ fun SeekTimecodes(
             CompositionLocalProvider(LocalLayoutDirection provides currentLayoutDirection) {
                 Text(
                     text = remainingText,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.labelLarge,
+                    color = if (isWeaselTv()) NeonBoard.Mid else MaterialTheme.colorScheme.onSurface,
+                    style = if (isWeaselTv()) NeonType.numeral(16.sp) else MaterialTheme.typography.labelLarge,
                     modifier =
                         Modifier
                             .padding(8.dp),
@@ -475,19 +483,20 @@ fun PlaybackButton(
         enabled = enabled,
         onClick = onClick,
 //        shape = ButtonDefaults.shape(CircleShape),
+        // Neon Board (T6): glass squares, 48dp, the accent border and glow carry focus.
         colors =
-            ClickableSurfaceDefaults.colors(
-                containerColor = AppColors.TransparentBlack25,
-                // Neon Board: transport buttons are glass and let the accent border and
-                // glow carry focus; filling them solid would fight the primary Play control.
-                focusedContainerColor =
-                    if (isWeaselTv()) AppColors.TransparentBlack25 else selectedColor,
+            neonGlassColors(
+                fallback =
+                    ClickableSurfaceDefaults.colors(
+                        containerColor = AppColors.TransparentBlack25,
+                        focusedContainerColor = selectedColor,
+                    ),
             ),
-        contentPadding = PaddingValues(4.dp),
+        contentPadding = PaddingValues(if (isWeaselTv()) 10.dp else 4.dp),
         interactionSource = interactionSource,
         modifier =
             modifier
-                .size(36.dp, 36.dp)
+                .size(if (isWeaselTv()) NeonBoard.Size.Button else 36.dp)
                 .onFocusChanged { onControllerInteraction.invoke() },
     ) {
         Icon(
@@ -495,7 +504,7 @@ fun PlaybackButton(
             painter = painterResource(iconRes),
             contentDescription = "",
             tint =
-                if (LocalTheme.current == AppThemeColors.OLED_BLACK) {
+                if (LocalTheme.current == AppThemeColors.OLED_BLACK || isWeaselTv()) {
                     LocalContentColor.current
                 } else {
                     MaterialTheme.colorScheme.onSurface
@@ -519,19 +528,20 @@ fun PlaybackFaButton(
         enabled = enabled,
         onClick = onClick,
 //        shape = ButtonDefaults.shape(CircleShape),
+        // Neon Board (T6): glass squares, 48dp, the accent border and glow carry focus.
         colors =
-            ClickableSurfaceDefaults.colors(
-                containerColor = AppColors.TransparentBlack25,
-                // Neon Board: transport buttons are glass and let the accent border and
-                // glow carry focus; filling them solid would fight the primary Play control.
-                focusedContainerColor =
-                    if (isWeaselTv()) AppColors.TransparentBlack25 else selectedColor,
+            neonGlassColors(
+                fallback =
+                    ClickableSurfaceDefaults.colors(
+                        containerColor = AppColors.TransparentBlack25,
+                        focusedContainerColor = selectedColor,
+                    ),
             ),
-        contentPadding = PaddingValues(4.dp),
+        contentPadding = PaddingValues(if (isWeaselTv()) 10.dp else 4.dp),
         interactionSource = interactionSource,
         modifier =
             modifier
-                .size(36.dp, 36.dp)
+                .size(if (isWeaselTv()) NeonBoard.Size.Button else 36.dp)
                 .onFocusChanged { onControllerInteraction.invoke() },
     ) {
         Text(
@@ -542,7 +552,7 @@ fun PlaybackFaButton(
             color =
                 if (textColor.isSpecified) {
                     textColor
-                } else if (LocalTheme.current == AppThemeColors.OLED_BLACK) {
+                } else if (LocalTheme.current == AppThemeColors.OLED_BLACK || isWeaselTv()) {
                     LocalContentColor.current
                 } else {
                     MaterialTheme.colorScheme.onSurface
@@ -592,9 +602,18 @@ fun <T> BottomDialog(
                 Modifier
                     .wrapContentSize()
                     .padding(8.dp)
-                    .background(
-                        MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp),
-                        shape = RoundedCornerShape(8.dp),
+                    .then(
+                        if (isWeaselTv()) {
+                            // Neon Board (T10): a `card` panel with a 1dp `line2` edge, square.
+                            Modifier
+                                .background(NeonBoard.Card)
+                                .border(1.dp, NeonBoard.Line2)
+                        } else {
+                            Modifier.background(
+                                MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp),
+                                shape = RoundedCornerShape(8.dp),
+                            )
+                        },
                     ),
         ) {
             LazyColumn(
@@ -611,6 +630,10 @@ fun <T> BottomDialog(
                     ListItem(
                         selected = choice == currentChoice,
                         enabled = choice.enabled,
+                        shape = neonListItemShape(),
+                        colors = neonListItemColors(),
+                        border = neonListItemBorder(),
+                        glow = neonListItemGlow(),
                         onClick = {
                             onDismissRequest()
                             onSelectChoice(index, choice)

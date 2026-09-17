@@ -4,6 +4,7 @@ import android.content.res.Resources
 import android.view.KeyEvent
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -42,6 +43,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
@@ -58,6 +60,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.Icon
 import androidx.tv.material3.ListItem
 import androidx.tv.material3.LocalContentColor
+import androidx.tv.material3.LocalTextStyle
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import androidx.tv.material3.surfaceColorAtElevation
@@ -69,6 +72,20 @@ import com.github.damontecres.wholphin.ui.formatBitrate
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.playback.SimpleMediaStream
 import com.github.damontecres.wholphin.ui.roundMinutes
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.NeonRule
+import com.github.damontecres.wholphin.ui.theme.NeonType
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
+import com.github.damontecres.wholphin.ui.theme.neonListItemColors
+import com.github.damontecres.wholphin.ui.theme.neonListItemGlow
+import com.github.damontecres.wholphin.ui.theme.neonListItemShape
+import com.github.damontecres.wholphin.ui.theme.neonOutlineColors
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceBorder
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceGlow
+import com.github.damontecres.wholphin.ui.theme.neonTally
+import com.github.damontecres.wholphin.ui.theme.neonUpper
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -267,24 +284,31 @@ fun DialogPopupContent(
     dismissOnClick: Boolean = true,
     elevation: Dp = 8.dp,
 ) {
+    val neon = isWeaselTv()
+    val accent = LocalNeonAccent.current
     val elevatedContainerColor =
-        MaterialTheme.colorScheme.surfaceColorAtElevation(elevation)
+        if (neon) NeonBoard.Card else MaterialTheme.colorScheme.surfaceColorAtElevation(elevation)
+    // Neon Board (T10): a square `card` panel, 1dp `line2` edge, 3dp tally in the accent,
+    // Condensed 26 uppercase title on a rule, 52dp hairline rows.
+    val shape = if (neon) RectangleShape else RoundedCornerShape(28.0.dp)
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier =
             modifier
-                .shadow(elevation = elevation, shape = RoundedCornerShape(28.0.dp))
+                .shadow(elevation = if (neon) 20.dp else elevation, shape = shape)
                 .graphicsLayer {
                     this.clip = true
-                    this.shape = RoundedCornerShape(28.0.dp)
+                    this.shape = shape
                 }.drawBehind { drawRect(color = elevatedContainerColor) }
+                .then(if (neon) Modifier.border(1.dp, NeonBoard.Line2).neonTally(accent).width(NeonBoard.Size.DialogWidth) else Modifier)
                 .padding(PaddingValues(24.dp)),
     ) {
         Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
+            text = if (neon) title.uppercase() else title,
+            style = if (neon) NeonType.dialogTitle() else MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface,
         )
+        NeonRule(accent = accent)
         val scope = rememberCoroutineScope()
         val listState = rememberLazyListState()
         val focusRequesters = remember { List(dialogItems.size) { FocusRequester() } }
@@ -304,6 +328,10 @@ fun DialogPopupContent(
                         ListItem(
                             selected = item.selected,
                             enabled = !waiting && item.enabled,
+                            shape = neonListItemShape(),
+                            colors = neonListItemColors(),
+                            border = neonListItemBorder(),
+                            glow = neonListItemGlow(),
                             onClick = {
                                 if (dismissOnClick || item.dismissOnClick) {
                                     onDismissRequest.invoke()
@@ -420,20 +448,30 @@ fun BasicDialog(
     onDismissRequest: () -> Unit,
     properties: DialogProperties = DialogProperties(),
     elevation: Dp = 1.dp,
+    tallyColor: Color = LocalNeonAccent.current,
     content: @Composable () -> Unit,
 ) {
     Dialog(
         onDismissRequest = onDismissRequest,
         properties = properties,
     ) {
+        val neon = isWeaselTv()
         Box(
             modifier =
-                Modifier
-                    .shadow(elevation = elevation, shape = RoundedCornerShape(8.dp))
-                    .background(
-                        MaterialTheme.colorScheme.surfaceColorAtElevation(elevation),
-                        shape = RoundedCornerShape(8.dp),
-                    ),
+                if (neon) {
+                    Modifier
+                        .shadow(elevation = 20.dp, shape = RectangleShape)
+                        .background(NeonBoard.Card)
+                        .border(1.dp, NeonBoard.Line2)
+                        .neonTally(tallyColor)
+                } else {
+                    Modifier
+                        .shadow(elevation = elevation, shape = RoundedCornerShape(8.dp))
+                        .background(
+                            MaterialTheme.colorScheme.surfaceColorAtElevation(elevation),
+                            shape = RoundedCornerShape(8.dp),
+                        )
+                },
         ) {
             content()
         }
@@ -480,10 +518,10 @@ fun ConfirmDialogContent(
     ) {
         item {
             Text(
-                text = title,
+                text = title.neonUpper(),
                 color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.titleLarge,
-                textAlign = TextAlign.Center,
+                style = if (isWeaselTv()) NeonType.dialogTitle() else MaterialTheme.typography.titleLarge,
+                textAlign = if (isWeaselTv()) TextAlign.Start else TextAlign.Center,
                 modifier = Modifier.fillParentMaxWidth(),
             )
         }
@@ -491,7 +529,8 @@ fun ConfirmDialogContent(
             item {
                 Text(
                     text = body,
-                    color = bodyColor,
+                    color = if (isWeaselTv() && bodyColor == MaterialTheme.colorScheme.onSurface) NeonBoard.Mid else bodyColor,
+                    style = if (isWeaselTv()) NeonType.body() else LocalTextStyle.current,
                 )
             }
         }
@@ -525,6 +564,8 @@ fun ConfirmDeleteDialog(
         onDismissRequest = onCancel,
         properties = DialogProperties(usePlatformDefaultWidth = false),
         elevation = elevation,
+        // Destructive: the tally is red.
+        tallyColor = NeonBoard.Red,
     ) {
         LazyColumn(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -534,8 +575,8 @@ fun ConfirmDeleteDialog(
         ) {
             item {
                 Text(
-                    text = stringResource(R.string.delete_item),
-                    style = MaterialTheme.typography.titleMedium,
+                    text = stringResource(R.string.delete_item).neonUpper(),
+                    style = if (isWeaselTv()) NeonType.dialogTitle() else MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
@@ -568,6 +609,9 @@ fun ConfirmDeleteDialog(
                     }
                     Button(
                         onClick = onConfirm,
+                        colors = neonOutlineColors(NeonBoard.Red),
+                        border = neonSurfaceBorder(NeonBoard.Red, restWidth = 1.dp),
+                        glow = neonSurfaceGlow(NeonBoard.Red),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
