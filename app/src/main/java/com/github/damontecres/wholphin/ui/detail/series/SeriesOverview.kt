@@ -31,6 +31,8 @@ import com.github.damontecres.wholphin.ui.data.ItemDetailsDialogInfo
 import com.github.damontecres.wholphin.ui.detail.PlaylistDialog
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberInt
+import com.github.damontecres.wholphin.ui.theme.ProvideNeonAccent
+import com.github.damontecres.wholphin.ui.theme.itemAccent
 import com.github.damontecres.wholphin.util.DataLoadingState
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
@@ -193,91 +195,53 @@ fun SeriesOverview(
                 }
             }
 
-            SeriesOverviewContent(
-                preferences = preferences,
-                series = st.data,
-                seasons = state.seasons,
-                episodes = state.episodes,
-                chosenStreams = chosenStreams,
-                peopleInEpisode = state.peopleInEpisode.people,
-                seasonExtras = state.extras,
-                position = position,
-                firstItemFocusRequester = firstItemFocusRequester,
-                episodeRowFocusRequester = episodeRowFocusRequester,
-                castCrewRowFocusRequester = castCrewRowFocusRequester,
-                guestStarRowFocusRequester = guestStarRowFocusRequester,
-                extrasRowFocusRequester = extrasRowFocusRequester,
-                onChangeSeason = { index ->
-                    if (index != position.seasonTabIndex) {
-                        state.seasons.getOrNull(index)?.let { season ->
-                            viewModel.loadEpisodes(season.id, season.indexNumber)
-                            viewModel.position.update {
-                                SeriesOverviewPosition(index, 0)
+            ProvideNeonAccent(itemAccent(st.data)) {
+                SeriesOverviewContent(
+                    preferences = preferences,
+                    series = st.data,
+                    seasons = state.seasons,
+                    episodes = state.episodes,
+                    chosenStreams = chosenStreams,
+                    peopleInEpisode = state.peopleInEpisode.people,
+                    seasonExtras = state.extras,
+                    position = position,
+                    firstItemFocusRequester = firstItemFocusRequester,
+                    episodeRowFocusRequester = episodeRowFocusRequester,
+                    castCrewRowFocusRequester = castCrewRowFocusRequester,
+                    guestStarRowFocusRequester = guestStarRowFocusRequester,
+                    extrasRowFocusRequester = extrasRowFocusRequester,
+                    onChangeSeason = { index ->
+                        if (index != position.seasonTabIndex) {
+                            state.seasons.getOrNull(index)?.let { season ->
+                                viewModel.loadEpisodes(season.id, season.indexNumber)
+                                viewModel.position.update {
+                                    SeriesOverviewPosition(index, 0)
+                                }
                             }
                         }
-                    }
-                },
-                onFocusEpisode = { episodeIndex ->
-                    viewModel.position.update {
-                        it.copy(episodeRowIndex = episodeIndex)
-                    }
-                },
-                onClick = {
-                    rowFocused = EPISODE_ROW
-                    val resumePosition =
-                        it.data.userData
-                            ?.playbackPositionTicks
-                            ?.ticks ?: Duration.ZERO
-                    viewModel.navigateTo(
-                        Destination.Playback(
-                            it.id,
-                            resumePosition.inWholeMilliseconds,
-                        ),
-                    )
-                },
-                onLongClick = { ep ->
-                    showContextMenu =
-                        ContextMenu.ForBaseItem(
-                            fromLongClick = true,
-                            item = ep,
-                            chosenStreams = chosenStreams,
-                            showGoTo = false,
-                            showStreamChoices = true,
-                            canDelete = viewModel.canDelete(ep, preferences.appPreferences),
-                            canRemoveContinueWatching = false,
-                            canRemoveNextUp = false,
-                            actions = contextActions,
-                        )
-                },
-                playOnClick = { resume ->
-                    rowFocused = EPISODE_ROW
-                    episodeList?.getOrNull(position.episodeRowIndex)?.let {
-                        viewModel.release()
+                    },
+                    onFocusEpisode = { episodeIndex ->
+                        viewModel.position.update {
+                            it.copy(episodeRowIndex = episodeIndex)
+                        }
+                    },
+                    onClick = {
+                        rowFocused = EPISODE_ROW
+                        val resumePosition =
+                            it.data.userData
+                                ?.playbackPositionTicks
+                                ?.ticks ?: Duration.ZERO
                         viewModel.navigateTo(
                             Destination.Playback(
                                 it.id,
-                                resume.inWholeMilliseconds,
+                                resumePosition.inWholeMilliseconds,
                             ),
                         )
-                    }
-                },
-                watchOnClick = {
-                    episodeList?.getOrNull(position.episodeRowIndex)?.let {
-                        val played = it.data.userData?.played ?: false
-                        viewModel.setWatched(it.id, !played, position.episodeRowIndex)
-                    }
-                },
-                favoriteOnClick = {
-                    episodeList?.getOrNull(position.episodeRowIndex)?.let {
-                        val favorite = it.data.userData?.isFavorite ?: false
-                        viewModel.setFavorite(it.id, !favorite, position.episodeRowIndex)
-                    }
-                },
-                moreOnClick = {
-                    episodeList?.getOrNull(position.episodeRowIndex)?.let { ep ->
+                    },
+                    onLongClick = { ep ->
                         showContextMenu =
                             ContextMenu.ForBaseItem(
-                                fromLongClick = false,
+                                fromLongClick = true,
                                 item = ep,
                                 chosenStreams = chosenStreams,
                                 showGoTo = false,
@@ -287,32 +251,72 @@ fun SeriesOverview(
                                 canRemoveNextUp = false,
                                 actions = contextActions,
                             )
-                    }
-                },
-                overviewOnClick = {
-                    episodeList?.getOrNull(position.episodeRowIndex)?.let {
-                        overviewDialog = ItemDetailsDialogInfo(it)
-                    }
-                },
-                personOnClick = {
-                    rowFocused =
-                        if (it.type == PersonKind.GUEST_STAR) GUEST_STAR_ROW else CAST_AND_CREW_ROW
-                    viewModel.navigateTo(
-                        Destination.MediaItem(
-                            it.id,
-                            BaseItemKind.PERSON,
-                        ),
-                    )
-                },
-                onClickExtra = { _, extra ->
-                    rowFocused = EXTRAS_ROW
-                    viewModel.navigateTo(extra.destination)
-                },
-                canDelete = { viewModel.canDelete(it, preferences.appPreferences) },
-                onConfirmDelete = viewModel::deleteItem,
-                onChooseVersion = contextActions.onChooseVersion,
-                modifier = modifier,
-            )
+                    },
+                    playOnClick = { resume ->
+                        rowFocused = EPISODE_ROW
+                        episodeList?.getOrNull(position.episodeRowIndex)?.let {
+                            viewModel.release()
+                            viewModel.navigateTo(
+                                Destination.Playback(
+                                    it.id,
+                                    resume.inWholeMilliseconds,
+                                ),
+                            )
+                        }
+                    },
+                    watchOnClick = {
+                        episodeList?.getOrNull(position.episodeRowIndex)?.let {
+                            val played = it.data.userData?.played ?: false
+                            viewModel.setWatched(it.id, !played, position.episodeRowIndex)
+                        }
+                    },
+                    favoriteOnClick = {
+                        episodeList?.getOrNull(position.episodeRowIndex)?.let {
+                            val favorite = it.data.userData?.isFavorite ?: false
+                            viewModel.setFavorite(it.id, !favorite, position.episodeRowIndex)
+                        }
+                    },
+                    moreOnClick = {
+                        episodeList?.getOrNull(position.episodeRowIndex)?.let { ep ->
+                            showContextMenu =
+                                ContextMenu.ForBaseItem(
+                                    fromLongClick = false,
+                                    item = ep,
+                                    chosenStreams = chosenStreams,
+                                    showGoTo = false,
+                                    showStreamChoices = true,
+                                    canDelete = viewModel.canDelete(ep, preferences.appPreferences),
+                                    canRemoveContinueWatching = false,
+                                    canRemoveNextUp = false,
+                                    actions = contextActions,
+                                )
+                        }
+                    },
+                    overviewOnClick = {
+                        episodeList?.getOrNull(position.episodeRowIndex)?.let {
+                            overviewDialog = ItemDetailsDialogInfo(it)
+                        }
+                    },
+                    personOnClick = {
+                        rowFocused =
+                            if (it.type == PersonKind.GUEST_STAR) GUEST_STAR_ROW else CAST_AND_CREW_ROW
+                        viewModel.navigateTo(
+                            Destination.MediaItem(
+                                it.id,
+                                BaseItemKind.PERSON,
+                            ),
+                        )
+                    },
+                    onClickExtra = { _, extra ->
+                        rowFocused = EXTRAS_ROW
+                        viewModel.navigateTo(extra.destination)
+                    },
+                    canDelete = { viewModel.canDelete(it, preferences.appPreferences) },
+                    onConfirmDelete = viewModel::deleteItem,
+                    onChooseVersion = contextActions.onChooseVersion,
+                    modifier = modifier,
+                )
+            }
         }
     }
     showContextMenu?.let { contextMenu ->

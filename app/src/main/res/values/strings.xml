@@ -325,6 +325,12 @@
     <string name="advanced_ui">Advanced UI</string>
     <string name="app_theme">Application Theme</string>
     <string name="weaseltv" translatable="false">WeaselTV</string>
+    <!-- Short item-kind labels for card badges and header eyebrows -->
+    <string name="kind_movie">Movie</string>
+    <string name="kind_season">Season</string>
+    <string name="kind_episode">Episode</string>
+    <string name="kind_live">Live</string>
+    <string name="kind_song">Song</string>
     <string name="auto_check_for_updates">Automatically check for updates</string>
     <string name="auto_play_next_delay">Delay before playing next up</string>
     <string name="auto_play_next">Auto play next up</string>

@@ -34,6 +34,9 @@ import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.enableMarquee
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.NeonType
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonAccentFor
 import com.github.damontecres.wholphin.ui.theme.neonCardBorder
 import com.github.damontecres.wholphin.ui.theme.neonCardGlow
@@ -219,8 +222,9 @@ fun SeasonCard(
                 text = title ?: "",
                 maxLines = 1,
                 textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.bodyMedium,
+                style = if (isWeaselTv()) NeonType.cardTitle() else MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
+                color = if (isWeaselTv()) (if (focused) NeonBoard.Text else NeonBoard.Mid) else Color.Unspecified,
                 modifier =
                     Modifier
                         .fillMaxWidth()
@@ -231,8 +235,9 @@ fun SeasonCard(
                 text = subtitle ?: "",
                 maxLines = 1,
                 textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.bodySmall,
+                style = if (isWeaselTv()) NeonType.cardSubtitle() else MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Normal,
+                color = if (isWeaselTv()) NeonBoard.Low else Color.Unspecified,
                 modifier =
                     Modifier
                         .fillMaxWidth()

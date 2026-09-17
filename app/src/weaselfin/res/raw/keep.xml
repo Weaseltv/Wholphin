@@ -12,4 +12,4 @@
      The Barlow fonts (@font/barlow*) are resolved the same way by NeonFonts, so they
      need the same rule or the release build silently falls back to the system font. -->
 <resources xmlns:tools="http://schemas.android.com/tools"
-    tools:keep="@raw/aboutlibraries,@drawable/ic_nav_*,@font/barlow*" />
+    tools:keep="@raw/aboutlibraries,@drawable/ic_nav_*,@font/barlow*,@drawable/weaselplex_*" />

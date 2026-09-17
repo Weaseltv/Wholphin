@@ -15,9 +15,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.ui.cards.ItemRowTitle
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.NeonType
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 
 /**
  * Placeholder for [com.github.damontecres.wholphin.ui.cards.ItemRow]. It is [focusable] so it can be scrolled.
@@ -31,17 +37,22 @@ fun FocusableItemRow(
     isError: Boolean = false,
 ) = FocusableItemRow(
     titleContent = {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onBackground,
+        ItemRowTitle(
+            title = title,
+            accent = if (isError) NeonBoard.Red else LocalNeonAccent.current,
+            modifier = Modifier.padding(start = 0.dp),
         )
     },
     subtitleContent = {
         Text(
             text = subtitle,
-            style = MaterialTheme.typography.titleMedium,
-            color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onBackground,
+            style = if (isWeaselTv()) NeonType.rowSubtitle() else MaterialTheme.typography.titleMedium,
+            color =
+                when {
+                    isError -> MaterialTheme.colorScheme.error
+                    isWeaselTv() -> NeonBoard.Mid
+                    else -> MaterialTheme.colorScheme.onBackground
+                },
             modifier = Modifier.padding(start = 8.dp),
         )
     },
@@ -58,18 +69,19 @@ fun FocusableItemRow(
     val focused by interactionSource.collectIsFocusedAsState()
     val background by animateColorAsState(
         if (focused) {
-            MaterialTheme.colorScheme.border.copy(alpha = .25f)
+            if (isWeaselTv()) NeonBoard.chipOn(LocalNeonAccent.current) else MaterialTheme.colorScheme.border.copy(alpha = .25f)
         } else {
             Color.Unspecified
         },
     )
+    val shape = if (isWeaselTv()) RectangleShape else RoundedCornerShape(8.dp)
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier =
             modifier
                 .padding(start = 8.dp)
                 .focusable(interactionSource = interactionSource)
-                .background(background, shape = RoundedCornerShape(8.dp))
+                .background(background, shape = shape)
                 .padding(8.dp),
     ) {
         titleContent.invoke()

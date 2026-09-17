@@ -2,6 +2,7 @@ package com.github.damontecres.wholphin.ui.cards
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -25,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -40,14 +42,17 @@ import com.github.damontecres.wholphin.ui.AppColors
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
+import com.github.damontecres.wholphin.ui.components.itemKindLabel
 import com.github.damontecres.wholphin.ui.gt
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.logCoilError
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.NeonBadge
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonAccentFor
 import com.github.damontecres.wholphin.ui.theme.neonProgress
+import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ImageType
 
 /**
@@ -74,6 +79,21 @@ fun ItemCardImage(
     accent: Color = neonAccentFor(item),
 ) {
     val imageUrlService = LocalImageUrlService.current
+    val context = LocalContext.current
+    // Neon Board: the type badge top-left (MOVIE / SHOW / S2 · E4, LIVE filled green).
+    val typeBadge =
+        remember(item?.id) {
+            if (item == null) {
+                null
+            } else if (item.type == BaseItemKind.EPISODE) {
+                val season = item.data.parentIndexNumber
+                val ep = item.data.indexNumber
+                if (season != null && ep != null) "S$season · E$ep" else itemKindLabel(context, item.type)
+            } else {
+                itemKindLabel(context, item.type)
+            }
+        }
+    val badgeFilled = item?.type == BaseItemKind.TV_CHANNEL || item?.type == BaseItemKind.LIVE_TV_CHANNEL
     val imageUrl =
         remember(item, imageType, fillWidth, fillHeight) {
             if (item != null && (fillWidth.gt(0) || fillHeight.gt(0))) {
@@ -100,6 +120,8 @@ fun ItemCardImage(
         useFallbackText = useFallbackText,
         contentScale = contentScale,
         accent = accent,
+        typeBadge = typeBadge,
+        typeBadgeFilled = badgeFilled,
     )
 }
 
@@ -117,6 +139,8 @@ fun ItemCardImage(
     useFallbackText: Boolean = true,
     contentScale: ContentScale = ContentScale.Fit,
     accent: Color = LocalNeonAccent.current,
+    typeBadge: String? = null,
+    typeBadgeFilled: Boolean = false,
     fallback: @Composable BoxScope.() -> Unit = {
         ItemCardImageFallback(
             name = name,
@@ -155,6 +179,8 @@ fun ItemCardImage(
                 watchedPercent = watchedPercent,
                 numberOfVersions = numberOfVersions,
                 accent = accent,
+                typeBadge = typeBadge,
+                typeBadgeFilled = typeBadgeFilled,
                 modifier = Modifier,
             )
         }
@@ -168,10 +194,12 @@ fun BoxScope.ItemCardImageFallback(
     modifier: Modifier = Modifier,
 ) {
     // TODO options for overriding fallback
+    // Neon Board: an empty poster well is `well` with a 1dp `line` edge.
     Box(
         modifier =
             modifier
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .background(if (isWeaselTv()) NeonBoard.Well else MaterialTheme.colorScheme.surfaceVariant)
+                .then(if (isWeaselTv()) Modifier.border(1.dp, NeonBoard.Line) else Modifier)
                 .fillMaxSize()
                 .align(Alignment.TopCenter),
     ) {
@@ -213,6 +241,8 @@ fun ItemCardImageOverlay(
     numberOfVersions: Int,
     modifier: Modifier = Modifier,
     accent: Color = LocalNeonAccent.current,
+    typeBadge: String? = null,
+    typeBadgeFilled: Boolean = false,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         Row(
@@ -221,8 +251,15 @@ fun ItemCardImageOverlay(
             modifier =
                 Modifier
                     .align(Alignment.TopStart)
-                    .padding(4.dp),
+                    .padding(if (isWeaselTv()) 8.dp else 4.dp),
         ) {
+            if (typeBadge != null) {
+                NeonBadge(
+                    text = typeBadge,
+                    accent = if (typeBadgeFilled) NeonBoard.Green else accent,
+                    filled = typeBadgeFilled,
+                )
+            }
             if (numberOfVersions > 1) {
                 Box(
                     modifier =

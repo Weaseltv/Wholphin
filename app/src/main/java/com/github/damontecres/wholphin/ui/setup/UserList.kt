@@ -2,6 +2,7 @@ package com.github.damontecres.wholphin.ui.setup
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,6 +34,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -58,6 +60,7 @@ import com.github.damontecres.wholphin.ui.components.DialogItem
 import com.github.damontecres.wholphin.ui.components.DialogPopup
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.toServerString
@@ -309,12 +312,16 @@ fun UserIconCardImage(
 ) {
     var imageError by remember { mutableStateOf(false) }
     val userColor = rememberIdColor(id, alpha)
+    // Neon Board: user avatars are SQUARE (`card2`, 1dp `line2`); only people stay round.
+    val neon = isWeaselTv()
+    val shape = if (neon) RectangleShape else CircleShape
     Box(
         modifier =
-            modifier.background(
-                color = userColor,
-                shape = CircleShape,
-            ),
+            modifier
+                .background(
+                    color = if (neon) NeonBoard.Card2 else userColor,
+                    shape = shape,
+                ).then(if (neon) Modifier.border(1.dp, NeonBoard.Line2, shape) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         if (imageUrl.isNotNullOrBlank() && !imageError) {
@@ -326,7 +333,7 @@ fun UserIconCardImage(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .clip(CircleShape),
+                        .clip(shape),
             )
         } else {
             val firstLetter =
@@ -335,9 +342,9 @@ fun UserIconCardImage(
                 }
             Text(
                 text = firstLetter,
-                style = MaterialTheme.typography.bodyLarge,
+                style = if (neon) NeonType.numeral(14.sp) else MaterialTheme.typography.bodyLarge,
                 fontSize = 14.sp,
-                fontWeight = FontWeight.Normal,
+                fontWeight = if (neon) FontWeight.Bold else FontWeight.Normal,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
             )

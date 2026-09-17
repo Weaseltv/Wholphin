@@ -82,6 +82,8 @@ import com.github.damontecres.wholphin.ui.discover.DiscoverRowData
 import com.github.damontecres.wholphin.ui.letNotEmpty
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberInt
+import com.github.damontecres.wholphin.ui.theme.ProvideNeonAccent
+import com.github.damontecres.wholphin.ui.theme.itemAccent
 import com.github.damontecres.wholphin.ui.util.ResStringProvider
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.DiscoverRequestType
@@ -183,84 +185,86 @@ fun SeriesDetails(
             }
             val series = st.data
             val played = series.data.userData?.played ?: false
-            SeriesDetailsContent(
-                preferences = preferences,
-                series = series,
-                seasons = state.seasons,
-                trailers = state.trailers,
-                extras = state.extras,
-                people = state.people,
-                similar = state.similar,
-                played = played,
-                favorite = series.data.userData?.isFavorite ?: false,
-                canDelete = state.canDeleteSeries,
-                modifier = modifier,
-                onClickItem = { index, item ->
-                    viewModel.navigateTo(item.destination())
-                },
-                onClickPerson = {
-                    viewModel.navigateTo(
-                        Destination.MediaItem(
-                            it.id,
-                            BaseItemKind.PERSON,
-                        ),
-                    )
-                },
-                onLongClickItem = { index, season ->
-                    showContextMenu =
-                        ContextMenu.ForBaseItem(
-                            fromLongClick = true,
-                            item = season,
-                            chosenStreams = null,
-                            showGoTo = true,
-                            showStreamChoices = false,
-                            canDelete = viewModel.canDelete(season, preferences.appPreferences),
-                            canRemoveContinueWatching = false,
-                            canRemoveNextUp = false,
-                            actions = contextActions,
-                        )
-                },
-                overviewOnClick = {
-                    overviewDialog = ItemDetailsDialogInfo(series)
-                },
-                playOnClick = { shuffle ->
-                    if (shuffle) {
+            ProvideNeonAccent(itemAccent(series)) {
+                SeriesDetailsContent(
+                    preferences = preferences,
+                    series = series,
+                    seasons = state.seasons,
+                    trailers = state.trailers,
+                    extras = state.extras,
+                    people = state.people,
+                    similar = state.similar,
+                    played = played,
+                    favorite = series.data.userData?.isFavorite ?: false,
+                    canDelete = state.canDeleteSeries,
+                    modifier = modifier,
+                    onClickItem = { index, item ->
+                        viewModel.navigateTo(item.destination())
+                    },
+                    onClickPerson = {
                         viewModel.navigateTo(
-                            Destination.PlaybackList(
-                                itemId = series.id,
-                                shuffle = true,
+                            Destination.MediaItem(
+                                it.id,
+                                BaseItemKind.PERSON,
                             ),
                         )
-                    } else {
-                        viewModel.playNextUp()
-                    }
-                },
-                watchOnClick = { showWatchConfirmation = true },
-                favoriteOnClick = {
-                    val favorite = series.data.userData?.isFavorite ?: false
-                    viewModel.setFavorite(series.id, !favorite, null)
-                },
-                trailerOnClick = {
-                    TrailerService.onClick(context, it, viewModel::navigateTo)
-                },
-                onClickExtra = { _, extra ->
-                    viewModel.navigateTo(extra.destination)
-                },
-                discoverSeries = state.discoverSeries,
-                onClickDiscoverSeries = {
-                    state.discoverSeries?.let {
-                        viewModel.navigateTo(Destination.DiscoveredItem(it))
-                    }
-                },
-                discovered = state.discovered,
-                onClickDiscover = { index, item ->
-                    viewModel.navigateTo(item.destination)
-                },
-                onShowContextMenu = {
-                    showContextMenu = it
-                },
-                actions = contextActions,
-            )
+                    },
+                    onLongClickItem = { index, season ->
+                        showContextMenu =
+                            ContextMenu.ForBaseItem(
+                                fromLongClick = true,
+                                item = season,
+                                chosenStreams = null,
+                                showGoTo = true,
+                                showStreamChoices = false,
+                                canDelete = viewModel.canDelete(season, preferences.appPreferences),
+                                canRemoveContinueWatching = false,
+                                canRemoveNextUp = false,
+                                actions = contextActions,
+                            )
+                    },
+                    overviewOnClick = {
+                        overviewDialog = ItemDetailsDialogInfo(series)
+                    },
+                    playOnClick = { shuffle ->
+                        if (shuffle) {
+                            viewModel.navigateTo(
+                                Destination.PlaybackList(
+                                    itemId = series.id,
+                                    shuffle = true,
+                                ),
+                            )
+                        } else {
+                            viewModel.playNextUp()
+                        }
+                    },
+                    watchOnClick = { showWatchConfirmation = true },
+                    favoriteOnClick = {
+                        val favorite = series.data.userData?.isFavorite ?: false
+                        viewModel.setFavorite(series.id, !favorite, null)
+                    },
+                    trailerOnClick = {
+                        TrailerService.onClick(context, it, viewModel::navigateTo)
+                    },
+                    onClickExtra = { _, extra ->
+                        viewModel.navigateTo(extra.destination)
+                    },
+                    discoverSeries = state.discoverSeries,
+                    onClickDiscoverSeries = {
+                        state.discoverSeries?.let {
+                            viewModel.navigateTo(Destination.DiscoveredItem(it))
+                        }
+                    },
+                    discovered = state.discovered,
+                    onClickDiscover = { index, item ->
+                        viewModel.navigateTo(item.destination)
+                    },
+                    onShowContextMenu = {
+                        showContextMenu = it
+                    },
+                    actions = contextActions,
+                )
+            }
             if (showWatchConfirmation) {
                 ConfirmDialog(
                     title = series.name ?: "",
