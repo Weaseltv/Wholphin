@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.api.seerr
 
 import com.github.damontecres.wholphin.api.seerr.infrastructure.ApiClient
+import com.github.damontecres.wholphin.api.seerr.model.SearchGet200Response
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -13,6 +14,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
 import timber.log.Timber
+import java.util.concurrent.TimeUnit
 
 class SeerrApiClient(
     val baseUrl: String,
@@ -59,6 +61,35 @@ class SeerrApiClient(
     val publicApi by create(::PublicApi)
     val requestApi by create(::RequestApi)
     val searchApi by create(::SearchApi)
+
+    // Request searches should fail promptly without changing discovery or sign-in timeouts.
+    // Deriving from client preserves this session's cookies, API key and connection pool.
+    private val requestSearchApi: SearchApi by lazy {
+        SearchApi(
+            baseUrl,
+            client
+                .newBuilder()
+                .callTimeout(15, TimeUnit.SECONDS)
+                .readTimeout(15, TimeUnit.SECONDS)
+                .retryOnConnectionFailure(false)
+                .addNetworkInterceptor { chain ->
+                    val response = chain.proceed(chain.request())
+                    // OkHttp retries 503 + Retry-After: 0 even with connection retries off.
+                    // Let the Requests page offer Retry instead of repeating the search.
+                    if (response.code == 503 && response.header("Retry-After")?.toIntOrNull() == 0) {
+                        response.newBuilder().removeHeader("Retry-After").build()
+                    } else {
+                        response
+                    }
+                }.build(),
+        )
+    }
+
+    suspend fun search(
+        query: String,
+        page: Int = 1,
+    ): SearchGet200Response = requestSearchApi.searchGet(query = query.trim(), page = page)
+
     val serviceApi by create(::ServiceApi)
     val settingsApi by create(::SettingsApi)
     val tmdbApi by create(::TmdbApi)

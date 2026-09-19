@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.test
 
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.services.getDownloadUrl
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -20,37 +21,44 @@ class TestUpdateChecker {
     fun setup() {
         val resource = javaClass.classLoader?.getResource("release_develop.json")
         Assert.assertNotNull(resource)
-        val fileContents = Paths.get(resource!!.toURI()).readText()
+        val fileContents =
+            Paths
+                .get(resource!!.toURI())
+                .readText()
+                .replace("Wholphin-", "${BuildConfig.UPDATE_ASSET_NAME}-")
         releaseJson = Json.parseToJsonElement(fileContents).jsonObject
     }
+
+    private fun assetUrl(suffix: String) =
+        "https://github.com/damontecres/Wholphin/releases/download/develop/${BuildConfig.UPDATE_ASSET_NAME}-$suffix.apk"
 
     @Test
     fun `Release chooses release`() {
         val url = getDownloadUrl(assetsJson, false, listOf())
-        Assert.assertEquals("https://github.com/damontecres/Wholphin/releases/download/develop/Wholphin-release.apk", url)
+        Assert.assertEquals(assetUrl("release"), url)
     }
 
     @Test
     fun `Choose abi`() {
         val url = getDownloadUrl(assetsJson, false, listOf("arm64-v8a"))
-        Assert.assertEquals("https://github.com/damontecres/Wholphin/releases/download/develop/Wholphin-release-arm64-v8a.apk", url)
+        Assert.assertEquals(assetUrl("release-arm64-v8a"), url)
     }
 
     @Test
     fun `Choose unknown abi`() {
         val url = getDownloadUrl(assetsJson, false, listOf("unknown"))
-        Assert.assertEquals("https://github.com/damontecres/Wholphin/releases/download/develop/Wholphin-release.apk", url)
+        Assert.assertEquals(assetUrl("release"), url)
     }
 
     @Test
     fun `Debug chooses debug`() {
         val url = getDownloadUrl(assetsJson, true, listOf())
-        Assert.assertEquals("https://github.com/damontecres/Wholphin/releases/download/develop/Wholphin-debug.apk", url)
+        Assert.assertEquals(assetUrl("debug"), url)
     }
 
     @Test
     fun `Choose debug abi`() {
         val url = getDownloadUrl(assetsJson, true, listOf("arm64-v8a"))
-        Assert.assertEquals("https://github.com/damontecres/Wholphin/releases/download/develop/Wholphin-debug-arm64-v8a.apk", url)
+        Assert.assertEquals(assetUrl("debug-arm64-v8a"), url)
     }
 }
