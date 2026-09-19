@@ -55,8 +55,8 @@ class SeerrService
             query: String,
             page: Int = 1,
         ): List<SeerrSearchResult> =
-            api.searchApi
-                .searchGet(query = query, page = page)
+            api
+                .search(query = query, page = page)
                 .results
                 .orEmpty()
 

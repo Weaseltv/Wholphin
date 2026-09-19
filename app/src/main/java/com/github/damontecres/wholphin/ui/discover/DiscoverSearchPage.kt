@@ -36,12 +36,15 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.tv.material3.Button
+import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.DiscoverItem
-import com.github.damontecres.wholphin.data.model.SeerrItemType
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.SeerrService
@@ -49,17 +52,20 @@ import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.ui.components.SearchEditTextBox
 import com.github.damontecres.wholphin.ui.components.VoiceInputManager
 import com.github.damontecres.wholphin.ui.components.VoiceSearchButton
-import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.ui.search.SearchCombinedResults
 import com.github.damontecres.wholphin.ui.search.SearchResult
 import com.github.damontecres.wholphin.ui.tryRequestFocus
+import com.github.damontecres.wholphin.util.WholphinDispatchers
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -75,35 +81,52 @@ class DiscoverSearchViewModel
         val seerrResults = MutableStateFlow<SearchResult>(SearchResult.NoQuery)
 
         private var searchJob: Job? = null
+        private var searchStarted = false
         var currentQuery: String = ""
+            private set
 
-        fun search(query: String) {
-            if (query == currentQuery) {
+        fun search(
+            query: String,
+            immediate: Boolean = false,
+        ) {
+            val title = query.trim()
+            if (title == currentQuery) {
+                // An explicit submission may bypass a pending typing delay or retry an error.
+                if (!immediate || (searchJob?.isActive == true && searchStarted)) return
+            }
+            searchJob?.cancel()
+            currentQuery = title
+            searchStarted = false
+            if (title.isBlank() || (!immediate && title.length < 2)) {
+                seerrResults.value = SearchResult.NoQuery
                 return
             }
-            currentQuery = query
-            viewModelScope.launchIO {
-                if (query.isBlank()) {
-                    seerrResults.value = SearchResult.NoQuery
-                    return@launchIO
+            seerrResults.value = SearchResult.Searching
+            searchJob =
+                viewModelScope.launch {
+                    if (!immediate) delay(400L)
+                    searchStarted = true
+                    Timber.v("Starting seerr search")
+                    try {
+                        val results =
+                            withContext(WholphinDispatchers.IO) {
+                                seerrService
+                                    .search(title)
+                                    .filter { it.mediaType == "movie" || it.mediaType == "tv" }
+                                    .distinctBy { it.mediaType to it.id }
+                                    .map { seerrService.createDiscoverItem(it) }
+                            }
+                        ensureActive()
+                        Timber.v("Seerr search complete: %s results", results.size)
+                        seerrResults.value = SearchResult.SuccessSeerr(results)
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: Exception) {
+                        ensureActive()
+                        Timber.e(ex, "Error during seerr search")
+                        seerrResults.value = SearchResult.Error(ex)
+                    }
                 }
-                Timber.v("Starting seerr search")
-                seerrResults.value = SearchResult.Searching
-                try {
-                    val results =
-                        seerrService
-                            .search(query)
-                            .map { seerrService.createDiscoverItem(it) }
-                            .filter { it.type == SeerrItemType.MOVIE || it.type == SeerrItemType.TV }
-                    Timber.v("Seerr search complete: %s results", results.size)
-                    seerrResults.value = SearchResult.SuccessSeerr(results)
-                } catch (ex: CancellationException) {
-                    throw ex
-                } catch (ex: Exception) {
-                    Timber.e(ex, "Error during seerr search")
-                    seerrResults.value = SearchResult.Error(ex)
-                }
-            }
         }
     }
 
@@ -117,7 +140,6 @@ fun DiscoverSearchPage(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val seerrResults by viewModel.seerrResults.collectAsState()
-    var immediateSearchQuery by rememberSaveable { mutableStateOf<String?>(null) }
     var query by rememberSaveable { mutableStateOf(viewModel.currentQuery) }
     var position by rememberInt(-1)
 
@@ -141,21 +163,11 @@ fun DiscoverSearchPage(
     }
 
     fun triggerImmediateSearch(searchQuery: String) {
-        immediateSearchQuery = searchQuery
-        viewModel.search(searchQuery)
+        viewModel.search(searchQuery, immediate = true)
     }
 
     LaunchedEffect(query) {
-        when {
-            immediateSearchQuery == query -> {
-                immediateSearchQuery = null
-            }
-
-            else -> {
-                delay(750L)
-                viewModel.search(query)
-            }
-        }
+        viewModel.search(query)
     }
     val gridFocusRequester = remember { FocusRequester() }
     val textFieldFocusRequester = remember { FocusRequester() }
@@ -241,6 +253,14 @@ fun DiscoverSearchPage(
                                 }
                             },
                 )
+            }
+        }
+        if (seerrResults is SearchResult.Error) {
+            Button(
+                onClick = { triggerImmediateSearch(query) },
+                modifier = Modifier.padding(horizontal = 16.dp),
+            ) {
+                Text(stringResource(R.string.retry))
             }
         }
         SearchCombinedResults(
