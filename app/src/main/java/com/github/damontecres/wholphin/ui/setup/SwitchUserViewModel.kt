@@ -208,7 +208,8 @@ class SwitchUserViewModel
                         _state.update { it.copy(quickConnectStatus = quickConnectStatus) }
 
                         while (!quickConnectStatus.authenticated) {
-                            delay(5_000L)
+                            // Two seconds so a phone-approved code signs the TV in promptly.
+                            delay(2_000L)
                             quickConnectStatus =
                                 api.quickConnectApi
                                     .getQuickConnectState(

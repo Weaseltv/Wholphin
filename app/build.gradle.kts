@@ -130,6 +130,13 @@ configure<ApplicationExtension> {
         // WeaselFin: base name of the release asset the updater looks for, and of the
         // downloaded APK. Upstream's own name here so every upstream flavor is unchanged.
         buildConfigField("String", "UPDATE_ASSET_NAME", "\"Wholphin\"")
+
+        // WeaselFin: where a phone can approve this TV's Quick Connect code ("Sign in with
+        // theweasel.tv"). Blank for every upstream flavor, which keeps the plain code dialog;
+        // only `weaselfin` overrides it, and the dialog shows a QR code when it is set.
+        buildConfigField("String", "QUICK_CONNECT_APPROVE_URL", "\"\"")
+        // The short address shown next to the QR code for typing it by hand.
+        buildConfigField("String", "QUICK_CONNECT_APPROVE_LABEL", "\"\"")
     }
 
     signingConfigs {
@@ -258,6 +265,12 @@ configure<ApplicationExtension> {
             buildConfigField("String", "DEFAULT_SERVER_URL", "\"https://media.theweasel.tv\"")
             buildConfigField("String", "UPDATE_REPO", "\"Weaseltv/Wholphin\"")
             buildConfigField("String", "DEFAULT_SEERR_URL", "\"https://requests.theweasel.tv\"")
+            buildConfigField(
+                "String",
+                "QUICK_CONNECT_APPROVE_URL",
+                "\"https://theweasel.tv/weaselplex/connect\"",
+            )
+            buildConfigField("String", "QUICK_CONNECT_APPROVE_LABEL", "\"theweasel.tv/plex\"")
             buildConfigField("String", "DEFAULT_THEME", "\"WEASELTV\"")
             // 🛑 Deliberately still "WeaselFin" (ruling R5, 2026-08-25). The in-app updater
             // matches the GitHub release asset by FILENAME, so renaming this and the assets
@@ -445,6 +458,9 @@ dependencies {
     implementation(libs.jellyfin.core)
     implementation(libs.jellyfin.api)
     implementation(libs.jellyfin.api.okhttp)
+
+    // QR code for "Sign in with theweasel.tv" in the Quick Connect dialog (pure Java).
+    implementation(libs.zxing.core)
 
     implementation(libs.androidx.navigation3.ui)
     implementation(libs.androidx.navigation3.runtime)

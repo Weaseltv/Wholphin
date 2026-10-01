@@ -27,6 +27,7 @@ activityCompose = "1.13.0"
 androidx-media3 = "1.11.1"
 coil = "3.6.2"
 jellyfin-sdk = "1.7.1"
+zxing = "3.5.3"
 nav3Core = "1.1.7"
 lifecycleViewmodelNav3 = "2.11.0"
 material3AdaptiveNav3 = "1.3.0"
@@ -124,6 +125,7 @@ coil-gif = { module = "io.coil-kt.coil3:coil-gif", version.ref = "coil" }
 coil-svg = { module = "io.coil-kt.coil3:coil-svg", version.ref = "coil" }
 
 jellyfin-core = { module = "org.jellyfin.sdk:jellyfin-core", version.ref = "jellyfin-sdk" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 jellyfin-api = { module = "org.jellyfin.sdk:jellyfin-api", version.ref = "jellyfin-sdk" }
 jellyfin-api-okhttp = { module = "org.jellyfin.sdk:jellyfin-api-okhttp-jvm", version.ref = "jellyfin-sdk" }
 

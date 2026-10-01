@@ -39,6 +39,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
@@ -286,13 +287,34 @@ fun SwitchUserContent(
                             )
                         }
                     } else if (state.quickConnectStatus != null) {
-                        Text(
-                            text = "Use Quick Connect on your device to authenticate to ${server.name ?: server.url}",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                        val approveUrl = quickConnectApproveUrl(state.quickConnectStatus?.code)
+                        if (approveUrl != null) {
+                            // WeaselFin: the phone scans this, signs in with the website account
+                            // and approves the code. Typing the code on theweasel.tv/plex works too.
+                            Text(
+                                text =
+                                    stringResource(
+                                        R.string.quick_connect_scan_hint,
+                                        BuildConfig.QUICK_CONNECT_APPROVE_LABEL,
+                                    ),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            QrCode(
+                                content = approveUrl,
+                                modifier = Modifier.align(Alignment.CenterHorizontally),
+                            )
+                        } else {
+                            Text(
+                                text = "Use Quick Connect on your device to authenticate to ${server.name ?: server.url}",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                         Text(
                             text = state.quickConnectStatus?.code ?: "Failed to get code",
                             style = MaterialTheme.typography.displayMedium,
