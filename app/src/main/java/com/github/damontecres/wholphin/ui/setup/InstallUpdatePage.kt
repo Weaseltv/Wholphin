@@ -38,7 +38,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewModelScope
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -176,6 +178,7 @@ data class InstallUpdateState(
 fun InstallUpdatePage(
     preferences: UserPreferences,
     modifier: Modifier = Modifier,
+    installNow: Boolean = false,
     viewModel: UpdateViewModel = hiltViewModel(),
 ) {
     OneTimeLaunchedEffect { viewModel.init() }
@@ -206,16 +209,30 @@ fun InstallUpdatePage(
         LoadingState.Success -> {
             val release = state.release
             if (release != null) {
+                val onInstallRelease = {
+                    if (!permissions) {
+                        launcher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    } else {
+                        viewModel.installRelease(release)
+                    }
+                }
+                // WeaselFin: the popup's "Update" already asked, so don't make the user
+                // press "Download & Update" as well. Once per visit, and only for a newer
+                // release.
+                if (installNow && release.version.isGreaterThan(viewModel.currentVersion)) {
+                    OneTimeLaunchedEffect { onInstallRelease() }
+                }
+                // WeaselFin: back from "Install unknown apps" with it now allowed, and Android
+                // didn't restart the app: carry on rather than wait for a second press.
+                LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+                    if (state.needsInstallPermission && viewModel.updater.canInstallPackages()) {
+                        onInstallRelease()
+                    }
+                }
                 InstallUpdatePageContent(
                     currentVersion = viewModel.currentVersion,
                     release = release,
-                    onInstallRelease = {
-                        if (!permissions) {
-                            launcher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                        } else {
-                            viewModel.installRelease(release)
-                        }
-                    },
+                    onInstallRelease = onInstallRelease,
                     onCancel = {
                         viewModel.navigationManager.goBack()
                     },

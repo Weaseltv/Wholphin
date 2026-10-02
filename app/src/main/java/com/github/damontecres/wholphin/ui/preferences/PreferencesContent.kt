@@ -256,7 +256,7 @@ fun PreferencesContent(
                             title = stringResource(R.string.install_update),
                             onClick = {
                                 if (movementSounds) playOnClickSound(context)
-                                viewModel.navigationManager.navigateTo(Destination.UpdateApp)
+                                viewModel.navigationManager.navigateTo(Destination.UpdateApp())
                             },
                             summary = release?.version?.toString(),
                             modifier =
@@ -345,7 +345,7 @@ fun PreferencesContent(
                                             if (release != null && updateAvailable) {
                                                 release?.let {
                                                     viewModel.navigationManager.navigateTo(
-                                                        Destination.UpdateApp,
+                                                        Destination.UpdateApp(),
                                                     )
                                                 }
                                             } else {
@@ -354,7 +354,7 @@ fun PreferencesContent(
                                         },
                                         onLongClick = {
                                             if (movementSounds) playOnClickSound(context)
-                                            viewModel.navigationManager.navigateTo(Destination.UpdateApp)
+                                            viewModel.navigationManager.navigateTo(Destination.UpdateApp())
                                         },
                                         summary =
                                             if (updateAvailable) {

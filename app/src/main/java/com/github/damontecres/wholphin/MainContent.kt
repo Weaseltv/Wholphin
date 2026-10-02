@@ -33,10 +33,12 @@ import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.ScreensaverService
 import com.github.damontecres.wholphin.services.SetupDestination
+import com.github.damontecres.wholphin.services.UpdateChecker
 import com.github.damontecres.wholphin.ui.components.AppScreensaver
 import com.github.damontecres.wholphin.ui.nav.ApplicationContent
 import com.github.damontecres.wholphin.ui.setup.SwitchServerContent
 import com.github.damontecres.wholphin.ui.setup.SwitchUserContent
+import com.github.damontecres.wholphin.ui.setup.UpdatePrompt
 import com.github.damontecres.wholphin.ui.util.InterfaceCustomization
 import com.github.damontecres.wholphin.ui.util.LocalInterfaceCustomization
 
@@ -47,6 +49,7 @@ fun MainContent(
     userPreferences: UserPreferences,
     backdropService: BackdropService,
     screensaverService: ScreensaverService,
+    updateChecker: UpdateChecker,
     modifier: Modifier = Modifier,
 ) {
     val preferences by rememberUpdatedState(userPreferences)
@@ -118,6 +121,8 @@ fun MainContent(
                                         preferences = preferences,
                                         modifier = Modifier.fillMaxSize(),
                                     )
+                                    // Only once signed in, so it never interrupts sign-in.
+                                    UpdatePrompt(updateChecker, navigationManager)
                                 } else {
                                     Box(
                                         modifier = Modifier.size(200.dp),

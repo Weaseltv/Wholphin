@@ -354,8 +354,8 @@ fun DestinationContent(
             NowPlayingPage(modifier)
         }
 
-        Destination.UpdateApp -> {
-            InstallUpdatePage(preferences, modifier)
+        is Destination.UpdateApp -> {
+            InstallUpdatePage(preferences, modifier, installNow = destination.installNow)
         }
 
         Destination.License -> {
