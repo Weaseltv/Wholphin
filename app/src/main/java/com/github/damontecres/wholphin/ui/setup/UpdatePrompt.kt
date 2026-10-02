@@ -1,7 +1,9 @@
 package com.github.damontecres.wholphin.ui.setup
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -16,6 +18,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
@@ -25,7 +28,7 @@ import com.github.damontecres.wholphin.services.Release
 import com.github.damontecres.wholphin.services.UpdateChecker
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.components.BasicDialog
-import com.github.damontecres.wholphin.ui.components.TextButton
+import com.github.damontecres.wholphin.ui.components.Button
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
@@ -94,22 +97,37 @@ fun UpdatePromptDialog(
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 8.dp),
             )
-            TextButton(
+            PromptButton(
                 stringRes = R.string.update,
                 onClick = onUpdate,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .focusRequester(focusRequester),
+                modifier = Modifier.focusRequester(focusRequester),
             )
-            TextButton(
+            PromptButton(
                 stringRes = R.string.not_now,
                 onClick = onNotNow,
-                modifier = Modifier.fillMaxWidth(),
             )
         }
     }
     LaunchedEffect(Unit) { focusRequester.tryRequestFocus() }
+}
+
+/**
+ * A full-width TextButton that keeps its size when focused: the default 1.1x focus scale
+ * pushed it past the dialog's padding to both edges. The focus glow and colours stay.
+ */
+@Composable
+private fun PromptButton(
+    @StringRes stringRes: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) = Button(
+    onClick = onClick,
+    modifier = modifier.fillMaxWidth(),
+    scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+    contentHeight = 32.dp,
+) {
+    Text(text = stringResource(stringRes))
 }
 
 @PreviewTvSpec
