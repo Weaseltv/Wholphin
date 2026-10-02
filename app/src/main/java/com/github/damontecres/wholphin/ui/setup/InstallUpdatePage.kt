@@ -38,7 +38,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewModelScope
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -219,6 +221,13 @@ fun InstallUpdatePage(
                 // release.
                 if (installNow && release.version.isGreaterThan(viewModel.currentVersion)) {
                     OneTimeLaunchedEffect { onInstallRelease() }
+                }
+                // WeaselFin: back from "Install unknown apps" with it now allowed, and Android
+                // didn't restart the app: carry on rather than wait for a second press.
+                LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+                    if (state.needsInstallPermission && viewModel.updater.canInstallPackages()) {
+                        onInstallRelease()
+                    }
                 }
                 InstallUpdatePageContent(
                     currentVersion = viewModel.currentVersion,
