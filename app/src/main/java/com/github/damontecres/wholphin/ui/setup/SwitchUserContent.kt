@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -81,6 +82,7 @@ fun SwitchUserContent(
     val state by viewModel.state.collectAsState()
 
     val currentUser by viewModel.serverRepository.currentUserFlow.collectAsState(null)
+    val connectOnly = weaselPlexConnectOnly()
     var showAddUser by remember { mutableStateOf(false) }
     var addUser by remember(server) { mutableStateOf<JellyfinUser?>(null) }
     var username by remember(addUser) { mutableStateOf(addUser?.name ?: "") }
@@ -139,6 +141,10 @@ fun SwitchUserContent(
         }
 
         LoadingState.Success -> {
+            if (connectOnly && state.users.isEmpty()) {
+                ConnectYourAccount(server = server, viewModel = viewModel, modifier = modifier)
+                return@SwitchUserContent
+            }
             Box(
                 modifier = modifier.dimAndBlur(showAddUser || switchUserWithPin != null),
             ) {
@@ -197,11 +203,16 @@ fun SwitchUserContent(
                         onRemoveUser = { user ->
                             viewModel.removeUser(user)
                         },
-                        onSwitchServer = {
-                            viewModel.setupNavigationManager.navigateTo(
-                                SetupDestination.ServerList,
-                            )
-                        },
+                        onSwitchServer =
+                            if (connectOnly) {
+                                null
+                            } else {
+                                {
+                                    viewModel.setupNavigationManager.navigateTo(
+                                        SetupDestination.ServerList,
+                                    )
+                                }
+                            },
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -241,7 +252,7 @@ fun SwitchUserContent(
     }
 
     if (showAddUser) {
-        var useQuickConnect by remember { mutableStateOf(state.quickConnectEnabled) }
+        var useQuickConnect by remember { mutableStateOf(state.quickConnectEnabled || connectOnly) }
         LaunchedEffect(Unit) {
             viewModel.clearSwitchUserState()
             viewModel.resetAttempts()
@@ -323,15 +334,17 @@ fun SwitchUserContent(
                         )
                     }
                     UserStateError(state.switchUserState)
-                    TextButton(
-                        stringRes = R.string.username_or_password,
-                        onClick = {
-                            viewModel.cancelQuickConnect()
-                            viewModel.clearSwitchUserState()
-                            useQuickConnect = false
-                        },
-                        modifier = Modifier.align(Alignment.CenterHorizontally),
-                    )
+                    if (!connectOnly) {
+                        TextButton(
+                            stringRes = R.string.username_or_password,
+                            onClick = {
+                                viewModel.cancelQuickConnect()
+                                viewModel.clearSwitchUserState()
+                                useQuickConnect = false
+                            },
+                            modifier = Modifier.align(Alignment.CenterHorizontally),
+                        )
+                    }
                 } else {
                     var password by remember { mutableStateOf("") }
                     val onSubmit = {
@@ -455,6 +468,90 @@ fun SwitchUserContent(
                 }
             },
         )
+    }
+}
+
+/**
+ * WeaselPlex first screen: the brand, "To start watching connect your WeaselPlex account to the
+ * app." and the QR code a phone scans to approve this TV on theweasel.tv. The code starts as soon
+ * as the screen shows; an approval signs the TV in and the view model moves on. A code that
+ * expires (or a Deny, which simply lets it expire) offers a fresh one.
+ */
+@Composable
+private fun ConnectYourAccount(
+    server: JellyfinServer,
+    viewModel: SwitchUserViewModel,
+    modifier: Modifier = Modifier,
+) {
+    val state by viewModel.state.collectAsState()
+
+    fun newCode() {
+        viewModel.clearSwitchUserState()
+        viewModel.resetAttempts()
+        viewModel.initiateQuickConnect(server, null)
+    }
+    LaunchedEffect(server) { newCode() }
+    DisposableEffect(Unit) { onDispose { viewModel.cancelQuickConnect() } }
+
+    Box(modifier = modifier) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier =
+                Modifier
+                    .align(Alignment.Center)
+                    .fillMaxWidth(.6f)
+                    .focusGroup(),
+        ) {
+            if (isWeaselTv()) NeonBrandRow(mascotSize = 40.dp, wordmarkSize = 34.sp)
+            Text(
+                text = stringResource(R.string.connect_account_intro),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            val status = state.quickConnectStatus
+            val approveUrl = quickConnectApproveUrl(status?.code)
+            if (state.switchUserState is LoadingState.Error) {
+                UserStateError(state.switchUserState)
+                TextButton(
+                    stringRes = R.string.get_new_code,
+                    onClick = { newCode() },
+                )
+            } else if (status == null || approveUrl == null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.height(32.dp),
+                ) {
+                    CircularProgress(Modifier.size(20.dp))
+                    Text(
+                        text = stringResource(R.string.getting_code),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            } else {
+                Text(
+                    text =
+                        stringResource(
+                            R.string.quick_connect_scan_hint,
+                            BuildConfig.QUICK_CONNECT_APPROVE_LABEL,
+                        ),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                QrCode(content = approveUrl)
+                Text(
+                    text = status.code,
+                    style = MaterialTheme.typography.displayMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        }
     }
 }
 
