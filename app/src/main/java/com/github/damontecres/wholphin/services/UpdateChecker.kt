@@ -11,7 +11,6 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.provider.Settings
-import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.content.edit
@@ -25,6 +24,8 @@ import com.github.damontecres.wholphin.ui.showToast
 import com.github.damontecres.wholphin.util.Version
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -41,9 +42,9 @@ import timber.log.Timber
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
-import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -78,56 +79,51 @@ class UpdateChecker
             val ACTIVE = BuildConfig.UPDATING_ENABLED
         }
 
+        private val _prompt = MutableStateFlow<Release?>(null)
+
         /**
-         * If the app hasn't recently checked, check for any updates and if there is one, show a toast message
-         *
-         * This is safe to call many times because it will only show the toast at most once every 12 hours
+         * WeaselFin: the release offered in the "update available" popup, or null when there
+         * is nothing to show. Set by [maybePromptForUpdate], cleared by [dismissPrompt].
          */
-        suspend fun maybeShowUpdateToast(
-            updateUrl: String,
-            showNegativeToast: Boolean = false,
-        ) {
+        val prompt: StateFlow<Release?> = _prompt
+
+        /**
+         * WeaselFin: replaces upstream's toast. Checks for an update and, if there is one,
+         * offers it in a popup (see UpdatePrompt).
+         *
+         * Safe to call every time the app comes to the foreground: the popup shows at most
+         * once every 12 hours, so "Not now" means not now, and backing out of the system
+         * installer doesn't bounce straight back into the popup. Settings always shows
+         * "Install update" regardless.
+         */
+        suspend fun maybePromptForUpdate(updateUrl: String) {
             val pref = PreferenceManager.getDefaultSharedPreferences(context)
-            val now = Date()
-            val lastUpdateCheckThreshold =
+            val threshold =
                 pref
                     .getLong(context.getString(R.string.pref_key_update_last_check_threshold), 12)
                     .hours
-            val lastUpdateCheck =
-                pref.getLong(
-                    context.getString(R.string.pref_key_update_last_check),
-                    0,
-                )
-            val timeSince = (now.time - lastUpdateCheck).milliseconds
-            Timber.v("Last successful update check was $timeSince ago")
+            val lastPrompt = pref.getLong(context.getString(R.string.pref_key_update_last_check), 0)
             val installedVersion = getInstalledVersion()
             val latestRelease = getLatestRelease(updateUrl)
-            if (latestRelease != null && latestRelease.version.isGreaterThan(installedVersion)) {
-                Timber.v("Update available $installedVersion => ${latestRelease.version}")
-                pref.edit {
-                    putLong(context.getString(R.string.pref_key_update_last_check), now.time)
-                }
-                if (lastUpdateCheckThreshold >= timeSince) {
-                    Timber.i(
-                        "Skipping update notification, threshold is $lastUpdateCheckThreshold",
-                    )
-                } else {
-                    showToast(
-                        context,
-                        "Update available: $installedVersion => ${latestRelease.version}!",
-                        Toast.LENGTH_LONG,
-                    )
-                }
-            } else {
-                Timber.v("No update available for $installedVersion")
-                if (showNegativeToast) {
-                    showToast(
-                        context,
-                        "No updates available, $installedVersion is the latest!",
-                        Toast.LENGTH_LONG,
-                    )
-                }
+            if (latestRelease?.downloadUrl == null ||
+                !latestRelease.version.isGreaterThan(installedVersion)
+            ) {
+                Timber.v("No update to offer for $installedVersion")
+                return
             }
+            val now = System.currentTimeMillis()
+            if (!shouldPromptForUpdate(lastPrompt, now, threshold)) {
+                Timber.i("Update ${latestRelease.version} available; already offered within $threshold")
+                return
+            }
+            Timber.i("Offering update $installedVersion => ${latestRelease.version}")
+            pref.edit { putLong(context.getString(R.string.pref_key_update_last_check), now) }
+            _prompt.value = latestRelease
+        }
+
+        /** WeaselFin: closes the popup, whichever button was pressed. */
+        fun dismissPrompt() {
+            _prompt.value = null
         }
 
         /**
@@ -419,6 +415,16 @@ data class Release(
                 // Remove the last line for full changelog since it's just a link
                 .replace(Regex("\\*\\*Full Changelog\\*\\*.*"), "")
 }
+
+/**
+ * WeaselFin: whether enough time has passed since the update popup last showed. A clock
+ * that moved backwards counts as enough, so the popup can't be silenced indefinitely.
+ */
+internal fun shouldPromptForUpdate(
+    lastPromptMillis: Long,
+    nowMillis: Long,
+    threshold: Duration,
+): Boolean = nowMillis < lastPromptMillis || (nowMillis - lastPromptMillis).milliseconds >= threshold
 
 interface DownloadCallback {
     fun contentLength(contentLength: Long)

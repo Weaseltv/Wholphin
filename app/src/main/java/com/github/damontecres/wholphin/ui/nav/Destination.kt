@@ -166,8 +166,14 @@ sealed class Destination(
     @Serializable
     data object NowPlaying : Destination(true)
 
+    /**
+     * @param installNow WeaselFin: start downloading as soon as the page opens. Set by the
+     * "Update" button in the update popup; Settings opens the page without it.
+     */
     @Serializable
-    data object UpdateApp : Destination(true)
+    data class UpdateApp(
+        val installNow: Boolean = false,
+    ) : Destination(true)
 
     @Serializable
     data object License : Destination(true)

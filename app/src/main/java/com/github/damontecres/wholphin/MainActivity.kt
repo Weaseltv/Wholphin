@@ -275,6 +275,7 @@ class MainActivity : AppCompatActivity() {
                                             userPreferences = userPreferences,
                                             backdropService = backdropService,
                                             screensaverService = screensaverService,
+                                            updateChecker = updateChecker,
                                             modifier = Modifier.fillMaxSize(),
                                         )
                                     }
@@ -341,9 +342,7 @@ class MainActivity : AppCompatActivity() {
             val appPreferences = userPreferencesDataStore.data.first()
             if (UpdateChecker.ACTIVE && appPreferences.autoCheckForUpdates) {
                 try {
-                    updateChecker.maybeShowUpdateToast(
-                        appPreferences.updateUrl,
-                    )
+                    updateChecker.maybePromptForUpdate(appPreferences.updateUrl)
                 } catch (ex: Exception) {
                     Timber.w(
                         ex,
@@ -576,7 +575,7 @@ class MainActivityViewModel
         }
     }
 
-private val Destination?.isPlayback: Boolean
+internal val Destination?.isPlayback: Boolean
     get() =
         this is Destination.Playback ||
             this is Destination.PlaybackList ||

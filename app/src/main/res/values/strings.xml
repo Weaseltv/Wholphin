@@ -369,6 +369,9 @@
     <string name="skip_previews_behavior">Skip previews behavior</string>
     <string name="skip_recap_behavior">Skip recap behavior</string>
     <string name="update_available">Update available</string>
+    <string name="update_prompt_title">%1$s %2$s is available.</string>
+    <string name="update">Update</string>
+    <string name="not_now">Not now</string>
     <string name="update_url_summary">URL used to check for app updates</string>
     <string name="update_url">Update URL</string>
     <string name="font_size">Font size</string>
