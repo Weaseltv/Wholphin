@@ -14,6 +14,19 @@ Ship branch is **`weaselfin`** (not upstream `main`). All WeaselPlex release tag
 
 Release signing: release builds need the WeaselFin signing keystore (same key as prior installs). Unsigned APKs will not upgrade over existing installs. Prefer building the signed release on a host that already has the keystore; do not commit keystore files or passwords.
 
+versionCode: the `weaselfin` flavor takes it from the release tag (`v1.2.6` -> `10206`), so tag first, then build from the tag. `assembleWeaselfinRelease` refuses to run if the code is not above 74, the last release numbered by tag count. Android refuses an update whose versionCode is lower than the installed one ("App not installed"); v1.2.5 first shipped that way on 2026-10-01.
+
+Before uploading, check the new APKs against the current Latest release, and stop if any check fails:
+
+```bash
+BT=~/Android/Sdk/build-tools/36.0.0
+gh release download --repo Weaseltv/Wholphin -p WeaselFin-release-arm64-v8a.apk -D /tmp/latest-tv   # current Latest
+$BT/aapt2 dump badging /tmp/latest-tv/WeaselFin-release-arm64-v8a.apk | grep -o "versionCode='[0-9]*'"
+$BT/aapt2 dump badging <new>.apk | grep -o "versionCode='[0-9]*'"   # must be higher than Latest's
+$BT/apksigner verify --print-certs <new>.apk | grep SHA-256          # must start 132905a2
+unzip -l <new-arm64-v8a>.apk | grep libffmpegJNI.so                  # native playback extensions
+```
+
 
 ## Distribution (WeaselPlex Android TV)
 

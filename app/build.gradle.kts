@@ -67,6 +67,28 @@ val gitDescribe =
         .standardOutput.asText
         .getOrElse("v0.0.0")
 
+// WeaselFin: versionCode for the shipped `weaselfin` flavor, taken from the release tag
+// itself (v1.2.6 -> 10206) instead of upstream's count of the v*/p* tags in the checkout.
+// That count depends on which tags a checkout happens to have. v1.2.5 was first built in
+// a clone without upstream's seven p2025_* tags (they point at commits on no branch, so
+// `git pull` never fetches them) and came out as 67, below v1.2.4's 73, so every TV
+// refused the update with "App not installed". It was rebuilt as 74, the last release
+// numbered by tag count.
+// 🛑 Never go back to the tag count, and keep minor and patch below 100. Either would let
+// a newer release carry a lower versionCode, and Android refuses to install those.
+val weaselfinLastTagCountVersionCode = 74
+val weaselfinVersionCode =
+    Regex("""^v(\d+)\.(\d+)\.(\d+)-""")
+        .find(gitDescribe.trim())
+        ?.destructured
+        ?.let { (major, minor, patch) ->
+            if (minor.toInt() < 100 && patch.toInt() < 100) {
+                major.toInt() * 10_000 + minor.toInt() * 100 + patch.toInt()
+            } else {
+                null
+            }
+        } ?: 1
+
 kotlin {
     compilerOptions {
         languageVersion = org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_3
@@ -259,6 +281,7 @@ configure<ApplicationExtension> {
             // one-time uninstall + reinstall. See runbooks/weaselfin-app-id-change.md.
             // Done now because it costs 2 devices today and ~50 after Phase 5 begins.
             applicationId = "tv.theweasel.weaselplex"
+            versionCode = weaselfinVersionCode
             manifestPlaceholders += mapOf(featureLeanback to false)
             setFeatureFlag(featureUpdate, true)
             setFeatureFlag(featureDiscover, true)
@@ -418,6 +441,20 @@ openApiGenerate {
 
 tasks.named("preBuild") {
     dependsOn.add(tasks.named("openApiGenerate"))
+}
+
+// WeaselFin: refuse to build a shipped APK that can't install over the last release, e.g.
+// when the release was tagged `v1.3` instead of `v1.3.0` and the code falls back to 1.
+tasks.matching { it.name == "preWeaselfinReleaseBuild" }.configureEach {
+    doFirst {
+        if (weaselfinVersionCode <= weaselfinLastTagCountVersionCode) {
+            throw GradleException(
+                "WeaselPlex versionCode $weaselfinVersionCode is not above " +
+                    "$weaselfinLastTagCountVersionCode (git describe: '${gitDescribe.trim()}'). " +
+                    "Tag the release commit vX.Y.Z and build from that tag.",
+            )
+        }
+    }
 }
 
 dependencies {
