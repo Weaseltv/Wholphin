@@ -30,6 +30,13 @@ fun quickConnectApproveUrl(code: String?): String? {
 }
 
 /**
+ * True for the WeaselPlex flavor, whose only sign-in is the QR code approved on the website:
+ * no username/password and no server switching (owner decision, 2026-10-02). False on every
+ * upstream flavor, which keep the original screens.
+ */
+fun weaselPlexConnectOnly(): Boolean = BuildConfig.QUICK_CONNECT_APPROVE_URL.isNotBlank()
+
+/**
  * A QR code for [content], black on white so a phone camera reads it off a TV screen.
  */
 @Composable

@@ -69,7 +69,8 @@ import com.github.damontecres.wholphin.ui.tryRequestFocus
 import java.util.UUID
 
 /**
- * Display a list of users plus option to add a new one or switch servers
+ * Display a list of users plus option to add a new one or switch servers (when
+ * [onSwitchServer] is set; WeaselPlex builds have no server switching)
  * Redesigned to match streaming service style with horizontal scrollable user icons
  */
 @Composable
@@ -79,7 +80,7 @@ fun UserList(
     onSwitchUser: (JellyfinUser) -> Unit,
     onAddUser: () -> Unit,
     onRemoveUser: (JellyfinUser) -> Unit,
-    onSwitchServer: () -> Unit,
+    onSwitchServer: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     var showDeleteDialog by remember { mutableStateOf<JellyfinUserAndImage?>(null) }
@@ -127,31 +128,33 @@ fun UserList(
         }
 
         // Switch servers button below user list - centered
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-        ) {
-            Button(
-                onClick = { onSwitchServer.invoke() },
-                modifier = Modifier.width(200.dp), // Fixed width for consistency
+        if (onSwitchServer != null) {
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
+                Button(
+                    onClick = { onSwitchServer.invoke() },
+                    modifier = Modifier.width(200.dp), // Fixed width for consistency
                 ) {
-                    Text(
-                        text = stringResource(R.string.fa_arrow_left_arrow_right),
-                        fontFamily = FontAwesome,
-                        modifier = Modifier.padding(end = 8.dp),
-                    )
-                    Text(
-                        text = stringResource(R.string.switch_servers),
-                        textAlign = TextAlign.Center,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.fa_arrow_left_arrow_right),
+                            fontFamily = FontAwesome,
+                            modifier = Modifier.padding(end = 8.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.switch_servers),
+                            textAlign = TextAlign.Center,
+                        )
+                    }
                 }
             }
         }

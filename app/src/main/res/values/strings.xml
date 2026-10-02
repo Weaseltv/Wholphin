@@ -511,6 +511,9 @@
     <string name="quick_connect_code_error">Code must be 6 digits</string>
     <string name="quick_connect_success">Device authorized successfully</string>
     <string name="quick_connect_scan_hint">Scan with your phone, or go to %1$s and enter the code</string>
+    <string name="connect_account_intro">To start watching connect your WeaselPlex account to the app.</string>
+    <string name="getting_code">Getting your code…</string>
+    <string name="get_new_code">Get a new code</string>
     <string name="password">Password</string>
     <string name="username">Username</string>
     <string name="url">URL</string>
