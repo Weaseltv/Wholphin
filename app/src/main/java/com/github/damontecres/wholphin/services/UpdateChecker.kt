@@ -91,10 +91,10 @@ class UpdateChecker
          * WeaselFin: replaces upstream's toast. Checks for an update and, if there is one,
          * offers it in a popup (see UpdatePrompt).
          *
-         * Safe to call every time the app comes to the foreground: the popup shows at most
-         * once every 12 hours, so "Not now" means not now, and backing out of the system
-         * installer doesn't bounce straight back into the popup. Settings always shows
-         * "Install update" regardless.
+         * Safe to call every time the app comes to the foreground. A release newer than the
+         * last one offered shows straight away; the same release shows again only after 12
+         * hours, so "Not now" means not now, and backing out of the system installer doesn't
+         * bounce straight back into the popup. Settings always shows "Install update".
          */
         suspend fun maybePromptForUpdate(updateUrl: String) {
             val pref = PreferenceManager.getDefaultSharedPreferences(context)
@@ -102,7 +102,13 @@ class UpdateChecker
                 pref
                     .getLong(context.getString(R.string.pref_key_update_last_check_threshold), 12)
                     .hours
-            val lastPrompt = pref.getLong(context.getString(R.string.pref_key_update_last_check), 0)
+            // Its own keys: v1.2.6 shared pref_key_update_last_check with upstream's toast,
+            // which v1.2.5 rewrote on every launch while an update was waiting, so the popup
+            // for v1.2.7 stayed hidden for 12 hours after updating from v1.2.5.
+            val promptedAtKey = context.getString(R.string.pref_key_update_prompted_at)
+            val promptedVersionKey = context.getString(R.string.pref_key_update_prompted_version)
+            val lastPrompt = pref.getLong(promptedAtKey, 0)
+            val lastPromptVersion = pref.getString(promptedVersionKey, null)?.let { Version.fromStringLenient(it) }
             val installedVersion = getInstalledVersion()
             val latestRelease = getLatestRelease(updateUrl)
             if (latestRelease?.downloadUrl == null ||
@@ -112,12 +118,15 @@ class UpdateChecker
                 return
             }
             val now = System.currentTimeMillis()
-            if (!shouldPromptForUpdate(lastPrompt, now, threshold)) {
+            if (!shouldPromptForUpdate(latestRelease.version, lastPromptVersion, lastPrompt, now, threshold)) {
                 Timber.i("Update ${latestRelease.version} available; already offered within $threshold")
                 return
             }
             Timber.i("Offering update $installedVersion => ${latestRelease.version}")
-            pref.edit { putLong(context.getString(R.string.pref_key_update_last_check), now) }
+            pref.edit {
+                putLong(promptedAtKey, now)
+                putString(promptedVersionKey, latestRelease.version.toString())
+            }
             _prompt.value = latestRelease
         }
 
@@ -417,14 +426,21 @@ data class Release(
 }
 
 /**
- * WeaselFin: whether enough time has passed since the update popup last showed. A clock
- * that moved backwards counts as enough, so the popup can't be silenced indefinitely.
+ * WeaselFin: whether to show the update popup for [version]. A release newer than the last
+ * one offered always shows; the same release shows again once [threshold] has passed. A
+ * clock that moved backwards counts as enough time, so the popup can't be silenced for good.
  */
 internal fun shouldPromptForUpdate(
+    version: Version,
+    lastPromptedVersion: Version?,
     lastPromptMillis: Long,
     nowMillis: Long,
     threshold: Duration,
-): Boolean = nowMillis < lastPromptMillis || (nowMillis - lastPromptMillis).milliseconds >= threshold
+): Boolean =
+    lastPromptedVersion == null ||
+        version.isGreaterThan(lastPromptedVersion) ||
+        nowMillis < lastPromptMillis ||
+        (nowMillis - lastPromptMillis).milliseconds >= threshold
 
 interface DownloadCallback {
     fun contentLength(contentLength: Long)

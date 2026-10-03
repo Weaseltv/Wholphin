@@ -34,6 +34,7 @@ unzip -l <new-arm64-v8a>.apk | grep libffmpegJNI.so                  # native pl
 - **New installs (Downloader `9216225`):** `aftv.news/9216225` → `https://theweasel.tv/fin` → GitHub `.../releases/latest/download/WeaselFin-release.apk`.
   There is **no separate VPS APK copy** to refresh. Publishing the GitHub release (correct asset names + mark as Latest) updates both in-app updates and new Downloader installs.
 - After tagging on `weaselfin`: upload signed assets named exactly `WeaselFin-release.apk` / `WeaselFin-release-arm64-v8a.apk` (and other ABI splits if built). Release **title/name** must be exactly `vX.Y.Z` (no `— WeaselPlex` suffix) or the in-app updater reports no update available.
+- **Release notes are required.** The release body is what users read in the app: on the update page and beside "Install update" in Settings. Write it for them: a one-sentence summary, then one bullet per change, the way v1.2.5–v1.2.7 do. Never publish a release with an empty or placeholder body.
 - Ship is not done until all of these are true:
   1. GitHub release `vX.Y.Z` exists with those asset names and is the repo **Latest** release.
   2. `curl -sI https://theweasel.tv/fin` redirects to that release's `WeaselFin-release.apk` (via `.../releases/latest/download/...`).
