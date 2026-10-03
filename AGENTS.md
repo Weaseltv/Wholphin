@@ -41,3 +41,11 @@ unzip -l <new-arm64-v8a>.apk | grep libffmpegJNI.so                  # native pl
   3. In-app updater can see `vX.Y.Z` (plain title).
 - Do not use the removed GitHub Actions Create release workflow; build/sign on VPS or ThinkCentre (with WholphinExtensions / ffmpeg packages wired).
 - Do not tell the owner a "VPS website APK still needs refreshing" after a correct Latest GitHub publish — `/fin` already tracks Latest.
+
+## VPS and ThinkCentre disk hygiene (added 2026-10-03)
+
+Release and test builds leave gigabytes behind (`app/build`, Gradle outputs; 1–2 GB per TV build, about 6 GB per phone release). On 2026-10-03 the T3 VPS was down to 40 GB free from old release folders. Before you finish any task that built on either host, delete what you built:
+
+- **Release build folders, once the GitHub release is published and verified:** remove the worktree you built from (e.g. `git -C ~/work/weaselfin/Wholphin worktree remove --force <path>`, or delete `~/work/weaselfin/releases/tv-vX.Y.Z`). The tag keeps the source and the GitHub release keeps the APKs.
+- **Everything else you built:** test builds, throwaway clones in `/tmp`, emulator test APKs.
+- Then run `df -h ~`, and say in your report if less than 30 GB is free.
