@@ -2,6 +2,7 @@ package com.github.damontecres.wholphin.ui.preferences
 
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -22,7 +23,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -33,8 +36,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -101,6 +106,7 @@ fun PreferencesContent(
     updateVM: UpdateViewModel = hiltViewModel(),
     seerrVm: SwitchSeerrViewModel = hiltViewModel(),
     onFocus: (Int, Int) -> Unit = { _, _ -> },
+    onUpdateNotesChange: (Release?) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -150,6 +156,14 @@ fun PreferencesContent(
         remember(updateState.release) {
             updateState.release?.version?.isGreaterThan(installedVersion) ?: false
         }
+
+    // WeaselFin: while an "Install update" row has focus, PreferencesPage shows the release
+    // notes in the empty space beside the list, the same text as the update page.
+    var topUpdateFocused by remember { mutableStateOf(false) }
+    var listUpdateFocused by remember { mutableStateOf(false) }
+    LaunchedEffect(topUpdateFocused, listUpdateFocused, release, updateAvailable) {
+        onUpdateNotesChange(release?.takeIf { updateAvailable && (topUpdateFocused || listUpdateFocused) })
+    }
 
     val prefList =
         when (preferenceScreenOption) {
@@ -263,7 +277,8 @@ fun PreferencesContent(
                                 Modifier
                                     .focusRequester(updateFocusRequester)
                                     .focusRequester(firstFocusRequester)
-                                    .playSoundOnFocus(movementSounds),
+                                    .playSoundOnFocus(movementSounds)
+                                    .onFocusChanged { topUpdateFocused = it.hasFocus },
                         )
                     }
                 }
@@ -331,6 +346,8 @@ fun PreferencesContent(
                                 }
 
                                 AppPreference.Update -> {
+                                    LaunchedEffect(focused) { listUpdateFocused = focused }
+                                    DisposableEffect(Unit) { onDispose { listUpdateFocused = false } }
                                     ClickPreference(
                                         title =
                                             if (release != null && updateAvailable) {
@@ -832,9 +849,34 @@ fun PreferencesPage(
     preferenceScreenOption: PreferenceScreenOption,
     modifier: Modifier = Modifier,
 ) {
+    var updateNotes by remember { mutableStateOf<Release?>(null) }
     Box(
         modifier = modifier.background(MaterialTheme.colorScheme.background),
     ) {
+        // WeaselFin: the release notes beside a focused "Install update" row, styled like the
+        // notes column on the update page.
+        Crossfade(
+            targetState = updateNotes,
+            label = "update notes",
+            modifier =
+                Modifier
+                    .fillMaxWidth(.6f)
+                    .fillMaxHeight()
+                    .align(Alignment.TopStart)
+                    .padding(24.dp),
+        ) { release ->
+            if (release != null) {
+                Box(
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp))
+                            .padding(16.dp),
+                ) {
+                    ReleaseNotes(release)
+                }
+            }
+        }
         when (preferenceScreenOption) {
             PreferenceScreenOption.BASIC,
             PreferenceScreenOption.ADVANCED,
@@ -851,6 +893,7 @@ fun PreferencesPage(
                         .fillMaxWidth(.4f)
                         .fillMaxHeight()
                         .align(Alignment.TopEnd),
+                    onUpdateNotesChange = { updateNotes = it },
                 )
             }
         }

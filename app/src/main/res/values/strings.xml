@@ -319,6 +319,8 @@
     <!-- Preferences/Setting specific strings -->
     <string name="pref_key_update_last_check_threshold" translatable="false">preference.update.threshold</string>
     <string name="pref_key_update_last_check" translatable="false">preference.update.lastTimestamp</string>
+    <string name="pref_key_update_prompted_at" translatable="false">preference.update.promptedAt</string>
+    <string name="pref_key_update_prompted_version" translatable="false">preference.update.promptedVersion</string>
 
     <string name="ac3_supported">Device supports AC3/Dolby Digital</string>
     <string name="advanced_settings">Advanced Settings</string>
