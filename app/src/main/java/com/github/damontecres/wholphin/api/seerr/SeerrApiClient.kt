@@ -129,6 +129,7 @@ class SeerrApiClient(
                         403 -> "Quick Connect is not enabled on the media server."
                         else -> "Could not start Quick Connect (HTTP ${resp.code})."
                     },
+                    resp.code,
                 )
             }
             return json.decodeFromString<SeerrQuickConnect>(body)
@@ -154,6 +155,7 @@ class SeerrApiClient(
                         403 -> "This account is not permitted to use the request service."
                         else -> "Quick Connect sign-in was rejected (HTTP ${resp.code})."
                     },
+                    resp.code,
                 )
             }
         }
@@ -186,9 +188,15 @@ internal fun quickConnectUrl(
     endpoint: String,
 ): String = "${baseUrl.removeSuffix("/")}/auth/jellyfin/quickconnect/$endpoint"
 
-/** Carries a message fit to show a customer on a TV, never a raw stack trace. */
+/**
+ * Carries a message fit to show a customer on a TV, never a raw stack trace.
+ * [statusCode] is the HTTP status Seerr answered with, when there was one, so
+ * callers can tell a refusal (401/403: this account is not allowed in) from a
+ * server that is down. See [SeerrReconnectPolicy].
+ */
 class SeerrQuickConnectException(
     message: String,
+    val statusCode: Int? = null,
 ) : Exception(message)
 
 private class SeerrCookieJar : CookieJar {

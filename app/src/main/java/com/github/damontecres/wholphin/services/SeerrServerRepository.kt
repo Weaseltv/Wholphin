@@ -9,6 +9,7 @@ import com.github.damontecres.wholphin.api.seerr.model.PublicSettings
 import com.github.damontecres.wholphin.api.seerr.model.User
 import com.github.damontecres.wholphin.data.SeerrServerDao
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.SeerrAuthMethod
 import com.github.damontecres.wholphin.data.model.SeerrPermission
 import com.github.damontecres.wholphin.data.model.SeerrServer
@@ -23,6 +24,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import org.jellyfin.sdk.model.api.ImageType
@@ -150,6 +153,111 @@ class SeerrServerRepository
             }
         }
 
+        // WeaselFin: one sign-in attempt at a time, and a record of how the last one
+        // for this Jellyfin user ended, so reconnects obey SeerrReconnectPolicy.
+        private val connectMutex = Mutex()
+        private var lastAttemptUserRowId: Int? = null
+        private var lastAttemptAt: Long? = null
+        private var lastAttemptWasRefusal = false
+
+        private fun recordAttempt(
+            user: JellyfinUser,
+            failure: Throwable?,
+        ) {
+            lastAttemptUserRowId = user.rowId
+            lastAttemptAt = if (failure == null) null else System.currentTimeMillis()
+            lastAttemptWasRefusal = failure != null && SeerrReconnectPolicy.isRefusal(failure)
+        }
+
+        /**
+         * WeaselFin: sign this Jellyfin user in to Seerr, the way the app does on every
+         * user switch. With a stored Seerr account the session is minted again from it
+         * (Quick Connect, password or API key); with none, and a pinned server, the
+         * account is provisioned silently. The outcome lands in [connection].
+         *
+         * Called on user switch and by [reconnectIfNeeded]. A failed attempt for the
+         * same user is not repeated inside the policy's cooldown, so a cold start that
+         * also fires an activity start cannot strike the request server twice; a
+         * different user always gets an attempt.
+         */
+        suspend fun connectForUser(user: JellyfinUser): Boolean =
+            connectMutex.withLock {
+                if (connection.value is SeerrConnectionStatus.Success &&
+                    lastAttemptUserRowId == user.rowId
+                ) {
+                    return@withLock true
+                }
+                if (lastAttemptUserRowId == user.rowId &&
+                    !SeerrReconnectPolicy.mayRetry(
+                        lastAttemptAt,
+                        lastAttemptWasRefusal,
+                        System.currentTimeMillis(),
+                    )
+                ) {
+                    Timber.d("Seerr sign-in for this user failed recently; not retrying yet")
+                    return@withLock false
+                }
+
+                val existing = seerrServerDao.getUsersByJellyfinUser(user.rowId).lastOrNull()
+                if (existing == null) {
+                    // Nothing configured yet. If this build pins a Seerr server, connect
+                    // to it silently using the Jellyfin session. No-op when unpinned.
+                    return@withLock provisionPinnedServer(user)
+                }
+                val server = seerrServerDao.getServer(existing.serverId)?.server
+                if (server == null) {
+                    recordAttempt(user, null)
+                    return@withLock false
+                }
+                Timber.i("Found a seerr user & server")
+                try {
+                    seerrApi.update(server.url, existing.credential)
+                    val userConfig =
+                        if (existing.authMethod != SeerrAuthMethod.API_KEY) {
+                            seerrLogin(
+                                seerrApi.api,
+                                existing.authMethod,
+                                existing.username,
+                                existing.password,
+                            ) { code ->
+                                // Only ever the code Seerr just issued to us; see
+                                // seerrQuickConnectLogin.
+                                serverRepository.authorizeQuickConnect(code)
+                            }
+                        } else {
+                            seerrApi.api.usersApi.authMeGet()
+                        }
+                    set(server, existing, userConfig)
+                    recordAttempt(user, null)
+                    true
+                } catch (ex: Exception) {
+                    Timber.w(ex, "Error logging into %s", server.url)
+                    error(server, existing, ex)
+                    recordAttempt(user, ex)
+                    false
+                }
+            }
+
+        /**
+         * WeaselFin: run the Seerr sign-in again if the app is not connected. Called
+         * when the activity comes (back) to the foreground, so a TV that was refused
+         * or could not reach the request server while it sat on the home screen
+         * recovers on its own once the server accepts it, instead of staying without
+         * Requests until the app is killed and relaunched. Throttled by
+         * [SeerrReconnectPolicy] through [connectForUser].
+         */
+        suspend fun reconnectIfNeeded(): Boolean {
+            if (BuildConfig.DEFAULT_SEERR_URL.isBlank() &&
+                connection.value is SeerrConnectionStatus.NotConfigured
+            ) {
+                // Upstream flavours with nothing configured: there is nothing to retry.
+                return false
+            }
+            if (connection.value is SeerrConnectionStatus.Success) return false
+            val user = serverRepository.currentUser ?: return false
+            return connectForUser(user)
+        }
+
         /**
          * WeaselFin: connect this Jellyfin user to the pinned Seerr server with no
          * interaction at all, reusing the Jellyfin session they just signed in with.
@@ -162,10 +270,10 @@ class SeerrServerRepository
          * because a customer must still be able to watch when the request service is
          * down.
          */
-        suspend fun provisionPinnedServer(): Boolean {
+        suspend fun provisionPinnedServer(jellyfinUser: JellyfinUser? = serverRepository.currentUser): Boolean {
             val pinned = BuildConfig.DEFAULT_SEERR_URL
             if (pinned.isBlank()) return false
-            val jellyfinUser = serverRepository.currentUser ?: return false
+            if (jellyfinUser == null) return false
 
             val url = createSeerrApiUrl(pinned)
             var stored = seerrServerDao.getServer(url)
@@ -194,10 +302,12 @@ class SeerrServerRepository
                     )
                 seerrServerDao.addUser(seerrUser)
                 set(server, seerrUser, userConfig)
+                recordAttempt(jellyfinUser, null)
                 Timber.i("Connected to the pinned Seerr server silently")
                 true
             } catch (ex: Exception) {
                 Timber.w(ex, "Silent Seerr connect failed for %s", server.url)
+                recordAttempt(jellyfinUser, ex)
                 false
             }
         }

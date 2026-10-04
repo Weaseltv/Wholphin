@@ -4,12 +4,12 @@ import android.content.Context
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import com.github.damontecres.wholphin.BuildConfig
-import com.github.damontecres.wholphin.data.SeerrServerDao
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinUser
-import com.github.damontecres.wholphin.data.model.SeerrAuthMethod
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.util.WholphinDispatchers
@@ -31,12 +31,26 @@ class UserSwitchListener
         @param:ActivityContext private val context: Context,
         private val serverRepository: ServerRepository,
         private val seerrServerRepository: SeerrServerRepository,
-        private val seerrServerDao: SeerrServerDao,
-        private val seerrApi: SeerrApi,
         private val homeSettingsService: HomeSettingsService,
     ) {
         init {
             context as AppCompatActivity
+            if (BuildConfig.DISCOVER_ENABLED) {
+                // WeaselFin: a TV app is rarely killed, so a Seerr sign-in that failed
+                // (server down, or the account refused until an admin fixed it) used to
+                // stay failed, with Requests gone, until the customer relaunched the
+                // app. Try again whenever the activity comes to the foreground; the
+                // repository throttles this so it cannot hammer the request server.
+                context.lifecycle.addObserver(
+                    object : DefaultLifecycleObserver {
+                        override fun onStart(owner: LifecycleOwner) {
+                            context.lifecycleScope.launchIO {
+                                seerrServerRepository.reconnectIfNeeded()
+                            }
+                        }
+                    },
+                )
+            }
             context.lifecycleScope.launchDefault {
                 serverRepository.currentUserFlow.collect { user ->
                     Timber.d("New user")
@@ -65,56 +79,10 @@ class UserSwitchListener
                     homeSettingsService.loadCurrentSettings(user.id)
                 }
                 if (BuildConfig.DISCOVER_ENABLED) {
-                    // Check for seerr server
+                    // Check for seerr server. The sign-in itself lives in the
+                    // repository so the activity-start retry above can run it too.
                     launchIO {
-                        val existing =
-                            seerrServerDao
-                                .getUsersByJellyfinUser(user.rowId)
-                                .lastOrNull()
-                        if (existing == null) {
-                            // WeaselFin: nothing configured yet. If this build pins a
-                            // Seerr server, connect to it silently using the Jellyfin
-                            // session that was just established. No-op when unpinned.
-                            seerrServerRepository.provisionPinnedServer()
-                            return@launchIO
-                        }
-                        existing.let { seerrUser ->
-                            val server =
-                                seerrServerDao.getServer(seerrUser.serverId)?.server
-                            if (server != null) {
-                                Timber.i("Found a seerr user & server")
-                                try {
-                                    seerrApi.update(server.url, seerrUser.credential)
-                                    val userConfig =
-                                        if (seerrUser.authMethod != SeerrAuthMethod.API_KEY) {
-                                            seerrLogin(
-                                                seerrApi.api,
-                                                seerrUser.authMethod,
-                                                seerrUser.username,
-                                                seerrUser.password,
-                                            ) { code ->
-                                                // Only ever the code Seerr just issued
-                                                // to us; see seerrQuickConnectLogin.
-                                                serverRepository.authorizeQuickConnect(code)
-                                            }
-                                        } else {
-                                            seerrApi.api.usersApi.authMeGet()
-                                        }
-                                    seerrServerRepository.set(
-                                        server,
-                                        seerrUser,
-                                        userConfig,
-                                    )
-                                } catch (ex: Exception) {
-                                    Timber.w(
-                                        ex,
-                                        "Error logging into %s",
-                                        server.url,
-                                    )
-                                    seerrServerRepository.error(server, seerrUser, ex)
-                                }
-                            }
-                        }
+                        seerrServerRepository.connectForUser(user)
                     }
                 }
             }
