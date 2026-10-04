@@ -92,6 +92,35 @@ class PlayRequestMapperTest {
     }
 
     @Test
+    fun `Intent params carry every field and shuffle only when requested`() {
+        val ids = listOf(UUID.randomUUID(), UUID.randomUUID())
+        val params =
+            PlayRequestMapper.toIntentParams(
+                request(
+                    itemIds = ids,
+                    playCommand = PlayCommand.PLAY_SHUFFLE,
+                    startPositionTicks = 90.seconds.inWholeTicks,
+                    startIndex = 1,
+                    mediaSourceId = "abc",
+                    audioStreamIndex = 2,
+                    subtitleStreamIndex = -1,
+                ),
+            )!!
+        assertEquals(ids.joinToString(",") { it.toString() }, params[IntentService.INTENT_ITEM_IDS])
+        assertEquals("1", params[IntentService.INTENT_START_INDEX])
+        assertEquals("90000", params[IntentService.INTENT_POSITION])
+        assertEquals("abc", params[IntentService.INTENT_MEDIA_SOURCE_ID])
+        assertEquals("2", params[IntentService.INTENT_AUDIO_STREAM_INDEX])
+        assertEquals("-1", params[IntentService.INTENT_SUBTITLE_STREAM_INDEX])
+        assertEquals("true", params[IntentService.INTENT_SHUFFLE])
+
+        val minimal = PlayRequestMapper.toIntentParams(request(itemIds = ids.take(1)))!!
+        assertEquals(setOf(IntentService.INTENT_ITEM_IDS), minimal.keys)
+
+        assertNull(PlayRequestMapper.toIntentParams(request(emptyList())))
+    }
+
+    @Test
     fun `General command arguments are parsed case insensitively`() {
         assertEquals(2, PlayRequestMapper.parseIndex(mapOf("Index" to "2")))
         assertEquals(-1, PlayRequestMapper.parseIndex(mapOf("index" to " -1 ")))

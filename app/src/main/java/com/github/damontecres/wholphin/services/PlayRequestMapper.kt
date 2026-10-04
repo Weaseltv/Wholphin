@@ -66,6 +66,37 @@ object PlayRequestMapper {
     }
 
     /**
+     * Convert a server [PlayRequest] into the string extras of a playback launch intent that [IntentService] parses
+     * back into the same [Destination.Playback] as [toDestination]
+     *
+     * @return the extras or null if the request has no items
+     */
+    fun toIntentParams(request: PlayRequest): Map<String, String>? {
+        val itemIds = request.itemIds.orEmpty()
+        if (itemIds.isEmpty()) {
+            return null
+        }
+        return buildMap {
+            put(IntentService.INTENT_ITEM_IDS, itemIds.joinToString(",") { it.toString() })
+            request.startIndex?.let { put(IntentService.INTENT_START_INDEX, it.toString()) }
+            request.startPositionTicks?.let {
+                put(
+                    IntentService.INTENT_POSITION,
+                    it.ticks.inWholeMilliseconds
+                        .coerceAtLeast(0L)
+                        .toString(),
+                )
+            }
+            request.mediaSourceId?.takeIf { it.isNotBlank() }?.let { put(IntentService.INTENT_MEDIA_SOURCE_ID, it) }
+            request.audioStreamIndex?.let { put(IntentService.INTENT_AUDIO_STREAM_INDEX, it.toString()) }
+            request.subtitleStreamIndex?.let { put(IntentService.INTENT_SUBTITLE_STREAM_INDEX, it.toString()) }
+            if (request.playCommand == PlayCommand.PLAY_SHUFFLE) {
+                put(IntentService.INTENT_SHUFFLE, "true")
+            }
+        }
+    }
+
+    /**
      * Parse the `Index` argument of a `SetAudioStreamIndex` or `SetSubtitleStreamIndex` command
      */
     fun parseIndex(arguments: Map<String, String?>): Int? = argument(arguments, "Index")?.toIntOrNull()

@@ -87,9 +87,9 @@ class IntentService
                         listOf(itemDestination)
                     }
 
-                    "com.github.damontecres.wholphin.PLAYBACK", "play" -> {
-                        val position = intent.getLongParam("position")?.coerceAtLeast(0)
-                        val shuffle = intent.getBooleanParam("shuffle")
+                    ACTION_PLAYBACK, "play" -> {
+                        val position = intent.getLongParam(INTENT_POSITION)?.coerceAtLeast(0)
+                        val shuffle = intent.getBooleanParam(INTENT_SHUFFLE)
 
                         val playbackDestination =
                             PlayRequestMapper.toDestination(
@@ -165,25 +165,36 @@ class IntentService
 
         private fun Intent.getStringParam(key: String) = getStringExtra(key) ?: data?.getQueryParameter(key)
 
-        private fun Intent.getLongParam(key: String) =
-            getLongExtra(key, -1).takeIf { it >= 0 } ?: data?.getQueryParameter(key)?.toLongOrNull()
-
         /**
-         * Get an int parameter, accepting an int extra, a string extra, or a query parameter. Negative values are allowed.
+         * Get a non-negative long parameter, accepting a long/int/string extra or a query parameter
          */
-        private fun Intent.getIntParam(key: String): Int? =
-            if (hasExtra(key)) {
-                getIntExtra(key, Int.MIN_VALUE).takeIf { it != Int.MIN_VALUE }
-                    ?: getStringExtra(key)?.trim()?.toIntOrNull()
-            } else {
-                data?.getQueryParameter(key)?.trim()?.toIntOrNull()
+        @Suppress("DEPRECATION")
+        private fun Intent.getLongParam(key: String): Long? =
+            when (val value = extras?.get(key)) {
+                is Long -> value.takeIf { it >= 0 }
+                is Int -> value.toLong().takeIf { it >= 0 }
+                is String -> value.trim().toLongOrNull()?.takeIf { it >= 0 }
+                else -> data?.getQueryParameter(key)?.toLongOrNull()?.takeIf { it >= 0 }
             }
 
+        /**
+         * Get an int parameter, accepting an int/long/string extra or a query parameter. Negative values are allowed.
+         */
+        @Suppress("DEPRECATION")
+        private fun Intent.getIntParam(key: String): Int? =
+            when (val value = extras?.get(key)) {
+                is Int -> value
+                is Long -> value.toInt()
+                is String -> value.trim().toIntOrNull()
+                else -> data?.getQueryParameter(key)?.trim()?.toIntOrNull()
+            }
+
+        @Suppress("DEPRECATION")
         private fun Intent.getBooleanParam(key: String): Boolean =
-            if (hasExtra(key)) {
-                getBooleanExtra(key, false) || getStringExtra(key)?.toBooleanStrictOrNull() == true
-            } else {
-                data?.getQueryParameter(key)?.toBooleanStrictOrNull() == true
+            when (val value = extras?.get(key)) {
+                is Boolean -> value
+                is String -> value.trim().toBooleanStrictOrNull() == true
+                else -> data?.getQueryParameter(key)?.toBooleanStrictOrNull() == true
             }
 
         private fun getDestinationFromChannel(intent: Intent): Destination? =
@@ -218,7 +229,10 @@ class IntentService
             }
 
         companion object {
+            const val ACTION_PLAYBACK = "com.github.damontecres.wholphin.PLAYBACK"
             const val INTENT_ITEM_ID = "itemId"
+            const val INTENT_POSITION = "position"
+            const val INTENT_SHUFFLE = "shuffle"
             const val INTENT_ITEM_TYPE = "itemType"
             const val INTENT_SERIES_ID = "seriesId"
             const val INTENT_EPISODE_NUMBER = "epNum"

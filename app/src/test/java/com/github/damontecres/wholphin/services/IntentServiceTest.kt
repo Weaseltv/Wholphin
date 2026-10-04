@@ -25,6 +25,9 @@ import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.api.operations.UserLibraryApi
 import org.jellyfin.sdk.model.UUID
+import org.jellyfin.sdk.model.api.PlayCommand
+import org.jellyfin.sdk.model.api.PlayRequest
+import org.jellyfin.sdk.model.extensions.inWholeTicks
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -33,6 +36,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import kotlin.time.Duration.Companion.seconds
 
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [30])
@@ -274,6 +278,47 @@ class IntentServiceTest {
             assertEquals(-1, destination.subtitleStreamIndex)
             assertTrue(destination.shuffle)
             assertTrue(destination.itemIds.isEmpty())
+        }
+
+    @Test
+    fun `Test play intent built from a remote request round trips`() =
+        runTest {
+            setupPreferences {
+                signInAutomatically = false
+            }
+            every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(currentUser)
+            coEvery { serverRepository.serverDao.getUser(serverId, userId) } returns currentUser.user
+            coEvery { serverRepository.restoreSession(serverId, userId) } returns currentUser
+            val movie = movie()
+            val other = movie()
+            val userLibraryApi = mockk<UserLibraryApi>()
+            every { api.userLibraryApi } returns userLibraryApi
+            coEvery { userLibraryApi.getItem(movie.id) } returns successResponse(movie)
+
+            val request =
+                PlayRequest(
+                    itemIds = listOf(other.id, movie.id),
+                    startPositionTicks = 90.seconds.inWholeTicks,
+                    playCommand = PlayCommand.PLAY_NOW,
+                    controllingUserId = UUID.randomUUID(),
+                    subtitleStreamIndex = -1,
+                    audioStreamIndex = 2,
+                    mediaSourceId = "abc",
+                    startIndex = 1,
+                )
+            // What RemotePlaybackService.createLaunchIntent builds for the screensaver
+            val intent =
+                Intent(IntentService.ACTION_PLAYBACK).apply {
+                    PlayRequestMapper.toIntentParams(request)!!.forEach { (key, value) -> putExtra(key, value) }
+                    putExtra(IntentService.INTENT_SERVER_ID, serverId.toString())
+                    putExtra(IntentService.INTENT_USER_ID, userId.toString())
+                }
+
+            val result = intentService.parseIntent(intent)
+            assertTrue(result is IntentResult.Target)
+            val destination = (result as IntentResult.Target).destinations.last()
+            assertEquals(PlayRequestMapper.toDestination(request), destination)
+            coVerify(exactly = 1) { serverRepository.restoreSession(serverId, userId) }
         }
 
     @Test

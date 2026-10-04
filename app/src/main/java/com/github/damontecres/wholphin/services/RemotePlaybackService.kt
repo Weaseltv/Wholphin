@@ -1,6 +1,8 @@
 package com.github.damontecres.wholphin.services
 
 import android.content.Context
+import android.content.Intent
+import com.github.damontecres.wholphin.MainActivity
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
@@ -129,6 +131,26 @@ class RemotePlaybackService
                 if (!inApp) {
                     setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
                 }
+            }
+        }
+
+        /**
+         * Build an intent that launches the app and plays the requested items, for callers that cannot navigate
+         * directly (eg the screensaver, while the activity is stopped)
+         *
+         * The intent names the current user so [IntentService] restores that session, or refuses if it is protected.
+         *
+         * @return the intent or null if nobody is signed in or the request has no items
+         */
+        fun createLaunchIntent(request: PlayRequest): Intent? {
+            val current = serverRepository.current.value ?: return null
+            val params = PlayRequestMapper.toIntentParams(request) ?: return null
+            return Intent(context, MainActivity::class.java).apply {
+                action = IntentService.ACTION_PLAYBACK
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                params.forEach { (key, value) -> putExtra(key, value) }
+                putExtra(IntentService.INTENT_SERVER_ID, current.server.id.toString())
+                putExtra(IntentService.INTENT_USER_ID, current.user.id.toString())
             }
         }
 
