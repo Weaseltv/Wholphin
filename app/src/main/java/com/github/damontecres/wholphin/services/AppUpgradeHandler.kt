@@ -437,6 +437,15 @@ class AppUpgradeHandler
             // bad preferAc3Surround default from upstream v1.0.6, so upstream's 1.0.6-7 cutoff
             // above would skip every installed device. Clear the stale flag for anything up to
             // and including v1.1.1 as well, with the same experimental-settings guard.
+            if (previous.isEqualOrBefore(Version.fromString("1.2.9-0-g0"))) {
+                // New boolean, so existing installs need the default (proto3 booleans default to false)
+                appPreferences.updateData {
+                    it.updatePlaybackPreferences {
+                        remoteControlEnabled = AppPreference.RemoteControl.defaultValue
+                    }
+                }
+            }
+
             if (previous.isEqualOrBefore(Version.fromString("1.0.6-7-g0")) ||
                 previous.isEqualOrBefore(Version.fromString("1.1.1-0-g0"))
             ) {

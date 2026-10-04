@@ -88,9 +88,16 @@ Action: `com.github.damontecres.wholphin.PLAYBACK`
 Shorthand action: `play`
 
 Parameters:
-- `itemId` - Required, the UUID of the media item
+- `itemId` - Required unless `itemIds` is given, the UUID of the media item
 - `position` - Optional, the start position for playback in milliseconds
 - `shuffle` - Optional, whether to shuffle the resulting items
+- `mediaSourceId` - Optional, the ID of a specific media source (version) to play
+- `audioStreamIndex` - Optional, the index of the audio stream to use
+- `subtitleStreamIndex` - Optional, the index of the subtitle stream to use, or `-1` for none
+- `itemIds` - Optional, a comma separated list of UUIDs to play in order instead of the contextual queue (this is what a remote "Play On" request sends)
+- `startIndex` - Optional, the index in `itemIds` to start from (default `0`)
+
+These are the same parameters a Jellyfin "Play On" request carries, so this intent is a convenient way to test that feature without a second device.
 
 ### Examples
 
@@ -127,6 +134,24 @@ adb shell am start \
   --ez shuffle true
 
 adb shell am start -d 'wholphin://play?itemId=5cf8f8e7-2a5f-4aa9-8c12-ddf63d42ee6d\&shuffle=true'
+```
+
+Play a specific version with a chosen audio track and no subtitles:
+```bash
+adb shell am start \
+  -a com.github.damontecres.wholphin.PLAYBACK \
+  -n 'com.github.damontecres.wholphin/.MainActivity' \
+  --es itemId "5cf8f8e7-2a5f-4aa9-8c12-ddf63d42ee6d" \
+  --es mediaSourceId "5cf8f8e72a5f4aa98c12ddf63d42ee6d" \
+  --ei audioStreamIndex 2 \
+  --ei subtitleStreamIndex -1
+
+adb shell am start -d 'wholphin://play?itemId=5cf8f8e7-2a5f-4aa9-8c12-ddf63d42ee6d\&audioStreamIndex=2\&subtitleStreamIndex=-1'
+```
+
+Play an explicit queue, starting with the second item:
+```bash
+adb shell am start -d 'wholphin://play?itemIds=5cf8f8e7-2a5f-4aa9-8c12-ddf63d42ee6d,66c80aaac9c17d3761782d2205520229\&startIndex=1'
 ```
 
 ## More examples

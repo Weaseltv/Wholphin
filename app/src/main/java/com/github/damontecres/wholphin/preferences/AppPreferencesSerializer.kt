@@ -55,6 +55,7 @@ class AppPreferencesSerializer
                                     AppPreference.RefreshRateSwitching.defaultValue
                                 resolutionSwitching = AppPreference.ResolutionSwitching.defaultValue
                                 cinemaMode = AppPreference.CinemaMode.defaultValue
+                                remoteControlEnabled = AppPreference.RemoteControl.defaultValue
                                 dpadSeekMode = AppPreference.DpadSeekModePref.defaultValue
 
                                 overrides =

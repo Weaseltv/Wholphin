@@ -32,6 +32,7 @@ import com.github.damontecres.wholphin.data.ItemPlaybackRepository
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.Chapter
+import com.github.damontecres.wholphin.data.model.ItemPlayback
 import com.github.damontecres.wholphin.data.model.Playlist
 import com.github.damontecres.wholphin.data.model.PlaylistItem
 import com.github.damontecres.wholphin.data.model.TrackIndex
@@ -47,6 +48,7 @@ import com.github.damontecres.wholphin.services.DeviceProfileService
 import com.github.damontecres.wholphin.services.ImageUrlService
 import com.github.damontecres.wholphin.services.MusicService
 import com.github.damontecres.wholphin.services.NavigationManager
+import com.github.damontecres.wholphin.services.PlayRequestMapper
 import com.github.damontecres.wholphin.services.PlayerFactory
 import com.github.damontecres.wholphin.services.PlaylistCreationResult
 import com.github.damontecres.wholphin.services.PlaylistCreator
@@ -194,6 +196,14 @@ class PlaybackViewModel
 
         private val isPlaylist = destination is Destination.PlaybackList
 
+        // Explicit queue of items (eg from a remote "Play On" request); empty when the queue is built contextually
+        private val explicitQueue: List<UUID> =
+            (destination as? Destination.Playback)?.itemIds?.takeIf { it.size > 1 }.orEmpty()
+
+        // Media source & tracks requested along with the destination (eg from a remote "Play On" request).
+        // Consumed the first time the requested item is played.
+        private var requestedItemPlayback: ItemPlayback? = null
+
         val subtitleSearchState = MutableStateFlow(SubtitleSearchState())
 
         val currentUserDto = serverRepository.currentUserDtoFlow
@@ -321,9 +331,36 @@ class PlaybackViewModel
                     }
                 }
             this.itemId = itemId
+            requestedItemPlayback =
+                (destination as? Destination.Playback)?.let {
+                    PlayRequestMapper.requestedStreams(it, serverRepository.currentUser?.rowId ?: 0)
+                }
             val queriedItem = api.userLibraryApi.getItem(itemId).content
             val playlistItem =
-                if (queriedItem.type.playable) {
+                if (explicitQueue.isNotEmpty()) {
+                    // Play exactly the requested items in order, starting at the requested one
+                    val startIndex =
+                        ((destination as? Destination.Playback)?.startIndex ?: 0)
+                            .coerceIn(0, explicitQueue.lastIndex)
+                    when (val r = playlistCreator.createFromIds(explicitQueue.subList(startIndex, explicitQueue.size))) {
+                        is PlaylistCreationResult.Error -> {
+                            _state.update { it.copy(loading = LoadingState.Error(r.message, r.ex)) }
+                            return
+                        }
+
+                        is PlaylistCreationResult.Success -> {
+                            if (r.playlist.items.isEmpty()) {
+                                showToast(context, "Playlist is empty", Toast.LENGTH_SHORT)
+                                navigationManager.goBack()
+                                return
+                            }
+                            _state.update {
+                                it.copy(playlist = r.playlist)
+                            }
+                            r.playlist.items.first()
+                        }
+                    }
+                } else if (queriedItem.type.playable) {
                     PlaylistItem.Media(BaseItem(queriedItem, false))
                 } else {
                     val playlistResult =
@@ -407,7 +444,7 @@ class PlaybackViewModel
                 playNextUp()
             }
 
-            if (!isPlaylist) {
+            if (!isPlaylist && explicitQueue.isEmpty()) {
                 val result = playlistCreator.createFrom(queriedItem)
                 if (result is PlaylistCreationResult.Success && result.playlist.items.isNotEmpty()) {
                     _state.update {
@@ -470,15 +507,22 @@ class PlaybackViewModel
                 val isLiveTv = item.type == BaseItemKind.TV_CHANNEL
                 val base = item.data
 
-                // Use the provided playback parameters or else check if the database has some
+                // Use the explicitly requested playback parameters or else check if the database has some
+                val requested = requestedItemPlayback?.takeIf { it.itemId == base.id }
                 val itemPlayback =
-                    serverRepository.currentUser?.let { user ->
-                        itemPlaybackDao.getItem(user, base.id)?.let {
-                            Timber.v("Fetched itemPlayback from DB: %s", it)
-                            if (it.sourceId != null) {
-                                it
-                            } else {
-                                null
+                    if (requested != null) {
+                        requestedItemPlayback = null
+                        Timber.v("Using requested itemPlayback: %s", requested)
+                        requested
+                    } else {
+                        serverRepository.currentUser?.let { user ->
+                            itemPlaybackDao.getItem(user, base.id)?.let {
+                                Timber.v("Fetched itemPlayback from DB: %s", it)
+                                if (it.sourceId != null) {
+                                    it
+                                } else {
+                                    null
+                                }
                             }
                         }
                     }

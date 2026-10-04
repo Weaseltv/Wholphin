@@ -55,8 +55,17 @@ class IntentService
                 val query = intent.getStringParam(SearchManager.QUERY)
                 return IntentResult.Target(listOf(Destination.Search(query ?: "")))
             }
+            // An explicit queue of items to play (comma separated), eg from a remote "Play On" request
+            val itemIds =
+                intent
+                    .getStringParam(INTENT_ITEM_IDS)
+                    ?.split(',')
+                    ?.mapNotNull { it.trim().toUUIDOrNull() }
+                    .orEmpty()
+            val startIndex = intent.getIntParam(INTENT_START_INDEX) ?: 0
             val itemId =
                 intent.getStringParam("itemId")?.toUUIDOrNull()
+                    ?: itemIds.getOrNull(startIndex.coerceIn(0, itemIds.lastIndex.coerceAtLeast(0)))
                     ?: return IntentResult.Error("No item id provided")
 
             val item =
@@ -80,14 +89,18 @@ class IntentService
 
                     "com.github.damontecres.wholphin.PLAYBACK", "play" -> {
                         val position = intent.getLongParam("position")?.coerceAtLeast(0)
-                        val shuffle = intent.getBooleanExtra("shuffle", false)
+                        val shuffle = intent.getBooleanParam("shuffle")
 
                         val playbackDestination =
-                            Destination.Playback(
-                                itemId = itemId,
+                            PlayRequestMapper.toDestination(
+                                itemIds = itemIds.ifEmpty { listOf(itemId) },
+                                startIndex = startIndex,
                                 positionMs = position ?: 0L,
                                 shuffle = shuffle,
-                            )
+                                mediaSourceId = intent.getStringParam(INTENT_MEDIA_SOURCE_ID),
+                                audioStreamIndex = intent.getIntParam(INTENT_AUDIO_STREAM_INDEX),
+                                subtitleStreamIndex = intent.getIntParam(INTENT_SUBTITLE_STREAM_INDEX),
+                            ) ?: return IntentResult.Error("No item id provided")
 
                         if (itemDestination is Destination.Playback) {
                             listOf(playbackDestination)
@@ -155,6 +168,24 @@ class IntentService
         private fun Intent.getLongParam(key: String) =
             getLongExtra(key, -1).takeIf { it >= 0 } ?: data?.getQueryParameter(key)?.toLongOrNull()
 
+        /**
+         * Get an int parameter, accepting an int extra, a string extra, or a query parameter. Negative values are allowed.
+         */
+        private fun Intent.getIntParam(key: String): Int? =
+            if (hasExtra(key)) {
+                getIntExtra(key, Int.MIN_VALUE).takeIf { it != Int.MIN_VALUE }
+                    ?: getStringExtra(key)?.trim()?.toIntOrNull()
+            } else {
+                data?.getQueryParameter(key)?.trim()?.toIntOrNull()
+            }
+
+        private fun Intent.getBooleanParam(key: String): Boolean =
+            if (hasExtra(key)) {
+                getBooleanExtra(key, false) || getStringExtra(key)?.toBooleanStrictOrNull() == true
+            } else {
+                data?.getQueryParameter(key)?.toBooleanStrictOrNull() == true
+            }
+
         private fun getDestinationFromChannel(intent: Intent): Destination? =
             intent.let {
                 val itemId =
@@ -195,6 +226,11 @@ class IntentService
             const val INTENT_SEASON_ID = "seaId"
             const val INTENT_SERVER_ID = "serverId"
             const val INTENT_USER_ID = "userId"
+            const val INTENT_ITEM_IDS = "itemIds"
+            const val INTENT_START_INDEX = "startIndex"
+            const val INTENT_MEDIA_SOURCE_ID = "mediaSourceId"
+            const val INTENT_AUDIO_STREAM_INDEX = "audioStreamIndex"
+            const val INTENT_SUBTITLE_STREAM_INDEX = "subtitleStreamIndex"
         }
     }
 

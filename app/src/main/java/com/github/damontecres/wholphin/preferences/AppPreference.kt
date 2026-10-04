@@ -478,6 +478,18 @@ sealed interface AppPreference<Pref, T> {
                 summaryOff = R.string.disabled,
             )
 
+        val RemoteControl =
+            AppSwitchPreference<AppPreferences>(
+                title = R.string.remote_control,
+                defaultValue = true,
+                getter = { it.playbackPreferences.remoteControlEnabled },
+                setter = { prefs, value ->
+                    prefs.updatePlaybackPreferences { remoteControlEnabled = value }
+                },
+                summaryOn = R.string.remote_control_summary_on,
+                summaryOff = R.string.remote_control_summary_off,
+            )
+
         val RememberSelectedTab =
             AppSwitchPreference<AppPreferences>(
                 title = R.string.remember_selected_tab,
@@ -1245,6 +1257,7 @@ val advancedPreferences =
                         AppPreference.OneClickPause,
                         AppPreference.ControllerTimeout,
                         AppPreference.CinemaMode,
+                        AppPreference.RemoteControl,
                         AppPreference.GlobalContentScale,
                         AppPreference.SkipSegments,
                         AppPreference.DpadSeekModePref,

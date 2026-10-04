@@ -18,6 +18,7 @@ import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.util.GetEpisodesRequestHandler
 import com.github.damontecres.wholphin.util.GetItemsRequestHandler
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.client.extensions.playlistsApi
@@ -321,6 +322,41 @@ class PlaylistCreator
                     PlaylistCreationResult.Error(null, "Unsupported type: ${item.type}")
                 }
             }
+
+        /**
+         * Create a [Playlist] from an explicit, ordered list of item IDs (eg a remote "Play On" request)
+         *
+         * Items that cannot be found or are not playable are skipped
+         */
+        suspend fun createFromIds(itemIds: List<UUID>): PlaylistCreationResult {
+            if (itemIds.isEmpty()) {
+                return PlaylistCreationResult.Error(null, "No items requested")
+            }
+            return try {
+                val ids = itemIds.take(Playlist.MAX_SIZE)
+                val request =
+                    GetItemsRequest(
+                        userId = serverRepository.currentUser?.id,
+                        ids = ids,
+                        fields = DetailItemFields,
+                        enableTotalRecordCount = false,
+                    )
+                val itemsById =
+                    GetItemsRequestHandler
+                        .execute(api, request)
+                        .content.items
+                        .associateBy { it.id }
+                val ordered =
+                    ids
+                        .mapNotNull { itemsById[it] }
+                        .filter { it.type.playable }
+                PlaylistCreationResult.Success(Playlist(ordered.convertAndAddParts()))
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                PlaylistCreationResult.Error(ex, "Could not load the requested items")
+            }
+        }
 
         private suspend fun List<BaseItemDto>.convertAndAddParts(useSeriesForPrimary: Boolean = false): List<PlaylistItem> =
             buildList {

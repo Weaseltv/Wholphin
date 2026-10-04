@@ -1,14 +1,18 @@
 package com.github.damontecres.wholphin.services
 
 import android.content.Intent
+import android.net.Uri
 import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.preferences.update
 import com.github.damontecres.wholphin.test.currentUser
+import com.github.damontecres.wholphin.test.movie
 import com.github.damontecres.wholphin.test.server
 import com.github.damontecres.wholphin.test.user
+import com.github.damontecres.wholphin.ui.nav.Destination
+import com.github.damontecres.wholphin.ui.successResponse
 import com.github.damontecres.wholphin.ui.toServerString
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -18,7 +22,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.runTest
 import org.jellyfin.sdk.api.client.ApiClient
+import org.jellyfin.sdk.api.client.extensions.userLibraryApi
+import org.jellyfin.sdk.api.operations.UserLibraryApi
 import org.jellyfin.sdk.model.UUID
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -197,6 +204,76 @@ class IntentServiceTest {
             assertTrue(result is IntentResult.Error)
 
             coVerify(exactly = 0) { serverRepository.restoreSession(serverId, userId) }
+        }
+
+    @Test
+    fun `Test play intent with Play On parameters`() =
+        runTest {
+            setupPreferences {
+                signInAutomatically = true
+                currentServerId = serverId.toServerString()
+                currentUserId = userId.toServerString()
+            }
+            every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(currentUser)
+            coEvery { serverRepository.restoreSession(serverId, userId) } returns currentUser
+            val movie = movie()
+            val other = movie()
+            val userLibraryApi = mockk<UserLibraryApi>()
+            every { api.userLibraryApi } returns userLibraryApi
+            coEvery { userLibraryApi.getItem(movie.id) } returns successResponse(movie)
+
+            val intent =
+                Intent("play").apply {
+                    putExtra(IntentService.INTENT_ITEM_IDS, "${other.id.toServerString()}, ${movie.id}")
+                    putExtra(IntentService.INTENT_START_INDEX, 1)
+                    putExtra("position", 90_000L)
+                    putExtra(IntentService.INTENT_MEDIA_SOURCE_ID, "abc")
+                    putExtra(IntentService.INTENT_AUDIO_STREAM_INDEX, 2)
+                    putExtra(IntentService.INTENT_SUBTITLE_STREAM_INDEX, -1)
+                }
+            val result = intentService.parseIntent(intent)
+            assertTrue(result is IntentResult.Target)
+            val destination = (result as IntentResult.Target).destinations.last()
+            assertTrue(destination is Destination.Playback)
+            destination as Destination.Playback
+            assertEquals(movie.id, destination.itemId)
+            assertEquals(90_000L, destination.positionMs)
+            assertEquals("abc", destination.mediaSourceId)
+            assertEquals(2, destination.audioStreamIndex)
+            assertEquals(-1, destination.subtitleStreamIndex)
+            assertEquals(listOf(other.id, movie.id), destination.itemIds)
+            assertEquals(1, destination.startIndex)
+        }
+
+    @Test
+    fun `Test play intent via URI query parameters`() =
+        runTest {
+            setupPreferences {
+                signInAutomatically = true
+                currentServerId = serverId.toServerString()
+                currentUserId = userId.toServerString()
+            }
+            every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(currentUser)
+            coEvery { serverRepository.restoreSession(serverId, userId) } returns currentUser
+            val movie = movie()
+            val userLibraryApi = mockk<UserLibraryApi>()
+            every { api.userLibraryApi } returns userLibraryApi
+            coEvery { userLibraryApi.getItem(movie.id) } returns successResponse(movie)
+
+            // `adb shell am start -d <uri>` with no action, so the host selects the action
+            val intent =
+                Intent().apply {
+                    data = Uri.parse("wholphin://play?itemId=${movie.id}&subtitleStreamIndex=-1&audioStreamIndex=1&shuffle=true")
+                }
+            val result = intentService.parseIntent(intent)
+            assertTrue(result is IntentResult.Target)
+            val destination = (result as IntentResult.Target).destinations.last() as Destination.Playback
+            assertEquals(movie.id, destination.itemId)
+            assertEquals(0L, destination.positionMs)
+            assertEquals(1, destination.audioStreamIndex)
+            assertEquals(-1, destination.subtitleStreamIndex)
+            assertTrue(destination.shuffle)
+            assertTrue(destination.itemIds.isEmpty())
         }
 
     @Test
