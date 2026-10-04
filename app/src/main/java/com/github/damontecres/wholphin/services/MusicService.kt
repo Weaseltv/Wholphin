@@ -124,15 +124,19 @@ class MusicService
                         Timber.i("Starting music MediaSession")
                         mediaSession = MediaSession.Builder(context, player).build()
                         activityTracker =
-                            TrackActivityPlaybackListener(api, player) {
-                                state.value.currentItemId?.let { itemId ->
-                                    PlaybackItemState(
-                                        itemId = itemId,
-                                        playMethod = PlayMethod.DIRECT_PLAY,
+                            TrackActivityPlaybackListener(
+                                api = api,
+                                player = player,
+                                getState = {
+                                    state.value.currentItemId?.let { itemId ->
+                                        PlaybackItemState(
+                                            itemId = itemId,
+                                            playMethod = PlayMethod.DIRECT_PLAY,
 //                                        playSessionId = mediaSession?.id,
-                                    )
-                                }
-                            }.also { player.addListener(it) }
+                                        )
+                                    }
+                                },
+                            ).also { player.addListener(it) }
                         websocketJob = subscribe()
                     }
                 }

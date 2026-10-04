@@ -43,6 +43,7 @@ import com.github.damontecres.wholphin.preferences.ShowNextUpWhen
 import com.github.damontecres.wholphin.preferences.SkipSegmentBehavior
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.preferences.enabled
+import com.github.damontecres.wholphin.services.ActivePlaybackRegistry
 import com.github.damontecres.wholphin.services.DatePlayedService
 import com.github.damontecres.wholphin.services.DeviceProfileService
 import com.github.damontecres.wholphin.services.ImageUrlService
@@ -56,6 +57,7 @@ import com.github.damontecres.wholphin.services.RefreshRateService
 import com.github.damontecres.wholphin.services.ScreensaverService
 import com.github.damontecres.wholphin.services.StreamChoiceService
 import com.github.damontecres.wholphin.services.UserPreferencesService
+import com.github.damontecres.wholphin.services.VolumeService
 import com.github.damontecres.wholphin.ui.formatBitrate
 import com.github.damontecres.wholphin.ui.gt
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
@@ -157,6 +159,8 @@ class PlaybackViewModel
         private val imageUrlService: ImageUrlService,
         private val screensaverService: ScreensaverService,
         private val musicService: MusicService,
+        private val activePlaybackRegistry: ActivePlaybackRegistry,
+        private val volumeService: VolumeService,
         @Assisted private val destination: Destination,
     ) : ViewModel(),
         Player.Listener,
@@ -204,6 +208,25 @@ class PlaybackViewModel
         // Consumed the first time the requested item is played.
         private var requestedItemPlayback: ItemPlayback? = null
 
+        // Lets remote control commands reach this playback while it owns the player
+        private val remoteHandler =
+            object : ActivePlaybackRegistry.Handler {
+                override suspend fun setAudioStream(index: Int) {
+                    changeAudioStream(index)
+                }
+
+                override suspend fun setSubtitleStream(index: Int) {
+                    changeSubtitleStream(index)
+                }
+
+                override suspend fun enqueue(
+                    itemIds: List<UUID>,
+                    playNext: Boolean,
+                ) {
+                    enqueueItems(itemIds, playNext)
+                }
+            }
+
         val subtitleSearchState = MutableStateFlow(SubtitleSearchState())
 
         val currentUserDto = serverRepository.currentUserDtoFlow
@@ -223,6 +246,7 @@ class PlaybackViewModel
         }
 
         private fun disconnectPlayer() {
+            activePlaybackRegistry.unregister(remoteHandler)
             if (this@PlaybackViewModel::player.isInitialized) {
                 player.removeListener(this@PlaybackViewModel)
                 (player as? ExoPlayer)?.removeAnalyticsListener(this@PlaybackViewModel)
@@ -285,6 +309,7 @@ class PlaybackViewModel
         private fun configurePlayer() {
             player.addListener(this)
             (player as? ExoPlayer)?.addAnalyticsListener(this)
+            activePlaybackRegistry.register(remoteHandler)
             subscribeToWebSocket()
             jobs.add(listenForTranscodeReason())
             val sessionPlayer =
@@ -857,6 +882,7 @@ class PlaybackViewModel
                                 api = api,
                                 player = player,
                                 getState = { playbackItemState },
+                                getVolume = { volumeService.state() },
                             )
                         player.addListener(activityListener)
                         this@PlaybackViewModel.activityListener = activityListener
@@ -1401,6 +1427,35 @@ class PlaybackViewModel
                         Timber.w("Item not found in playlist %s", item.id)
                         return@launchDefault
                     }
+                }
+            }
+        }
+
+        /**
+         * Add items to the queue (eg from a remote "play next"/"play last" request), either right after the current
+         * item or at the end
+         */
+        suspend fun enqueueItems(
+            itemIds: List<UUID>,
+            playNext: Boolean,
+        ) {
+            val result = playlistCreator.createFromIds(itemIds)
+            if (result !is PlaylistCreationResult.Success || result.playlist.items.isEmpty()) {
+                Timber.w("Could not queue items %s: %s", itemIds, result)
+                return
+            }
+            playlistMutex.withLock {
+                _state.update { state ->
+                    val items = state.playlist.items.toMutableList()
+                    val insertAt =
+                        if (playNext) {
+                            (state.playlistIndex + 1).coerceAtMost(items.size)
+                        } else {
+                            items.size
+                        }
+                    items.addAll(insertAt, result.playlist.items)
+                    Timber.i("Queued %s items at %s (playNext=%s)", result.playlist.items.size, insertAt, playNext)
+                    state.copy(playlist = Playlist(items))
                 }
             }
         }

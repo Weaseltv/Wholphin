@@ -19,6 +19,7 @@ import com.github.damontecres.wholphin.preferences.ShowNextUpWhen
 import com.github.damontecres.wholphin.preferences.SkipSegmentBehavior
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.preferences.updatePlaybackPreferences
+import com.github.damontecres.wholphin.services.ActivePlaybackRegistry
 import com.github.damontecres.wholphin.services.DatePlayedService
 import com.github.damontecres.wholphin.services.DeviceProfileService
 import com.github.damontecres.wholphin.services.ImageUrlService
@@ -32,6 +33,7 @@ import com.github.damontecres.wholphin.services.RefreshRateService
 import com.github.damontecres.wholphin.services.ScreensaverService
 import com.github.damontecres.wholphin.services.StreamChoiceService
 import com.github.damontecres.wholphin.services.UserPreferencesService
+import com.github.damontecres.wholphin.services.VolumeService
 import com.github.damontecres.wholphin.test.TestTracks
 import com.github.damontecres.wholphin.test.movie
 import com.github.damontecres.wholphin.test.playlist
@@ -105,6 +107,8 @@ class PlaybackViewModelTests {
     private val mockImageUrlService = mockk<ImageUrlService>(relaxed = true)
     private val mockScreensaverService = mockk<ScreensaverService>(relaxed = true)
     private val mockMusicService = mockk<MusicService>(relaxed = true)
+    private val activePlaybackRegistry = ActivePlaybackRegistry()
+    private val mockVolumeService = mockk<VolumeService>(relaxed = true)
 
     private val mockUserLibraryApi = mockk<UserLibraryApi>()
     private val mockMediaInfoApi = mockk<MediaInfoApi>()
@@ -131,6 +135,8 @@ class PlaybackViewModelTests {
             imageUrlService = mockImageUrlService,
             screensaverService = mockScreensaverService,
             musicService = mockMusicService,
+            activePlaybackRegistry = activePlaybackRegistry,
+            volumeService = mockVolumeService,
             destination = destination,
         )
 
@@ -411,6 +417,36 @@ class PlaybackViewModelTests {
             Assert.assertEquals(2, captured!!.audioIndex)
             Assert.assertEquals(TrackIndex.DISABLED, captured.subtitleIndex)
             Assert.assertNull(captured.sourceId)
+        }
+
+    @Test
+    fun `Remote enqueue inserts after the current item or at the end`() =
+        runTest(testDispatcher) {
+            setupForPlaylist()
+            val viewModel = createViewModel(Destination.PlaybackList(playlist.id))
+            val handler = activePlaybackRegistry.active.value
+            Assert.assertNotNull("Playback should register for remote control", handler)
+
+            val next = movie(name = "Play next")
+            val last = movie(name = "Play last")
+            coEvery { mockPlaylistCreator.createFromIds(listOf(next.id)) } returns
+                PlaylistCreationResult.Success(Playlist.fromMedia(listOf(BaseItem(next))))
+            coEvery { mockPlaylistCreator.createFromIds(listOf(last.id)) } returns
+                PlaylistCreationResult.Success(Playlist.fromMedia(listOf(BaseItem(last))))
+
+            handler!!.enqueue(listOf(next.id), playNext = true)
+            handler.enqueue(listOf(last.id), playNext = false)
+            testScheduler.advanceUntilIdle()
+
+            Assert.assertEquals(
+                listOf(movie.id, next.id, movie2.id, movie3.id, last.id),
+                viewModel.state.value.playlist.items
+                    .map { it.id },
+            )
+            Assert.assertEquals(0, viewModel.state.value.playlistIndex)
+
+            viewModel.release()
+            Assert.assertNull("Releasing should unregister", activePlaybackRegistry.active.value)
         }
 
     private fun setupForPlaylist() {

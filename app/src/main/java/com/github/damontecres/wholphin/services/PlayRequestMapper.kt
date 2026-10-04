@@ -8,6 +8,7 @@ import org.jellyfin.sdk.model.api.PlayRequest
 import org.jellyfin.sdk.model.extensions.ticks
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import java.util.UUID
+import kotlin.math.roundToInt
 
 /**
  * Converts play requests from outside the app (a remote "Play On" request from the server or a launch intent)
@@ -63,6 +64,36 @@ object PlayRequestMapper {
             startIndex = if (queue.isEmpty()) 0 else index,
         )
     }
+
+    /**
+     * Parse the `Index` argument of a `SetAudioStreamIndex` or `SetSubtitleStreamIndex` command
+     */
+    fun parseIndex(arguments: Map<String, String?>): Int? = argument(arguments, "Index")?.toIntOrNull()
+
+    /**
+     * Parse the `Volume` argument (0-100) of a `SetVolume` command
+     */
+    fun parseVolume(arguments: Map<String, String?>): Int? =
+        argument(arguments, "Volume")
+            ?.toDoubleOrNull()
+            ?.roundToInt()
+            ?.coerceIn(0, 100)
+
+    /**
+     * Parse the `ItemId` argument of a `DisplayContent` command
+     */
+    fun parseItemId(arguments: Map<String, String?>): UUID? = argument(arguments, "ItemId")?.toUUIDOrNull()
+
+    /**
+     * Get an argument by name, ignoring case since clients are not consistent about it
+     */
+    private fun argument(
+        arguments: Map<String, String?>,
+        name: String,
+    ): String? =
+        (arguments[name] ?: arguments.entries.firstOrNull { it.key.equals(name, ignoreCase = true) }?.value)
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
 
     /**
      * The media source & tracks explicitly requested by a [Destination.Playback], as an [ItemPlayback] that takes

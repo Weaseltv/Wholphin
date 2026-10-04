@@ -127,11 +127,21 @@ class ServerEventListener
                                             }
                                         }
 
+                                        null -> {
+                                            Timber.v("Ignoring GeneralCommandMessage without data")
+                                        }
+
                                         else -> {
-                                            Timber.v(
-                                                "Ignoring GeneralCommandMessage: %s",
-                                                message.data?.name,
-                                            )
+                                            val command = message.data!!
+                                            try {
+                                                if (!remotePlaybackService.onGeneralCommand(command)) {
+                                                    Timber.v("Ignoring GeneralCommandMessage: %s", command.name)
+                                                }
+                                            } catch (ex: CancellationException) {
+                                                throw ex
+                                            } catch (ex: Exception) {
+                                                Timber.e(ex, "Error handling remote command %s", command.name)
+                                            }
                                         }
                                     }
                                 }.catch { ex ->

@@ -844,6 +844,7 @@
     <string name="remote_control_summary_off">This device is hidden from Play On in other apps</string>
     <string name="remote_play_failed">Could not play the item sent from another device</string>
     <string name="remote_play_locked">Sign in on this device before playing from another device</string>
+    <string name="remote_play_queued">Added to the queue</string>
     <string name="show_more">Show %1$s more</string>
     <string name="skip_behavior">Skip behavior</string>
     <string name="skip_behavior_summary">For intros, credits, etc</string>

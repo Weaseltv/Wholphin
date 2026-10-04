@@ -92,6 +92,24 @@ class PlayRequestMapperTest {
     }
 
     @Test
+    fun `General command arguments are parsed case insensitively`() {
+        assertEquals(2, PlayRequestMapper.parseIndex(mapOf("Index" to "2")))
+        assertEquals(-1, PlayRequestMapper.parseIndex(mapOf("index" to " -1 ")))
+        assertNull(PlayRequestMapper.parseIndex(mapOf("Index" to "abc")))
+        assertNull(PlayRequestMapper.parseIndex(emptyMap()))
+
+        assertEquals(50, PlayRequestMapper.parseVolume(mapOf("Volume" to "50")))
+        assertEquals(100, PlayRequestMapper.parseVolume(mapOf("volume" to "150")))
+        assertEquals(0, PlayRequestMapper.parseVolume(mapOf("Volume" to "-5")))
+        assertEquals(33, PlayRequestMapper.parseVolume(mapOf("Volume" to "33.3")))
+        assertNull(PlayRequestMapper.parseVolume(mapOf("Volume" to "")))
+
+        val itemId = UUID.randomUUID()
+        assertEquals(itemId, PlayRequestMapper.parseItemId(mapOf("ItemId" to itemId.toString().replace("-", ""))))
+        assertNull(PlayRequestMapper.parseItemId(mapOf("ItemId" to "nope")))
+    }
+
+    @Test
     fun `No requested streams means no override`() {
         assertNull(PlayRequestMapper.requestedStreams(Destination.Playback(UUID.randomUUID(), 0L), 1))
     }
