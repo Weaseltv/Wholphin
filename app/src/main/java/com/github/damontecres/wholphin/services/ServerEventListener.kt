@@ -6,6 +6,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
+import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
@@ -27,13 +28,14 @@ import org.jellyfin.sdk.api.client.extensions.sessionApi
 import org.jellyfin.sdk.api.sockets.subscribe
 import org.jellyfin.sdk.model.api.GeneralCommandMessage
 import org.jellyfin.sdk.model.api.GeneralCommandType
-import org.jellyfin.sdk.model.api.MediaType
+import org.jellyfin.sdk.model.api.PlayMessage
 import org.jellyfin.sdk.model.api.UserUpdatedMessage
 import timber.log.Timber
 import javax.inject.Inject
 
 /**
- * Listens for basic messages from the server such as messages
+ * Listens for messages from the server such as display messages, user configuration changes, and remote "Play On"
+ * requests. Also reports this device's capabilities to the server.
  */
 @ActivityScoped
 class ServerEventListener
@@ -42,16 +44,18 @@ class ServerEventListener
         @param:ActivityContext private val context: Context,
         private val api: ApiClient,
         private val serverRepository: ServerRepository,
+        private val remotePlaybackService: RemotePlaybackService,
     ) : DefaultLifecycleObserver {
         private val activity = (context as AppCompatActivity)
 
         private var listenJob: Job? = null
+        private var capabilitiesJob: Job? = null
 
         init {
             activity.lifecycle.addObserver(this)
             serverRepository.current.collectLatestIn(activity.lifecycleScope) {
                 Timber.d("New user/server: %s", it)
-                listenJob?.cancel()
+                cancelJobs()
                 if (it != null) {
                     init(it.server, it.user)
                 }
@@ -63,18 +67,32 @@ class ServerEventListener
             user: JellyfinUser?,
         ) {
             if (server != null && user != null && api.baseUrl != null && api.accessToken != null) {
-                (context as AppCompatActivity).lifecycleScope.launchIO {
-                    api.sessionApi.postCapabilities(
-                        playableMediaTypes = listOf(MediaType.VIDEO),
-                        supportedCommands =
-                            listOf(
-                                GeneralCommandType.DISPLAY_MESSAGE,
-                                GeneralCommandType.SEND_STRING,
-                            ),
-                        supportsMediaControl = true,
-                    )
-                    subscribeToWebSocket()
-                }
+                capabilitiesJob?.cancel()
+                capabilitiesJob =
+                    activity.lifecycleScope.launchIO {
+                        var subscribed = false
+                        // Post capabilities now and again whenever the user toggles remote control
+                        remotePlaybackService.enabledFlow.collect { enabled ->
+                            postCapabilities(enabled)
+                            if (!subscribed) {
+                                subscribed = true
+                                subscribeToWebSocket()
+                            }
+                        }
+                    }
+            }
+        }
+
+        private suspend fun postCapabilities(remoteControlEnabled: Boolean) {
+            try {
+                api.sessionApi.postFullCapabilities(
+                    data = remotePlaybackService.capabilities(remoteControlEnabled),
+                )
+                Timber.v("Posted capabilities, remoteControlEnabled=%s", remoteControlEnabled)
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                Timber.w(ex, "Error posting capabilities")
             }
         }
 
@@ -109,15 +127,47 @@ class ServerEventListener
                                             }
                                         }
 
+                                        null -> {
+                                            Timber.v("Ignoring GeneralCommandMessage without data")
+                                        }
+
                                         else -> {
-                                            Timber.v(
-                                                "Ignoring GeneralCommandMessage: %s",
-                                                message.data?.name,
-                                            )
+                                            val command = message.data!!
+                                            try {
+                                                if (!remotePlaybackService.onGeneralCommand(command)) {
+                                                    Timber.v("Ignoring GeneralCommandMessage: %s", command.name)
+                                                }
+                                            } catch (ex: CancellationException) {
+                                                throw ex
+                                            } catch (ex: Exception) {
+                                                Timber.e(ex, "Error handling remote command %s", command.name)
+                                            }
                                         }
                                     }
                                 }.catch { ex ->
                                     Timber.e(ex, "Error in general message websocket subscription")
+                                }.launchIn(this@coroutineScope)
+
+                            api.webSocket
+                                .subscribe<PlayMessage>()
+                                .onEach { message ->
+                                    Timber.v("Got PlayMessage: %s", message.data)
+                                    message.data?.let { request ->
+                                        try {
+                                            remotePlaybackService.onPlayRequest(request)
+                                        } catch (ex: CancellationException) {
+                                            throw ex
+                                        } catch (ex: Exception) {
+                                            Timber.e(ex, "Error handling remote play request")
+                                            showToast(
+                                                context,
+                                                context.getString(R.string.remote_play_failed),
+                                                Toast.LENGTH_LONG,
+                                            )
+                                        }
+                                    }
+                                }.catch { ex ->
+                                    Timber.e(ex, "Error in play websocket subscription")
                                 }.launchIn(this@coroutineScope)
 
                             api.webSocket
@@ -140,17 +190,24 @@ class ServerEventListener
                 }
         }
 
+        private fun cancelJobs() {
+            listenJob?.cancel()
+            listenJob = null
+            capabilitiesJob?.cancel()
+            capabilitiesJob = null
+        }
+
         override fun onResume(owner: LifecycleOwner) {
             serverRepository.current.value?.let { init(it.server, it.user) }
         }
 
         override fun onPause(owner: LifecycleOwner) {
             Timber.v("Cancelling WebSocket")
-            listenJob?.cancel()
+            cancelJobs()
         }
 
         override fun onStop(owner: LifecycleOwner) {
             Timber.v("Cancelling WebSocket")
-            listenJob?.cancel()
+            cancelJobs()
         }
     }

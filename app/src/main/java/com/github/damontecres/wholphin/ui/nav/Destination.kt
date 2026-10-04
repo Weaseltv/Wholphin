@@ -84,6 +84,16 @@ sealed class Destination(
         val itemId: UUID,
     ) : Destination()
 
+    /**
+     * Play a single item (and whatever contextual queue follows it, eg the rest of a season)
+     *
+     * @param mediaSourceId a specific media source (version) to play, or null for the default choice
+     * @param audioStreamIndex a specific audio stream index to use, or null for the default choice
+     * @param subtitleStreamIndex a specific subtitle stream index to use, -1 for none, or null for the default choice
+     * @param itemIds an explicit, ordered queue of items to play instead of a contextual one (eg from a remote "Play On"
+     * request); when non-empty, [itemId] is the item at [startIndex]
+     * @param startIndex the index in [itemIds] to start playing from
+     */
     @Serializable
     data class Playback(
         val itemId: UUID,
@@ -91,8 +101,18 @@ sealed class Destination(
         val forceTranscoding: Boolean = false,
         val backend: PlayerBackend? = null,
         val shuffle: Boolean = false,
+        val mediaSourceId: String? = null,
+        val audioStreamIndex: Int? = null,
+        val subtitleStreamIndex: Int? = null,
+        val itemIds: List<UUID> = emptyList(),
+        val startIndex: Int = 0,
     ) : Destination(true) {
         constructor(item: BaseItem) : this(item.id, item.resumeMs)
+
+        override fun toString(): String =
+            "Playback(itemId=$itemId, positionMs=$positionMs, forceTranscoding=$forceTranscoding, backend=$backend, " +
+                "shuffle=$shuffle, mediaSourceId=$mediaSourceId, audioStreamIndex=$audioStreamIndex, " +
+                "subtitleStreamIndex=$subtitleStreamIndex, queueSize=${itemIds.size}, startIndex=$startIndex)"
     }
 
     @Serializable

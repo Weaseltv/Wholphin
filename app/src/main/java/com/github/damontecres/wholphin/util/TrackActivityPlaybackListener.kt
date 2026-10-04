@@ -3,6 +3,7 @@ package com.github.damontecres.wholphin.util
 import androidx.annotation.OptIn
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import com.github.damontecres.wholphin.services.VolumeState
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.playback.CurrentPlayback
 import kotlinx.coroutines.CoroutineScope
@@ -32,6 +33,7 @@ class TrackActivityPlaybackListener(
     private val api: ApiClient,
     private val player: Player,
     private val getState: () -> PlaybackItemState?,
+    private val getVolume: suspend () -> VolumeState? = { null },
 ) : Player.Listener {
     private val coroutineScope = CoroutineScope(WholphinDispatchers.Main)
     private val task: TimerTask =
@@ -52,6 +54,7 @@ class TrackActivityPlaybackListener(
         launch("reportPlaybackStart") {
             getState.invoke()?.let { state ->
                 Timber.v("reportPlaybackStart for ${state.itemId}")
+                val volume = volumeOrNull()
                 api.playStateApi.reportPlaybackStart(
                     PlaybackStartInfo(
                         canSeek = true,
@@ -60,7 +63,8 @@ class TrackActivityPlaybackListener(
                         playMethod = state.playMethod,
                         repeatMode = RepeatMode.REPEAT_NONE,
                         playbackOrder = PlaybackOrder.DEFAULT,
-                        isMuted = false,
+                        isMuted = volume?.isMuted ?: false,
+                        volumeLevel = volume?.volumeLevel,
                         audioStreamIndex = state.audioStreamIndex,
                         subtitleStreamIndex = state.subtitleStreamIndex,
                         playSessionId = state.playSessionId,
@@ -124,6 +128,7 @@ class TrackActivityPlaybackListener(
                     }
                 if (calcPosition > 0) {
                     val isPaused = withContext(WholphinDispatchers.Main) { !player.isPlaying }
+                    val volume = volumeOrNull()
                     Timber.v("saveActivity: itemId=${state.itemId}, pos=$calcPosition")
                     api.playStateApi.reportPlaybackProgress(
                         PlaybackProgressInfo(
@@ -131,7 +136,8 @@ class TrackActivityPlaybackListener(
                             positionTicks = calcPosition.milliseconds.inWholeTicks,
                             canSeek = true,
                             isPaused = isPaused,
-                            isMuted = false,
+                            isMuted = volume?.isMuted ?: false,
+                            volumeLevel = volume?.volumeLevel,
                             playMethod = state.playMethod,
                             repeatMode = RepeatMode.REPEAT_NONE,
                             playbackOrder = PlaybackOrder.DEFAULT,
@@ -145,6 +151,14 @@ class TrackActivityPlaybackListener(
             }
         }
     }
+
+    private suspend fun volumeOrNull(): VolumeState? =
+        try {
+            getVolume.invoke()
+        } catch (ex: Exception) {
+            Timber.w(ex, "Could not read volume")
+            null
+        }
 
     private fun launch(
         name: String,

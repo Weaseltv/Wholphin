@@ -88,6 +88,8 @@ message PlaybackPreferences {
   string external_player = 24;
   bool cinema_mode = 25;
   DpadSeekMode dpad_seek_mode = 26;
+  // Whether other devices may start & control playback on this one ("Play On")
+  bool remote_control_enabled = 27;
 }
 
 enum DpadSeekMode {

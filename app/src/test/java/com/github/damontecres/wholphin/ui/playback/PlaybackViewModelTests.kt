@@ -7,16 +7,19 @@ import com.github.damontecres.wholphin.data.ItemPlaybackDao
 import com.github.damontecres.wholphin.data.ItemPlaybackRepository
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
+import com.github.damontecres.wholphin.data.model.ItemPlayback
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.Playlist
 import com.github.damontecres.wholphin.data.model.PlaylistItem
+import com.github.damontecres.wholphin.data.model.TrackIndex
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.PlaybackPreferences
 import com.github.damontecres.wholphin.preferences.ShowNextUpWhen
 import com.github.damontecres.wholphin.preferences.SkipSegmentBehavior
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.preferences.updatePlaybackPreferences
+import com.github.damontecres.wholphin.services.ActivePlaybackRegistry
 import com.github.damontecres.wholphin.services.DatePlayedService
 import com.github.damontecres.wholphin.services.DeviceProfileService
 import com.github.damontecres.wholphin.services.ImageUrlService
@@ -30,6 +33,7 @@ import com.github.damontecres.wholphin.services.RefreshRateService
 import com.github.damontecres.wholphin.services.ScreensaverService
 import com.github.damontecres.wholphin.services.StreamChoiceService
 import com.github.damontecres.wholphin.services.UserPreferencesService
+import com.github.damontecres.wholphin.services.VolumeService
 import com.github.damontecres.wholphin.test.TestTracks
 import com.github.damontecres.wholphin.test.movie
 import com.github.damontecres.wholphin.test.playlist
@@ -103,6 +107,8 @@ class PlaybackViewModelTests {
     private val mockImageUrlService = mockk<ImageUrlService>(relaxed = true)
     private val mockScreensaverService = mockk<ScreensaverService>(relaxed = true)
     private val mockMusicService = mockk<MusicService>(relaxed = true)
+    private val activePlaybackRegistry = ActivePlaybackRegistry()
+    private val mockVolumeService = mockk<VolumeService>(relaxed = true)
 
     private val mockUserLibraryApi = mockk<UserLibraryApi>()
     private val mockMediaInfoApi = mockk<MediaInfoApi>()
@@ -129,6 +135,8 @@ class PlaybackViewModelTests {
             imageUrlService = mockImageUrlService,
             screensaverService = mockScreensaverService,
             musicService = mockMusicService,
+            activePlaybackRegistry = activePlaybackRegistry,
+            volumeService = mockVolumeService,
             destination = destination,
         )
 
@@ -347,6 +355,98 @@ class PlaybackViewModelTests {
                 Assert.assertEquals(LoadingState.Success, state.loading)
                 Assert.assertEquals(mediaSource.id, state.currentMediaInfo.sourceId)
             }
+        }
+
+    @Test
+    fun `Play explicit queue from a remote request`() =
+        runTest(testDispatcher) {
+            setupPreferences {
+                cinemaMode = false
+            }
+            coEvery { mockUserLibraryApi.getItem(movie2.id) } returns successResponse(movie2)
+            coEvery { mockPlaylistCreator.createFromIds(listOf(movie2.id, movie3.id)) } returns
+                PlaylistCreationResult.Success(Playlist.fromMedia(listOf(BaseItem(movie2), BaseItem(movie3))))
+
+            val viewModel =
+                createViewModel(
+                    Destination.Playback(
+                        itemId = movie2.id,
+                        positionMs = 0L,
+                        itemIds = listOf(movie.id, movie2.id, movie3.id),
+                        startIndex = 1,
+                    ),
+                )
+
+            val mediaItem = slot<MediaItem>()
+            verify(exactly = 1) { mockPlayer.setMediaItem(capture(mediaItem), any<Long>()) }
+            Assert.assertEquals(movie2.id.toString(), mediaItem.captured.mediaId)
+            viewModel.state.value.also { state ->
+                Assert.assertEquals(LoadingState.Success, state.loading)
+                Assert.assertEquals(listOf(movie2.id, movie3.id), state.playlist.items.map { it.id })
+                Assert.assertEquals(0, state.playlistIndex)
+            }
+            // The contextual queue must not be appended to an explicit one
+            coVerify(exactly = 0) {
+                mockPlaylistCreator.createFrom(any(), any(), any(), any(), any(), any())
+            }
+        }
+
+    @Test
+    fun `Requested streams take precedence over saved choices`() =
+        runTest(testDispatcher) {
+            setupPreferences {
+                cinemaMode = false
+            }
+            coEvery { mockUserLibraryApi.getItem(movie.id) } returns successResponse(movie)
+            val saved = ItemPlayback(userId = user.rowId, itemId = movie.id, sourceId = UUID.randomUUID(), audioIndex = 9)
+            coEvery { mockItemPlaybackDao.getItem(user, movie.id) } returns saved
+
+            createViewModel(
+                Destination.Playback(
+                    itemId = movie.id,
+                    positionMs = 0L,
+                    audioStreamIndex = 2,
+                    subtitleStreamIndex = -1,
+                ),
+            )
+
+            val itemPlayback = slot<ItemPlayback?>()
+            coVerify(exactly = 1) { mockStreamChoiceService.chooseSource(any(), captureNullable(itemPlayback)) }
+            val captured = itemPlayback.captured
+            Assert.assertNotNull(captured)
+            Assert.assertEquals(2, captured!!.audioIndex)
+            Assert.assertEquals(TrackIndex.DISABLED, captured.subtitleIndex)
+            Assert.assertNull(captured.sourceId)
+        }
+
+    @Test
+    fun `Remote enqueue inserts after the current item or at the end`() =
+        runTest(testDispatcher) {
+            setupForPlaylist()
+            val viewModel = createViewModel(Destination.PlaybackList(playlist.id))
+            val handler = activePlaybackRegistry.active.value
+            Assert.assertNotNull("Playback should register for remote control", handler)
+
+            val next = movie(name = "Play next")
+            val last = movie(name = "Play last")
+            coEvery { mockPlaylistCreator.createFromIds(listOf(next.id)) } returns
+                PlaylistCreationResult.Success(Playlist.fromMedia(listOf(BaseItem(next))))
+            coEvery { mockPlaylistCreator.createFromIds(listOf(last.id)) } returns
+                PlaylistCreationResult.Success(Playlist.fromMedia(listOf(BaseItem(last))))
+
+            handler!!.enqueue(listOf(next.id), playNext = true)
+            handler.enqueue(listOf(last.id), playNext = false)
+            testScheduler.advanceUntilIdle()
+
+            Assert.assertEquals(
+                listOf(movie.id, next.id, movie2.id, movie3.id, last.id),
+                viewModel.state.value.playlist.items
+                    .map { it.id },
+            )
+            Assert.assertEquals(0, viewModel.state.value.playlistIndex)
+
+            viewModel.release()
+            Assert.assertNull("Releasing should unregister", activePlaybackRegistry.active.value)
         }
 
     private fun setupForPlaylist() {
