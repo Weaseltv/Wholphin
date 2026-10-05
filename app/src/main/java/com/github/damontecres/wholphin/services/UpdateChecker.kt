@@ -172,8 +172,52 @@ class UpdateChecker
                         .url(updateUrl)
                         .get()
                         .build()
-                getRelease(request)
+                getRelease(request) ?: getLatestReleaseWithoutApi()
             }
+
+        /**
+         * WeaselFin: GitHub's unauthenticated API allows 60 calls an hour per public IP, shared by
+         * every device on a home connection. On 2026-10-04 three 403s in a row left Settings saying
+         * "No update available" while v1.2.11 was the Latest release. The release pages are not
+         * rate limited: `releases/latest` redirects to `releases/tag/vX.Y.Z`, and
+         * `releases/download/vX.Y.Z/<asset>` serves the APK. This offers the update from those,
+         * without release notes, whenever the API call fails.
+         */
+        internal fun getLatestReleaseWithoutApi(): Release? {
+            if (BuildConfig.DEBUG) return null
+            val repo = BuildConfig.UPDATE_REPO
+            val client =
+                okHttpClient
+                    .newBuilder()
+                    .followRedirects(false)
+                    .followSslRedirects(false)
+                    .build()
+            val request =
+                Request
+                    .Builder()
+                    .url("https://github.com/$repo/releases/latest")
+                    .head()
+                    .build()
+            return try {
+                client.newCall(request).execute().use { response ->
+                    val location = response.header("Location")
+                    val tag = parseLatestTag(location)
+                    val version = Version.tryFromString(tag)
+                    if (tag == null || version == null) {
+                        Timber.w("Fallback update check failed ${response.code}: location=$location")
+                        null
+                    } else {
+                        val asset = fallbackAssetName(Build.SUPPORTED_ABIS.toList())
+                        val downloadUrl = "https://github.com/$repo/releases/download/$tag/$asset"
+                        Timber.i("Fallback update check found $version at $downloadUrl")
+                        Release(version, downloadUrl, null, null, emptyList())
+                    }
+                }
+            } catch (ex: Exception) {
+                Timber.w(ex, "Fallback update check failed")
+                null
+            }
+        }
 
         private fun getRelease(request: Request): Release? {
             return okHttpClient.newCall(request).execute().use {
@@ -468,6 +512,33 @@ suspend fun copyTo(
         }
         return@withContext bytesCopied
     }
+
+/**
+ * The tag a `releases/latest` redirect points at, eg `v1.2.11` from
+ * `https://github.com/Weaseltv/Wholphin/releases/tag/v1.2.11`
+ */
+internal fun parseLatestTag(location: String?): String? =
+    location
+        ?.substringAfter("/releases/tag/", "")
+        ?.substringBefore('?')
+        ?.substringBefore('#')
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+
+/**
+ * The release asset to download when the API is unavailable: the ABI split when one is published, else the
+ * universal APK
+ */
+internal fun fallbackAssetName(supportedABIs: List<String>): String {
+    val abi = supportedABIs.firstOrNull()
+    return if (abi in PUBLISHED_ABI_SPLITS) {
+        "${UpdateChecker.ASSET_NAME}-release-$abi.apk"
+    } else {
+        "${UpdateChecker.ASSET_NAME}-release.apk"
+    }
+}
+
+private val PUBLISHED_ABI_SPLITS = setOf("arm64-v8a", "armeabi-v7a", "x86_64")
 
 fun getDownloadUrl(
     assets: JsonArray,
