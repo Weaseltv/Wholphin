@@ -23,8 +23,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.datastore.core.DataStore
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.navigation3.runtime.NavBackStack
 import androidx.tv.material3.ExperimentalTvMaterial3Api
@@ -72,12 +74,14 @@ import com.github.damontecres.wholphin.util.requestSerializersModule
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -87,6 +91,7 @@ import okhttp3.OkHttpClient
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 
 @AndroidEntryPoint
@@ -147,6 +152,8 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var screensaverService: ScreensaverService
+
+    private var updateCheckJob: Job? = null
 
     @Inject
     lateinit var intentService: IntentService
@@ -337,20 +344,34 @@ class MainActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         Timber.d("onStart")
+        startPeriodicUpdateCheck()
+    }
 
-        lifecycleScope.launchDefault {
-            val appPreferences = userPreferencesDataStore.data.first()
-            if (UpdateChecker.ACTIVE && appPreferences.autoCheckForUpdates) {
-                try {
-                    updateChecker.maybePromptForUpdate(appPreferences.updateUrl)
-                } catch (ex: Exception) {
-                    Timber.w(
-                        ex,
-                        "Exception during update check",
-                    )
+    /**
+     * WeaselFin: check for an update when the app comes to the foreground and then every
+     * [UPDATE_CHECK_INTERVAL] while it stays there. TV users rarely fully close the app, so a
+     * check only at start could miss a release for days. The loop stops while the activity is
+     * stopped and restarts on the next start; the popup's own 12-hour rule still decides
+     * whether the same release is offered again.
+     */
+    private fun startPeriodicUpdateCheck() {
+        updateCheckJob?.cancel()
+        updateCheckJob =
+            lifecycleScope.launchDefault {
+                repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    while (isActive) {
+                        val appPreferences = userPreferencesDataStore.data.first()
+                        if (UpdateChecker.ACTIVE && appPreferences.autoCheckForUpdates) {
+                            try {
+                                updateChecker.maybePromptForUpdate(appPreferences.updateUrl)
+                            } catch (ex: Exception) {
+                                Timber.w(ex, "Exception during update check")
+                            }
+                        }
+                        delay(UPDATE_CHECK_INTERVAL)
+                    }
                 }
             }
-        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -408,6 +429,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val KEY_BACK_STACK = "backStack"
+        private val UPDATE_CHECK_INTERVAL = 1.hours
         private const val KEY_EXTERNAL_PLAYER = "extPlayer"
 
         lateinit var instance: MainActivity
