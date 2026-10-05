@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.preferences
 
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.JellyfinUserPreferences
 import com.github.damontecres.wholphin.ui.preferences.PreferenceGroup
@@ -17,6 +18,9 @@ object UserProfileSettings {
      * Special value that means the user has no preferred language
      */
     const val PREFER_ANY_LANGUAGE = "_any-language"
+
+    val defaultSubtitleMode: SubtitleModePreference
+        get() = SubtitleModePreference.valueOf(BuildConfig.DEFAULT_SUBTITLE_MODE)
 
     val PreferredAudioLang =
         AppClickablePreference<JellyfinUserPreferences>(
@@ -36,7 +40,7 @@ object UserProfileSettings {
     val SubtitleModePref =
         AppChoicePreference<JellyfinUserPreferences, SubtitleModePreference>(
             title = R.string.subtitle_mode,
-            defaultValue = SubtitleModePreference.USE_USER_PROFILE,
+            defaultValue = defaultSubtitleMode,
             getter = { it.subtitleMode },
             setter = { prefs, value ->
                 prefs.copy(subtitleMode = value)

@@ -2,13 +2,11 @@ package com.github.damontecres.wholphin.ui.theme
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -16,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
@@ -24,7 +23,6 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 
 /**
@@ -123,30 +121,30 @@ fun NeonBrandRow(
     }
 }
 
-/**
- * The launch / loading block (`03-screens.md` board 18): mascot 96 with the volt glow,
- * wordmark, a 2dp volt progress rule and the "OPENING WEASELPLEX" eyebrow.
- */
+/** Static artwork fills the loading area; each appearance advances through the bundled set. */
 @Composable
-fun NeonLoadingMark(
-    modifier: Modifier = Modifier,
-    caption: String = "Opening WeaselPlex",
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = modifier,
+fun NeonLoadingMark(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val artworks =
+        remember(context) {
+            LoadingArtworkRotation.resourceNames.mapNotNull { name ->
+                context.resources.getIdentifier(name, "drawable", context.packageName).takeIf { it != 0 }
+            }
+        }
+    val artwork = remember(context, artworks) { LoadingArtworkRotation.next(context, artworks) }
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
     ) {
-        NeonMascot(size = NeonBoard.Size.ScreensaverMark, glow = true)
-        NeonWordmark(size = 36.sp)
-        androidx.compose.foundation.layout.Box(
-            modifier =
-                Modifier
-                    .width(240.dp)
-                    .height(2.dp)
-                    .padding(top = 0.dp)
-                    .neonRuleBelow(NeonBoard.Volt),
-        )
-        NeonEyebrow(text = caption, modifier = Modifier.fillMaxWidth(), accent = NeonBoard.Mid)
+        if (artwork != null) {
+            Image(
+                painter = painterResource(artwork),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize(),
+            )
+        } else {
+            NeonMascot(size = NeonBoard.Size.ScreensaverMark, glow = true)
+        }
     }
 }

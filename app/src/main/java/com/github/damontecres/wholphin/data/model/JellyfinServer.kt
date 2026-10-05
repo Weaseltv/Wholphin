@@ -99,5 +99,5 @@ data class JellyfinUserPreferences(
     @ColumnInfo(defaultValue = "")
     val preferredSubtitleLanguage: String = UserProfileSettings.USE_USER_PROFILE,
     @ColumnInfo(defaultValue = "USE_USER_PROFILE")
-    val subtitleMode: SubtitleModePreference = SubtitleModePreference.USE_USER_PROFILE,
+    val subtitleMode: SubtitleModePreference = UserProfileSettings.defaultSubtitleMode,
 )
