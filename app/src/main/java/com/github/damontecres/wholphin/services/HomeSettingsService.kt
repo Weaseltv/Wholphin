@@ -2,6 +2,7 @@ package com.github.damontecres.wholphin.services
 
 import android.content.Context
 import androidx.annotation.StringRes
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
@@ -250,7 +251,13 @@ class HomeSettingsService
                     createDefault(userId)
                 }
 
-            currentSettings.update { resolvedSettings }
+            currentSettings.update {
+                if (BuildConfig.FLAVOR == "weaselfin") {
+                    StreamingCollections.withStreamingRow(resolvedSettings)
+                } else {
+                    resolvedSettings
+                }
+            }
         }
 
         /**
@@ -262,7 +269,13 @@ class HomeSettingsService
                     resolve(index, config)
                 }
             val resolvedSettings = HomePageResolvedSettings(resolvedRows)
-            currentSettings.update { resolvedSettings }
+            currentSettings.update {
+                if (BuildConfig.FLAVOR == "weaselfin") {
+                    StreamingCollections.withStreamingRow(resolvedSettings)
+                } else {
+                    resolvedSettings
+                }
+            }
         }
 
         /**
@@ -930,6 +943,7 @@ class HomeSettingsService
                 }
 
                 is HomeRowConfig.GetItems -> {
+                    val streaming = BuildConfig.FLAVOR == "weaselfin" && StreamingCollections.isStreamingRow(row)
                     val request =
                         row.getItems.let {
                             if (it.limit == null) {
@@ -943,28 +957,40 @@ class HomeSettingsService
                                 )
                             }
                         }
-                    if (usePaging) {
-                        ApiRequestPager(
-                            api,
-                            request,
-                            GetItemsRequestHandler,
-                            scope,
-                            useSeriesForPrimary = row.viewOptions.useSeries,
-                        ).init()
-                    } else {
-                        GetItemsRequestHandler
-                            .execute(api, request)
-                            .content.items
-                            .map { BaseItem(it, row.viewOptions.useSeries) }
-                    }.let {
-                        Success(
-                            StringStringProvider(row.name),
-                            it,
-                            row.viewOptions,
-                            rowType = row,
-                            showViewMore = it.size >= limit,
-                        )
-                    }
+                    val items =
+                        if (streaming) {
+                            StreamingCollections.fetch(api, userDto.id).map {
+                                // Collection unwatched counts include episodes; these tiles represent services.
+                                BaseItem(
+                                    it.copy(
+                                        userData = it.userData?.copy(unplayedItemCount = null),
+                                        officialRating = null,
+                                        overview = it.overview?.replace(" in WeaselPlex", "", ignoreCase = true),
+                                    ),
+                                    false,
+                                )
+                            }
+                        } else if (usePaging) {
+                            ApiRequestPager(
+                                api,
+                                request,
+                                GetItemsRequestHandler,
+                                scope,
+                                useSeriesForPrimary = row.viewOptions.useSeries,
+                            ).init()
+                        } else {
+                            GetItemsRequestHandler
+                                .execute(api, request)
+                                .content.items
+                                .map { BaseItem(it, row.viewOptions.useSeries) }
+                        }
+                    Success(
+                        StringStringProvider(row.name),
+                        items,
+                        row.viewOptions,
+                        rowType = row,
+                        showViewMore = !streaming && items.size >= limit,
+                    )
                 }
 
                 is HomeRowConfig.Favorite -> {

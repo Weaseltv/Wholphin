@@ -157,18 +157,14 @@ fun CollectionDetails(
         }
     val onClickViewOptions = remember { { showViewOptionsDialog = true } }
 
-    when (val s = state.loadingState) {
-        is LoadingState.Error -> {
-            ErrorMessage(s, modifier)
+    val loadingState = state.loadingState
+    when {
+        loadingState is LoadingState.Error -> {
+            ErrorMessage(loadingState, modifier)
         }
 
-        LoadingState.Loading,
-        LoadingState.Pending,
-        -> {
-            LoadingPage(modifier)
-        }
-
-        LoadingState.Success -> {
+        // Keep Streaming controls composed during reloads so D-pad focus stays on the chosen filter/sort.
+        loadingState == LoadingState.Success || state.isStreaming -> {
             CollectionDetailsContent(
                 preferences = preferences,
                 state = state,
@@ -231,6 +227,10 @@ fun CollectionDetails(
                         )
                 },
             )
+        }
+
+        else -> {
+            LoadingPage(modifier)
         }
     }
     if (showViewOptionsDialog) {
@@ -365,7 +365,7 @@ fun CollectionDetailsContent(
                                     animatedVisibilityScope = this@AnimatedContent,
                                     enter = slideInVertically { -it / 2 } + fadeIn(),
                                     exit = slideOutVertically { -it / 2 } + fadeOut(),
-                                ).padding(bottom = 16.dp)
+                                ).padding(bottom = if (state.isStreaming) 8.dp else 16.dp)
                                 .fillMaxWidth()
                                 .onFocusChanged {
                                     if (it.hasFocus) {
@@ -375,6 +375,7 @@ fun CollectionDetailsContent(
                     ) {
                         CollectionDetailsHeader(
                             collection = state.collection!!,
+                            streaming = state.isStreaming,
                             showLogo = preferences.appPreferences.interfacePreferences.showLogos,
                             logoImageUrl = state.logoImageUrl,
                             overviewOnClick = overviewOnClick,
@@ -382,9 +383,9 @@ fun CollectionDetailsContent(
                             modifier =
                                 Modifier
                                     .padding(
-                                        top = HeaderUtils.topPadding,
-                                        bottom = HeaderUtils.bottomPadding,
-                                    ).height(HeaderUtils.height),
+                                        top = if (state.isStreaming) 27.dp else HeaderUtils.topPadding,
+                                        bottom = if (state.isStreaming) 12.dp else HeaderUtils.bottomPadding,
+                                    ).height(if (state.isStreaming) 150.dp else HeaderUtils.height),
                         )
                         CollectionButtons(
                             state = state,
@@ -416,7 +417,9 @@ fun CollectionDetailsContent(
                         up = focusRequester
                     }.focusRequester(contentFocusRequester),
         ) {
-            if (state.viewOptions.separateTypes) {
+            if (state.isStreaming && state.loadingState != LoadingState.Success) {
+                LoadingPage(Modifier.fillMaxSize(), focusEnabled = false)
+            } else if (state.viewOptions.separateTypes) {
                 CollectionRows(
                     preferences = preferences,
                     state = state,

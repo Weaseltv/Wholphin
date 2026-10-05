@@ -271,17 +271,19 @@ fun neonAccentFor(item: BaseItem?): Color = if (item == null) LocalNeonAccent.cu
 // Cards
 // ---------------------------------------------------------------------------------------
 
-/** Rest: no border. Focused: 1dp accent. */
+/** Optional outline at rest; a 1dp accent when focused. */
 @Composable
 fun neonCardBorder(
     accent: Color = LocalNeonAccent.current,
     shape: Shape = RectangleShape,
     fallback: CardBorder? = null,
+    restWidth: Dp = 0.dp,
+    restColor: Color = NeonBoard.Line2,
 ): CardBorder {
     if (!isWeaselTv()) return fallback ?: CardDefaults.border()
     val focused = Border(border = BorderStroke(1.dp, accent), shape = shape)
     return CardDefaults.border(
-        border = Border.None,
+        border = if (restWidth > 0.dp) Border(BorderStroke(restWidth, restColor), shape = shape) else Border.None,
         focusedBorder = focused,
         pressedBorder = focused,
     )

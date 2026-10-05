@@ -33,6 +33,7 @@ fun CollectionDetailsHeader(
     overviewOnClick: () -> Unit,
     bringIntoViewRequester: BringIntoViewRequester,
     modifier: Modifier = Modifier,
+    streaming: Boolean = false,
 ) {
     val dto = collection.data
     val context = LocalContext.current
@@ -56,7 +57,7 @@ fun CollectionDetailsHeader(
             modifier = Modifier.fillMaxWidth(.60f),
         ) {
             QuickDetails(
-                collection.ui.quickDetails,
+                if (streaming) collection.ui.quickDetails.copy(officialRating = null) else collection.ui.quickDetails,
                 collection.timeRemainingOrRuntime,
                 Modifier.padding(start = HeaderUtils.startPadding),
             )
@@ -76,8 +77,8 @@ fun CollectionDetailsHeader(
             // Description
             dto.overview?.let { overview ->
                 OverviewText(
-                    overview = overview,
-                    maxLines = 3,
+                    overview = if (streaming) overview.replace(" in WeaselPlex", "", ignoreCase = true) else overview,
+                    maxLines = if (streaming) 2 else 3,
                     onClick = overviewOnClick,
                     textBoxHeight = Dp.Unspecified,
                     modifier =
