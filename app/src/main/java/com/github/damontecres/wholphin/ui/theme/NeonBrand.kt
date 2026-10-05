@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.ui.theme
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -121,29 +123,46 @@ fun NeonBrandRow(
     }
 }
 
-/** Static artwork fills the loading area; each appearance advances through the bundled set. */
+/** Resolve only the artwork bundled by this flavor, without advancing the loading rotation. */
+@Composable
+internal fun rememberLoadingArtworks(): List<Int> {
+    val context = LocalContext.current
+    return remember(context) {
+        LoadingArtworkRotation.resourceNames.mapNotNull { name ->
+            context.resources.getIdentifier(name, "drawable", context.packageName).takeIf { it != 0 }
+        }
+    }
+}
+
+/** Keep the whole illustration inside a centered 90% area, including in narrow loading panels. */
+@Composable
+internal fun NeonLoadingArtwork(
+    painter: Painter,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier.fillMaxSize().background(Color.Black),
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            painter = painter,
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxSize(.9f),
+        )
+    }
+}
+
+/** Each appearance advances through the bundled artwork; recomposition keeps the same image. */
 @Composable
 fun NeonLoadingMark(modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val artworks =
-        remember(context) {
-            LoadingArtworkRotation.resourceNames.mapNotNull { name ->
-                context.resources.getIdentifier(name, "drawable", context.packageName).takeIf { it != 0 }
-            }
-        }
+    val artworks = rememberLoadingArtworks()
     val artwork = remember(context, artworks) { LoadingArtworkRotation.next(context, artworks) }
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (artwork != null) {
-            Image(
-                painter = painterResource(artwork),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.matchParentSize(),
-            )
-        } else {
+    if (artwork != null) {
+        NeonLoadingArtwork(painterResource(artwork), modifier)
+    } else {
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             NeonMascot(size = NeonBoard.Size.ScreensaverMark, glow = true)
         }
     }
