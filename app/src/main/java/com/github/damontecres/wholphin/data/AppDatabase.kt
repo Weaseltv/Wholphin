@@ -19,6 +19,8 @@ import com.github.damontecres.wholphin.data.model.PlaybackLanguageChoice
 import com.github.damontecres.wholphin.data.model.RememberedTab
 import com.github.damontecres.wholphin.data.model.SeerrServer
 import com.github.damontecres.wholphin.data.model.SeerrUser
+import com.github.damontecres.wholphin.preferences.SubtitleModePreference
+import com.github.damontecres.wholphin.preferences.UserProfileSettings
 import com.github.damontecres.wholphin.ui.components.ViewOptions
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -49,7 +51,7 @@ import java.util.UUID
         SeerrUser::class,
         RememberedTab::class,
     ],
-    version = 35,
+    version = 36,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(3, 4),
@@ -160,6 +162,21 @@ class ZonedDateTimeSerializer : KSerializer<ZonedDateTime> {
 }
 
 object Migrations {
+    val Migrate35to36 =
+        object : Migration(35, 36) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                val subtitleMode = UserProfileSettings.defaultSubtitleMode
+                if (subtitleMode != SubtitleModePreference.USE_USER_PROFILE) {
+                    // Runs once on upgrade, so users can still choose the server setting afterward.
+                    // Explicit profile modes and saved episode/series selections are preserved.
+                    db.execSQL(
+                        "UPDATE users SET subtitleMode = ? WHERE subtitleMode = ?",
+                        arrayOf(subtitleMode.name, SubtitleModePreference.USE_USER_PROFILE.name),
+                    )
+                }
+            }
+        }
+
     val Migrate2to3 =
         object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {

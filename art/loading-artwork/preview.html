@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WeaselPlex loading artwork</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #080a0d; color: #f2f5f9; font: 16px system-ui, sans-serif; }
+    header { max-width: 1400px; margin: auto; padding: 24px; }
+    h1 { margin: 0 0 12px; font-size: 24px; }
+    p { color: #aeb6c2; margin: 0 0 16px; }
+    .controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+    button, select { font: inherit; color: inherit; background: #181e25; border: 1px solid #444e5b; border-radius: 6px; padding: 10px 14px; }
+    button { cursor: pointer; }
+    button:focus-visible, select:focus-visible { outline: 2px solid #d4f63f; outline-offset: 3px; }
+    label { display: flex; align-items: center; gap: 8px; }
+    main { max-width: 1400px; margin: 0 auto; padding: 0 24px 24px; }
+    .stage { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: #000; }
+    .stage img { position: absolute; width: 100%; height: 100%; object-fit: cover; }
+    .caption { padding: 12px 0; color: #aeb6c2; }
+    .gallery { display: none; gap: 24px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .gallery figure { margin: 0; }
+    .gallery figcaption { padding-top: 8px; }
+    .show-gallery #single { display: none; }
+    .show-gallery .gallery { display: grid; }
+    .capture header, .capture .caption { display: none; }
+    .capture main { max-width: none; padding: 0; }
+    .capture #single .stage { width: 100vw; height: 100vh; aspect-ratio: auto; }
+    .sheet header, .sheet #single { display: none; }
+    .sheet main { max-width: none; padding: 20px; }
+    .sheet .gallery { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .sheet figcaption { font-size: 18px; }
+    @media (max-width: 700px) { .gallery { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>WeaselPlex loading artwork</h1>
+    <p>All twelve approved scenes fill the loading area as artwork alone.</p>
+    <div class="controls">
+      <button id="previous" aria-label="Previous artwork">←</button>
+      <select id="artwork" aria-label="Artwork"></select>
+      <button id="next" aria-label="Next artwork">→</button>
+      <label><input id="all" type="checkbox"> Show all twelve</label>
+    </div>
+  </header>
+  <main>
+    <section id="single"></section>
+    <section class="gallery" aria-label="All loading artwork"></section>
+  </main>
+  <script>
+    const artworks = [
+      ['cinema', 'Cinema projector'], ['director', 'Movie director'],
+      ['orbit', 'Orbital explorer'], ['television', 'Retro television'],
+      ['rooftop', 'Rainy rooftop'], ['popcorn', 'Movie night'],
+      ['expedition', 'Jungle expedition'], ['dj', 'Weasel DJ'],
+      ['submarine', 'Deep-sea explorer'], ['arcade', 'Arcade night'],
+      ['castle', 'Fantasy castle'], ['tickets', 'Cinema usher']
+    ];
+    const params = new URLSearchParams(location.search);
+    const select = document.querySelector('#artwork');
+    for (const [index, [name, title]] of artworks.entries()) {
+      select.add(new Option(`${index + 1}. ${title}${index >= 6 ? ' · New' : ''}`, name));
+    }
+    select.value = artworks.some(([name]) => name === params.get('art')) ? params.get('art') : 'cinema';
+    function stage(name, title) {
+      return `<div class="stage"><img src="../../app/src/weaselfin/res/drawable-nodpi/weaselplex_loading_${name}.webp" alt="${title}"></div>`;
+    }
+    function show() {
+      const [name, title] = artworks.find(([name]) => name === select.value);
+      const number = artworks.findIndex(([key]) => key === name) + 1;
+      document.querySelector('#single').innerHTML = stage(name, title) + `<div class="caption">${number} / 12 · ${title}</div>`;
+    }
+    const sheet = params.get('sheet');
+    const galleryArtworks = sheet === 'new' ? artworks.slice(6) : sheet === 'original' ? artworks.slice(0, 6) : artworks;
+    document.querySelector('.gallery').innerHTML = galleryArtworks.map(([name, title]) => `<figure>${stage(name, title)}<figcaption>${artworks.findIndex(([key]) => key === name) + 1}. ${title}</figcaption></figure>`).join('');
+    select.addEventListener('change', show);
+    for (const [id, delta] of [['previous', -1], ['next', 1]]) {
+      document.querySelector(`#${id}`).addEventListener('click', () => {
+        select.selectedIndex = (select.selectedIndex + delta + artworks.length) % artworks.length;
+        show();
+      });
+    }
+    document.querySelector('#all').addEventListener('change', event => document.body.classList.toggle('show-gallery', event.target.checked));
+    if (params.has('capture')) document.body.classList.add('capture');
+    if (sheet) document.body.classList.add('sheet');
+    show();
+    window.artworkPreviewReady = (async () => {
+      await document.fonts.ready;
+      await Promise.all([...document.images].map(image => image.decode().catch(() => {})));
+      return true;
+    })();
+  </script>
+</body>
+</html>

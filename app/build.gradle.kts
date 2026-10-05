@@ -149,6 +149,9 @@ configure<ApplicationExtension> {
         // flavors keep PURPLE, so their default is unchanged.
         buildConfigField("String", "DEFAULT_THEME", "\"PURPLE\"")
 
+        // WeaselPlex defaults to forced translations; upstream flavors inherit the server.
+        buildConfigField("String", "DEFAULT_SUBTITLE_MODE", "\"USE_USER_PROFILE\"")
+
         // WeaselFin: base name of the release asset the updater looks for, and of the
         // downloaded APK. Upstream's own name here so every upstream flavor is unchanged.
         buildConfigField("String", "UPDATE_ASSET_NAME", "\"Wholphin\"")
@@ -295,6 +298,7 @@ configure<ApplicationExtension> {
             )
             buildConfigField("String", "QUICK_CONNECT_APPROVE_LABEL", "\"theweasel.tv/plex\"")
             buildConfigField("String", "DEFAULT_THEME", "\"WEASELTV\"")
+            buildConfigField("String", "DEFAULT_SUBTITLE_MODE", "\"ONLY_FORCED\"")
             // 🛑 Deliberately still "WeaselFin" (ruling R5, 2026-08-25). The in-app updater
             // matches the GitHub release asset by FILENAME, so renaming this and the assets
             // together would mean shipping both names in the transition release, as
@@ -350,6 +354,9 @@ configure<ApplicationExtension> {
     sourceSets {
         getByName("main") {
             kotlin.directories += "$buildDir/generated/seerr_api/src/main/kotlin"
+        }
+        getByName("test") {
+            resources.srcDir("schemas")
         }
     }
 
