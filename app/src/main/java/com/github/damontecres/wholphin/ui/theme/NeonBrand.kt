@@ -134,7 +134,7 @@ internal fun rememberLoadingArtworks(): List<Int> {
     }
 }
 
-/** Keep the whole illustration inside a centered 90% area, including in narrow loading panels. */
+/** Keep the whole illustration inside a centered 70% area, including in narrow loading panels. */
 @Composable
 internal fun NeonLoadingArtwork(
     painter: Painter,
@@ -148,7 +148,7 @@ internal fun NeonLoadingArtwork(
             painter = painter,
             contentDescription = null,
             contentScale = ContentScale.Fit,
-            modifier = Modifier.fillMaxSize(.9f),
+            modifier = Modifier.fillMaxSize(.7f),
         )
     }
 }
