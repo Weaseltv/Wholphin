@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.LibraryDisplayInfoDao
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.filter.FilterValueOption
@@ -21,11 +22,13 @@ import com.github.damontecres.wholphin.services.MediaManagementService
 import com.github.damontecres.wholphin.services.MusicService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.ServerReportService
+import com.github.damontecres.wholphin.services.StreamingCollections
 import com.github.damontecres.wholphin.services.ThemeSongPlayer
 import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.deleteItem
 import com.github.damontecres.wholphin.ui.SlimItemFields
 import com.github.damontecres.wholphin.ui.collectLatestIn
+import com.github.damontecres.wholphin.ui.components.ViewOptions
 import com.github.damontecres.wholphin.ui.data.RowColumn
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
 import com.github.damontecres.wholphin.ui.detail.music.addToQueue
@@ -122,7 +125,7 @@ class CollectionViewModel
             viewOptionsFlow.collectLatestIn(viewModelScope) { viewOptions ->
                 Timber.v("Updated viewOptions")
                 _state.update {
-                    it.copy(viewOptions = viewOptions)
+                    it.copy(viewOptions = if (it.isStreaming) StreamingViewOptions else viewOptions)
                 }
             }
             libraryDisplayInfoFlow
@@ -132,7 +135,12 @@ class CollectionViewModel
                     _state.update {
                         it.copy(
                             itemFilter = libraryDisplayInfo.filter,
-                            sortAndDirection = libraryDisplayInfo.sortAndDirection,
+                            sortAndDirection =
+                                if (it.isStreaming && libraryDisplayInfo.sort == ItemSortBy.DEFAULT) {
+                                    StreamingDefaultSort
+                                } else {
+                                    libraryDisplayInfo.sortAndDirection
+                                },
                         )
                     }
                 }
@@ -140,7 +148,7 @@ class CollectionViewModel
                 try {
                     val collection =
                         api.userLibraryApi
-                            .getItem(itemId)
+                            .getItem(itemId = itemId, userId = serverRepository.currentUser?.id)
                             .content
                             .let { BaseItem(it, false) }
                     backdropService.submit(collection)
@@ -151,9 +159,19 @@ class CollectionViewModel
                             null
                         }
                     _state.update {
+                        val streaming =
+                            BuildConfig.FLAVOR == "weaselfin" &&
+                                StreamingCollections.isStreamingCollection(collection.data)
                         it.copy(
                             collection = collection,
                             logoImageUrl = logoImageUrl,
+                            viewOptions = if (streaming) StreamingViewOptions else it.viewOptions,
+                            sortAndDirection =
+                                if (streaming && it.sortAndDirection.sort == ItemSortBy.DEFAULT) {
+                                    StreamingDefaultSort
+                                } else {
+                                    it.sortAndDirection
+                                },
                         )
                     }
                     listenForStateUpdates()
@@ -214,7 +232,7 @@ class CollectionViewModel
                 )
             }
             if (!separateTypes) {
-                val result = fetchItems(sort, filter, typesInCollection)
+                val result = fetchItems(sort, filter, if (state.value.isStreaming) StreamingCollections.types else typesInCollection)
                 _state.update { it.copy(items = result) }
             } else {
                 supervisorScope {
@@ -303,7 +321,19 @@ class CollectionViewModel
                     sortOrder = sort?.let { listOf(sort.direction) },
                     fields = SlimItemFields,
                 ).let {
-                    filter?.applyTo(it, false) ?: it
+                    val filtered = filter?.applyTo(it, false) ?: it
+                    if (state.value.isStreaming) {
+                        filtered.copy(
+                            userId = requireNotNull(serverRepository.currentUser).id,
+                            includeItemTypes =
+                                filter
+                                    ?.includeItemTypes
+                                    ?.filter { it in StreamingCollections.types }
+                                    ?.takeIf { it.isNotEmpty() } ?: StreamingCollections.types,
+                        )
+                    } else {
+                        filtered
+                    }
                 }
             return request
         }
@@ -522,4 +552,15 @@ data class CollectionState(
     val items: List<BaseItem?> = emptyList(),
     val separateItems: Map<BaseItemKind, HomeRowLoadingState> = emptyMap(),
     val logoImageUrl: String? = null,
-)
+) {
+    val isStreaming: Boolean
+        get() = BuildConfig.FLAVOR == "weaselfin" && collection?.data?.let(StreamingCollections::isStreamingCollection) == true
+}
+
+private val StreamingDefaultSort = SortAndDirection(ItemSortBy.PREMIERE_DATE, SortOrder.DESCENDING)
+
+private val StreamingViewOptions =
+    CollectionViewOptions(
+        separateTypes = false,
+        cardViewOptions = ViewOptions(showTitles = true),
+    )

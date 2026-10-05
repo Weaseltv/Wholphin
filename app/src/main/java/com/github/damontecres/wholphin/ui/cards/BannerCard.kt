@@ -42,6 +42,7 @@ import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
+import com.github.damontecres.wholphin.services.StreamingCollections
 import com.github.damontecres.wholphin.ui.AppColors
 import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.Cards
@@ -81,6 +82,11 @@ fun BannerCard(
     accent: Color = neonAccentFor(item),
     useSeriesForPrimary: Boolean = true,
 ) {
+    val outlineMax =
+        isWeaselTv() && item?.data?.let {
+            StreamingCollections.isStreamingCollection(it) &&
+                (it.name.equals("Max", ignoreCase = true) || it.name.equals("HBO Max", ignoreCase = true))
+        } == true
     val imageUrlService = LocalImageUrlService.current
     val density = LocalDensity.current
     val fillHeight =
@@ -125,7 +131,12 @@ fun BannerCard(
             ),
         shape = neonCardShape(),
         scale = neonCardScale(),
-        border = neonCardBorder(accent),
+        border =
+            neonCardBorder(
+                accent = accent,
+                restWidth = if (outlineMax) 1.dp else 0.dp,
+                restColor = NeonBoard.Low,
+            ),
         glow = neonCardGlow(accent),
     ) {
         Box(
