@@ -20,11 +20,13 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.isActive
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.sessionApi
+import org.jellyfin.sdk.api.sockets.SocketApiState
 import org.jellyfin.sdk.api.sockets.subscribe
 import org.jellyfin.sdk.model.api.GeneralCommandMessage
 import org.jellyfin.sdk.model.api.GeneralCommandType
@@ -168,6 +170,18 @@ class ServerEventListener
                                     }
                                 }.catch { ex ->
                                     Timber.e(ex, "Error in play websocket subscription")
+                                }.launchIn(this@coroutineScope)
+
+                            // Jellyfin keeps client capabilities in memory, so after a server restart the
+                            // reconnected socket belongs to a session that no longer supports media control.
+                            // Re-post whenever the socket (re)connects.
+                            api.webSocket.state
+                                .filter { it is SocketApiState.Connected }
+                                .onEach {
+                                    Timber.i("WebSocket connected, re-posting capabilities")
+                                    postCapabilities(remotePlaybackService.isEnabled())
+                                }.catch { ex ->
+                                    Timber.e(ex, "Error observing websocket state")
                                 }.launchIn(this@coroutineScope)
 
                             api.webSocket
