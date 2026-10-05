@@ -37,9 +37,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -84,8 +86,8 @@ import com.github.damontecres.wholphin.ui.setup.UpdateViewModel
 import com.github.damontecres.wholphin.ui.setup.seerr.AddSeerServerDialog
 import com.github.damontecres.wholphin.ui.setup.seerr.SwitchSeerrViewModel
 import com.github.damontecres.wholphin.ui.showToast
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
-import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
 import com.github.damontecres.wholphin.ui.theme.NeonRule
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
@@ -213,6 +215,8 @@ fun PreferencesContent(
             preferenceScreenOption == PreferenceScreenOption.BASIC &&
             preferences.autoCheckForUpdates &&
             updateAvailable
+    val neon = isWeaselTv()
+    val panelAccent = LocalNeonAccent.current
 
     AnimatedVisibility(
         visible = visible,
@@ -224,17 +228,27 @@ fun PreferencesContent(
             focusRequester.tryRequestFocus()
         }
         Column(
-            modifier = Modifier.background(if (isWeaselTv()) NeonBoard.Stage else MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)),
+            modifier =
+                Modifier
+                    .background(if (neon) NeonBoard.Stage else MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp))
+                    .drawWithContent {
+                        drawContent()
+                        if (neon) {
+                            drawRect(
+                                color = panelAccent,
+                                size = Size(NeonBoard.Size.Rule.toPx(), size.height),
+                            )
+                        }
+                    },
         ) {
-            if (isWeaselTv()) {
-                // Neon Board (T8) page head: eyebrow "Settings · user", 40sp title on a volt rule.
-                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-                    NeonEyebrow(text = stringResource(R.string.settings))
+            if (neon) {
+                // Keep the title inset while the rule spans the full panel width.
+                Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
                     Text(
                         text = stringResource(screenTitle).uppercase(),
                         style = NeonType.pageTitle(),
                         color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(top = 2.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp),
                     )
                     NeonRule(modifier = Modifier.padding(top = 6.dp))
                 }
