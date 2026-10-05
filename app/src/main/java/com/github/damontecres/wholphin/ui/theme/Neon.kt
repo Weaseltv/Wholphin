@@ -200,13 +200,19 @@ object RailAccents {
 fun sectionAccent(item: NavDrawerItem): Color =
     when (item) {
         is ServerNavDrawerItem -> {
-            RAIL_ACCENT_BY_NAME[item.name.trim().lowercase()] ?: collectionAccent(item.type)
+            libraryAccent(item.name, item.type)
         }
 
         else -> {
             RAIL_ACCENT_BY_ID[item.id] ?: NeonBoard.Volt
         }
     }
+
+/** Library chrome shares the rail's named-library overrides and collection colours. */
+fun libraryAccent(
+    name: String,
+    type: CollectionType?,
+): Color = RAIL_ACCENT_BY_NAME[name.trim().lowercase()] ?: collectionAccent(type)
 
 /** Section accent for a library by its Jellyfin collection type. */
 fun collectionAccent(type: CollectionType?): Color =

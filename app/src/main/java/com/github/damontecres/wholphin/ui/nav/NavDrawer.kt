@@ -569,8 +569,8 @@ fun NavDrawer(
         Box(
             modifier = Modifier.fillMaxSize(),
         ) {
-            // Drawer content. Neon Board: content starts at x 120 (rail 72 at x 24 plus a
-            // 24dp gutter) and stops 48dp short of the right edge, the overscan safe area.
+            // Drawer content. Home row rules reach the right screen edge; other pages
+            // keep their 8dp inset. The rail and left content gutter stay in place.
             // The page takes the SECTION accent of the rail item it belongs to; details
             // pages override it with their item's type accent.
             val sectionAccent =
@@ -604,11 +604,9 @@ fun NavDrawer(
                                 offset
                             }.then(
                                 if (neon) {
-                                    // Owner (2026-09-17): the rail sits on the screen edge and rows run
-                                    // to the right edge, so no overscan inset on either side.
                                     Modifier.padding(
                                         start = closedDrawerWidth + NeonBoard.Size.OverscanX / 2,
-                                        end = 8.dp,
+                                        end = if (destination is Destination.Home) 0.dp else 8.dp,
                                     )
                                 } else {
                                     Modifier.padding(start = closedDrawerWidth + 8.dp, end = 16.dp)

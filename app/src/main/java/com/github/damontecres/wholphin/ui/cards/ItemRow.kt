@@ -50,6 +50,7 @@ fun <T> ItemRow(
     modifier: Modifier = Modifier,
     horizontalPadding: Dp = 16.dp,
     showViewMore: Boolean = false,
+    titleAccent: Color = LocalNeonAccent.current,
     viewMoreCardContent: @Composable (Modifier) -> Unit = {},
 ) {
     val state = rememberLazyListState()
@@ -69,7 +70,7 @@ fun <T> ItemRow(
                 }
             },
     ) {
-        ItemRowTitle(title, count = items.size.takeIf { isWeaselTv() })
+        ItemRowTitle(title, count = items.size.takeIf { isWeaselTv() }, accent = titleAccent)
 
         LazyRow(
             state = state,
@@ -155,11 +156,11 @@ fun ItemRowTitle(
         return
     }
     Column(
-        modifier = modifier.padding(start = 8.dp, end = 8.dp),
+        modifier = modifier.padding(start = 8.dp),
     ) {
         Row(
             verticalAlignment = Alignment.Bottom,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(end = 8.dp),
         ) {
             Text(
                 text = title.uppercase(),

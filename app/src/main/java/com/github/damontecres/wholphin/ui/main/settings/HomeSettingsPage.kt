@@ -327,6 +327,7 @@ fun HomeSettingsPage(
         HomePageContent(
             loadingState = state.loading,
             homeRows = state.rowData,
+            libraries = state.libraries,
             position = position,
             onFocusPosition = { position = it },
             onClickItem = { _, _ -> },

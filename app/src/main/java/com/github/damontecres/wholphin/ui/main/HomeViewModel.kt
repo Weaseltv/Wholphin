@@ -23,6 +23,7 @@ import com.github.damontecres.wholphin.services.tvAccess
 import com.github.damontecres.wholphin.ui.data.RowColumn
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
+import com.github.damontecres.wholphin.ui.main.settings.Library
 import com.github.damontecres.wholphin.ui.showToast
 import com.github.damontecres.wholphin.ui.util.EmptyStringProvider
 import com.github.damontecres.wholphin.util.ExceptionHandler
@@ -101,6 +102,7 @@ class HomeViewModel
                                 loadingState = if (refresh) LoadingState.Success else LoadingState.Loading,
                                 refreshState = LoadingState.Loading,
                                 settings = settings,
+                                libraries = libraries,
                                 homeRows =
                                     if (refresh) {
                                         it.homeRows
@@ -292,6 +294,7 @@ data class HomeState(
     val refreshState: LoadingState,
     val homeRows: List<HomeRowLoadingState>,
     val settings: HomePageResolvedSettings,
+    val libraries: List<Library> = emptyList(),
 ) {
     companion object {
         val EMPTY =
