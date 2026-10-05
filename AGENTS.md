@@ -49,3 +49,6 @@ Release and test builds leave gigabytes behind (`app/build`, Gradle outputs; 1â€
 - **Release build folders, once the GitHub release is published and verified:** remove the worktree you built from (e.g. `git -C ~/work/weaselfin/Wholphin worktree remove --force <path>`, or delete `~/work/weaselfin/releases/tv-vX.Y.Z`). The tag keeps the source and the GitHub release keeps the APKs.
 - **Everything else you built:** test builds, throwaway clones in `/tmp`, emulator test APKs.
 - Then run `df -h ~`, and say in your report if less than 30 GB is free.
+
+## Sending files to Justin
+From either T3 worker (Hostinger VPS srv1160496 or ThinkCentre), run `tailscale file cp <file> desktop-gualr4f:`. No sudo is needed because the Tailscale operator is `justin`. Files land in `C:\Users\justi\Downloads`. Zip folders first.
