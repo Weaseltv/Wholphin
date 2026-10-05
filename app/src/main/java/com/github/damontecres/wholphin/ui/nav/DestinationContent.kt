@@ -45,7 +45,6 @@ import com.github.damontecres.wholphin.ui.main.HomePage
 import com.github.damontecres.wholphin.ui.main.settings.HomeSettingsPage
 import com.github.damontecres.wholphin.ui.playback.PlayExternalPage
 import com.github.damontecres.wholphin.ui.playback.PlaybackPage
-import com.github.damontecres.wholphin.ui.preferences.LoadingArtworkPreviewPage
 import com.github.damontecres.wholphin.ui.preferences.PreferencesPage
 import com.github.damontecres.wholphin.ui.preferences.subtitle.SubtitleStylePage
 import com.github.damontecres.wholphin.ui.preferences.user.UserProfilePreferencesPage
@@ -121,10 +120,6 @@ fun DestinationContent(
                 destination.screen,
                 modifier,
             )
-        }
-
-        is Destination.LoadingArtworkPreview -> {
-            LoadingArtworkPreviewPage(destination, modifier)
         }
 
         is Destination.SubtitleSettings -> {

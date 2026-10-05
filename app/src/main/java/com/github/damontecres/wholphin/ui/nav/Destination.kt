@@ -13,7 +13,6 @@ import com.github.damontecres.wholphin.preferences.PlayerBackend
 import com.github.damontecres.wholphin.ui.components.ViewOptions
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
 import com.github.damontecres.wholphin.ui.detail.series.SeasonEpisodeIds
-import com.github.damontecres.wholphin.ui.preferences.LoadingArtworkPreviewLayout
 import com.github.damontecres.wholphin.ui.preferences.PreferenceScreenOption
 import com.github.damontecres.wholphin.ui.util.StringProvider
 import com.github.damontecres.wholphin.util.DiscoverRequestType
@@ -201,10 +200,4 @@ sealed class Destination(
 
     @Serializable
     data object Debug : Destination(true)
-
-    @Serializable
-    data class LoadingArtworkPreview(
-        val layout: LoadingArtworkPreviewLayout = LoadingArtworkPreviewLayout.FULL_SCREEN,
-        val artworkIndex: Int = 0,
-    ) : Destination(layout == LoadingArtworkPreviewLayout.FULL_SCREEN)
 }
