@@ -39,11 +39,13 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.sessionApi
+import org.jellyfin.sdk.api.sockets.SocketApiState
 import org.jellyfin.sdk.api.sockets.subscribe
 import org.jellyfin.sdk.model.api.PlayMessage
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
@@ -186,6 +188,20 @@ class WholphinDreamService :
                     Timber.w(ex, "Error posting capabilities while dreaming")
                 }
                 Timber.v("Listening for remote play while dreaming")
+                // Re-post after a reconnect too, since a server restart forgets capabilities
+                launchIO {
+                    api.webSocket.state
+                        .filter { it is SocketApiState.Connected }
+                        .collect {
+                            try {
+                                api.sessionApi.postFullCapabilities(data = remotePlaybackService.capabilities(true))
+                            } catch (ex: CancellationException) {
+                                throw ex
+                            } catch (ex: Exception) {
+                                Timber.w(ex, "Error re-posting capabilities while dreaming")
+                            }
+                        }
+                }
                 api.webSocket
                     .subscribe<PlayMessage>()
                     .catch { ex -> Timber.e(ex, "Error in screensaver play subscription") }
