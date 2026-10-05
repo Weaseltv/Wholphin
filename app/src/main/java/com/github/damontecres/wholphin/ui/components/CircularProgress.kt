@@ -58,7 +58,6 @@ fun LoadingPage(
                 .focusable(focusEnabled),
     ) {
         if (isWeaselTv()) {
-            // Neon Board (T12): the stage with the mascot, wordmark and a volt progress rule.
             NeonLoadingMark(Modifier.align(Alignment.Center))
         } else {
             CircularProgressIndicator(

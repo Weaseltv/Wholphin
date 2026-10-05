@@ -1112,6 +1112,13 @@ sealed interface AppPreference<Pref, T> {
                 title = R.string.screensaver_settings,
                 destination = Destination.Settings(PreferenceScreenOption.SCREENSAVER),
             )
+
+        val LoadingArtworkPreview =
+            AppDestinationPreference<AppPreferences>(
+                title = R.string.loading_artwork_preview,
+                summary = R.string.loading_artwork_preview_summary,
+                destination = Destination.LoadingArtworkPreview(),
+            )
     }
 }
 
@@ -1127,7 +1134,12 @@ val basicPreferences =
                     AppPreference.SubtitleStyle,
                     AppPreference.ThemeColors,
                     AppPreference.ScreensaverSettings,
-                ),
+                ) +
+                    if (BuildConfig.FLAVOR == "weaselfin") {
+                        listOf(AppPreference.LoadingArtworkPreview)
+                    } else {
+                        emptyList()
+                    },
         ),
         PreferenceGroup(
             title = R.string.playback,
