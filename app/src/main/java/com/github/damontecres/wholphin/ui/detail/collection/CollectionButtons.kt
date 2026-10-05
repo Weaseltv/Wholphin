@@ -35,9 +35,6 @@ import com.github.damontecres.wholphin.ui.components.SortByButton
 import com.github.damontecres.wholphin.ui.data.MovieSortOptions
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
 import com.github.damontecres.wholphin.ui.theme.neonOutlineColors
-import com.github.damontecres.wholphin.ui.theme.neonPrimaryBorder
-import com.github.damontecres.wholphin.ui.theme.neonPrimaryColors
-import com.github.damontecres.wholphin.ui.theme.neonPrimaryGlow
 import com.github.damontecres.wholphin.ui.theme.neonSurfaceBorder
 import com.github.damontecres.wholphin.ui.theme.neonSurfaceGlow
 import com.github.damontecres.wholphin.ui.theme.typeAccent
@@ -85,18 +82,14 @@ fun CollectionButtons(
                         val accent = typeAccent(types?.singleOrNull())
                         Button(
                             onClick = { onFilterChange(state.itemFilter.copy(includeItemTypes = types)) },
-                            colors = if (selected) neonPrimaryColors(accent) else neonOutlineColors(accent),
+                            colors = neonOutlineColors(accent),
                             border =
-                                if (selected) {
-                                    neonPrimaryBorder()
-                                } else {
-                                    neonSurfaceBorder(
-                                        accent = accent,
-                                        restWidth = 1.dp,
-                                        restColor = accent,
-                                    )
-                                },
-                            glow = if (selected) neonPrimaryGlow(accent) else neonSurfaceGlow(accent),
+                                neonSurfaceBorder(
+                                    accent = accent,
+                                    restWidth = 1.dp,
+                                    restColor = accent,
+                                ),
+                            glow = neonSurfaceGlow(accent),
                             contentPadding = PaddingValues(horizontal = 12.dp),
                             modifier =
                                 (if (index == 0) Modifier.focusRequester(firstFocus) else Modifier)
@@ -104,50 +97,49 @@ fun CollectionButtons(
                         ) {
                             Text(
                                 text = stringResource(title).uppercase(),
-                                color = if (selected) Color.Unspecified else accent,
+                                color = accent,
                             )
                         }
                     }
                 }
-            }
-            item {
-                ExpandablePlayButton(
-                    title = R.string.play,
-                    resume = Duration.ZERO,
-                    icon = Icons.Default.PlayArrow,
-                    onClick = { onClickPlayAll.invoke(false) },
-                    modifier = if (state.isStreaming) Modifier else Modifier.focusRequester(firstFocus),
-                )
-            }
-            item {
-                ExpandableFaButton(
-                    title = R.string.shuffle,
-                    iconStringRes = R.string.fa_shuffle,
-                    onClick = { onClickPlayAll.invoke(true) },
-                )
-            }
+            } else {
+                item {
+                    ExpandablePlayButton(
+                        title = R.string.play,
+                        resume = Duration.ZERO,
+                        icon = Icons.Default.PlayArrow,
+                        onClick = { onClickPlayAll.invoke(false) },
+                        modifier = Modifier.focusRequester(firstFocus),
+                    )
+                }
+                item {
+                    ExpandableFaButton(
+                        title = R.string.shuffle,
+                        iconStringRes = R.string.fa_shuffle,
+                        onClick = { onClickPlayAll.invoke(true) },
+                    )
+                }
 
-            item("favorite") {
-                val favorite = remember(state.collection) { state.collection?.favorite == true }
-                ExpandableFaButton(
-                    title = if (favorite) R.string.remove_favorite else R.string.add_favorite,
-                    iconStringRes = R.string.fa_heart,
-                    onClick = favoriteOnClick,
-                    iconColor = if (favorite) Color.Red else Color.Unspecified,
-                    modifier = Modifier,
-                )
-            }
-            if (canDelete) {
-                item("delete") {
-                    DeleteButton(
-                        title = state.collection?.title ?: "",
-                        onConfirmDelete = onConfirmDelete,
+                item("favorite") {
+                    val favorite = remember(state.collection) { state.collection?.favorite == true }
+                    ExpandableFaButton(
+                        title = if (favorite) R.string.remove_favorite else R.string.add_favorite,
+                        iconStringRes = R.string.fa_heart,
+                        onClick = favoriteOnClick,
+                        iconColor = if (favorite) Color.Red else Color.Unspecified,
                         modifier = Modifier,
                     )
                 }
-            }
+                if (canDelete) {
+                    item("delete") {
+                        DeleteButton(
+                            title = state.collection?.title ?: "",
+                            onConfirmDelete = onConfirmDelete,
+                            modifier = Modifier,
+                        )
+                    }
+                }
 
-            if (!state.isStreaming) {
                 item {
                     ExpandableFaButton(
                         title = R.string.view_options,
@@ -156,17 +148,17 @@ fun CollectionButtons(
                         modifier = Modifier,
                     )
                 }
-            }
 
-            // More button
-            item("more") {
-                ExpandablePlayButton(
-                    title = R.string.more,
-                    resume = Duration.ZERO,
-                    icon = Icons.Default.MoreVert,
-                    onClick = { moreOnClick.invoke() },
-                    modifier = Modifier,
-                )
+                // More button
+                item("more") {
+                    ExpandablePlayButton(
+                        title = R.string.more,
+                        resume = Duration.ZERO,
+                        icon = Icons.Default.MoreVert,
+                        onClick = { moreOnClick.invoke() },
+                        modifier = Modifier,
+                    )
+                }
             }
         }
         LazyRow(
