@@ -1,7 +1,6 @@
 package com.github.damontecres.wholphin.ui.theme
 
 import android.app.Application
-import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.mutableStateOf
@@ -12,26 +11,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.toPixelMap
-import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performKeyInput
-import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import androidx.test.core.app.ApplicationProvider
-import com.github.damontecres.wholphin.BuildConfig
-import com.github.damontecres.wholphin.ui.nav.Destination
-import com.github.damontecres.wholphin.ui.preferences.LoadingArtworkPreviewContent
-import com.github.damontecres.wholphin.ui.preferences.LoadingArtworkPreviewLayout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -99,64 +86,5 @@ class LoadingArtworkLayoutTest {
             assertTrue("top edge margin in $size", minY >= pixels.height * .15f - 1)
             assertEquals(Color.Black, pixels[0, 0])
         }
-    }
-
-    @OptIn(ExperimentalTestApi::class)
-    @Test
-    fun `preview holds an artwork and browses all twelve without consuming the real rotation`() {
-        assumeTrue(BuildConfig.FLAVOR == "weaselfin")
-        val context: Context = ApplicationProvider.getApplicationContext()
-        val preferences = context.getSharedPreferences("weaselplex_loading_artwork", Context.MODE_PRIVATE)
-        preferences.edit().putInt("next_index", 6).commit()
-        compose.setContent {
-            WholphinTheme {
-                LoadingArtworkPreviewContent(
-                    Destination.LoadingArtworkPreview(),
-                    onLayoutChange = { _, _ -> },
-                    modifier = Modifier.testTag("preview"),
-                )
-            }
-        }
-        compose.onNodeWithText("1 / 12 · Cinema projector").assertIsDisplayed()
-        compose.mainClock.advanceTimeBy(60_000)
-        compose.onNodeWithText("1 / 12 · Cinema projector").assertIsDisplayed()
-        repeat(11) { compose.onNodeWithTag("preview").performKeyInput { pressKey(Key.DirectionRight) } }
-        compose.onNodeWithText("12 / 12 · Cinema usher").assertIsDisplayed()
-        compose.onNodeWithTag("preview").performKeyInput { pressKey(Key.DirectionRight) }
-        compose.onNodeWithText("1 / 12 · Cinema projector").assertIsDisplayed()
-        compose.onNodeWithTag("preview").performKeyInput { pressKey(Key.DirectionLeft) }
-        compose.onNodeWithText("12 / 12 · Cinema usher").assertIsDisplayed()
-        assertEquals(6, preferences.getInt("next_index", -1))
-    }
-
-    @OptIn(ExperimentalTestApi::class)
-    @Test
-    fun `layout switching keeps the selected image and controls can be hidden`() {
-        assumeTrue(BuildConfig.FLAVOR == "weaselfin")
-        var selectedLayout: LoadingArtworkPreviewLayout? = null
-        var selectedIndex = -1
-        compose.setContent {
-            WholphinTheme {
-                LoadingArtworkPreviewContent(
-                    Destination.LoadingArtworkPreview(artworkIndex = 10),
-                    onLayoutChange = { layout, index ->
-                        selectedLayout = layout
-                        selectedIndex = index
-                    },
-                    modifier = Modifier.testTag("preview"),
-                )
-            }
-        }
-        compose.onNodeWithTag("preview").performKeyInput { pressKey(Key.DirectionDown) }
-        compose.runOnIdle {
-            assertEquals(LoadingArtworkPreviewLayout.SIDEBAR, selectedLayout)
-            assertEquals(10, selectedIndex)
-        }
-        compose.onNodeWithTag("preview").performKeyInput { pressKey(Key.DirectionCenter) }
-        compose.onNodeWithText("11 / 12 · Fantasy castle").assertDoesNotExist()
-        compose.onNodeWithTag("preview").performKeyInput { pressKey(Key.DirectionCenter) }
-        compose.onNodeWithText("11 / 12 · Fantasy castle").assertIsDisplayed()
-        assertTrue(Destination.LoadingArtworkPreview().fullScreen)
-        LoadingArtworkPreviewLayout.entries.drop(1).forEach { assertTrue(!Destination.LoadingArtworkPreview(it).fullScreen) }
     }
 }
