@@ -81,6 +81,7 @@ import com.github.damontecres.wholphin.ui.data.RowColumn
 import com.github.damontecres.wholphin.ui.detail.PlaylistDialog
 import com.github.damontecres.wholphin.ui.indexOfFirstOrNull
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
+import com.github.damontecres.wholphin.ui.main.settings.Library
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.playback.isPlayKeyUp
 import com.github.damontecres.wholphin.ui.playback.playable
@@ -91,6 +92,7 @@ import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.libraryAccent
 import com.github.damontecres.wholphin.ui.theme.neonAccentFor
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.ScrollToTopBringIntoViewSpec
@@ -119,6 +121,7 @@ fun HomePage(
     val loading = state.loadingState
     val refreshing = state.refreshState
     val homeRows = state.homeRows
+    val libraries = state.libraries
 
     when (val state = loading) {
         is LoadingState.Error -> {
@@ -223,6 +226,7 @@ fun HomePage(
 
             HomePageContent(
                 homeRows = homeRows,
+                libraries = libraries,
                 position = position,
                 onFocusPosition = onFocusPosition,
                 onClickItem = onClickItem,
@@ -306,6 +310,7 @@ fun HomePageContent(
             modifier = HeaderUtils.homeModifier(),
         )
     },
+    libraries: List<Library> = emptyList(),
     onClickViewMore: (RowColumn, HomeRowLoadingState.Success) -> Unit = { _, _ -> },
 ) {
     val focusedItem =
@@ -414,6 +419,7 @@ fun HomePageContent(
                                         val viewOptions = row.viewOptions
                                         ItemRow(
                                             title = row.title.getString(),
+                                            titleAccent = homeRowAccent(row.rowType, libraries),
                                             items = row.items,
                                             onClickItem =
                                                 remember(rowIndex, onClickItem) {
@@ -544,6 +550,27 @@ fun HomePageContent(
             else -> {}
         }
     }
+}
+
+/** Resolve the source library, so named sections such as Boxing keep their rail colour. */
+@Composable
+private fun homeRowAccent(
+    row: HomeRowConfig?,
+    libraries: List<Library>,
+): Color {
+    val parentId =
+        when (row) {
+            is HomeRowConfig.RecentlyAdded -> row.parentId
+            is HomeRowConfig.RecentlyReleased -> row.parentId
+            is HomeRowConfig.Genres -> row.parentId
+            is HomeRowConfig.Studios -> row.parentId
+            is HomeRowConfig.Suggestions -> row.parentId
+            is HomeRowConfig.ByParent -> row.parentId
+            is HomeRowConfig.GetItems -> row.getItems.parentId
+            else -> null
+        }
+    val library = libraries.firstOrNull { it.itemId == parentId }
+    return library?.let { libraryAccent(it.name, it.collectionType) } ?: LocalNeonAccent.current
 }
 
 @Composable
