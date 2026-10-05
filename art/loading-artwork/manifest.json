@@ -1,7 +1,7 @@
 {
   "generator": "Built-in imagegen",
   "reference": "app/src/weaselfin/res/drawable-nodpi/weaselplex_mascot.png",
-  "usage": "Twelve approved static artworks rotate across the available loading area, fitted proportionally inside a centered 90% area without cropping, displayed on their own with no wordmark, caption or added gradient. Settings > Loading artwork preview holds each image for review in full screen, real navigation sidebar, below-details, and narrow-panel layouts.",
+  "usage": "Twelve approved static artworks rotate across the available loading area, fitted proportionally inside a centered 70% area without cropping, displayed on their own with no wordmark, caption or added gradient. Settings > Loading artwork preview holds each image for review in full screen, real navigation sidebar, below-details, and narrow-panel layouts.",
   "encoding": "Static WebP, original resolution, quality 88, compression level 6.",
   "artworks": [
     {

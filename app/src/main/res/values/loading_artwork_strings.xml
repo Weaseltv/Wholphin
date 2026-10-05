@@ -7,7 +7,7 @@
     <string name="loading_preview_below_details">Below page details</string>
     <string name="loading_preview_narrow_panel">Narrow content panel</string>
     <string name="loading_preview_artwork_number">%1$d / %2$d · %3$s</string>
-    <string name="loading_preview_layout">%1$s · Entire image at 90%% size</string>
+    <string name="loading_preview_layout">%1$s · Entire image at 70%% size</string>
     <string name="loading_preview_controls">Left / Right: image · Up / Down: layout · OK: hide controls · Back: exit</string>
     <string name="loading_preview_details_description">This space represents information that stays visible while the rest of the page loads.</string>
     <string-array name="loading_artwork_titles">
