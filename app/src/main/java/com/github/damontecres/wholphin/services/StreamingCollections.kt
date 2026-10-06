@@ -15,6 +15,9 @@ import java.util.UUID
 /** WeaselPlex's streaming discovery uses the existing query-row and collection screens. */
 object StreamingCollections {
     const val TAG = "WeaselPlex Streaming"
+
+    /** The Home row's title. Saved layouts may still hold an older name, so use [title] to show it. */
+    const val NAME = "Streaming Services"
     val types = listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES)
     private val serviceOrder =
         listOf(
@@ -37,7 +40,7 @@ object StreamingCollections {
 
     val row =
         HomeRowConfig.GetItems(
-            name = "Streaming",
+            name = NAME,
             getItems =
                 GetItemsRequest(
                     includeItemTypes = listOf(BaseItemKind.BOX_SET),
@@ -52,6 +55,9 @@ object StreamingCollections {
         config is HomeRowConfig.GetItems &&
             config.getItems.tags == listOf(TAG) &&
             config.getItems.includeItemTypes == listOf(BaseItemKind.BOX_SET)
+
+    /** A row's title, with the Streaming row always shown as [NAME]. */
+    fun title(config: HomeRowConfig.GetItems): String = if (isStreamingRow(config)) NAME else config.name
 
     fun isStreamingCollection(item: BaseItemDto): Boolean = item.type == BaseItemKind.BOX_SET && TAG in item.tags.orEmpty()
 

@@ -499,7 +499,9 @@ class HomeSettingsService
                 }
 
                 is HomeRowConfig.GetItems -> {
-                    HomeRowConfigDisplay(id, StringStringProvider(config.name), config)
+                    val title =
+                        if (BuildConfig.FLAVOR == "weaselfin") StreamingCollections.title(config) else config.name
+                    HomeRowConfigDisplay(id, StringStringProvider(title), config)
                 }
 
                 is HomeRowConfig.NextUp -> {
@@ -985,7 +987,7 @@ class HomeSettingsService
                                 .map { BaseItem(it, row.viewOptions.useSeries) }
                         }
                     Success(
-                        StringStringProvider(row.name),
+                        StringStringProvider(if (streaming) StreamingCollections.NAME else row.name),
                         items,
                         row.viewOptions,
                         rowType = row,

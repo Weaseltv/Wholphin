@@ -303,7 +303,6 @@ fun NavDrawer(
             key = "${server.id}_${user.id}", // Keyed to the server & user to ensure its reset when switching either
         ),
 ) {
-    LaunchedEffect(Unit) { viewModel.updateSelectedIndex() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -316,6 +315,9 @@ fun NavDrawer(
         focusRequester.requestFocus()
     }
     val serviceState by viewModel.serviceState.collectAsState()
+    // The highlight is a position in the list, so pick it again whenever the items change,
+    // e.g. when Playlists appears after a first playlist or goes away with the last one.
+    LaunchedEffect(serviceState.items, serviceState.moreItems) { viewModel.updateSelectedIndex() }
     val state by viewModel.state.collectAsState()
     val moreExpanded = state.moreExpanded
     // A negative index is a built-in page, >=0 is a library

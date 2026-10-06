@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.services
 
 import android.content.Context
+import androidx.annotation.VisibleForTesting
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.ServerPreferencesDao
 import com.github.damontecres.wholphin.data.ServerRepository
@@ -293,22 +294,29 @@ val UserDto.tvAccess: Boolean get() = policy?.enableLiveTvAccess == true
  * Matches builtins by their stable [NavDrawerItem.id] (e.g. `a_favorites`) and server libraries
  * by NAME, because a library's id differs per server and cannot be baked into a build.
  *
+ * Libraries the flavor does not name come next, in server order, and Playlists always comes
+ * last, just above Settings. The server only lists Playlists while the user has a playlist, so it
+ * comes and goes; otherwise it would land wherever the server puts it among the other libraries.
+ *
  * 🛑 Only consulted when the user has NOT pinned or reordered that item themselves - a real user
  * preference always wins. Blank for every upstream flavor, where this returns [Int.MAX_VALUE] for
  * everything and the original "builtins first, then server order" behaviour is preserved exactly.
  */
-private fun defaultNavOrder(
+@VisibleForTesting
+internal fun defaultNavOrder(
     item: NavDrawerItem,
     context: Context,
+    order: String = BuildConfig.DEFAULT_NAV_ORDER,
 ): Int {
-    val order = BuildConfig.DEFAULT_NAV_ORDER
     if (order.isBlank()) return Int.MAX_VALUE
+    if (item is ServerNavDrawerItem && item.type == CollectionType.PLAYLISTS) return Int.MAX_VALUE
+    val unnamed = Int.MAX_VALUE - 1
     val wanted = order.split(',').map { it.trim() }.filter { it.isNotEmpty() }
     val byId = wanted.indexOf(item.id)
     if (byId >= 0) return byId
-    val name = runCatching { item.name(context) }.getOrNull() ?: return Int.MAX_VALUE
+    val name = runCatching { item.name(context) }.getOrNull() ?: return unnamed
     val byName = wanted.indexOfFirst { it.equals(name, ignoreCase = true) }
-    return if (byName >= 0) byName else Int.MAX_VALUE
+    return if (byName >= 0) byName else unnamed
 }
 
 /**
