@@ -40,6 +40,8 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
@@ -48,12 +50,14 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.data.model.QuickDetailsData
 import com.github.damontecres.wholphin.preferences.UserPreferences
+import com.github.damontecres.wholphin.services.CuratedCollections
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.cards.BannerCard
 import com.github.damontecres.wholphin.ui.cards.BannerCardWithTitle
@@ -417,6 +421,9 @@ fun HomePageContent(
                                 is HomeRowLoadingState.Success -> {
                                     if (row.items.isNotEmpty()) {
                                         val viewOptions = row.viewOptions
+                                        val curated =
+                                            BuildConfig.FLAVOR == "weaselfin" &&
+                                                row.rowType?.let(CuratedCollections::isCuratedRow) == true
                                         ItemRow(
                                             title = row.title.getString(),
                                             titleAccent = homeRowAccent(row.rowType, libraries),
@@ -448,6 +455,20 @@ fun HomePageContent(
                                                     .focusGroup()
                                                     .focusRequester(rowFocusRequesters[rowIndex]),
                                             horizontalPadding = viewOptions.spacing.dp,
+                                            cardContentPadding =
+                                                if (curated) {
+                                                    // Keep focus growth and the border inside the scrolling row.
+                                                    PaddingValues(
+                                                        horizontal =
+                                                            maxOf(
+                                                                viewOptions.spacing.dp,
+                                                                viewOptions.heightDp.dp * viewOptions.aspectRatio.ratio * .05f + 4.dp,
+                                                            ),
+                                                        vertical = viewOptions.heightDp.dp * .05f + 4.dp,
+                                                    )
+                                                } else {
+                                                    null
+                                                },
                                             cardContent = { index, item, cardModifier, onClick, onLongClick ->
                                                 val onFocus =
                                                     remember(rowIndex, index) {
@@ -483,9 +504,16 @@ fun HomePageContent(
                                                     onClick = onClick,
                                                     onLongClick = onLongClick,
                                                     viewOptions = viewOptions,
+                                                    cornerTextScale = if (curated) CuratedCollections.CARD_SIZE_MULTIPLIER else 1f,
                                                     modifier =
                                                         cardModifier
-                                                            .onFocusChanged { onFocus(it.isFocused) }
+                                                            .then(
+                                                                if (curated && item != null) {
+                                                                    Modifier.semantics { contentDescription = item.name.orEmpty() }
+                                                                } else {
+                                                                    Modifier
+                                                                },
+                                                            ).onFocusChanged { onFocus(it.isFocused) }
                                                             .onKeyEvent { onKey(it) },
                                                 )
                                             },
@@ -681,6 +709,7 @@ fun HomePageCardContent(
     onLongClick: () -> Unit,
     viewOptions: HomeRowViewOptions,
     modifier: Modifier,
+    cornerTextScale: Float = 1f,
 ) {
     when (item?.type) {
         BaseItemKind.GENRE -> {
@@ -769,6 +798,7 @@ fun HomePageCardContent(
                     interactionSource = null,
                     cardHeight = viewOptions.heightDp.dp,
                     useSeriesForPrimary = viewOptions.useSeries,
+                    cornerTextScale = cornerTextScale,
                 )
             }
         }

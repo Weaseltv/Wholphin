@@ -64,7 +64,7 @@ class CuratedCollectionsTest {
         assertEquals("WeaselPlex Picks", CuratedCollections.row.name)
         assertEquals(AspectRatio.TALL, CuratedCollections.row.viewOptions.aspectRatio)
         assertEquals(ViewOptionImageType.PRIMARY, CuratedCollections.row.viewOptions.imageType)
-        assertTrue(CuratedCollections.row.viewOptions.showTitles)
+        assertFalse(CuratedCollections.row.viewOptions.showTitles)
     }
 
     @Test

@@ -52,6 +52,7 @@ fun <T> ItemRow(
     showViewMore: Boolean = false,
     titleAccent: Color = LocalNeonAccent.current,
     viewMoreCardContent: @Composable (Modifier) -> Unit = {},
+    cardContentPadding: PaddingValues? = null,
 ) {
     val state = rememberLazyListState()
     val firstFocus = remember { FocusRequester() }
@@ -75,7 +76,9 @@ fun <T> ItemRow(
         LazyRow(
             state = state,
             horizontalArrangement = Arrangement.spacedBy(horizontalPadding),
-            contentPadding = PaddingValues(horizontal = horizontalPadding, vertical = if (isWeaselTv()) 4.dp else 8.dp),
+            contentPadding =
+                cardContentPadding
+                    ?: PaddingValues(horizontal = horizontalPadding, vertical = if (isWeaselTv()) 4.dp else 8.dp),
             modifier =
                 Modifier
                     .fillMaxWidth()

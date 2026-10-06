@@ -81,6 +81,7 @@ fun BannerCard(
     imageContentScale: ContentScale = ContentScale.FillBounds,
     accent: Color = neonAccentFor(item),
     useSeriesForPrimary: Boolean = true,
+    cornerTextScale: Float = 1f,
 ) {
     val outlineMax =
         isWeaselTv() && item?.data?.let {
@@ -172,7 +173,7 @@ fun BannerCard(
                     modifier =
                         Modifier
                             .align(Alignment.TopEnd)
-                            .padding(4.dp),
+                            .padding(4.dp * cornerTextScale),
                 ) {
                     if (played && (playPercent <= 0 || playPercent >= 100)) {
                         WatchedIcon(Modifier.size(24.dp))
@@ -188,9 +189,12 @@ fun BannerCard(
                         ) {
                             Text(
                                 text = cornerText,
-                                style = MaterialTheme.typography.bodySmall,
+                                style =
+                                    MaterialTheme.typography.bodySmall.let {
+                                        it.copy(fontSize = it.fontSize * cornerTextScale, lineHeight = it.lineHeight * cornerTextScale)
+                                    },
                                 color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(4.dp),
+                                modifier = Modifier.padding(4.dp * cornerTextScale),
                             )
                         }
                     }
