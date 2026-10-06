@@ -137,7 +137,8 @@ class CollectionFolderViewModelTest {
             advanceUntilIdle()
             assertEquals(user.id, itemsRequest.captured.userId)
             assertEquals(libraryId, itemsRequest.captured.parentId)
-            assertEquals(listOf(BaseItemKind.BOX_SET), itemsRequest.captured.includeItemTypes)
+            // Browse every child of the BoxSets library, without narrowing by tag or type.
+            assertEquals(null, itemsRequest.captured.includeItemTypes)
             assertEquals(null, itemsRequest.captured.tags)
             assertTrue(viewModel.state.value.items is com.github.damontecres.wholphin.util.DataLoadingState.Success)
         }

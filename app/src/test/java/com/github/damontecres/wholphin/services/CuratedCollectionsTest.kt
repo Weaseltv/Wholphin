@@ -96,10 +96,13 @@ class CuratedCollectionsTest {
             val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
             server.createContext("/Items") { exchange ->
                 requests.add(
-                    exchange.requestURI.rawQuery.split("&").associate {
-                        val parts = it.split("=", limit = 2)
-                        URLDecoder.decode(parts[0], "UTF-8") to URLDecoder.decode(parts[1], "UTF-8")
-                    },
+                    exchange.requestURI.rawQuery
+                        .split("&")
+                        .map {
+                            val parts = it.split("=", limit = 2)
+                            URLDecoder.decode(parts[0], "UTF-8") to URLDecoder.decode(parts[1], "UTF-8")
+                        }.groupBy({ it.first }, { it.second })
+                        .mapValues { it.value.joinToString(",") },
                 )
                 headers.add(exchange.requestHeaders.getFirst("Authorization"))
                 val items =
