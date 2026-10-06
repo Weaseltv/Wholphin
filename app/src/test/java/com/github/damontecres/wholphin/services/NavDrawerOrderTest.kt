@@ -24,26 +24,27 @@ class NavDrawerOrderTest {
         return ServerNavDrawerItem(id, name, Destination.MediaItem(id, BaseItemKind.COLLECTION_FOLDER, type), type)
     }
 
-    /** In the server's order: Playlists comes before Sports, as on the owner's server. */
+    /** Libraries in the new server order, with Playlists interspersed. */
     private val serverOrder =
         listOf(
             NavDrawerItem.Favorites,
             NavDrawerItem.Discover,
+            library("Collections", CollectionType.BOXSETS),
             library("Movies", CollectionType.MOVIES),
-            library("TV Shows", CollectionType.TVSHOWS),
-            library("Stand Up Comedy", CollectionType.MOVIES),
-            library("Playlists", CollectionType.PLAYLISTS),
             library("Sports", CollectionType.MOVIES),
+            library("Playlists", CollectionType.PLAYLISTS),
+            library("Stand Up Comedy", CollectionType.MOVIES),
+            library("TV Shows", CollectionType.TVSHOWS),
         )
 
     private fun List<NavDrawerItem>.names() = map { (it as? ServerNavDrawerItem)?.name ?: it.id }
 
     @Test
-    fun `WeaselPlex puts Playlists last, after libraries the flavor doesn't name`() {
+    fun `WeaselPlex keeps server library order with Collections after Requests and Playlists last`() {
         assumeTrue(BuildConfig.FLAVOR == "weaselfin")
         val sorted = serverOrder.sortedBy { defaultNavOrder(it, context) }
         assertEquals(
-            listOf("a_favorites", "a_discover", "Movies", "TV Shows", "Stand Up Comedy", "Sports", "Playlists"),
+            listOf("a_favorites", "a_discover", "Collections", "Movies", "Sports", "Stand Up Comedy", "TV Shows", "Playlists"),
             sorted.names(),
         )
     }
@@ -53,7 +54,16 @@ class NavDrawerOrderTest {
         val renamed = library("Mixtapes", CollectionType.PLAYLISTS)
         val sorted = (listOf(renamed) + serverOrder).sortedBy { defaultNavOrder(it, context, order = "Movies") }
         assertEquals(listOf("Mixtapes", "Playlists"), sorted.names().takeLast(2))
-        assertEquals("Movies", sorted.names().first())
+        assertEquals(serverOrder.names().filterNot { it == "Playlists" }, sorted.names().dropLast(2))
+    }
+
+    @Test
+    fun `Legacy configured names do not reorder libraries`() {
+        val sorted = serverOrder.sortedBy { defaultNavOrder(it, context, order = "a_favorites,a_discover,TV Shows,Movies") }
+        assertEquals(
+            listOf("a_favorites", "a_discover", "Collections", "Movies", "Sports", "Stand Up Comedy", "TV Shows", "Playlists"),
+            sorted.names(),
+        )
     }
 
     @Test

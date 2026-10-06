@@ -183,12 +183,8 @@ class NavDrawerService
                             isRecordingFolder = it.id in recordingFolders,
                         )
                     }
-            // Sort here rather than only in updateNavDrawer: the home page builds its default
-            // rows from getFilteredUserLibraries, so ordering the rail alone left the home page
-            // in raw server order. Sorting at the source means both follow the same list.
-            // sortedBy is stable, so any library the flavor does not name keeps its server
-            // position, and upstream flavors (blank DEFAULT_NAV_ORDER) are unaffected.
-            return libraries.sortedBy { weaselLibraryOrder(it.name) }
+            // UserViews already follows the member's server-configured library order.
+            return libraries
         }
 
         /**
@@ -289,18 +285,9 @@ data class NavDrawerItemState(
 val UserDto.tvAccess: Boolean get() = policy?.enableLiveTvAccess == true
 
 /**
- * The flavor's preferred nav rail order.
- *
- * Matches builtins by their stable [NavDrawerItem.id] (e.g. `a_favorites`) and server libraries
- * by NAME, because a library's id differs per server and cannot be baked into a build.
- *
- * Libraries the flavor does not name come next, in server order, and Playlists always comes
- * last, just above Settings. The server only lists Playlists while the user has a playlist, so it
- * comes and goes; otherwise it would land wherever the server puts it among the other libraries.
- *
- * 🛑 Only consulted when the user has NOT pinned or reordered that item themselves - a real user
- * preference always wins. Blank for every upstream flavor, where this returns [Int.MAX_VALUE] for
- * everything and the original "builtins first, then server order" behaviour is preserved exactly.
+ * Flavor builtin order, followed by libraries in UserViews order, then Playlists.
+ * Explicit per-user pins/reordering take precedence in updateNavDrawer.
+ * A blank order preserves upstream behavior.
  */
 @VisibleForTesting
 internal fun defaultNavOrder(
@@ -309,30 +296,14 @@ internal fun defaultNavOrder(
     order: String = BuildConfig.DEFAULT_NAV_ORDER,
 ): Int {
     if (order.isBlank()) return Int.MAX_VALUE
-    if (item is ServerNavDrawerItem && item.type == CollectionType.PLAYLISTS) return Int.MAX_VALUE
     val unnamed = Int.MAX_VALUE - 1
+    if (item is ServerNavDrawerItem) {
+        return if (item.type == CollectionType.PLAYLISTS) Int.MAX_VALUE else unnamed
+    }
     val wanted = order.split(',').map { it.trim() }.filter { it.isNotEmpty() }
     val byId = wanted.indexOf(item.id)
     if (byId >= 0) return byId
     val name = runCatching { item.name(context) }.getOrNull() ?: return unnamed
     val byName = wanted.indexOfFirst { it.equals(name, ignoreCase = true) }
     return if (byName >= 0) byName else unnamed
-}
-
-/**
- * Position of a library in the flavor's preferred order, matched on NAME.
- *
- * [Int.MAX_VALUE] for anything the flavor does not name, and for every upstream flavor, where
- * [BuildConfig.DEFAULT_NAV_ORDER] is blank - a stable sort then leaves the list exactly as the
- * server returned it.
- */
-private fun weaselLibraryOrder(name: String): Int {
-    val order = BuildConfig.DEFAULT_NAV_ORDER
-    if (order.isBlank()) return Int.MAX_VALUE
-    val idx =
-        order
-            .split(',')
-            .map { it.trim() }
-            .indexOfFirst { it.equals(name.trim(), ignoreCase = true) }
-    return if (idx >= 0) idx else Int.MAX_VALUE
 }
