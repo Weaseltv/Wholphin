@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.services
 
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
@@ -12,11 +13,13 @@ import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import java.util.UUID
+import kotlin.math.roundToInt
 
 /** Server-managed Picks, using the existing query row and collection poster grid. */
 object CuratedCollections {
     const val TAG = "WeaselPlex Curated"
     const val NAME = "WeaselPlex Picks"
+    const val CARD_SIZE_MULTIPLIER = 1.35f
     val types = listOf(BaseItemKind.MOVIE)
 
     val row =
@@ -31,7 +34,12 @@ object CuratedCollections {
                     sortOrder = listOf(SortOrder.ASCENDING),
                     fields = listOf(ItemFields.CHILD_COUNT, ItemFields.OVERVIEW),
                 ),
-            viewOptions = HomeRowViewOptions(showTitles = true, useSeries = false),
+            viewOptions =
+                HomeRowViewOptions(
+                    heightDp = (BuildConfig.DEFAULT_CARD_HEIGHT_DP * CARD_SIZE_MULTIPLIER).roundToInt(),
+                    showTitles = false,
+                    useSeries = false,
+                ),
         )
 
     fun isCuratedRow(config: HomeRowConfig): Boolean =
