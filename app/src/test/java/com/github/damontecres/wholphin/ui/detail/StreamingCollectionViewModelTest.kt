@@ -10,6 +10,7 @@ import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.GetItemsFilter
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.LibraryDisplayInfo
+import com.github.damontecres.wholphin.services.CuratedCollections
 import com.github.damontecres.wholphin.services.KeyValueService
 import com.github.damontecres.wholphin.services.StreamingCollections
 import com.github.damontecres.wholphin.ui.AspectRatio
@@ -60,6 +61,8 @@ class StreamingCollectionViewModelTest {
     private val saved = MutableStateFlow<LibraryDisplayInfo?>(null)
     private val requests = mutableListOf<GetItemsRequest>()
     private val store = ViewModelStore()
+    private var collectionTag = StreamingCollections.TAG
+    private var movieId = UUID.randomUUID()
     private val collectionId = UUID.randomUUID()
     private val user =
         JellyfinUser(rowId = 1, id = UUID.randomUUID(), name = "test member", serverId = UUID.randomUUID(), accessToken = "test-token")
@@ -76,14 +79,15 @@ class StreamingCollectionViewModelTest {
             saved.value = firstArg()
             1L
         }
-        coEvery { userApi.getItem(itemId = collectionId, userId = user.id) } returns
+        coEvery { userApi.getItem(itemId = collectionId, userId = user.id) } answers {
             successResponse(
-                BaseItemDto(id = collectionId, name = "Netflix", type = BaseItemKind.BOX_SET, tags = listOf(StreamingCollections.TAG)),
+                BaseItemDto(id = collectionId, name = "Netflix", type = BaseItemKind.BOX_SET, tags = listOf(collectionTag)),
             )
+        }
         mockkObject(GetItemsRequestHandler)
         coEvery { GetItemsRequestHandler.execute(api, any()) } answers {
             requests.add(secondArg())
-            successQueryResult(totalRecordCount = 0)
+            successQueryResult(listOf(BaseItemDto(id = movieId, name = "Test movie", type = BaseItemKind.MOVIE)))
         }
     }
 
@@ -143,6 +147,44 @@ class StreamingCollectionViewModelTest {
                 assertEquals(user.id, it.userId)
                 assertEquals(collectionId, it.parentId)
                 assertEquals(false, it.recursive)
+                assertNull(it.tags)
+            }
+        }
+
+    @Test
+    fun `Curated opens as a member scoped movie poster grid and refetches changed contents`() =
+        runTest(dispatcher) {
+            collectionTag = CuratedCollections.TAG
+            val first = create()
+            advanceUntilIdle()
+            assertTrue(first.state.value.isCurated)
+            assertFalse(first.state.value.isStreaming)
+            assertFalse(first.state.value.viewOptions.separateTypes)
+            assertEquals(AspectRatio.TALL, first.state.value.viewOptions.cardViewOptions.aspectRatio)
+            assertEquals(ViewOptionImageType.PRIMARY, first.state.value.viewOptions.cardViewOptions.imageType)
+            assertEquals(
+                movieId,
+                first.state.value.items
+                    .first()
+                    ?.id,
+            )
+            val before = requests.size
+            movieId = UUID.randomUUID()
+            store.clear()
+            val reopened = create()
+            advanceUntilIdle()
+            assertTrue(requests.size > before)
+            assertEquals(
+                movieId,
+                reopened.state.value.items
+                    .first()
+                    ?.id,
+            )
+            requests.forEach {
+                assertEquals(user.id, it.userId)
+                assertEquals(collectionId, it.parentId)
+                assertEquals(false, it.recursive)
+                assertEquals(listOf(BaseItemKind.MOVIE), it.includeItemTypes)
                 assertNull(it.tags)
             }
         }

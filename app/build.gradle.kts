@@ -126,9 +126,8 @@ configure<ApplicationExtension> {
         // slider is untouched -- this moves the DEFAULT only.
         buildConfigField("int", "DEFAULT_CARD_HEIGHT_DP", "172")
 
-        // WeaselFin: preferred nav-rail order, by NavDrawerItem id for builtins and by library
-        // NAME for server libraries. Empty for upstream flavors, which keeps the existing
-        // behaviour exactly (builtins first, then libraries in server order).
+        // WeaselFin: preferred builtin order by NavDrawerItem id. Libraries keep UserViews
+        // order. Empty for upstream flavors, preserving their existing behavior.
         // Only applies where the user has not pinned/reordered anything themselves.
         buildConfigField("String", "DEFAULT_NAV_ORDER", "\"\"")
 
@@ -307,7 +306,7 @@ configure<ApplicationExtension> {
             buildConfigField(
                 "String",
                 "DEFAULT_NAV_ORDER",
-                "\"a_favorites,a_discover,Movies,TV Shows,Stand Up Comedy,UFC,Boxing,4K Movies (LAN),4K TV Shows (LAN)\"",
+                "\"a_favorites,a_discover\"",
             )
         }
         create("appstore") {

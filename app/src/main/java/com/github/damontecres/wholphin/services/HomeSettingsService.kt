@@ -253,7 +253,7 @@ class HomeSettingsService
 
             currentSettings.update {
                 if (BuildConfig.FLAVOR == "weaselfin") {
-                    StreamingCollections.withStreamingRow(resolvedSettings)
+                    CuratedCollections.withCuratedRow(resolvedSettings)
                 } else {
                     resolvedSettings
                 }
@@ -271,7 +271,7 @@ class HomeSettingsService
             val resolvedSettings = HomePageResolvedSettings(resolvedRows)
             currentSettings.update {
                 if (BuildConfig.FLAVOR == "weaselfin") {
-                    StreamingCollections.withStreamingRow(resolvedSettings)
+                    CuratedCollections.withCuratedRow(resolvedSettings)
                 } else {
                     resolvedSettings
                 }
@@ -500,7 +500,13 @@ class HomeSettingsService
 
                 is HomeRowConfig.GetItems -> {
                     val title =
-                        if (BuildConfig.FLAVOR == "weaselfin") StreamingCollections.title(config) else config.name
+                        if (BuildConfig.FLAVOR == "weaselfin" && CuratedCollections.isCuratedRow(config)) {
+                            CuratedCollections.NAME
+                        } else if (BuildConfig.FLAVOR == "weaselfin") {
+                            StreamingCollections.title(config)
+                        } else {
+                            config.name
+                        }
                     HomeRowConfigDisplay(id, StringStringProvider(title), config)
                 }
 
@@ -946,6 +952,7 @@ class HomeSettingsService
 
                 is HomeRowConfig.GetItems -> {
                     val streaming = BuildConfig.FLAVOR == "weaselfin" && StreamingCollections.isStreamingRow(row)
+                    val curated = BuildConfig.FLAVOR == "weaselfin" && CuratedCollections.isCuratedRow(row)
                     val request =
                         row.getItems.let {
                             if (it.limit == null) {
@@ -972,6 +979,8 @@ class HomeSettingsService
                                     false,
                                 )
                             }
+                        } else if (curated) {
+                            CuratedCollections.fetch(api, userDto.id).map { BaseItem(it, false) }
                         } else if (usePaging) {
                             ApiRequestPager(
                                 api,
@@ -987,11 +996,19 @@ class HomeSettingsService
                                 .map { BaseItem(it, row.viewOptions.useSeries) }
                         }
                     Success(
-                        StringStringProvider(if (streaming) StreamingCollections.NAME else row.name),
+                        StringStringProvider(
+                            if (curated) {
+                                CuratedCollections.NAME
+                            } else if (streaming) {
+                                StreamingCollections.NAME
+                            } else {
+                                row.name
+                            },
+                        ),
                         items,
                         row.viewOptions,
                         rowType = row,
-                        showViewMore = !streaming && items.size >= limit,
+                        showViewMore = !streaming && !curated && items.size >= limit,
                     )
                 }
 

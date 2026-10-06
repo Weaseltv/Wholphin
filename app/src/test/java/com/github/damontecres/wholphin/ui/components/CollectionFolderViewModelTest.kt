@@ -5,6 +5,7 @@ import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.CollectionFolderFilter
 import com.github.damontecres.wholphin.data.model.GetItemsFilter
 import com.github.damontecres.wholphin.data.model.GetItemsFilterOverride
+import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.services.DeletedItem
 import com.github.damontecres.wholphin.services.MediaManagementService
 import com.github.damontecres.wholphin.ui.successQueryResult
@@ -61,7 +62,7 @@ class CollectionFolderViewModelTest {
 
     private val libraryId = UUID.randomUUID()
 
-    private val library =
+    private var library =
         BaseItemDto(
             id = libraryId,
             type = BaseItemKind.COLLECTION_FOLDER,
@@ -124,6 +125,23 @@ class CollectionFolderViewModelTest {
             useSeriesForPrimary = false,
             defaultViewOptions = ViewOptionsSquare,
         )
+
+    @Test
+    fun `Collections library queries all BoxSets with the member userId`() =
+        runTest(testDispatcher) {
+            val user = JellyfinUser(1, UUID.randomUUID(), "test member", UUID.randomUUID(), "test-token")
+            every { mockServerRepository.currentUser } returns user
+            library = library.copy(collectionType = CollectionType.BOXSETS)
+            coEvery { mockUserLibraryApi.getItem(libraryId) } returns successResponse(library)
+            val viewModel = createViewModel(GetItemsFilter())
+            advanceUntilIdle()
+            assertEquals(user.id, itemsRequest.captured.userId)
+            assertEquals(libraryId, itemsRequest.captured.parentId)
+            // Browse every child of the BoxSets library, without narrowing by tag or type.
+            assertEquals(null, itemsRequest.captured.includeItemTypes)
+            assertEquals(null, itemsRequest.captured.tags)
+            assertTrue(viewModel.state.value.items is com.github.damontecres.wholphin.util.DataLoadingState.Success)
+        }
 
     /** Counting via /Items would return every song and album, overshooting the artist grid */
     @Test

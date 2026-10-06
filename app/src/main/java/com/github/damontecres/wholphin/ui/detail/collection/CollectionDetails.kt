@@ -163,8 +163,8 @@ fun CollectionDetails(
             ErrorMessage(loadingState, modifier)
         }
 
-        // Keep Streaming controls composed during reloads so D-pad focus stays on the chosen filter/sort.
-        loadingState == LoadingState.Success || state.isStreaming -> {
+        // Keep tagged collection controls composed during reloads so D-pad focus stays on the chosen filter/sort.
+        loadingState == LoadingState.Success || state.isStreaming || state.isCurated -> {
             CollectionDetailsContent(
                 preferences = preferences,
                 state = state,

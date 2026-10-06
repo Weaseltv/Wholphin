@@ -439,6 +439,7 @@ class CollectionFolderViewModel
             val request =
                 filter.applyTo(
                     GetItemsRequest(
+                        userId = serverRepository.currentUser?.id,
                         parentId = item?.id,
                         enableImageTypes =
                             listOf(
