@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
@@ -54,6 +55,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -401,11 +403,9 @@ fun NavDrawer(
                                     ),
                         )
                     }
-                    LazyColumn(
+                    RailList(
                         state = navDrawerListState,
-                        contentPadding = PaddingValues(0.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedByWithFooter(spacedBy),
+                        spacedBy = spacedBy,
                         modifier =
                             Modifier
                                 .focusGroup()
@@ -620,6 +620,34 @@ fun NavDrawer(
         }
     }
 }
+
+/**
+ * The rail's scrolling list, Search through Settings, with Settings pinned to the bottom.
+ *
+ * A list cuts off whatever is drawn past its top and bottom edges, which took the focus glow
+ * off Search at the top and Settings at the bottom. On the Neon theme the list leaves room for
+ * that glow at both ends. Rows in between never reach an edge: on TV the list scrolls the
+ * focused row to about a third of the way down.
+ */
+@Composable
+internal fun RailList(
+    state: LazyListState,
+    spacedBy: Dp,
+    modifier: Modifier = Modifier,
+    content: LazyListScope.() -> Unit,
+) {
+    LazyColumn(
+        state = state,
+        contentPadding = if (isWeaselTv()) PaddingValues(vertical = RailGlowRoom) else PaddingValues(0.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedByWithFooter(spacedBy),
+        modifier = modifier,
+        content = content,
+    )
+}
+
+/** Rail rows don't grow when focused, so the room only has to cover their glow. */
+internal val RailGlowRoom = NeonBoard.GlowSpec.RowFocus
 
 @Composable
 fun NavigationDrawerScope.ProfileIcon(
