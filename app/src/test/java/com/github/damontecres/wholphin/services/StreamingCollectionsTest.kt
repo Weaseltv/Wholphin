@@ -50,6 +50,16 @@ class StreamingCollectionsTest {
     }
 
     @Test
+    fun `Home row is titled Streaming Services, including layouts saved with the old name`() {
+        assertEquals("Streaming Services", StreamingCollections.NAME)
+        assertEquals(StreamingCollections.NAME, StreamingCollections.row.name)
+        val saved = StreamingCollections.row.copy(name = "Streaming")
+        assertEquals(StreamingCollections.NAME, StreamingCollections.title(saved))
+        val other = StreamingCollections.row.copy(name = "Kids", getItems = StreamingCollections.row.getItems.copy(tags = listOf("Kids")))
+        assertEquals("Kids", StreamingCollections.title(other))
+    }
+
+    @Test
     fun `Streaming follows the combined row or starts a layout with no resume rows`() {
         val combined = HomeRowConfig.ContinueWatchingCombined()
         val recent = HomeRowConfig.RecentlyAdded(UUID.randomUUID())
