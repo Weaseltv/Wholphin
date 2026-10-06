@@ -73,7 +73,11 @@ class NavDrawerLibrariesTest {
                     NavDrawerService(mockk(relaxed = true), backgroundScope, api, repository, preferences, seerr, music, management)
                 val libraries = service.getAllUserLibraries(user.id, false)
                 assertEquals(views.map { it.name }, libraries.map { it.name })
-                service.updateNavDrawer(user, UserDto(id = user.id), true)
+                service.updateNavDrawer(
+                    user,
+                    UserDto(id = user.id, hasPassword = false, hasConfiguredPassword = false, hasConfiguredEasyPassword = false),
+                    true,
+                )
                 val menu = service.state.value.items
                 assertEquals(listOf("a_favorites", "a_discover"), menu.take(2).map { it.id })
                 assertEquals(views.map { it.name }, menu.drop(2).map { (it as ServerNavDrawerItem).name })

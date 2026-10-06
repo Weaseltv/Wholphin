@@ -139,7 +139,7 @@ class CollectionFolderViewModelTest {
             assertEquals(libraryId, itemsRequest.captured.parentId)
             assertEquals(listOf(BaseItemKind.BOX_SET), itemsRequest.captured.includeItemTypes)
             assertEquals(null, itemsRequest.captured.tags)
-            assertTrue(viewModel.state.value.items is com.github.damontecres.wholphin.ui.DataLoadingState.Success)
+            assertTrue(viewModel.state.value.items is com.github.damontecres.wholphin.util.DataLoadingState.Success)
         }
 
     /** Counting via /Items would return every song and album, overshooting the artist grid */
