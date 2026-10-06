@@ -72,6 +72,7 @@ import com.github.damontecres.wholphin.services.Release
 import com.github.damontecres.wholphin.services.SeerrConnectionStatus
 import com.github.damontecres.wholphin.services.UpdateChecker
 import com.github.damontecres.wholphin.ui.components.ConfirmDialog
+import com.github.damontecres.wholphin.ui.components.DialogListEdge
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.components.ScrollableDialog
@@ -268,7 +269,7 @@ fun PreferencesContent(
                 state = state,
                 horizontalAlignment = Alignment.Start,
                 verticalArrangement = Arrangement.spacedBy(0.dp),
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = DialogListEdge),
                 modifier = Modifier.fillMaxSize(),
             ) {
                 if (showUpdate) {

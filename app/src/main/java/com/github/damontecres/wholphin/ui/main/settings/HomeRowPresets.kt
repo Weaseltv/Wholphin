@@ -1,7 +1,6 @@
 package com.github.damontecres.wholphin.ui.main.settings
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
@@ -292,9 +291,8 @@ fun HomeRowPresetsContent(
     Column(modifier = modifier) {
         TitleText(stringResource(R.string.display_presets))
         HomeSettingsLazyColumn(
-            contentPadding = PaddingValues(8.dp),
             modifier =
-                modifier
+                Modifier
                     .fillMaxHeight()
                     .focusRestorer(focusRequesters[0]),
         ) {

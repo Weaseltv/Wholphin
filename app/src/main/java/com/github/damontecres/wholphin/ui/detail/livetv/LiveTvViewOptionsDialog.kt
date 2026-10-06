@@ -34,6 +34,7 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.liveTvPreferences
+import com.github.damontecres.wholphin.ui.components.DialogListEdge
 import com.github.damontecres.wholphin.ui.preferences.ComposablePreference
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 
@@ -80,7 +81,7 @@ fun LiveTvViewOptionsDialog(
             )
             LazyColumn(
                 state = columnState,
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = DialogListEdge),
                 verticalArrangement = Arrangement.spacedBy(0.dp),
                 modifier = Modifier.focusRequester(focusRequester),
             ) {

@@ -3,6 +3,7 @@ package com.github.damontecres.wholphin.ui.preferences.user
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,6 +25,8 @@ import androidx.tv.material3.ListItem
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
+import com.github.damontecres.wholphin.ui.bleedHorizontal
+import com.github.damontecres.wholphin.ui.components.DialogListEdge
 import com.github.damontecres.wholphin.ui.components.SearchEditTextBox
 import com.github.damontecres.wholphin.ui.components.SelectedLeadingContent
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
@@ -90,6 +93,8 @@ fun FilterableLanguagePreference(
         }
         LazyColumn(
             state = listState,
+            // Room for the last row's focus border and glow
+            contentPadding = PaddingValues(bottom = DialogListEdge),
             modifier = Modifier,
         ) {
             item {
@@ -105,7 +110,8 @@ fun FilterableLanguagePreference(
             }
             itemsIndexed(filteredOptions) { index, option ->
                 if (option is PreferredLanguageType.Divider) {
-                    HorizontalDivider()
+                    // Through the dialog's 16dp padding to the panel edges
+                    HorizontalDivider(Modifier.bleedHorizontal(16.dp))
                 } else {
                     ListItem(
                         shape = neonListItemShape(),

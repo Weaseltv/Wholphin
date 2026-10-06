@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,6 +37,8 @@ import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.ui.formatTime
 import com.github.damontecres.wholphin.ui.playback.ControllerViewState
 import com.github.damontecres.wholphin.ui.playback.PlaybackDialogType
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.neonAccentFor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import org.jellyfin.sdk.model.api.MediaSegmentDto
@@ -86,6 +89,8 @@ fun PlaybackController(
             onSeekProgress = onSeekBarChange,
             seekBarInteractionSource = seekBarInteractionSource,
             currentSegment = currentSegment,
+            // Progress wears the title's type colour: orange for movies, yellow for shows
+            seekBarAccent = neonAccentFor(item),
             modifier = Modifier,
         )
         when (nextState) {
@@ -148,6 +153,7 @@ fun Controller(
     currentSegment: MediaSegmentDto?,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
+    seekBarAccent: Color = LocalNeonAccent.current,
     seekBarInteractionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) {
     val seekBarFocused by seekBarInteractionSource.collectIsFocusedAsState()
@@ -243,6 +249,7 @@ fun Controller(
             skipBackOnResume = skipBackOnResume,
             currentSegment = currentSegment,
             onClickPlaybackDialogType = onClickPlaybackDialogType,
+            seekBarAccent = seekBarAccent,
         )
     }
 }

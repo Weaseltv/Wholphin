@@ -101,7 +101,7 @@ fun ViewOptionsDialog(
             )
             LazyColumn(
                 state = columnState,
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = DialogListEdge),
                 verticalArrangement = Arrangement.spacedBy(0.dp),
                 modifier = Modifier.focusRequester(focusRequester),
             ) {

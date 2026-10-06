@@ -92,6 +92,7 @@ import com.github.damontecres.wholphin.ui.playback.overlay.rememberSeekBarState
 import com.github.damontecres.wholphin.ui.preferences.subtitle.SubtitleSettings.applyTo
 import com.github.damontecres.wholphin.ui.preferences.subtitle.SubtitleSettings.calculateEdgeSize
 import com.github.damontecres.wholphin.ui.seasonEpisode
+import com.github.damontecres.wholphin.ui.theme.neonAccentFor
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import com.github.damontecres.wholphin.util.LoadingState
@@ -400,6 +401,7 @@ fun PlaybackPageContent(
                                 .align(Alignment.BottomCenter)
                                 .padding(bottom = 16.dp)
                                 .fillMaxWidth(.95f),
+                        accent = neonAccentFor(state.currentPlayback?.item),
                     )
                 }
                 // Clear the overlay after a delay

@@ -5,6 +5,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.filter.DefaultForGenresFilterOptions
 import com.github.damontecres.wholphin.data.filter.DefaultForStudiosFilterOptions
 import com.github.damontecres.wholphin.data.model.SeerrItemType
@@ -27,6 +28,7 @@ import com.github.damontecres.wholphin.ui.detail.FavoritesPage
 import com.github.damontecres.wholphin.ui.detail.HomeRowGrid
 import com.github.damontecres.wholphin.ui.detail.PersonPage
 import com.github.damontecres.wholphin.ui.detail.PlaylistDetails
+import com.github.damontecres.wholphin.ui.detail.WatchlistPage
 import com.github.damontecres.wholphin.ui.detail.collection.CollectionDetails
 import com.github.damontecres.wholphin.ui.detail.discover.DiscoverMovieDetails
 import com.github.damontecres.wholphin.ui.detail.discover.DiscoverPersonPage
@@ -344,10 +346,17 @@ fun DestinationContent(
 
         Destination.Favorites -> {
             LaunchedEffect(Unit) { onClearBackdrop.invoke() }
-            FavoritesPage(
-                preferences = preferences,
-                modifier = modifier,
-            )
+            if (BuildConfig.FLAVOR == "weaselfin") {
+                WatchlistPage(
+                    preferences = preferences,
+                    modifier = modifier,
+                )
+            } else {
+                FavoritesPage(
+                    preferences = preferences,
+                    modifier = modifier,
+                )
+            }
         }
 
         Destination.NowPlaying -> {

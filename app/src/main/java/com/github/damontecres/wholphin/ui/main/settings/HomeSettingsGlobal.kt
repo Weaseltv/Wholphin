@@ -16,6 +16,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -23,6 +24,7 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.ui.FontAwesome
+import com.github.damontecres.wholphin.ui.bleedHorizontal
 import com.github.damontecres.wholphin.ui.preferences.ComposablePreference
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 
@@ -47,10 +49,10 @@ fun HomeSettingsGlobal(
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
-        HorizontalDivider()
+        HorizontalDivider(Modifier.bleedHorizontal(8.dp))
         HomeSettingsLazyColumn(
             modifier =
-                modifier
+                Modifier
                     .fillMaxHeight()
                     .focusRestorer(firstFocus),
         ) {
@@ -102,7 +104,7 @@ fun HomeSettingsGlobal(
                     modifier = Modifier,
                 )
             }
-            item { HorizontalDivider() }
+            item { HorizontalDivider(Modifier.bleedHorizontal(16.dp)) }
             item {
                 HomeSettingsListItem(
                     selected = false,
@@ -131,7 +133,7 @@ fun HomeSettingsGlobal(
                     modifier = Modifier,
                 )
             }
-            item { HorizontalDivider() }
+            item { HorizontalDivider(Modifier.bleedHorizontal(16.dp)) }
             item {
                 HomeSettingsListItem(
                     selected = false,

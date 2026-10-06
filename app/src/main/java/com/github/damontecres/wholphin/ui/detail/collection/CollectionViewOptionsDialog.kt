@@ -33,6 +33,7 @@ import androidx.tv.material3.surfaceColorAtElevation
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.AppSwitchPreference
+import com.github.damontecres.wholphin.ui.components.DialogListEdge
 import com.github.damontecres.wholphin.ui.components.ViewOptions
 import com.github.damontecres.wholphin.ui.components.ViewOptions.Companion.ViewOptionsAspectRatio
 import com.github.damontecres.wholphin.ui.components.ViewOptions.Companion.ViewOptionsColumns
@@ -79,7 +80,7 @@ fun CollectionViewOptionsDialog(
                     .background(
                         MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp),
                         shape = RoundedCornerShape(8.dp),
-                    ).padding(16.dp),
+                    ).padding(start = 16.dp, top = 16.dp, end = 16.dp),
         ) {
             Text(
                 text = stringResource(R.string.view_options),
@@ -89,7 +90,8 @@ fun CollectionViewOptionsDialog(
             )
             LazyColumn(
                 state = columnState,
-                contentPadding = PaddingValues(0.dp),
+                // Room for the first and last rows' focus border and glow
+                contentPadding = PaddingValues(vertical = DialogListEdge),
                 verticalArrangement = Arrangement.spacedBy(0.dp),
             ) {
                 item {

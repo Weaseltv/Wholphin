@@ -49,6 +49,7 @@ import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.SubtitleModePreference
 import com.github.damontecres.wholphin.preferences.UserProfileSettings
 import com.github.damontecres.wholphin.ui.components.BasicDialog
+import com.github.damontecres.wholphin.ui.components.DialogListEdge
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.preferences.ChoicePreference
 import com.github.damontecres.wholphin.ui.preferences.ClickPreference
@@ -126,7 +127,7 @@ fun UserProfilePreferencesContent(
                 state = state,
                 horizontalAlignment = Alignment.Start,
                 verticalArrangement = Arrangement.spacedBy(0.dp),
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = DialogListEdge),
                 modifier = Modifier,
             ) {
                 UserProfileSettings.Preferences.forEachIndexed { groupIndex, group ->
@@ -303,7 +304,7 @@ fun UserProfilePreferencesContent(
                 },
                 modifier =
                     Modifier
-                        .padding(16.dp)
+                        .padding(start = 16.dp, top = 16.dp, end = 16.dp)
                         .fillMaxSize(),
             )
         }

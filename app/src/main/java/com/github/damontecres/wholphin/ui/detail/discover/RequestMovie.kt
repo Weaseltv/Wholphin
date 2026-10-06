@@ -114,7 +114,9 @@ fun RequestMovie(
                         waiting = false,
                         onDismissRequest = {},
                         dismissOnClick = false,
-                        modifier = modifier.focusRequester(focusRequester),
+                        // This is already a framed panel, so skip the dialog's content padding
+                        // or its title rule stops short of the edges
+                        modifier = Modifier.focusRequester(focusRequester),
                     )
                 } else {
                     LaunchedEffect(Unit) {

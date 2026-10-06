@@ -142,6 +142,17 @@ class MediaManagementServiceTest {
     }
 
     @Test
+    fun `Members can delete their own playlists without media management`() {
+        fun playlist(canDelete: Boolean) =
+            BaseItem(BaseItemDto(id = UUID.randomUUID(), type = BaseItemKind.PLAYLIST, canDelete = canDelete))
+        // The server sets canDelete only for the playlist's owner or an admin
+        Assert.assertTrue(mediaManagementService.canDelete(playlist(true), prefsDisabled))
+        Assert.assertTrue(mediaManagementService.canDelete(playlist(true), prefsEnabled))
+        Assert.assertFalse(mediaManagementService.canDelete(playlist(false), prefsDisabled))
+        Assert.assertFalse(mediaManagementService.canDelete(playlist(false), prefsEnabled))
+    }
+
+    @Test
     fun `Test canDelete recording`() {
         every { mockServerRepository.currentUserDto } returns userWithLiveTv
         Assert.assertTrue(mediaManagementService.canDelete(recording, prefsEnabled))

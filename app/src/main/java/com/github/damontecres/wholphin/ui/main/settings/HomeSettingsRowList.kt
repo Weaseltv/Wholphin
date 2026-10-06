@@ -39,6 +39,7 @@ import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.services.HomeRowConfigDisplay
 import com.github.damontecres.wholphin.ui.FontAwesome
+import com.github.damontecres.wholphin.ui.bleedHorizontal
 import com.github.damontecres.wholphin.ui.components.Button
 import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.ui.tryRequestFocus
@@ -78,7 +79,7 @@ fun HomeSettingsRowList(
         HomeSettingsLazyColumn(
             state = listState,
             modifier =
-                modifier
+                Modifier
                     .fillMaxHeight()
                     .focusRestorer(focusRequesters[0]),
         ) {
@@ -140,7 +141,7 @@ fun HomeSettingsRowList(
             }
             item {
                 TitleText(stringResource(R.string.home_rows) + " (${state.rows.size})")
-                HorizontalDivider()
+                HorizontalDivider(Modifier.bleedHorizontal(16.dp))
             }
             itemsIndexed(state.rows, key = { _, row -> row.id }) { index, row ->
                 HomeRowConfigContent(

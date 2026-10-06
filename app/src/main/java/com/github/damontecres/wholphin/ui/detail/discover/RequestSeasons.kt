@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -40,10 +41,12 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.api.seerr.model.Season
 import com.github.damontecres.wholphin.data.model.RequestStatus
 import com.github.damontecres.wholphin.data.model.SeerrAvailability
+import com.github.damontecres.wholphin.ui.bleedHorizontal
 import com.github.damontecres.wholphin.ui.cards.AvailableIndicator
 import com.github.damontecres.wholphin.ui.cards.PartiallyAvailableIndicator
 import com.github.damontecres.wholphin.ui.cards.PendingIndicator
 import com.github.damontecres.wholphin.ui.components.BasicDialog
+import com.github.damontecres.wholphin.ui.components.DialogListEdge
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.formatSeasonNumber
@@ -150,6 +153,8 @@ fun RequestSeasons(
             modifier = Modifier,
         )
         LazyColumn(
+            // Room for the focus glow of the Submit button and the last season
+            contentPadding = PaddingValues(top = 12.dp, bottom = DialogListEdge),
             modifier = Modifier,
         ) {
             item {
@@ -203,7 +208,8 @@ fun RequestSeasons(
                 }
             }
             item {
-                HorizontalDivider()
+                // Through the dialog's 16dp padding to the panel edges
+                HorizontalDivider(Modifier.bleedHorizontal(16.dp))
             }
             item {
                 Text(

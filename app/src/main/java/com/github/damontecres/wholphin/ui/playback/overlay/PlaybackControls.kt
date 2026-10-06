@@ -71,6 +71,7 @@ import com.github.damontecres.wholphin.ui.AppColors
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.components.Button
+import com.github.damontecres.wholphin.ui.components.DialogListEdge
 import com.github.damontecres.wholphin.ui.components.SelectedLeadingContent
 import com.github.damontecres.wholphin.ui.components.TextButton
 import com.github.damontecres.wholphin.ui.formatDuration
@@ -80,9 +81,11 @@ import com.github.damontecres.wholphin.ui.playback.PlaybackDialogType
 import com.github.damontecres.wholphin.ui.seekBack
 import com.github.damontecres.wholphin.ui.seekForward
 import com.github.damontecres.wholphin.ui.skipStringRes
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.LocalTheme
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonType
+import com.github.damontecres.wholphin.ui.theme.ProvideNeonAccent
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonGlassColors
@@ -154,6 +157,7 @@ fun PlaybackControls(
     seekForward: Duration,
     currentSegment: MediaSegmentDto?,
     modifier: Modifier = Modifier,
+    seekBarAccent: Color = LocalNeonAccent.current,
     initialFocusRequester: FocusRequester = remember { FocusRequester() },
     seekBarInteractionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) {
@@ -176,20 +180,22 @@ fun PlaybackControls(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
-        SeekBar(
-            player = player,
-            controllerViewState = controllerViewState,
-            onSeekProgress = onSeekProgress,
-            interactionSource = seekBarInteractionSource,
-            isEnabled = seekEnabled,
-            intervals = seekBarIntervals,
-            seekBack = seekBack,
-            seekForward = seekForward,
-            modifier =
-                Modifier
-                    .padding(vertical = 0.dp)
-                    .fillMaxWidth(.95f),
-        )
+        ProvideNeonAccent(seekBarAccent) {
+            SeekBar(
+                player = player,
+                controllerViewState = controllerViewState,
+                onSeekProgress = onSeekProgress,
+                interactionSource = seekBarInteractionSource,
+                isEnabled = seekEnabled,
+                intervals = seekBarIntervals,
+                seekBack = seekBack,
+                seekForward = seekForward,
+                modifier =
+                    Modifier
+                        .padding(vertical = 0.dp)
+                        .fillMaxWidth(.95f),
+            )
+        }
         Box(
             modifier =
                 Modifier
@@ -622,6 +628,13 @@ fun <T> BottomDialog(
                         .fillMaxWidth()
 //                        .widthIn(max = 240.dp)
                         .wrapContentWidth(),
+                // Keep the focused row's border and glow off the panel edge and inside the list's clip
+                contentPadding =
+                    if (isWeaselTv()) {
+                        PaddingValues(horizontal = 16.dp, vertical = DialogListEdge)
+                    } else {
+                        PaddingValues()
+                    },
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {

@@ -207,6 +207,7 @@ private fun SeekBarDisplay(
 ) {
     // Neon Board (`02-components-tv.md` § T6): 4dp `line2` track, fill in the item's type
     // accent with a 10dp glow, 14dp square thumb with a 2dp `text` ring. No sweep, no grow.
+    // The canvas is exactly the track's height; the glow and thumb draw past it.
     val neon = isWeaselTv()
     val accent = LocalNeonAccent.current
     val color = if (neon) accent else MaterialTheme.colorScheme.border
@@ -290,8 +291,7 @@ private fun SeekBarDisplay(
                             }
                             return@onPreviewKeyEvent true
                         }
-                    }.focusable(enabled = enabled, interactionSource = interactionSource)
-                    .then(if (neon) Modifier.padding(vertical = 8.dp) else Modifier),
+                    }.focusable(enabled = enabled, interactionSource = interactionSource),
             onDraw = {
                 val yOffset = size.height.div(2)
                 if (neon) {

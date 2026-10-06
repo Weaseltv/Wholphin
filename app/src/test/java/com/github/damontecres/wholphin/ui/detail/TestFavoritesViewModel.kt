@@ -303,6 +303,24 @@ class TestFavoritesViewModel {
         }
 
     @Test
+    fun `Remove from Watchlist in the long press menu unhearts the title`() =
+        runTest {
+            coEvery { itemsApi.getItems(any<GetItemsRequest>()) } returns successQueryResult()
+            coEvery { favoriteWatchManager.setFavorite(any(), any()) } returns mockk()
+            val viewModel = createViewModel()
+            viewModel.fetchType(
+                type = BaseItemKind.MOVIE,
+                sortAndDirection = SortAndDirection.DEFAULT,
+                filter = GetItemsFilter(),
+                viewOptions = ViewOptions(),
+            )
+            val itemId = UUID.randomUUID()
+            viewModel.createTypedProvider(BaseItemKind.MOVIE).setFavorite(0, itemId, false)
+            coVerify(timeout = 5_000) { favoriteWatchManager.setFavorite(itemId, false) }
+            coVerify(exactly = 0) { favoriteWatchManager.setWatched(any(), any()) }
+        }
+
+    @Test
     fun `Test fetchType with error`() =
         runTest {
             val ex = Exception()

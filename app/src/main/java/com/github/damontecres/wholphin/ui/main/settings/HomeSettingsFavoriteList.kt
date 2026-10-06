@@ -31,7 +31,7 @@ fun HomeSettingsFavoriteList(
         )
         HomeSettingsLazyColumn(
             modifier =
-                modifier
+                Modifier
                     .fillMaxHeight()
                     .focusRestorer(firstFocus),
         ) {

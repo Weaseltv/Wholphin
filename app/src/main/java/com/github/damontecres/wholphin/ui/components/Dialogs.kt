@@ -274,6 +274,14 @@ fun DialogPopup(
     }
 }
 
+private val DialogPadding = 24.dp
+
+/**
+ * Clear space at the top and bottom of a menu's list. A focused row draws a 1dp border, a
+ * 16dp glow and grows a little, all of which the list would otherwise cut off.
+ */
+val DialogListEdge = 20.dp
+
 @Composable
 fun DialogPopupContent(
     title: String,
@@ -292,7 +300,6 @@ fun DialogPopupContent(
     // Condensed 26 uppercase title on a rule, 52dp hairline rows.
     val shape = if (neon) RectangleShape else RoundedCornerShape(28.0.dp)
     Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier =
             modifier
                 .shadow(elevation = if (neon) 20.dp else elevation, shape = shape)
@@ -301,19 +308,24 @@ fun DialogPopupContent(
                     this.shape = shape
                 }.drawBehind { drawRect(color = elevatedContainerColor) }
                 .then(if (neon) Modifier.border(1.dp, NeonBoard.Line2).neonTally(accent).width(NeonBoard.Size.DialogWidth) else Modifier)
-                .padding(PaddingValues(24.dp)),
+                // Only vertical padding on the panel: the title rule and dividers run edge to edge,
+                // and the title and rows carry the horizontal inset themselves.
+                .padding(top = DialogPadding, bottom = DialogPadding - DialogListEdge),
     ) {
         Text(
             text = if (neon) title.uppercase() else title,
             style = if (neon) NeonType.dialogTitle() else MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = DialogPadding),
         )
-        NeonRule(accent = accent)
+        NeonRule(accent = accent, modifier = Modifier.padding(top = 8.dp))
         val scope = rememberCoroutineScope()
         val listState = rememberLazyListState()
         val focusRequesters = remember { List(dialogItems.size) { FocusRequester() } }
         LazyColumn(
             state = listState,
+            // A list clips at its edges, so leave room for the first and last rows' focus border and glow
+            contentPadding = PaddingValues(vertical = DialogListEdge),
             modifier = Modifier,
         ) {
             itemsIndexed(dialogItems) { index, item ->
@@ -346,6 +358,7 @@ fun DialogPopupContent(
                             interactionSource = interactionSource,
                             modifier =
                                 Modifier
+                                    .padding(horizontal = DialogPadding)
                                     .focusRequester(focusRequesters[index])
                                     .lazyListWrapScrolling(
                                         listState,
@@ -513,7 +526,7 @@ fun ConfirmDialogContent(
 ) {
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = DialogListEdge),
         modifier = modifier,
     ) {
         item {
@@ -570,7 +583,7 @@ fun ConfirmDeleteDialog(
         LazyColumn(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = DialogListEdge),
             modifier = Modifier.wrapContentWidth(),
         ) {
             item {

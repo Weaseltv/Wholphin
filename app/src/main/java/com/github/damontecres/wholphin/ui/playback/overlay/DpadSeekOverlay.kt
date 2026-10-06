@@ -8,8 +8,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.ProvideNeonAccent
 import org.jellyfin.sdk.model.api.TrickplayInfo
 
 /**
@@ -22,6 +25,7 @@ fun DpadSeekOverlay(
     trickplayInfo: TrickplayInfo?,
     trickplayUrlFor: (Int) -> String?,
     modifier: Modifier = Modifier,
+    accent: Color = LocalNeonAccent.current,
 ) {
     val durationMs = player.duration.coerceAtLeast(0L)
     val seekProgressPercent =
@@ -56,12 +60,14 @@ fun DpadSeekOverlay(
                         .padding(bottom = 8.dp),
             )
         }
-        StaticSeekBarImpl(
-            progress = seekProgressPercent,
-            bufferedProgress = bufferedProgress,
-            durationMs = durationMs,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        ProvideNeonAccent(accent) {
+            StaticSeekBarImpl(
+                progress = seekProgressPercent,
+                bufferedProgress = bufferedProgress,
+                durationMs = durationMs,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         SeekTimecodes(
             positionMs = seekPositionMs,
             durationMs = durationMs,

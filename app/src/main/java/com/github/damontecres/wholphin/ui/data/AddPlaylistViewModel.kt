@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.services.MusicService
+import com.github.damontecres.wholphin.services.NavDrawerService
 import com.github.damontecres.wholphin.services.PlaylistCreator
 import com.github.damontecres.wholphin.ui.detail.PlaylistLoadingState
 import com.github.damontecres.wholphin.ui.detail.music.addToQueue
@@ -34,6 +35,7 @@ class AddPlaylistViewModel
         private val api: ApiClient,
         private val playlistCreator: PlaylistCreator,
         private val musicService: MusicService,
+        private val navDrawerService: NavDrawerService,
     ) : ViewModel() {
         val playlistState = MutableStateFlow<PlaylistLoadingState>(PlaylistLoadingState.Pending)
 
@@ -75,6 +77,8 @@ class AddPlaylistViewModel
                     showToast(context, "Error creating playlist", Toast.LENGTH_LONG)
                 } else {
                     showToast(context, context.getString(R.string.success), Toast.LENGTH_SHORT)
+                    // A first playlist makes the server add a Playlists library to the menu
+                    navDrawerService.refresh()
                 }
             }
         }
