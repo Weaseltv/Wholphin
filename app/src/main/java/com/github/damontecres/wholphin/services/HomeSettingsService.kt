@@ -294,6 +294,7 @@ class HomeSettingsService
 
             val includedIds =
                 libraries
+                    .sortedBy { homeLibraryOrder(it.name) }
                     .mapIndexed { index, library ->
                         val parentId = library.itemId
                         val title = getRecentlyAddedTitle(library.name)
@@ -344,6 +345,7 @@ class HomeSettingsService
             val libraries =
                 navDrawerService
                     .getAllUserLibraries(userId, userDto.tvAccess)
+                    .sortedBy { homeLibraryOrder(it.name) }
                     .filterNot {
                         it.itemId in config.latestItemsExcludes
                     }
@@ -1301,6 +1303,15 @@ class UnsupportedHomeSettingsVersionException(
     val unsupportedVersion: Int?,
     val maxSupportedVersion: Int = SUPPORTED_HOME_PAGE_SETTINGS_VERSION,
 ) : Exception("Unsupported version $unsupportedVersion, max supported is $maxSupportedVersion")
+
+// Preserve the pre-v1.2.24 Home order independently of the server-controlled menu order.
+private fun homeLibraryOrder(name: String): Int {
+    if (BuildConfig.FLAVOR != "weaselfin") return Int.MAX_VALUE
+    val order =
+        listOf("Movies", "TV Shows", "Stand Up Comedy", "UFC", "Boxing", "4K Movies (LAN)", "4K TV Shows (LAN)")
+    val index = order.indexOfFirst { it.equals(name.trim(), ignoreCase = true) }
+    return if (index >= 0) index else Int.MAX_VALUE
+}
 
 fun getRecentlyAddedTitle(name: String?): StringProvider =
     name?.let { ResArgStringProvider(R.string.recently_added_in, it) }
