@@ -30,6 +30,7 @@ import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.client.extensions.liveTvApi
 import org.jellyfin.sdk.api.client.extensions.userViewsApi
+import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
 import org.jellyfin.sdk.model.api.UserDto
 import timber.log.Timber
@@ -52,9 +53,12 @@ class NavDrawerService
         private val serverPreferencesDao: ServerPreferencesDao,
         private val seerrServerRepository: SeerrServerRepository,
         private val musicService: MusicService,
+        private val mediaManagementService: MediaManagementService,
     ) {
         private val _state = MutableStateFlow(NavDrawerItemState())
         val state: StateFlow<NavDrawerItemState> = _state
+
+        private val refreshRequests = MutableStateFlow(0)
 
         init {
             // Handle updating the nav drawer when the user changes
@@ -62,7 +66,8 @@ class NavDrawerService
                 serverRepository.currentUserFlow,
                 serverRepository.currentUserDtoFlow,
                 seerrServerRepository.active,
-            ) { user, userDto, discoverActive ->
+                refreshRequests,
+            ) { user, userDto, discoverActive, _ ->
                 Triple(user, userDto, discoverActive)
             }.collectLatestIn(coroutineScope) { (user, userDto, discoverActive) ->
                 Timber.d(
@@ -83,6 +88,11 @@ class NavDrawerService
                     Timber.e(ex, "Error updating nav drawer")
                     showToast(context, "Error fetching user's views")
                 }
+            }
+
+            // The server only lists a Playlists library while the member has a playlist
+            mediaManagementService.deletedItemFlow.collectLatestIn(coroutineScope) {
+                if (it.item.type == BaseItemKind.PLAYLIST) refresh()
             }
 
             // Handle when music is actively playing or not
@@ -120,6 +130,14 @@ class NavDrawerService
                     }
                 }
             }
+        }
+
+        /**
+         * Re-read the user's libraries, e.g. after their first playlist makes the server add a
+         * Playlists library. Otherwise the nav drawer only changes when the user does.
+         */
+        fun refresh() {
+            refreshRequests.update { it + 1 }
         }
 
         /**

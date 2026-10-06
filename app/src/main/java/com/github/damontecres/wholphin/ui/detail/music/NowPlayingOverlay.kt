@@ -163,7 +163,8 @@ fun NowPlayingOverlay(
             )
             LazyColumn(
                 state = listState,
-                contentPadding = PaddingValues(bottom = 16.dp, start = 16.dp, end = 16.dp),
+                // The top padding keeps the first row's focused buttons' glow inside the list
+                contentPadding = PaddingValues(16.dp),
                 modifier =
                     Modifier
                         .fillMaxSize()

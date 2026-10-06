@@ -577,7 +577,7 @@ class FavoritesViewModel
                 favorite: Boolean,
             ) {
                 viewModelScope.launch(ExceptionHandler() + WholphinDispatchers.IO) {
-                    favoriteWatchManager.setWatched(itemId, favorite)
+                    favoriteWatchManager.setFavorite(itemId, favorite)
                     collectionStateFor(type)?.let { collectionState ->
                         // TODO use pager.refreshPagesAfter ??
                         fetchType(

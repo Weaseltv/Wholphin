@@ -42,6 +42,7 @@ import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.SubtitlePreferences
 import com.github.damontecres.wholphin.preferences.lazyListWrapScrolling
 import com.github.damontecres.wholphin.preferences.resetSubtitles
+import com.github.damontecres.wholphin.ui.components.DialogListEdge
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.preferences.ClickPreference
 import com.github.damontecres.wholphin.ui.preferences.ComposablePreference
@@ -102,7 +103,7 @@ fun SubtitlePreferencesContent(
                 state = state,
                 horizontalAlignment = Alignment.Start,
                 verticalArrangement = Arrangement.spacedBy(0.dp),
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = DialogListEdge),
             ) {
                 prefList.forEachIndexed { groupIndex, group ->
                     item {

@@ -59,6 +59,9 @@ class MediaManagementService
             appPreferences: AppPreferences,
         ): Boolean {
             Timber.v("canDelete %s: %s", item.id, item.canDelete)
+            // Deleting a playlist removes only the list, never media, and the server only allows
+            // it for the playlist's owner or an admin, so it doesn't need media management on.
+            if (item.type == BaseItemKind.PLAYLIST) return item.canDelete
             val enabled = appPreferences.interfacePreferences.enableMediaManagement
             return enabled &&
                 item.canDelete &&

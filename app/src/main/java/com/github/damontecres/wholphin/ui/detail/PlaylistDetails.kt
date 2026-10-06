@@ -83,6 +83,7 @@ import com.github.damontecres.wholphin.ui.components.Button
 import com.github.damontecres.wholphin.ui.components.ContextMenu
 import com.github.damontecres.wholphin.ui.components.ContextMenuActions
 import com.github.damontecres.wholphin.ui.components.ContextMenuDialog
+import com.github.damontecres.wholphin.ui.components.DialogListEdge
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.ExpandableFaButton
 import com.github.damontecres.wholphin.ui.components.ExpandablePlayButton
@@ -1089,7 +1090,7 @@ fun ConfirmMediaTypeDialog(
     ) {
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = DialogListEdge),
             modifier = Modifier.wrapContentSize(),
         ) {
             item {

@@ -34,7 +34,7 @@ fun HomeLibraryRowTypeList(
         TitleText(stringResource(R.string.add_row_for, library.name))
         HomeSettingsLazyColumn(
             modifier =
-                modifier
+                Modifier
                     .fillMaxHeight()
                     .focusRestorer(firstFocus),
         ) {

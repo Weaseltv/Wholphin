@@ -77,6 +77,8 @@ fun PlaylistList(
     var showCreateDialog by remember { mutableStateOf(false) }
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(8.dp),
+        // A focused row grows a little; keep the first and last inside the list's clip
+        contentPadding = PaddingValues(vertical = 8.dp),
         modifier = modifier,
     ) {
         items(playlists) { playlist ->

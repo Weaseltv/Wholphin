@@ -6,6 +6,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -51,6 +52,7 @@ import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.components.BasicDialog
 import com.github.damontecres.wholphin.ui.components.Button
+import com.github.damontecres.wholphin.ui.components.DialogListEdge
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.main.settings.MoveDirection
@@ -165,7 +167,7 @@ fun NavDrawerPreferenceDialog(
         Column(
             modifier =
                 Modifier
-                    .padding(16.dp),
+                    .padding(start = 16.dp, top = 16.dp, end = 16.dp),
         ) {
             Text(
                 text = stringResource(R.string.nav_drawer_pins),
@@ -183,6 +185,8 @@ fun NavDrawerPreferenceDialog(
             }
             LazyColumn(
                 state = listState,
+                // Room for the first and last rows' focus border and glow
+                contentPadding = PaddingValues(vertical = DialogListEdge),
                 verticalArrangement = Arrangement.spacedBy(0.dp),
             ) {
                 itemsIndexed(items, key = { _, item -> item.id }) { index, item ->

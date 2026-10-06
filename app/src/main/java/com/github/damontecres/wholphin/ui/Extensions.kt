@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
@@ -188,6 +189,25 @@ fun RequestOrRestoreFocus(
 //        }
     }
 }
+
+/**
+ * Widens a divider or rule by [amount] on each side, so a line inside padded content can
+ * still reach the edges of its panel.
+ */
+fun Modifier.bleedHorizontal(amount: Dp): Modifier =
+    layout { measurable, constraints ->
+        val extra = amount.roundToPx()
+        val placeable =
+            measurable.measure(
+                constraints.copy(
+                    minWidth = constraints.minWidth + extra * 2,
+                    maxWidth = constraints.maxWidth + extra * 2,
+                ),
+            )
+        layout(placeable.width - extra * 2, placeable.height) {
+            placeable.place(-extra, 0)
+        }
+    }
 
 fun Modifier.enableMarquee(focused: Boolean) =
     if (focused) {

@@ -20,6 +20,7 @@ import androidx.tv.material3.ListItemDefaults
 import androidx.tv.material3.ListItemGlow
 import androidx.tv.material3.ListItemScale
 import androidx.tv.material3.ListItemShape
+import com.github.damontecres.wholphin.ui.components.DialogListEdge
 import com.github.damontecres.wholphin.ui.preferences.PreferenceTitle
 
 @Composable
@@ -69,7 +70,8 @@ fun HomeSettingsListItem(
 fun HomeSettingsLazyColumn(
     modifier: Modifier = Modifier,
     state: LazyListState = rememberLazyListState(),
-    contentPadding: PaddingValues = PaddingValues(8.dp),
+    // Vertical room for the first and last rows' focus border and glow, which the list clips
+    contentPadding: PaddingValues = PaddingValues(horizontal = 8.dp, vertical = DialogListEdge),
     verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(0.dp),
     content: LazyListScope.() -> Unit,
 ) {

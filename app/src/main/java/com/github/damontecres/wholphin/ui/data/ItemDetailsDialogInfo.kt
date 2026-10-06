@@ -21,6 +21,7 @@ import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.studioNames
+import com.github.damontecres.wholphin.ui.bleedHorizontal
 import com.github.damontecres.wholphin.ui.components.ScrollableDialog
 import com.github.damontecres.wholphin.ui.formatBitrate
 import com.github.damontecres.wholphin.ui.formatBytes
@@ -125,7 +126,8 @@ fun ItemDetailsDialog(
             source.mediaStreams?.letNotEmpty { mediaStreams ->
                 item {
                     Spacer(Modifier.height(8.dp))
-                    HorizontalDivider()
+                    // Through the dialog's 16dp content padding to the panel edges
+                    HorizontalDivider(Modifier.bleedHorizontal(16.dp))
                 }
 
                 // General file information

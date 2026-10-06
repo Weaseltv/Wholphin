@@ -16,29 +16,21 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.filter.DefaultFilterOptions
 import com.github.damontecres.wholphin.data.filter.FilterValueOption
 import com.github.damontecres.wholphin.data.filter.ItemFilterBy
 import com.github.damontecres.wholphin.data.model.GetItemsFilter
-import com.github.damontecres.wholphin.ui.components.Button
 import com.github.damontecres.wholphin.ui.components.DeleteButton
 import com.github.damontecres.wholphin.ui.components.ExpandableFaButton
 import com.github.damontecres.wholphin.ui.components.ExpandablePlayButton
 import com.github.damontecres.wholphin.ui.components.FilterByButton
 import com.github.damontecres.wholphin.ui.components.SortByButton
+import com.github.damontecres.wholphin.ui.components.StreamingTypeFilters
+import com.github.damontecres.wholphin.ui.components.TypeFilterButton
 import com.github.damontecres.wholphin.ui.data.MovieSortOptions
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
-import com.github.damontecres.wholphin.ui.theme.neonOutlineColors
-import com.github.damontecres.wholphin.ui.theme.neonSurfaceBorder
-import com.github.damontecres.wholphin.ui.theme.neonSurfaceGlow
-import com.github.damontecres.wholphin.ui.theme.typeAccent
-import org.jellyfin.sdk.model.api.BaseItemKind
 import kotlin.time.Duration
 
 @Composable
@@ -72,34 +64,14 @@ fun CollectionButtons(
                     .focusRestorer(firstFocus),
         ) {
             if (state.isStreaming) {
-                listOf(
-                    R.string.streaming_all to null,
-                    R.string.movies_title to listOf(BaseItemKind.MOVIE),
-                    R.string.streaming_shows to listOf(BaseItemKind.SERIES),
-                ).forEachIndexed { index, (title, types) ->
-                    item(title) {
-                        val selected = state.itemFilter.includeItemTypes == types
-                        val accent = typeAccent(types?.singleOrNull())
-                        Button(
-                            onClick = { onFilterChange(state.itemFilter.copy(includeItemTypes = types)) },
-                            colors = neonOutlineColors(accent),
-                            border =
-                                neonSurfaceBorder(
-                                    accent = accent,
-                                    restWidth = 1.dp,
-                                    restColor = accent,
-                                ),
-                            glow = neonSurfaceGlow(accent),
-                            contentPadding = PaddingValues(horizontal = 12.dp),
-                            modifier =
-                                (if (index == 0) Modifier.focusRequester(firstFocus) else Modifier)
-                                    .semantics { this.selected = selected },
-                        ) {
-                            Text(
-                                text = stringResource(title).uppercase(),
-                                color = accent,
-                            )
-                        }
+                StreamingTypeFilters.forEachIndexed { index, option ->
+                    item(option.title) {
+                        TypeFilterButton(
+                            option = option,
+                            selected = state.itemFilter.includeItemTypes == option.types,
+                            onClick = { onFilterChange(state.itemFilter.copy(includeItemTypes = option.types)) },
+                            modifier = if (index == 0) Modifier.focusRequester(firstFocus) else Modifier,
+                        )
                     }
                 }
             } else {

@@ -12,7 +12,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import com.github.damontecres.wholphin.R
+import com.github.damontecres.wholphin.ui.bleedHorizontal
 import com.github.damontecres.wholphin.ui.ifElse
 
 @Composable
@@ -29,7 +31,7 @@ fun HomeSettingsAddRow(
         TitleText(stringResource(R.string.add_row))
         HomeSettingsLazyColumn(
             modifier =
-                modifier
+                Modifier
                     .fillMaxHeight()
                     .focusRestorer(firstFocus),
         ) {
@@ -49,7 +51,7 @@ fun HomeSettingsAddRow(
             }
             item {
                 TitleText(stringResource(R.string.library))
-                HorizontalDivider()
+                HorizontalDivider(Modifier.bleedHorizontal(16.dp))
             }
             itemsIndexed(libraries) { index, library ->
                 HomeSettingsListItem(
@@ -61,7 +63,7 @@ fun HomeSettingsAddRow(
             }
             item {
                 TitleText(stringResource(R.string.more))
-                HorizontalDivider()
+                HorizontalDivider(Modifier.bleedHorizontal(16.dp))
             }
             itemsIndexed(
                 listOf(

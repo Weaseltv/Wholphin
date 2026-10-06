@@ -5,6 +5,7 @@ import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -189,6 +190,8 @@ fun SearchForContent(
 
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(8.dp),
+            // Room below the last row of cards for their focus glow
+            contentPadding = PaddingValues(bottom = 28.dp),
         ) {
             item {
                 SearchForResultsRow(
@@ -294,9 +297,10 @@ fun SearchForDialog(
         SearchForContent(
             searchType = searchType,
             onClick = onClick,
+            // No horizontal padding: row rules and the divider run to the panel's edges
             modifier =
                 Modifier
-                    .padding(8.dp)
+                    .padding(vertical = 8.dp)
                     .fillMaxWidth(.8f)
                     .fillMaxHeight(.66f),
         )
