@@ -1078,7 +1078,7 @@ fun CollectionFolderViewContent(
                                             positionCallback?.invoke(columns, pos)
                                         },
                                         letterPosition = { viewActions.positionOfLetter(it) ?: -1 },
-                                        viewOptions = state.viewOptions,
+                                        viewOptions = if (collectionsLayout) state.viewOptions.copy(showTitles = false) else state.viewOptions,
                                         onClickPlay = gridActions.onClickPlayRemoteButton!!,
                                         focusedItem = focusedItem,
                                         collectionCardAppearance = collectionHomeOptions.cardAppearance,

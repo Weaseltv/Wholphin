@@ -325,7 +325,7 @@ Streaming Services cards show “Streaming on [provider] right now.” rather th
 
 The Collections library header aligns its title and LIBRARY eyebrow with the first poster. It adds 27dp top padding, a 20dp divider-to-toolbar gap, and another 16dp below the toolbar before the grid's existing padding. The title rule reads the Picks Home divider thickness/glow values, in Collections yellow.
 
-Collection grid cards share the current user's Picks Home focus/count settings. Picks and the 29 additional collections use their supplied palettes; Streaming Services use the same provider styles and contrasting border overrides as Home. Every Collections focus border is fully opaque. Layout defaults revision 4 updates existing Picks Home border opacity to 100%, preserving other settings and later user tuning.
+Collection grid cards share the current user's Picks Home focus/count settings. Picks and the 29 additional collections use their supplied palettes; Streaming Services use the same provider styles and contrasting border overrides as Home. Every Collections focus border is fully opaque. Sports collection borders and glows use Boxing #F29E19, UFC Fight Night #3B8BF2, UFC on ABC #1FF2D4, UFC on ESPN #F22519 and UFC PPV #FECD30. Titles beneath all Collections grid posters are hidden; other library poster titles retain their existing settings. Layout defaults revision 4 updates existing Picks Home border opacity to 100%, preserving other settings and later user tuning.
 
 The COLLECTION type label is removed from the Collections grid; title counts remain. The Alpha tuner retains focus-border and count controls and removes the obsolete COLLECTION label controls.
 

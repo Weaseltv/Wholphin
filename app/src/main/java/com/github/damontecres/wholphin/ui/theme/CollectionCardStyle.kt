@@ -62,7 +62,7 @@ fun CollectionCardStyle(
     }
 }
 
-/** Picks plus the owner's additional collection poster palette. */
+/** Picks, additional collections and sports use the owner's supplied poster palettes. */
 fun collectionPosterAccent(name: String?) = curatedPickAccent(name) ?: when (
     name?.trim()?.lowercase(java.util.Locale.ROOT)?.replace("’", "")?.replace("'", "")
 ) {
@@ -95,6 +95,11 @@ fun collectionPosterAccent(name: String?) = curatedPickAccent(name) ?: when (
     "tmdb top rated" -> Color(0xFF39FFE2)
     "turn it up" -> Color(0xFFFF33D4)
     "whodunit", "whodunnit" -> Color(0xFFFFC932)
+    "boxing" -> Color(0xFFF29E19)
+    "ufc fight night" -> Color(0xFF3B8BF2)
+    "ufc on abc" -> Color(0xFF1FF2D4)
+    "ufc on espn" -> Color(0xFFF22519)
+    "ufc ppv" -> Color(0xFFFECD30)
     else -> null
 }
 
