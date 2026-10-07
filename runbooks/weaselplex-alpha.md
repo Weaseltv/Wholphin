@@ -39,6 +39,8 @@ Gradle command is:
 ## Alpha installation and build host
 
 - Launcher name: **WeaselPlex Alpha**.
+- Launcher icon and TV banner include an **ALPHA** badge so the two installed
+  apps are easy to distinguish. These resources are scoped to the Alpha build.
 - Package: `tv.theweasel.weaselplex.alpha`, alongside customer
   `tv.theweasel.weaselplex`.
 - Same WeaselPlex branding, server defaults, Seerr features and native playback
@@ -59,6 +61,23 @@ Gradle command is:
   `WholphinExtensionsUsername` / `WholphinExtensionsPassword` settings in
   `~/.gradle/gradle.properties`, or all three local AARs in `app/libs`.
   Keep keys and credentials out of the repo.
+
+## Projectivy launcher artwork
+
+An installed APK's icon/banner and Projectivy's displayed tile can differ. On the
+owner's Shield, installing the badged Alpha APK and restarting Projectivy still
+left an unbadged Alpha tile. Assigning the Alpha banner directly fixed it:
+
+1. Long-press **WeaselPlex Alpha** and confirm that exact name in the menu.
+2. Choose **Change icon** → **From picture** and select the Alpha master from
+   `art/alpha-launcher/tv-banner.png`, copied to the Shield. The current copy is
+   `/sdcard/Pictures/WeaselPlexAlpha/WeaselPlex-Alpha-banner.png`.
+3. Return to the launcher and verify the visible **ALPHA** badge beside the
+   customer app. Keep that picture on the Shield for the launcher to use.
+
+Preserve the owner's launcher layout and other tiles. Do not clear launcher data
+to refresh an icon. Report artwork packaged in an APK, successful installation,
+and actual launcher visual verification as separate checks.
 
 ## Accumulate changes, then ship once
 

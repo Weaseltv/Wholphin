@@ -60,6 +60,7 @@ import com.github.damontecres.wholphin.ui.data.ItemDetailsDialog
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialogInfo
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberInt
+import com.github.damontecres.wholphin.ui.theme.InsetNeonSectionRules
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.ExceptionHandler
@@ -212,132 +213,134 @@ fun DiscoverMovieDetailsContent(
         focusRequesters.getOrNull(position)?.tryRequestFocus()
     }
     Box(modifier = modifier) {
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(horizontal = 32.dp, vertical = 8.dp),
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            item {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(0.dp),
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .bringIntoViewRequester(bringIntoViewRequester),
-                ) {
-                    DiscoverMovieDetailsHeader(
-                        preferences = preferences,
-                        movie = movie,
-                        rating = rating,
-                        bringIntoViewRequester = bringIntoViewRequester,
-                        overviewOnClick = overviewOnClick,
-                        showLogo = preferences.appPreferences.interfacePreferences.showLogos,
+        InsetNeonSectionRules(start = 32.dp) {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(horizontal = 32.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                item {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(0.dp),
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .padding(top = HeaderUtils.topPadding, bottom = 16.dp),
-                    )
-                    ExpandableDiscoverButtons(
-                        availability =
-                            SeerrAvailability.from(movie.mediaInfo?.status)
-                                ?: SeerrAvailability.UNKNOWN,
-                        requestOnClick = requestOnClick,
-                        cancelOnClick = cancelOnClick,
-                        moreOnClick = moreOnClick,
-                        goToOnClick = goToOnClick,
-                        buttonOnFocusChanged = {
-                            if (it.isFocused) {
-                                position = HEADER_ROW
-                                scope.launch(ExceptionHandler()) {
-                                    bringIntoViewRequester.bringIntoView()
+                                .bringIntoViewRequester(bringIntoViewRequester),
+                    ) {
+                        DiscoverMovieDetailsHeader(
+                            preferences = preferences,
+                            movie = movie,
+                            rating = rating,
+                            bringIntoViewRequester = bringIntoViewRequester,
+                            overviewOnClick = overviewOnClick,
+                            showLogo = preferences.appPreferences.interfacePreferences.showLogos,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = HeaderUtils.topPadding, bottom = 16.dp),
+                        )
+                        ExpandableDiscoverButtons(
+                            availability =
+                                SeerrAvailability.from(movie.mediaInfo?.status)
+                                    ?: SeerrAvailability.UNKNOWN,
+                            requestOnClick = requestOnClick,
+                            cancelOnClick = cancelOnClick,
+                            moreOnClick = moreOnClick,
+                            goToOnClick = goToOnClick,
+                            buttonOnFocusChanged = {
+                                if (it.isFocused) {
+                                    position = HEADER_ROW
+                                    scope.launch(ExceptionHandler()) {
+                                        bringIntoViewRequester.bringIntoView()
+                                    }
                                 }
-                            }
-                        },
-                        canRequest = userConfig.hasPermission(SeerrPermission.REQUEST),
-                        canCancel = canCancel,
-                        trailers = trailers,
-                        trailerOnClick = trailerOnClick,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 16.dp)
-                                .focusRequester(focusRequesters[HEADER_ROW]),
-                    )
+                            },
+                            canRequest = userConfig.hasPermission(SeerrPermission.REQUEST),
+                            canCancel = canCancel,
+                            trailers = trailers,
+                            trailerOnClick = trailerOnClick,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 16.dp)
+                                    .focusRequester(focusRequesters[HEADER_ROW]),
+                        )
+                    }
                 }
-            }
-            if (people.isNotEmpty()) {
-                item {
-                    DiscoverPersonRow(
-                        people = people,
-                        onClick = {
-                            position = PEOPLE_ROW
-                            onClickPerson.invoke(it)
-                        },
-                        onLongClick = { index, person ->
-                            position = PEOPLE_ROW
-                            onLongClickPerson.invoke(index, person)
-                        },
-                        modifier = Modifier.focusRequester(focusRequesters[PEOPLE_ROW]),
-                    )
+                if (people.isNotEmpty()) {
+                    item {
+                        DiscoverPersonRow(
+                            people = people,
+                            onClick = {
+                                position = PEOPLE_ROW
+                                onClickPerson.invoke(it)
+                            },
+                            onLongClick = { index, person ->
+                                position = PEOPLE_ROW
+                                onLongClickPerson.invoke(index, person)
+                            },
+                            modifier = Modifier.focusRequester(focusRequesters[PEOPLE_ROW]),
+                        )
+                    }
                 }
-            }
 
-            if (similar.isNotEmpty()) {
-                item {
-                    ItemRow(
-                        title = stringResource(R.string.more_like_this),
-                        items = similar,
-                        onClickItem = { index, item ->
-                            position = SIMILAR_ROW
-                            onClickItem.invoke(index, item)
-                        },
-                        onLongClickItem = { index, similar ->
-                            position = SIMILAR_ROW
-                            onLongClickSimilar.invoke(index, similar)
-                        },
-                        cardContent = { index, item, mod, onClick, onLongClick ->
-                            DiscoverItemCard(
-                                item = item,
-                                onClick = onClick,
-                                onLongClick = onLongClick,
-                                showOverlay = true,
-                                modifier = mod,
-                            )
-                        },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .focusRequester(focusRequesters[SIMILAR_ROW]),
-                    )
+                if (similar.isNotEmpty()) {
+                    item {
+                        ItemRow(
+                            title = stringResource(R.string.more_like_this),
+                            items = similar,
+                            onClickItem = { index, item ->
+                                position = SIMILAR_ROW
+                                onClickItem.invoke(index, item)
+                            },
+                            onLongClickItem = { index, similar ->
+                                position = SIMILAR_ROW
+                                onLongClickSimilar.invoke(index, similar)
+                            },
+                            cardContent = { index, item, mod, onClick, onLongClick ->
+                                DiscoverItemCard(
+                                    item = item,
+                                    onClick = onClick,
+                                    onLongClick = onLongClick,
+                                    showOverlay = true,
+                                    modifier = mod,
+                                )
+                            },
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .focusRequester(focusRequesters[SIMILAR_ROW]),
+                        )
+                    }
                 }
-            }
-            if (recommended.isNotEmpty()) {
-                item {
-                    ItemRow(
-                        title = stringResource(R.string.recommended),
-                        items = recommended,
-                        onClickItem = { index, item ->
-                            position = RECOMMENDED_ROW
-                            onClickItem.invoke(index, item)
-                        },
-                        onLongClickItem = { index, similar ->
-                            position = RECOMMENDED_ROW
-                            onLongClickSimilar.invoke(index, similar)
-                        },
-                        cardContent = { index, item, mod, onClick, onLongClick ->
-                            DiscoverItemCard(
-                                item = item,
-                                onClick = onClick,
-                                onLongClick = onLongClick,
-                                showOverlay = true,
-                                modifier = mod,
-                            )
-                        },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .focusRequester(focusRequesters[RECOMMENDED_ROW]),
-                    )
+                if (recommended.isNotEmpty()) {
+                    item {
+                        ItemRow(
+                            title = stringResource(R.string.recommended),
+                            items = recommended,
+                            onClickItem = { index, item ->
+                                position = RECOMMENDED_ROW
+                                onClickItem.invoke(index, item)
+                            },
+                            onLongClickItem = { index, similar ->
+                                position = RECOMMENDED_ROW
+                                onLongClickSimilar.invoke(index, similar)
+                            },
+                            cardContent = { index, item, mod, onClick, onLongClick ->
+                                DiscoverItemCard(
+                                    item = item,
+                                    onClick = onClick,
+                                    onLongClick = onLongClick,
+                                    showOverlay = true,
+                                    modifier = mod,
+                                )
+                            },
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .focusRequester(focusRequesters[RECOMMENDED_ROW]),
+                        )
+                    }
                 }
             }
         }

@@ -194,18 +194,25 @@ fun RequestOrRestoreFocus(
  * Widens a divider or rule by [amount] on each side, so a line inside padded content can
  * still reach the edges of its panel.
  */
-fun Modifier.bleedHorizontal(amount: Dp): Modifier =
+fun Modifier.bleedHorizontal(amount: Dp): Modifier = bleedHorizontal(start = amount, end = amount)
+
+/** Extends a rule across asymmetric content gutters without moving the surrounding content. */
+fun Modifier.bleedHorizontal(
+    start: Dp,
+    end: Dp,
+): Modifier =
     layout { measurable, constraints ->
-        val extra = amount.roundToPx()
+        val startPx = start.roundToPx()
+        val extra = startPx + end.roundToPx()
         val placeable =
             measurable.measure(
                 constraints.copy(
-                    minWidth = constraints.minWidth + extra * 2,
-                    maxWidth = constraints.maxWidth + extra * 2,
+                    minWidth = constraints.minWidth + extra,
+                    maxWidth = if (constraints.hasBoundedWidth) constraints.maxWidth + extra else constraints.maxWidth,
                 ),
             )
-        layout(placeable.width - extra * 2, placeable.height) {
-            placeable.place(-extra, 0)
+        layout(placeable.width - extra, placeable.height) {
+            placeable.placeRelative(-startPx, 0)
         }
     }
 

@@ -90,6 +90,7 @@ import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.preferences.PreferenceScreenOption
 import com.github.damontecres.wholphin.ui.setup.UserIconCardImage
 import com.github.damontecres.wholphin.ui.spacedByWithFooter
+import com.github.damontecres.wholphin.ui.theme.InsetNeonSectionRules
 import com.github.damontecres.wholphin.ui.theme.LocalTheme
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonType
@@ -571,8 +572,7 @@ fun NavDrawer(
         Box(
             modifier = Modifier.fillMaxSize(),
         ) {
-            // Drawer content. Home row rules reach the right screen edge; other pages
-            // keep their 8dp inset. The rail and left content gutter stay in place.
+            // Page labels and cards keep their gutters; section rules extend to the rail and screen edge.
             // The page takes the SECTION accent of the rail item it belongs to; details
             // pages override it with their item's type accent.
             val sectionAccent =
@@ -595,26 +595,31 @@ fun NavDrawer(
                     }
                 }
             ProvideNeonAccent(sectionAccent) {
-                DestinationContent(
-                    destination = destination,
-                    preferences = preferences,
-                    onClearBackdrop = onClearBackdrop,
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .offset {
-                                offset
-                            }.then(
-                                if (neon) {
-                                    Modifier.padding(
-                                        start = closedDrawerWidth + NeonBoard.Size.OverscanX / 2,
-                                        end = if (destination is Destination.Home) 0.dp else 8.dp,
-                                    )
-                                } else {
-                                    Modifier.padding(start = closedDrawerWidth + 8.dp, end = 16.dp)
-                                },
-                            ),
-                )
+                InsetNeonSectionRules(
+                    start = if (neon) NeonBoard.Size.OverscanX / 2 else 0.dp,
+                    end = if (neon && destination !is Destination.Home) 8.dp else 0.dp,
+                ) {
+                    DestinationContent(
+                        destination = destination,
+                        preferences = preferences,
+                        onClearBackdrop = onClearBackdrop,
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .offset {
+                                    offset
+                                }.then(
+                                    if (neon) {
+                                        Modifier.padding(
+                                            start = closedDrawerWidth + NeonBoard.Size.OverscanX / 2,
+                                            end = if (destination is Destination.Home) 0.dp else 8.dp,
+                                        )
+                                    } else {
+                                        Modifier.padding(start = closedDrawerWidth + 8.dp, end = 16.dp)
+                                    },
+                                ),
+                    )
+                }
             }
             if (preferences.appPreferences.interfacePreferences.showClock) {
                 TimeDisplay()

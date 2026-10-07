@@ -7,6 +7,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -74,15 +75,16 @@ fun FocusableItemRow(
             Color.Unspecified
         },
     )
-    val shape = if (isWeaselTv()) RectangleShape else RoundedCornerShape(8.dp)
+    val neon = isWeaselTv()
+    val shape = if (neon) RectangleShape else RoundedCornerShape(8.dp)
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier =
             modifier
-                .padding(start = 8.dp)
+                .then(if (neon) Modifier.fillMaxWidth() else Modifier.padding(start = 8.dp))
                 .focusable(interactionSource = interactionSource)
                 .background(background, shape = shape)
-                .padding(8.dp),
+                .then(if (neon) Modifier.padding(vertical = 8.dp) else Modifier.padding(8.dp)),
     ) {
         titleContent.invoke()
         subtitleContent.invoke()

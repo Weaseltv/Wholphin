@@ -73,6 +73,7 @@ import com.github.damontecres.wholphin.ui.detail.GridItemDetails
 import com.github.damontecres.wholphin.ui.detail.livetv.ProgramDialog
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.onMain
+import com.github.damontecres.wholphin.ui.theme.InsetNeonSectionRules
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonType
@@ -408,66 +409,68 @@ fun SearchPage(
                 }
 
                 isLibraryTab -> {
-                    LazyColumn(
-                        contentPadding =
-                            PaddingValues(
-                                start = 16.dp,
-                                end = 16.dp,
-                                top = 8.dp,
-                                bottom = 44.dp,
-                            ),
-                        verticalArrangement = Arrangement.spacedBy(0.dp),
-                        modifier = Modifier.focusGroup(),
-                    ) {
-                        itemsIndexed(state.includedSearchableTypes) { index, type ->
-                            val rowIndex = RESULTS_START + index
-                            val result = state.results.getOrDefault(type, SearchResult.Searching)
-                            val focusRequester =
-                                remember(state.includedSearchableTypes.size) {
-                                    focusRequesters.getOrNull(rowIndex) ?: FocusRequester()
-                                }
-                            SearchRowResult(
-                                title = type.titleStringRes,
-                                result = result,
-                                rowIndex = rowIndex,
-                                position = position,
-                                focusRequester = focusRequester,
-                                onClickItem = onClickItem,
-                                onLongClickItem = { index, item ->
-                                    onLongClickItem(rowIndex, index, item)
-                                },
-                                onClickPosition = { setPosition(it) },
-                                modifier = Modifier.fillMaxWidth(),
-                                cardContent = { index, item, mod, onClick, onLongClick ->
-                                    SearchPageCard(
-                                        item = item,
-                                        type = type,
-                                        onClick = {
-                                            setPosition(RowColumn(rowIndex, index))
-                                            onClick.invoke()
-                                        },
-                                        onLongClick = onLongClick,
-                                        modifier = mod,
-                                    )
-                                },
-                            )
-                        }
-
-                        if (seerrActive && state.discoverEnabled) {
-                            item {
+                    InsetNeonSectionRules(start = 16.dp) {
+                        LazyColumn(
+                            contentPadding =
+                                PaddingValues(
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                    top = 8.dp,
+                                    bottom = 44.dp,
+                                ),
+                            verticalArrangement = Arrangement.spacedBy(0.dp),
+                            modifier = Modifier.focusGroup(),
+                        ) {
+                            itemsIndexed(state.includedSearchableTypes) { index, type ->
+                                val rowIndex = RESULTS_START + index
+                                val result = state.results.getOrDefault(type, SearchResult.Searching)
+                                val focusRequester =
+                                    remember(state.includedSearchableTypes.size) {
+                                        focusRequesters.getOrNull(rowIndex) ?: FocusRequester()
+                                    }
                                 SearchRowResult(
-                                    title = R.string.discover,
-                                    result = state.seerrResults,
-                                    rowIndex = SEERR_ROW,
+                                    title = type.titleStringRes,
+                                    result = result,
+                                    rowIndex = rowIndex,
                                     position = position,
-                                    focusRequester = focusRequesters[SEERR_ROW],
+                                    focusRequester = focusRequester,
                                     onClickItem = onClickItem,
-                                    onLongClickItem = { _, _ -> },
-                                    onClickDiscover = onClickDiscover,
+                                    onLongClickItem = { index, item ->
+                                        onLongClickItem(rowIndex, index, item)
+                                    },
                                     onClickPosition = { setPosition(it) },
-                                    cardContent = { _, _, _, _, _ -> },
                                     modifier = Modifier.fillMaxWidth(),
+                                    cardContent = { index, item, mod, onClick, onLongClick ->
+                                        SearchPageCard(
+                                            item = item,
+                                            type = type,
+                                            onClick = {
+                                                setPosition(RowColumn(rowIndex, index))
+                                                onClick.invoke()
+                                            },
+                                            onLongClick = onLongClick,
+                                            modifier = mod,
+                                        )
+                                    },
                                 )
+                            }
+
+                            if (seerrActive && state.discoverEnabled) {
+                                item {
+                                    SearchRowResult(
+                                        title = R.string.discover,
+                                        result = state.seerrResults,
+                                        rowIndex = SEERR_ROW,
+                                        position = position,
+                                        focusRequester = focusRequesters[SEERR_ROW],
+                                        onClickItem = onClickItem,
+                                        onLongClickItem = { _, _ -> },
+                                        onClickDiscover = onClickDiscover,
+                                        onClickPosition = { setPosition(it) },
+                                        cardContent = { _, _, _, _, _ -> },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
                             }
                         }
                     }

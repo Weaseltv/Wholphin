@@ -29,7 +29,7 @@ import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
-import com.github.damontecres.wholphin.ui.theme.NeonRule
+import com.github.damontecres.wholphin.ui.theme.NeonSectionRule
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.tryRequestFocus
@@ -159,11 +159,11 @@ fun ItemRowTitle(
         return
     }
     Column(
-        modifier = modifier.padding(start = 8.dp),
+        modifier = modifier,
     ) {
         Row(
             verticalAlignment = Alignment.Bottom,
-            modifier = Modifier.fillMaxWidth().padding(end = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
         ) {
             Text(
                 text = title.uppercase(),
@@ -181,6 +181,6 @@ fun ItemRowTitle(
                 )
             }
         }
-        NeonRule(modifier = Modifier.padding(top = 4.dp), accent = accent)
+        NeonSectionRule(modifier = Modifier.padding(top = 4.dp), accent = accent)
     }
 }
