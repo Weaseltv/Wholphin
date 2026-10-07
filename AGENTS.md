@@ -8,6 +8,20 @@
 
 ## Android ship workflow
 
+### Alpha testing and release cadence
+
+- Routine fixes/changes default to **Alpha testing**, not a customer release.
+  Build with `./scripts/build-alpha.sh` (arm64-v8a for the Shield), or
+  `assembleWeaselfinAlpha`. See `runbooks/weaselplex-alpha.md`.
+- Alpha installs as **WeaselPlex Alpha** (`tv.theweasel.weaselplex.alpha`),
+  preserves its own settings across Alpha installs, and has customer updating
+  disabled. Do not publish Alpha APKs under the stable release asset names.
+- Accumulate finalized changes on a development/batch branch. Only publish a
+  stable customer release when the owner explicitly asks to ship/publish it;
+  asking for an APK to test does not authorize a customer release.
+
+### Stable releases
+
 Official publish = merge to `weaselfin` -> tag that merge commit -> signed APK from the tag. No pre-merge device check required.
 
 Ship branch is **`weaselfin`** (not upstream `main`). All WeaselPlex release tags (`v1.1.x`, etc.) are on `weaselfin`. Do not publish from `main` unless the owner explicitly changes that policy.
