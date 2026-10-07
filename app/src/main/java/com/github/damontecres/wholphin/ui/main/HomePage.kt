@@ -48,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.tv.material3.MaterialTheme
@@ -478,6 +479,8 @@ fun HomePageContent(
                                             horizontalPadding = viewOptions.spacing.dp,
                                             dividerGap = if (isWeaselTv()) viewOptions.dividerGapDp.dp else 8.dp,
                                             titleDividerGap = if (isWeaselTv()) viewOptions.titleDividerGapDp.dp else 4.dp,
+                                            titleSize = viewOptions.titleSizeSp.sp,
+                                            titleLetterSpacing = (viewOptions.titleLetterSpacingTenthsSp / 10f).sp,
                                             dividerThickness = viewOptions.dividerThicknessDp.dp,
                                             dividerGlow = viewOptions.dividerGlowDp.dp,
                                             dividerGlowStrength = viewOptions.dividerGlowStrength / 100f,

@@ -125,7 +125,7 @@ fun AlphaHomeLayoutTuner(
                         .focusGroup(),
             ) {
                 Text("Alpha · Live layout", color = NeonBoard.Volt)
-                Text("Up/down: select · Left/right: adjust 1 dp", color = NeonBoard.Mid)
+                Text("Up/down: select · Left/right: adjust", color = NeonBoard.Mid)
                 Text("Changes are live. Back saves and closes.", color = NeonBoard.Mid)
                 Text(
                     "${row.title.getString()}\n" +
@@ -133,6 +133,7 @@ fun AlphaHomeLayoutTuner(
                         "Side ${options.edgePaddingDp ?: options.spacing} · End ${options.endPaddingDp ?: options.edgePaddingDp ?: options.spacing} dp\n" +
                         "Padding ${options.verticalPaddingDp} + extra $extra · Divider gap ${options.dividerGapDp} dp\n" +
                         "After row ${options.rowGapDp} · Title gap ${options.titleDividerGapDp} dp\n" +
+                        "Title ${options.titleSizeSp} sp · Letter spacing ${options.titleLetterSpacingTenthsSp / 10f} sp\n" +
                         "Line ${options.dividerThicknessDp} · Glow ${options.dividerGlowDp} dp · Strength ${options.dividerGlowStrength}/100",
                     color = NeonBoard.Text,
                     fontSize = 12.sp,
@@ -165,9 +166,10 @@ fun AlphaHomeLayoutTuner(
                     items(LayoutControls, key = { it.label }) { control ->
                         val resolved = options.copy(extraVerticalPaddingDp = extra, edgePaddingDp = options.edgePaddingDp ?: options.spacing)
                         val value = control.get(resolved)
+                        val displayedValue = if (control.valueDivisor == 1) value.toString() else (value.toFloat() / control.valueDivisor).toString()
                         HomeSettingsListItem(
                             selected = false,
-                            headlineText = "${control.label}: $value ${control.unit}",
+                            headlineText = "${control.label}: $displayedValue ${control.unit}",
                             onClick = { change { control.set(it, (value + 1).coerceIn(control.range)) } },
                             modifier =
                                 Modifier.handleDPadKeyEvents(
@@ -252,6 +254,7 @@ private data class LayoutControl(
     val get: (HomeRowViewOptions) -> Int,
     val set: (HomeRowViewOptions, Int) -> HomeRowViewOptions,
     val unit: String = "dp",
+    val valueDivisor: Int = 1,
 )
 
 private val LayoutControls =
@@ -265,6 +268,8 @@ private val LayoutControls =
         LayoutControl("Row side padding", 0..80, { it.edgePaddingDp ?: it.spacing }, { o, v -> o.copy(edgePaddingDp = v, endPaddingDp = o.endPaddingDp ?: o.edgePaddingDp ?: o.spacing) }),
         LayoutControl("Row end padding", 0..160, { it.endPaddingDp ?: it.edgePaddingDp ?: it.spacing }, { o, v -> o.copy(endPaddingDp = v) }),
         LayoutControl("Title → divider gap", 0..32, { it.titleDividerGapDp }, { o, v -> o.copy(titleDividerGapDp = v) }),
+        LayoutControl("Row title text size", 12..40, { it.titleSizeSp }, { o, v -> o.copy(titleSizeSp = v) }, "sp"),
+        LayoutControl("Row title letter spacing", -20..100, { it.titleLetterSpacingTenthsSp }, { o, v -> o.copy(titleLetterSpacingTenthsSp = v) }, "sp", 10),
         LayoutControl("Divider thickness", 1..8, { it.dividerThicknessDp }, { o, v -> o.copy(dividerThicknessDp = v) }),
         LayoutControl("Divider glow spread", 0..48, { it.dividerGlowDp }, { o, v -> o.copy(dividerGlowDp = v) }),
         LayoutControl("Divider glow strength", 0..100, { it.dividerGlowStrength }, { o, v -> o.copy(dividerGlowStrength = v) }, "/ 100"),

@@ -289,6 +289,8 @@ class HomeSettingsService
                                             edgePaddingDp = source.edgePaddingDp,
                                             endPaddingDp = source.endPaddingDp,
                                             titleDividerGapDp = source.titleDividerGapDp,
+                                            titleSizeSp = source.titleSizeSp,
+                                            titleLetterSpacingTenthsSp = source.titleLetterSpacingTenthsSp,
                                             dividerThicknessDp = source.dividerThicknessDp,
                                             dividerGlowDp = source.dividerGlowDp,
                                             dividerGlowStrength = source.dividerGlowStrength,

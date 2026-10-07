@@ -27,7 +27,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.ui.bleedHorizontal
@@ -65,6 +67,8 @@ fun <T> ItemRow(
     dividerThickness: Dp = 1.dp,
     dividerGlow: Dp = 12.dp,
     dividerGlowStrength: Float = .35f,
+    titleSize: TextUnit = 22.sp,
+    titleLetterSpacing: TextUnit = 0.sp,
 ) {
     val state = rememberLazyListState()
     val firstFocus = remember { FocusRequester() }
@@ -98,6 +102,8 @@ fun <T> ItemRow(
             dividerThickness = dividerThickness,
             dividerGlow = dividerGlow,
             dividerGlowStrength = dividerGlowStrength,
+            titleSize = titleSize,
+            titleLetterSpacing = titleLetterSpacing,
         )
 
         LazyRow(
@@ -185,6 +191,8 @@ fun ItemRowTitle(
     dividerThickness: Dp = 1.dp,
     dividerGlow: Dp = 12.dp,
     dividerGlowStrength: Float = .35f,
+    titleSize: TextUnit = 22.sp,
+    titleLetterSpacing: TextUnit = 0.sp,
 ) {
     if (!isWeaselTv()) {
         Text(
@@ -204,7 +212,7 @@ fun ItemRowTitle(
         ) {
             Text(
                 text = title.uppercase(),
-                style = NeonType.sectionTitle(),
+                style = NeonType.sectionTitle().copy(fontSize = titleSize, lineHeight = titleSize * .95f, letterSpacing = titleLetterSpacing),
                 color = NeonBoard.Text,
                 maxLines = 1,
                 modifier = Modifier.weight(1f),

@@ -233,6 +233,8 @@ data class HomeRowViewOptions(
     val edgePaddingDp: Int? = null,
     val endPaddingDp: Int? = null,
     val titleDividerGapDp: Int = 4,
+    val titleSizeSp: Int = 22,
+    val titleLetterSpacingTenthsSp: Int = 0,
     val dividerThicknessDp: Int = 1,
     val dividerGlowDp: Int = 12,
     val dividerGlowStrength: Int = 35,
