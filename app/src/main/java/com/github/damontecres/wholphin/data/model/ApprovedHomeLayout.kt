@@ -5,7 +5,7 @@ import com.github.damontecres.wholphin.ui.AspectRatio
 
 /** Owner-approved values captured from all eight Alpha rows on 2026-10-07. */
 object ApprovedHomeLayout {
-    const val REVISION = 3
+    const val REVISION = 4
 
     fun apply(options: HomeRowViewOptions, streaming: Boolean = false): HomeRowViewOptions =
         options.copy(
@@ -35,13 +35,13 @@ object ApprovedHomeLayout {
         )
 
     /** Apply only revisions the saved layout has not received, preserving later user tuning. */
-    fun upgrade(options: HomeRowViewOptions, revision: Int, streaming: Boolean): HomeRowViewOptions {
+    fun upgrade(options: HomeRowViewOptions, revision: Int, streaming: Boolean, curated: Boolean = false): HomeRowViewOptions {
         val layout = when {
             revision < 1 -> apply(options, streaming)
             revision < 2 -> options.copy(spacing = 16)
             else -> options
         }
-        return if (revision < 3 && streaming) {
+        return if ((revision < 3 && streaming) || (revision < 4 && curated)) {
             layout.copy(cardAppearance = layout.cardAppearance.copy(borderOpacityPercent = 100))
         } else {
             layout

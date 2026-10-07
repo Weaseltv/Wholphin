@@ -79,6 +79,7 @@ fun CollectionFolderGrid(
     modifier: Modifier = Modifier,
     positionCallback: ((columns: Int, position: Int) -> Unit)? = null,
     collectionCardAppearance: HomeCardAppearance = ApprovedCollectionCardAppearance,
+    streamingCardAppearance: HomeCardAppearance = collectionCardAppearance,
 ) {
     Box(modifier = modifier) {
         Column(
@@ -111,7 +112,7 @@ fun CollectionFolderGrid(
                 initialPosition = initialPosition,
                 positionCallback = positionCallback,
                 cardContent = { (item, index, onClick, onLongClick, widthPx, mod) ->
-                    CollectionCardStyle(item, collectionCardAppearance) {
+                    CollectionCardStyle(item, collectionCardAppearance, streamingCardAppearance) {
                     GridCard(
                         item = item,
                         onClick = onClick,
@@ -371,7 +372,7 @@ fun CollectionFolderHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier =
                     Modifier
-                        .padding(start = 16.dp, end = endPadding, top = if (collectionsOptions != null) 12.dp else 0.dp)
+                        .padding(start = 16.dp, end = endPadding, top = if (collectionsOptions != null) 12.dp else 0.dp, bottom = if (collectionsOptions != null) 16.dp else 0.dp)
                         .fillMaxWidth(),
             ) {
                 Row(

@@ -321,12 +321,14 @@ cleanup in `AGENTS.md`; stable release cleanup/checks retain their requirements.
 
 Streaming Services cards show “Streaming on [provider] right now.” rather than the server collection overview. Each provider has a bundled transparent wordmark on the right of the Home header, while the title and item count remain on the left. Home clears collection photo backdrops for these cards. Artwork sources are recorded in `provider-wordmark-sources.md`.
 
-### Collections page and COLLECTION label tuning
+### Collections page styling and ordering
 
-The Collections library header aligns its title and LIBRARY eyebrow with the first poster. It adds 27dp top padding and a 20dp divider-to-toolbar gap (8dp existing spacing plus 12dp toolbar padding). The title rule reads the Picks Home divider thickness/glow values, in Collections yellow.
+The Collections library header aligns its title and LIBRARY eyebrow with the first poster. It adds 27dp top padding, a 20dp divider-to-toolbar gap, and another 16dp below the toolbar before the grid's existing padding. The title rule reads the Picks Home divider thickness/glow values, in Collections yellow.
 
-Collection grid cards share the current user's Picks Home focus/count settings. Their border and glow use the Picks palette plus the 29 additional collection colors supplied on 2026-10-07. Unmapped collection cards retain the section accent. The COLLECTION type label keeps its original yellow styling and initial values, separately from count badges.
+Collection grid cards share the current user's Picks Home focus/count settings. Picks and the 29 additional collections use their supplied palettes; Streaming Services use the same provider styles and contrasting border overrides as Home. Every Collections focus border is fully opaque. Layout defaults revision 4 updates existing Picks Home border opacity to 100%, preserving other settings and later user tuning.
 
-In the Alpha tuner under Customize home page, select **Preview: Collections / COLLECTION badge**. The preview uses Picks collection cards with the Collections renderer. Controls adjust the label's text size/opacity/tracking, background opacity, border thickness/opacity, glow spread/strength, left/top inset, horizontal/vertical padding and corner radius. Changes are live, and Back / Save & close persist them with the Picks row's per-user Home settings. The Home preview retains the existing focus/count controls.
+The COLLECTION type label is removed from the Collections grid; title counts remain. The Alpha tuner retains focus-border and count controls and removes the obsolete COLLECTION label controls.
+
+Name ordering loads the complete member-scoped collection list: Picks and additional themed collections combined A–Z, streaming providers in Home order, then Boxing/UFC collections A–Z. Unrecognized collections follow those groups. Alphabet jumps use the displayed list rather than server SortName counts. Explicit alternative sorts and filters remain available.
 
 BritBox's provider SVG uses an expanded, normalized view box so the i dot and letter bottoms are fully included.

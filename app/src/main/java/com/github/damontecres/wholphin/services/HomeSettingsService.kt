@@ -287,7 +287,7 @@ class HomeSettingsService
             val matched = HomePageResolvedSettings(
                 settings.rows.map { row ->
                     row.copy(config = row.config.updateViewOptions(
-                        ApprovedHomeLayout.upgrade(row.config.viewOptions, revision, StreamingCollections.isStreamingRow(row.config)),
+                        ApprovedHomeLayout.upgrade(row.config.viewOptions, revision, StreamingCollections.isStreamingRow(row.config), CuratedCollections.isCuratedRow(row.config)),
                     ))
                 },
             )
@@ -314,6 +314,7 @@ class HomeSettingsService
                                     row.viewOptions,
                                     if (existing == null) ApprovedHomeLayout.REVISION else base.layoutDefaultsRevision,
                                     StreamingCollections.isStreamingRow(row),
+                                    CuratedCollections.isCuratedRow(row),
                                 )
                                 row.updateViewOptions(options)
                             }

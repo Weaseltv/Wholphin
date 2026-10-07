@@ -48,7 +48,6 @@ import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.logCoilError
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.LocalCollectionCardAppearance
-import com.github.damontecres.wholphin.ui.theme.CollectionTypeBadge
 import com.github.damontecres.wholphin.ui.theme.NeonBadge
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
@@ -265,16 +264,12 @@ fun ItemCardImageOverlay(
                         vertical = collectionBadge?.verticalInsetDp?.dp ?: if (isWeaselTv()) 8.dp else 4.dp,
                     ),
         ) {
-            if (typeBadge != null) {
-                if (collectionBadge != null) {
-                    CollectionTypeBadge(typeBadge, accent, collectionBadge)
-                } else {
-                    NeonBadge(
-                        text = typeBadge,
-                        accent = if (typeBadgeFilled) NeonBoard.Green else accent,
-                        filled = typeBadgeFilled,
-                    )
-                }
+            if (typeBadge != null && collectionAppearance == null) {
+                NeonBadge(
+                    text = typeBadge,
+                    accent = if (typeBadgeFilled) NeonBoard.Green else accent,
+                    filled = typeBadgeFilled,
+                )
             }
             if (numberOfVersions > 1) {
                 Box(

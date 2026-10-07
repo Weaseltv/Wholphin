@@ -25,7 +25,7 @@ import org.jellyfin.sdk.model.api.BaseItemKind
 /** Owner-approved Picks focus/count values, also used before Home settings finish loading. */
 val ApprovedCollectionCardAppearance = HomeCardAppearance(
     borderWidthDp = 2,
-    borderOpacityPercent = 80,
+    borderOpacityPercent = 100,
     glowSpreadDp = 15,
     glowOpacityPercent = 70,
     focusScalePercent = 109,
@@ -44,13 +44,17 @@ val LocalCollectionCardAppearance = compositionLocalOf<HomeCardAppearance?> { nu
 fun CollectionCardStyle(
     item: BaseItem?,
     appearance: HomeCardAppearance,
+    streamingAppearance: HomeCardAppearance = appearance,
     content: @Composable () -> Unit,
 ) {
     if (isWeaselTv() && item?.type == BaseItemKind.BOX_SET) {
+        val providerAccent = streamingProviderAccent(item.name)
+        val focusAppearance = if (providerAccent != null) streamingAppearance else appearance
         CompositionLocalProvider(
             LocalCollectionCardAppearance provides appearance,
-            LocalHomeCardAppearance provides appearance.copy(accentIndex = 0),
-            LocalHomeRowAccent provides collectionPosterAccent(item.name),
+            LocalHomeCardAppearance provides focusAppearance.copy(accentIndex = 0, borderOpacityPercent = 100),
+            LocalHomeRowAccent provides (providerAccent ?: collectionPosterAccent(item.name)),
+            LocalHomeCardBorderAccent provides streamingProviderBorderAccent(item.name),
             content = content,
         )
     } else {

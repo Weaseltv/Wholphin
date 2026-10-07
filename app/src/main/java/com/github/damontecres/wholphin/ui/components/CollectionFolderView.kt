@@ -29,6 +29,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.viewModelScope
 import androidx.tv.material3.MaterialTheme
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.LibraryDisplayInfoDao
 import com.github.damontecres.wholphin.data.ServerRepository
@@ -39,6 +40,9 @@ import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.services.HomeSettingsService
+import com.github.damontecres.wholphin.services.StreamingCollections
+import com.github.damontecres.wholphin.services.CollectionDisplayOrder
+import com.github.damontecres.wholphin.data.model.HomeCardAppearance
 import com.github.damontecres.wholphin.services.CuratedCollections
 import com.github.damontecres.wholphin.ui.theme.ApprovedCollectionCardAppearance
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
@@ -99,6 +103,7 @@ import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
 import org.jellyfin.sdk.model.api.ImageType
+import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
 import org.jellyfin.sdk.model.api.request.GetArtistsRequest
@@ -221,8 +226,12 @@ class CollectionFolderViewModel
             deletedItem: BaseItem,
         ) {
             try {
-                val pager =
-                    ((state.value.items as? DataLoadingState.Success)?.data as? ApiRequestPager<*>)
+                val currentItems = state.value.items.successValue
+                if (currentItems != null && currentItems !is ApiRequestPager<*>) {
+                    loadResults(true, state.value.sortAndDirection, recursive, state.value.filter, useSeriesForPrimary).join()
+                    return
+                }
+                val pager = currentItems as? ApiRequestPager<*>
                 position.let {
                     Timber.v("Item deleted: position=%s, id=%s", it, itemId)
                     val item = pager?.get(it)
@@ -337,8 +346,15 @@ class CollectionFolderViewModel
                 )
             }
             try {
-                val newPager =
+                val request = createGetItemsRequest(sortAndDirection, recursive, filter)
+                val groupedCollections = BuildConfig.FLAVOR == "weaselfin" && filter.override == GetItemsFilterOverride.NONE &&
+                    request.includeItemTypes == listOf(BaseItemKind.BOX_SET) &&
+                    sortAndDirection.sort in listOf(ItemSortBy.SORT_NAME, ItemSortBy.DEFAULT)
+                val newPager: BlockingList<BaseItem?> = if (groupedCollections) {
+                    loadOrderedCollections(request, sortAndDirection.direction == SortOrder.DESCENDING)
+                } else {
                     createPager(sortAndDirection, recursive, filter, useSeriesForPrimary).init()
+                }
                 if (newPager.isNotEmpty()) newPager.getBlocking(0)
                 _state.update {
                     it.copy(
@@ -358,6 +374,40 @@ class CollectionFolderViewModel
                         items = DataLoadingState.Error(ex),
                         backgroundLoading = LoadingState.Pending,
                     )
+                }
+            }
+        }
+
+        /** Fetch every member-scoped page before sorting, so group order spans page boundaries. */
+        private suspend fun loadOrderedCollections(request: GetItemsRequest, descending: Boolean): BlockingList<BaseItem?> {
+            val items = mutableListOf<BaseItem>()
+            var start = 0
+            while (true) {
+                val result = GetItemsRequestHandler.execute(api, request.copy(
+                    startIndex = start,
+                    limit = 200,
+                    enableTotalRecordCount = true,
+                    fields = (request.fields.orEmpty() + ItemFields.TAGS + ItemFields.CHILD_COUNT).distinct(),
+                )).content
+                val page = result.items
+                items.addAll(page.map { BaseItem(it.copy(sortName = it.name), useSeriesForPrimary) })
+                start += page.size
+                if (page.isEmpty() || start >= result.totalRecordCount) break
+            }
+            return BlockingList.of(CollectionDisplayOrder.sort(items, descending))
+        }
+
+        private suspend fun refreshItem(position: Int, itemId: UUID) {
+            val items = state.value.items.successValue ?: return
+            if (items is ApiRequestPager<*>) {
+                items.refreshItem(position, itemId)
+            } else {
+                val updated = BaseItem(api.userLibraryApi.getItem(itemId).content, useSeriesForPrimary)
+                _state.update { current ->
+                    val currentItems = current.items.successValue ?: return@update current
+                    current.copy(items = DataLoadingState.Success(BlockingList.of(currentItems.map {
+                        if (it?.id == itemId) updated else it
+                    })))
                 }
             }
         }
@@ -501,6 +551,12 @@ class CollectionFolderViewModel
         override suspend fun positionOfLetter(letter: Char): Int? =
             withContext(WholphinDispatchers.IO) {
                 val filter = state.value.filter
+                val items = state.value.items.successValue
+                if (items != null && items !is ApiRequestPager<*>) {
+                    return@withContext items.indexOfFirst {
+                        it?.name?.trim()?.startsWith(letter.toString(), ignoreCase = true) == true
+                    }.takeIf { it >= 0 }
+                }
                 when (filter.override) {
                     GetItemsFilterOverride.ARTIST -> {
                         GetArtistsHandler.countMatching(
@@ -551,9 +607,7 @@ class CollectionFolderViewModel
         ) {
             viewModelScope.launch(ExceptionHandler() + WholphinDispatchers.IO) {
                 favoriteWatchManager.setWatched(itemId, played)
-                (state.value.items as? DataLoadingState.Success)?.let {
-                    (it.data as? ApiRequestPager<*>)?.refreshItem(position, itemId)
-                }
+                refreshItem(position, itemId)
             }
         }
 
@@ -564,9 +618,7 @@ class CollectionFolderViewModel
         ) {
             viewModelScope.launch(ExceptionHandler() + WholphinDispatchers.IO) {
                 favoriteWatchManager.setFavorite(itemId, favorite)
-                (state.value.items as? DataLoadingState.Success)?.let {
-                    (it.data as? ApiRequestPager<*>)?.refreshItem(position, itemId)
-                }
+                refreshItem(position, itemId)
             }
         }
 
@@ -746,6 +798,8 @@ fun CollectionFolderView(
     val homeSettings by viewModel.homeSettingsService.currentSettings.collectAsState()
     val collectionHomeOptions = homeSettings.rows.firstOrNull { CuratedCollections.isCuratedRow(it.config) }?.config?.viewOptions
         ?: ApprovedHomeLayout.apply(HomeRowViewOptions(cardAppearance = ApprovedCollectionCardAppearance))
+    val streamingCardAppearance = homeSettings.rows.firstOrNull { StreamingCollections.isStreamingRow(it.config) }?.config?.viewOptions?.cardAppearance
+        ?: StreamingCollections.row.viewOptions.cardAppearance
     LifecycleResumeEffect(itemId) {
         viewModel.onResumePage()
 
@@ -775,6 +829,7 @@ fun CollectionFolderView(
         filterOptions = filterOptions,
         focusRequesterOnEmpty = focusRequesterOnEmpty,
         collectionHomeOptions = collectionHomeOptions,
+        streamingCardAppearance = streamingCardAppearance,
     )
 }
 
@@ -826,6 +881,7 @@ fun CollectionFolderViewContent(
     filterOptions: List<ItemFilterBy<*>> = DefaultFilterOptions,
     focusRequesterOnEmpty: FocusRequester? = null,
     collectionHomeOptions: HomeRowViewOptions = ApprovedHomeLayout.apply(HomeRowViewOptions(cardAppearance = ApprovedCollectionCardAppearance)),
+    streamingCardAppearance: HomeCardAppearance = StreamingCollections.row.viewOptions.cardAppearance,
 ) {
     var position by rememberInt(savedPosition)
 
@@ -1013,6 +1069,7 @@ fun CollectionFolderViewContent(
                                         onClickPlay = gridActions.onClickPlayRemoteButton!!,
                                         focusedItem = focusedItem,
                                         collectionCardAppearance = collectionHomeOptions.cardAppearance,
+                                        streamingCardAppearance = streamingCardAppearance,
                                     )
                                 } else {
                                     CollectionFolderList(

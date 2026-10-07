@@ -39,6 +39,18 @@ object StreamingCollections {
             "Angel",
         ).map { it.lowercase(Locale.ROOT) }
 
+    /** Shared by Home and the Collections page, including server naming aliases. */
+    fun serviceIndex(name: String?): Int? {
+        val normalized = when (val value = name.orEmpty().trim().lowercase(Locale.ROOT)) {
+            "hbo max", "max (hbo)", "hbo" -> "max"
+            "apple tv" -> "apple tv+"
+            "hallmark+" -> "hallmark"
+            "angel studios" -> "angel"
+            else -> value
+        }
+        return serviceOrder.indexOf(normalized).takeIf { it >= 0 }
+    }
+
     val row =
         HomeRowConfig.GetItems(
             name = NAME,
@@ -110,7 +122,7 @@ object StreamingCollections {
             }
         return visible.sortedWith(
             compareBy<BaseItemDto> {
-                serviceOrder.indexOf(it.name.orEmpty().lowercase(Locale.ROOT)).takeIf { it >= 0 }
+                serviceIndex(it.name)
                     ?: serviceOrder.size
             }.thenBy { it.name.orEmpty().lowercase(Locale.ROOT) },
         )

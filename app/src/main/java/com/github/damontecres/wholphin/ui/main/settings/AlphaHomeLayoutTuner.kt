@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -37,12 +36,6 @@ import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.CuratedCollections
 import com.github.damontecres.wholphin.ui.data.RowColumn
-import com.github.damontecres.wholphin.ui.data.SortAndDirection
-import com.github.damontecres.wholphin.ui.components.CollectionFolderGrid
-import com.github.damontecres.wholphin.ui.components.GridTitle
-import com.github.damontecres.wholphin.ui.components.ViewOptions
-import com.github.damontecres.wholphin.util.HomeRowLoadingState
-import org.jellyfin.sdk.model.api.CollectionType
 import com.github.damontecres.wholphin.ui.handleDPadKeyEvents
 import com.github.damontecres.wholphin.ui.main.HomePageContent
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
@@ -75,9 +68,6 @@ fun AlphaHomeLayoutTuner(
         badgeHorizontalPaddingDp = appearance.badgeHorizontalPaddingDp ?: if (curated) 5 else 4,
         badgeVerticalPaddingDp = appearance.badgeVerticalPaddingDp ?: if (curated) 5 else 4,
     )
-    var collectionPreview by remember { mutableStateOf(false) }
-    val collectionFocus = remember { FocusRequester() }
-    var collectionPosition by remember { mutableIntStateOf(0) }
     var allRows by remember { mutableStateOf(false) }
     var inspect by remember { mutableStateOf(false) }
     var position by remember { mutableStateOf(RowColumn(rowIndex, 0)) }
@@ -86,7 +76,7 @@ fun AlphaHomeLayoutTuner(
     val originals = remember { state.rows.associate { it.id to it.config.viewOptions } }
 
     fun change(update: (HomeRowViewOptions) -> HomeRowViewOptions) {
-        onChange(if (allRows && !collectionPreview) null else row.id, update)
+        onChange(if (allRows) null else row.id, update)
     }
 
     BackHandler {
@@ -96,38 +86,13 @@ fun AlphaHomeLayoutTuner(
         position = RowColumn(rowIndex, 0)
         listState.scrollToItem(rowIndex)
     }
-    LaunchedEffect(inspect, collectionPreview) {
+    LaunchedEffect(inspect) {
         if (!inspect) firstFocus.tryRequestFocus()
-        else if (collectionPreview) collectionFocus.tryRequestFocus()
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        key(inspect, collectionPreview) {
-            if (collectionPreview) {
-                val items = (state.rowData.getOrNull(rowIndex) as? HomeRowLoadingState.Success)?.items.orEmpty()
-                CompositionLocalProvider(LocalNeonAccent provides NeonBoard.Yellow) {
-                    Column(Modifier.fillMaxSize()) {
-                        GridTitle("Collections", collectionsOptions = options)
-                        CollectionFolderGrid(
-                            preferences = preferences,
-                            collectionType = CollectionType.BOXSETS,
-                            focusedItem = items.getOrNull(collectionPosition),
-                            items = items,
-                            sortAndDirection = SortAndDirection.DEFAULT,
-                            onClickItem = { _, _ -> },
-                            onLongClickItem = { _, _ -> },
-                            letterPosition = { -1 },
-                            viewOptions = ViewOptions(),
-                            onClickPlay = { _, _ -> },
-                            initialPosition = collectionPosition,
-                            gridFocusRequester = collectionFocus,
-                            positionCallback = { _, index -> collectionPosition = index },
-                            collectionCardAppearance = appearance,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
-                }
-            } else HomePageContent(
+        key(inspect) {
+            HomePageContent(
                 loadingState = state.loading,
                 homeRows = state.rowData,
                 libraries = state.libraries,
@@ -165,18 +130,11 @@ fun AlphaHomeLayoutTuner(
                         .focusProperties { onExit = { cancelFocusChange() } }
                         .focusGroup(),
             ) {
-                Text(if (collectionPreview) "Alpha · COLLECTION badge" else "Alpha · Card appearance", color = LocalNeonAccent.current)
+                Text("Alpha · Card appearance", color = LocalNeonAccent.current)
                 Text("Up/down: select · Left/right: adjust", color = NeonBoard.Mid)
                 Text("Changes are live. Back saves and closes.", color = NeonBoard.Mid)
                 Text(
-                    if (collectionPreview) {
-                        val b = appearance.collectionBadge
-                        "COLLECTION label · preview uses Picks cards\n" +
-                            "Text ${b.textSizeSp} sp · Opacity ${b.textOpacityPercent}%\n" +
-                            "Background ${b.backgroundOpacityPercent}% · Border ${b.borderWidthDp} dp / ${b.borderOpacityPercent}%\n" +
-                            "Glow ${b.glowSpreadDp} dp / ${b.glowOpacityPercent}%\n" +
-                            "Inset ${b.horizontalInsetDp}/${b.verticalInsetDp} · Padding ${b.horizontalPaddingDp}/${b.verticalPaddingDp} dp"
-                    } else "${row.title.getString()}\n" +
+                    "${row.title.getString()}\n" +
                         "Border ${appearance.borderWidthDp} dp · Opacity ${appearance.borderOpacityPercent}%\n" +
                         "Glow ${appearance.glowSpreadDp} dp · Strength ${appearance.glowOpacityPercent}%\n" +
                         "Focus ${appearance.focusScalePercent}% · Corners ${appearance.cornerRadiusDp} dp\n" +
@@ -193,31 +151,17 @@ fun AlphaHomeLayoutTuner(
                 ) {
                     item {
                         HomeSettingsListItem(
-                            selected = collectionPreview,
-                            headlineText = if (collectionPreview) "Preview: Collections / COLLECTION badge" else "Preview: Home cards",
-                            onClick = {
-                                collectionPreview = !collectionPreview
-                                if (collectionPreview) {
-                                    rowIndex = state.rows.indexOfFirst { CuratedCollections.isCuratedRow(it.config) }.coerceAtLeast(0)
-                                    collectionPosition = 0
-                                }
-                            },
-                            modifier = Modifier.focusRequester(firstFocus),
-                        )
-                    }
-                    if (!collectionPreview) item {
-                        HomeSettingsListItem(
                             selected = false,
                             headlineText = "Row ${rowIndex + 1}/${state.rows.size}: ${row.title.getString()}",
                             onClick = { rowIndex = (rowIndex + 1) % state.rows.size },
                             modifier =
-                                Modifier.handleDPadKeyEvents(
+                                Modifier.focusRequester(firstFocus).handleDPadKeyEvents(
                                     onLeft = { rowIndex = (rowIndex + state.rows.size - 1) % state.rows.size },
                                     onRight = { rowIndex = (rowIndex + 1) % state.rows.size },
                                 ),
                         )
                     }
-                    if (!collectionPreview) item {
+                    item {
                         HomeSettingsListItem(
                             selected = allRows,
                             headlineText = if (allRows) "Apply changes: all rows" else "Apply changes: this row",
@@ -225,7 +169,7 @@ fun AlphaHomeLayoutTuner(
                         )
                         if (allRows) Text("Readouts show the selected row.", color = NeonBoard.Mid)
                     }
-                    items(if (collectionPreview) CollectionBadgeControls else LayoutControls, key = { it.label }) { control ->
+                    items(LayoutControls, key = { it.label }) { control ->
                         val resolved = options.copy(cardAppearance = resolvedAppearance)
                         val value = control.get(resolved)
                         val displayedValue = if (control.valueDivisor == 1) value.toString() else (value.toFloat() / control.valueDivisor).toString()
@@ -241,7 +185,7 @@ fun AlphaHomeLayoutTuner(
                                 ),
                         )
                     }
-                    if (!collectionPreview) item {
+                    item {
                         val colors = listOf("Row accent", "Volt", "Orange", "White", "Cyan", "Pink")
                         fun changeColor(delta: Int) {
                             val index = (appearance.accentIndex + delta + colors.size) % colors.size
@@ -255,7 +199,7 @@ fun AlphaHomeLayoutTuner(
                         )
                     }
                     item {
-                        HomeSettingsListItem(selected = false, headlineText = if (collectionPreview) "Hide controls / inspect Collections" else "Hide controls / inspect Home", onClick = { inspect = true })
+                        HomeSettingsListItem(selected = false, headlineText = "Hide controls / inspect Home", onClick = { inspect = true })
                     }
                     item {
                         HomeSettingsListItem(selected = false, headlineText = "Save & close", onClick = onClose)
@@ -302,19 +246,3 @@ private val LayoutControls =
         LayoutControl("Poster badge vertical padding", 0..32, { it.cardAppearance.badgeVerticalPaddingDp ?: 4 }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(badgeVerticalPaddingDp = v)) }),
         LayoutControl("Poster badge corner rounding", 0..50, { it.cardAppearance.badgeCornerPercent }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(badgeCornerPercent = v)) }, "%"),
     )
-
-private val CollectionBadgeControls = listOf(
-    LayoutControl("COLLECTION text size", 8..40, { it.cardAppearance.collectionBadge.textSizeSp }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(collectionBadge = o.cardAppearance.collectionBadge.copy(textSizeSp = v))) }, "sp"),
-    LayoutControl("COLLECTION text opacity", 0..100, { it.cardAppearance.collectionBadge.textOpacityPercent }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(collectionBadge = o.cardAppearance.collectionBadge.copy(textOpacityPercent = v))) }, "%"),
-    LayoutControl("COLLECTION background opacity", 0..100, { it.cardAppearance.collectionBadge.backgroundOpacityPercent }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(collectionBadge = o.cardAppearance.collectionBadge.copy(backgroundOpacityPercent = v))) }, "%"),
-    LayoutControl("COLLECTION border thickness", 0..8, { it.cardAppearance.collectionBadge.borderWidthDp }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(collectionBadge = o.cardAppearance.collectionBadge.copy(borderWidthDp = v))) }, "dp"),
-    LayoutControl("COLLECTION border opacity", 0..100, { it.cardAppearance.collectionBadge.borderOpacityPercent }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(collectionBadge = o.cardAppearance.collectionBadge.copy(borderOpacityPercent = v))) }, "%"),
-    LayoutControl("COLLECTION glow spread", 0..48, { it.cardAppearance.collectionBadge.glowSpreadDp }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(collectionBadge = o.cardAppearance.collectionBadge.copy(glowSpreadDp = v))) }, "dp"),
-    LayoutControl("COLLECTION glow strength", 0..100, { it.cardAppearance.collectionBadge.glowOpacityPercent }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(collectionBadge = o.cardAppearance.collectionBadge.copy(glowOpacityPercent = v))) }, "%"),
-    LayoutControl("COLLECTION left inset", 0..64, { it.cardAppearance.collectionBadge.horizontalInsetDp }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(collectionBadge = o.cardAppearance.collectionBadge.copy(horizontalInsetDp = v))) }, "dp"),
-    LayoutControl("COLLECTION top inset", 0..64, { it.cardAppearance.collectionBadge.verticalInsetDp }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(collectionBadge = o.cardAppearance.collectionBadge.copy(verticalInsetDp = v))) }, "dp"),
-    LayoutControl("COLLECTION horizontal padding", 0..32, { it.cardAppearance.collectionBadge.horizontalPaddingDp }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(collectionBadge = o.cardAppearance.collectionBadge.copy(horizontalPaddingDp = v))) }, "dp"),
-    LayoutControl("COLLECTION vertical padding", 0..32, { it.cardAppearance.collectionBadge.verticalPaddingDp }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(collectionBadge = o.cardAppearance.collectionBadge.copy(verticalPaddingDp = v))) }, "dp"),
-    LayoutControl("COLLECTION letter spacing", 0..50, { it.cardAppearance.collectionBadge.letterSpacingTenthsSp }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(collectionBadge = o.cardAppearance.collectionBadge.copy(letterSpacingTenthsSp = v))) }, "sp", valueDivisor = 10),
-    LayoutControl("COLLECTION corner radius", 0..32, { it.cardAppearance.collectionBadge.cornerRadiusDp }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(collectionBadge = o.cardAppearance.collectionBadge.copy(cornerRadiusDp = v))) }, "dp"),
-)
