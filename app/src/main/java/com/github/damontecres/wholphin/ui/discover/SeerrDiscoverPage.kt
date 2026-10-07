@@ -48,6 +48,7 @@ import com.github.damontecres.wholphin.ui.listToDotString
 import com.github.damontecres.wholphin.ui.main.HomePageHeader
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberPosition
+import com.github.damontecres.wholphin.ui.theme.InsetNeonSectionRules
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.EmptyStringProvider
 import com.github.damontecres.wholphin.ui.util.ResProviderStringProvider
@@ -502,97 +503,99 @@ fun SeerrDiscoverPage(
         CompositionLocalProvider(
             LocalBringIntoViewSpec provides ScrollToTopBringIntoViewSpec(spaceAbovePx),
         ) {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 40.dp),
-                modifier =
-                    Modifier
-                        .focusRestorer()
-                        .fillMaxSize(),
-            ) {
-                item { discoverItemRow(ROW_TRENDING, state.trending) }
+            InsetNeonSectionRules(start = 16.dp) {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 40.dp),
+                    modifier =
+                        Modifier
+                            .focusRestorer()
+                            .fillMaxSize(),
+                ) {
+                    item { discoverItemRow(ROW_TRENDING, state.trending) }
 
-                // Movies
-                item { discoverItemRow(ROW_MOVIES, state.movies) }
-                item {
-                    CompositionLocalProvider(LocalBringIntoViewSpec provides defaultBringIntoViewSpec) {
-                        DiscoverGenreRow(
-                            title =
-                                remember {
-                                    ResProviderStringProvider(
-                                        R.string.genres_in,
-                                        ResStringProvider(R.string.movies_title),
+                    // Movies
+                    item { discoverItemRow(ROW_MOVIES, state.movies) }
+                    item {
+                        CompositionLocalProvider(LocalBringIntoViewSpec provides defaultBringIntoViewSpec) {
+                            DiscoverGenreRow(
+                                title =
+                                    remember {
+                                        ResProviderStringProvider(
+                                            R.string.genres_in,
+                                            ResStringProvider(R.string.movies_title),
+                                        )
+                                    },
+                                items = state.movieGenres,
+                                onClickItem = { index, genre ->
+                                    position = RowColumn(ROW_GENRES_MOVIE, index)
+                                    viewModel.navigationManager.navigateTo(
+                                        Destination.DiscoverMoreResult(
+                                            type = DiscoverRequestType.DISCOVER_MOVIES,
+                                            initialFilter =
+                                                DiscoverFilter(
+                                                    genreIds = listOf(genre.id.toInt()),
+                                                ),
+                                            titleOverride =
+                                                discoverGenreTitle(
+                                                    genre.name,
+                                                    SeerrItemType.MOVIE,
+                                                ),
+                                            startIndex = 0,
+                                        ),
                                     )
                                 },
-                            items = state.movieGenres,
-                            onClickItem = { index, genre ->
-                                position = RowColumn(ROW_GENRES_MOVIE, index)
-                                viewModel.navigationManager.navigateTo(
-                                    Destination.DiscoverMoreResult(
-                                        type = DiscoverRequestType.DISCOVER_MOVIES,
-                                        initialFilter =
-                                            DiscoverFilter(
-                                                genreIds = listOf(genre.id.toInt()),
-                                            ),
-                                        titleOverride =
-                                            discoverGenreTitle(
-                                                genre.name,
-                                                SeerrItemType.MOVIE,
-                                            ),
-                                        startIndex = 0,
-                                    ),
-                                )
-                            },
-                            onCardFocus = { index ->
-                                position = RowColumn(ROW_GENRES_MOVIE, index)
-                                positionCallback.invoke(position)
-                            },
-                            modifier = Modifier.focusRequester(focusRequesters[ROW_GENRES_MOVIE]),
-                        )
+                                onCardFocus = { index ->
+                                    position = RowColumn(ROW_GENRES_MOVIE, index)
+                                    positionCallback.invoke(position)
+                                },
+                                modifier = Modifier.focusRequester(focusRequesters[ROW_GENRES_MOVIE]),
+                            )
+                        }
                     }
-                }
-                item { discoverItemRow(ROW_UPCOMING_MOVIES, state.upcomingMovies) }
+                    item { discoverItemRow(ROW_UPCOMING_MOVIES, state.upcomingMovies) }
 
-                // TV
-                item { discoverItemRow(ROW_TV, state.tv) }
-                item {
-                    CompositionLocalProvider(LocalBringIntoViewSpec provides defaultBringIntoViewSpec) {
-                        DiscoverGenreRow(
-                            title =
-                                remember {
-                                    ResProviderStringProvider(
-                                        R.string.genres_in,
-                                        ResStringProvider(R.string.tv_shows_title),
+                    // TV
+                    item { discoverItemRow(ROW_TV, state.tv) }
+                    item {
+                        CompositionLocalProvider(LocalBringIntoViewSpec provides defaultBringIntoViewSpec) {
+                            DiscoverGenreRow(
+                                title =
+                                    remember {
+                                        ResProviderStringProvider(
+                                            R.string.genres_in,
+                                            ResStringProvider(R.string.tv_shows_title),
+                                        )
+                                    },
+                                items = state.tvGenres,
+                                onClickItem = { index, genre ->
+                                    position = RowColumn(ROW_GENRES_TV, index)
+                                    viewModel.navigationManager.navigateTo(
+                                        Destination.DiscoverMoreResult(
+                                            type = DiscoverRequestType.DISCOVER_TV,
+                                            initialFilter =
+                                                DiscoverFilter(
+                                                    genreIds = listOf(genre.id.toInt()),
+                                                ),
+                                            titleOverride =
+                                                discoverGenreTitle(
+                                                    genre.name,
+                                                    SeerrItemType.TV,
+                                                ),
+                                            startIndex = 0,
+                                        ),
                                     )
                                 },
-                            items = state.tvGenres,
-                            onClickItem = { index, genre ->
-                                position = RowColumn(ROW_GENRES_TV, index)
-                                viewModel.navigationManager.navigateTo(
-                                    Destination.DiscoverMoreResult(
-                                        type = DiscoverRequestType.DISCOVER_TV,
-                                        initialFilter =
-                                            DiscoverFilter(
-                                                genreIds = listOf(genre.id.toInt()),
-                                            ),
-                                        titleOverride =
-                                            discoverGenreTitle(
-                                                genre.name,
-                                                SeerrItemType.TV,
-                                            ),
-                                        startIndex = 0,
-                                    ),
-                                )
-                            },
-                            onCardFocus = { index ->
-                                position = RowColumn(ROW_GENRES_TV, index)
-                                positionCallback.invoke(position)
-                            },
-                            modifier = Modifier.focusRequester(focusRequesters[ROW_GENRES_TV]),
-                        )
+                                onCardFocus = { index ->
+                                    position = RowColumn(ROW_GENRES_TV, index)
+                                    positionCallback.invoke(position)
+                                },
+                                modifier = Modifier.focusRequester(focusRequesters[ROW_GENRES_TV]),
+                            )
+                        }
                     }
+                    item { discoverItemRow(ROW_UPCOMING_TV, state.upcomingTv) }
                 }
-                item { discoverItemRow(ROW_UPCOMING_TV, state.upcomingTv) }
             }
         }
     }

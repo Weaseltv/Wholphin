@@ -48,7 +48,7 @@ import com.github.damontecres.wholphin.ui.main.HomePageHeader
 import com.github.damontecres.wholphin.ui.playback.scale
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
-import com.github.damontecres.wholphin.ui.theme.NeonRule
+import com.github.damontecres.wholphin.ui.theme.NeonSectionRule
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.util.ScrollToTopBringIntoViewSpec
@@ -291,17 +291,17 @@ fun GridTitle(
         return
     }
     // Neon Board page head: eyebrow, Condensed 40 uppercase title, then the section rule.
-    Column(modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-        NeonEyebrow(text = eyebrow ?: stringResource(R.string.library))
+    Column(modifier = modifier.fillMaxWidth()) {
+        NeonEyebrow(text = eyebrow ?: stringResource(R.string.library), modifier = Modifier.padding(horizontal = 16.dp))
         Text(
             text = title.uppercase(),
             style = NeonType.pageTitle(),
             color = NeonBoard.Text,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 2.dp),
         )
-        NeonRule(modifier = Modifier.padding(top = 6.dp))
+        NeonSectionRule(modifier = Modifier.padding(top = 6.dp))
     }
 }
 
