@@ -39,6 +39,8 @@ Gradle command is:
 ## Alpha installation and build host
 
 - Launcher name: **WeaselPlex Alpha**.
+- Launcher icon and TV banner include an **ALPHA** badge so the two installed
+  apps are easy to distinguish. These resources are scoped to the Alpha build.
 - Package: `tv.theweasel.weaselplex.alpha`, alongside customer
   `tv.theweasel.weaselplex`.
 - Same WeaselPlex branding, server defaults, Seerr features and native playback
