@@ -104,6 +104,7 @@ import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.libraryAccent
+import com.github.damontecres.wholphin.ui.theme.curatedPickAccent
 import com.github.damontecres.wholphin.ui.theme.neonAccentFor
 import com.github.damontecres.wholphin.ui.theme.typeAccent
 import com.github.damontecres.wholphin.ui.theme.streamingProviderAccent
@@ -556,6 +557,8 @@ fun HomePageContent(
                                                             } ?: typeAccent(item.type)
                                                         } else if (item != null && row.rowType?.let(StreamingCollections::isStreamingRow) == true) {
                                                             streamingProviderAccent(item.name) ?: homeRowAccent(row.rowType, libraries)
+                                                        } else if (curated && item != null) {
+                                                            curatedPickAccent(item.name) ?: homeRowAccent(row.rowType, libraries)
                                                         } else {
                                                             homeRowAccent(row.rowType, libraries)
                                                         },

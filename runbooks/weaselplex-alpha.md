@@ -120,6 +120,33 @@ Border-only contrast overrides use Apple TV's #A2AAAD for Paramount+ and
 Hallmark, and #000000 for BritBox and Crunchyroll. Their glow retains the provider
 color listed above; other provider borders and glow remain matched.
 
+## The Weasel’s Picks focus colors
+
+Picks Home posters use their theme color for both focused border and glow,
+retaining saved border opacity/thickness and glow spread/strength. Unknown card
+names retain the row accent.
+
+| Pick | Hex |
+| --- | --- |
+| Blockbuster Friday | #2567F6 |
+| Clear Your Evening | #FFA91E |
+| Cozy Season | #40C7FF |
+| Critics Circle | #F4AA3D |
+| Crowd Pleasers | #FF1438 |
+| Date Night | #FF40A2 |
+| Hot Right Now | #FE3B04 |
+| Just Dropped | #FFDF0F |
+| Lights Off | #FC1132 |
+| Originals Only | #F6C93E |
+| Passport Night | #0CD8CA |
+| Quick Fix | #35FCAD |
+| Ripped From The Headlines | #FF080B |
+| Spin The Wheel | #AA32FF |
+| Spooky Season | #FF6F00 |
+| The Big Score | #40D4FF |
+| VHS Vault | #FF0AD5 |
+| Y2K Rewind | #406AFF |
+
 ## Home descriptions and Settings styling
 
 Home descriptions use 92% of the available header width instead of the previous
