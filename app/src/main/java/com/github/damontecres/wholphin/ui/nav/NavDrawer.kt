@@ -701,7 +701,10 @@ fun NavigationDrawerScope.ProfileIcon(
                 name = user.name,
                 imageUrl = imageUrl,
                 alpha = if (drawerOpen || isWeaselTv()) 1f else .5f,
-                modifier = Modifier.size(DrawerIconSize),
+                modifier =
+                    Modifier
+                        .size(DrawerIconSize)
+                        .offset(x = if (isWeaselTv() && drawerOpen) 6.dp else 0.dp),
             )
         },
         supportingContent = {
