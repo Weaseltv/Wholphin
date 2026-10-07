@@ -144,7 +144,12 @@ its 5 dp solid line, leaving a visible 5 dp fade peaking at 35% alpha. Progress
 uses an 8 dp / 56% gradient including its 3 dp line to match that visible fade. Their color follows the
 media type (Amber for movies, Crimson for episodes), independently of the current
 section. The curated Home row is now named **The Weasel’s Picks**. HBO Max
-uses the normal focus border without a permanent unfocused outline.
+uses the normal focus border without a permanent unfocused outline. Continue
+Watching keeps its Neon Green divider while focused posters use the item’s library
+accent: Amber for Movies, Crimson for TV Shows, Fuchsia for Sports and Violet
+for Stand Up Comedy. Resolve actual library ancestry for resumed items, caching
+it by user and parent/series; use media-type colors if lookup fails. Other rows retain their row
+accent for focus borders and glow.
 
 Section accents follow the navigation stack into details, grids, dialogs,
 settings and playback, including full-screen destinations. Home rows use their

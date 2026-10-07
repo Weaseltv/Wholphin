@@ -44,6 +44,9 @@ import com.github.damontecres.wholphin.util.HomeRowLoadingState.Success
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
@@ -58,6 +61,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.liveTvApi
+import org.jellyfin.sdk.api.client.extensions.libraryApi
 import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.model.DateTime
@@ -673,6 +677,39 @@ class HomeSettingsService
                 ResStringProvider(R.string.unknown)
             }
 
+        private val continueWatchingLibraries = java.util.concurrent.ConcurrentHashMap<Pair<UUID, UUID>, UUID>()
+
+        /** Resolve real library membership; media type alone cannot distinguish Sports or Comedy. */
+        private suspend fun withContinueWatchingLibraries(
+            items: List<BaseItem>,
+            userId: UUID,
+            libraries: List<Library>,
+        ): List<BaseItem> {
+            if (BuildConfig.FLAVOR != "weaselfin") return items
+            val libraryIds = libraries.map { it.itemId }.toSet()
+            return coroutineScope {
+                items.map { item ->
+                    async {
+                        val ancestorId = item.data.seriesId ?: item.data.parentId ?: item.id
+                        val key = userId to ancestorId
+                        val direct = listOfNotNull(item.data.parentId, ancestorId).firstOrNull { it in libraryIds }
+                        val cached = continueWatchingLibraries[key]?.takeIf { it in libraryIds }
+                        val libraryId = direct ?: cached ?: try {
+                            api.libraryApi.getAncestors(itemId = ancestorId, userId = userId)
+                                .content.firstOrNull { it.id in libraryIds }?.id
+                                ?.also { continueWatchingLibraries[key] = it }
+                        } catch (ex: CancellationException) {
+                            throw ex
+                        } catch (ex: Exception) {
+                            Timber.w(ex, "Unable to resolve Continue Watching library")
+                            null
+                        }
+                        item.copy(libraryId = libraryId)
+                    }
+                }.awaitAll()
+            }
+        }
+
         /**
          * Fetch the data from the server for a given [HomeRowConfig]
          */
@@ -698,7 +735,7 @@ class HomeSettingsService
 
                     Success(
                         title = ResStringProvider(R.string.continue_watching),
-                        items = resume,
+                        items = withContinueWatchingLibraries(resume, userDto.id, libraries),
                         viewOptions = row.viewOptions,
                         rowType = row,
                         showViewMore = resume.size >= limit,
@@ -746,7 +783,7 @@ class HomeSettingsService
 
                     Success(
                         title = ResStringProvider(R.string.continue_watching),
-                        items = combined.take(limit),
+                        items = withContinueWatchingLibraries(combined.take(limit), userDto.id, libraries),
                         viewOptions = row.viewOptions,
                         rowType = row,
                         showViewMore = combined.size >= limit,

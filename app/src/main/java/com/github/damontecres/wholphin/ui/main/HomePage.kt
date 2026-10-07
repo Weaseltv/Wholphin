@@ -103,6 +103,7 @@ import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.libraryAccent
 import com.github.damontecres.wholphin.ui.theme.neonAccentFor
+import com.github.damontecres.wholphin.ui.theme.typeAccent
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import com.github.damontecres.wholphin.util.LoadingState
@@ -540,7 +541,17 @@ fun HomePageContent(
                                                     onClick = onClick,
                                                     onLongClick = onLongClick,
                                                     viewOptions = viewOptions,
-                                                    rowAccent = homeRowAccent(row.rowType, libraries),
+                                                    rowAccent =
+                                                        if (item != null && (
+                                                            row.rowType is HomeRowConfig.ContinueWatching ||
+                                                                row.rowType is HomeRowConfig.ContinueWatchingCombined
+                                                            )) {
+                                                            libraries.firstOrNull { it.itemId == item.libraryId }?.let {
+                                                                libraryAccent(it.name, it.collectionType)
+                                                            } ?: typeAccent(item.type)
+                                                        } else {
+                                                            homeRowAccent(row.rowType, libraries)
+                                                        },
                                                     cornerTextScale = if (curated) CuratedCollections.CARD_SIZE_MULTIPLIER else 1f,
                                                     modifier =
                                                         cardModifier
