@@ -186,7 +186,12 @@ class CollectionFolderViewModel
                         )
                     }
 
-                    val sortAndDirection =
+                    val orderPreferences = context.getSharedPreferences("collections_display_order", Context.MODE_PRIVATE)
+                    val orderKey = "explicit_order_v1_${serverRepository.currentUser?.rowId}_${collectionFilter.libraryDisplayInfoIdOverride ?: itemId}"
+                    val useApprovedOrder = BuildConfig.FLAVOR == "weaselfin" &&
+                        (item?.data?.collectionType == CollectionType.BOXSETS || collectionFilter.filter.includeItemTypes == listOf(BaseItemKind.BOX_SET)) &&
+                        !orderPreferences.getBoolean(orderKey, false)
+                    val sortAndDirection = if (useApprovedOrder) SortAndDirection.DEFAULT else
                         if (collectionFilter.useSavedLibraryDisplayInfo) {
                             libraryDisplayInfo?.sortAndDirection
                         } else {
@@ -201,8 +206,12 @@ class CollectionFolderViewModel
                         }
 
                     _state.update { it.copy(item = DataLoadingState.Success(item)) }
+                    if (useApprovedOrder) saveLibraryDisplayInfo(newFilter = filterToUse, newSort = sortAndDirection)
                     loadResults(true, sortAndDirection, recursive, filterToUse, useSeriesForPrimary)
                         .join()
+                    if (useApprovedOrder && state.value.items is DataLoadingState.Success) {
+                        orderPreferences.edit().putBoolean(orderKey, true).apply()
+                    }
 //                    onResumePage()
                 } catch (ex: Exception) {
                     Timber.e(ex, "Error during init")
