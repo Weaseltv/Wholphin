@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Border
 import androidx.tv.material3.CardBorder
 import androidx.tv.material3.CardDefaults
@@ -889,7 +890,7 @@ fun NeonRule(
 }
 
 /**
- * The outline / filled badge: 11–12sp Barlow 700 uppercase, 3–4 / 9 padding, 12dp glow.
+ * The outline / filled poster badge shares the global count font size and padding.
  * Only rendered on the WeaselTV theme; callers keep their stock overlay for other themes.
  */
 @Composable
@@ -900,6 +901,9 @@ fun NeonBadge(
     filled: Boolean = false,
 ) {
     if (!isWeaselTv()) return
+    val countAppearance = LocalPosterCountAppearance.current
+    val textStyle = MaterialTheme.typography.bodySmall
+    val textSize = (countAppearance?.badgeTextSizeSp ?: 11).sp
     val fill = if (filled) accent else NeonBoard.Card.copy(alpha = .72f)
     val ink = if (filled) NeonBoard.OnAccent else accent
     Box(
@@ -925,12 +929,19 @@ fun NeonBadge(
                             androidx.compose.ui.graphics.drawscope
                                 .Stroke(width = 1.dp.toPx()),
                     )
-                }.padding(horizontal = 9.dp, vertical = 3.dp),
+                }.padding(
+                    horizontal = (countAppearance?.badgeHorizontalPaddingDp ?: 2).dp,
+                    vertical = (countAppearance?.badgeVerticalPaddingDp ?: 2).dp,
+                ),
     ) {
         Text(
             text = text.uppercase(),
             color = ink,
-            style = MaterialTheme.typography.labelSmall,
+            style = textStyle.copy(
+                fontSize = textSize,
+                lineHeight = textSize * (textStyle.lineHeight.value / textStyle.fontSize.value),
+                letterSpacing = 0.sp,
+            ),
             maxLines = 1,
         )
     }

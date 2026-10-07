@@ -339,3 +339,5 @@ BritBox's provider SVG uses an expanded, normalized view box so the i dot and le
 - Numeric poster badges use the saved Home count appearance app-wide; poster badge controls update all rows.
 - Pure Movies/TV Shows library grids hide type badges; mixed-media grids retain them. The filter toolbar has the same 16 dp lower inset as Collections.
 - Home layout revision 5 updates saved local and server-default row spacing to 14 dp; WeaselPlex poster grids also use 14 dp.
+
+- Poster captions share a 14 sp, two-line title with ellipsis and fixed title-line allocation; subtitles also ellipsize. The text stays bounded instead of using a marquee. MOVIE/SHOW badge font size and padding follow global poster-count appearance.

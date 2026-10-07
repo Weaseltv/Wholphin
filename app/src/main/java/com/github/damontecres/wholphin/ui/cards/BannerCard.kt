@@ -300,30 +300,8 @@ fun BannerCardWithTitle(
             useSeriesForPrimary = useSeriesForPrimary,
         )
         SlidingCardText(focused) {
-            Text(
-                text = title ?: "",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                textAlign = TextAlign.Center,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp)
-                        .enableMarquee(focusedAfterDelay),
-            )
-            Text(
-                text = subtitle ?: "",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Normal,
-                maxLines = 1,
-                textAlign = TextAlign.Center,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp)
-                        .enableMarquee(focusedAfterDelay),
-            )
+            PosterCardTitle(title, focused)
+            PosterCardSubtitle(subtitle)
         }
     }
 }

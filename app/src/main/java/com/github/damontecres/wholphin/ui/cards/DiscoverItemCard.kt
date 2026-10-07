@@ -189,30 +189,8 @@ fun DiscoverItemCard(
             }
         }
         SlidingCardText(focused) {
-            Text(
-                text = item?.title ?: "",
-                maxLines = 1,
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp)
-                        .enableMarquee(focusedAfterDelay),
-            )
-            Text(
-                text = item?.releaseDate?.year?.toString() ?: "",
-                maxLines = 1,
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.Normal,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp)
-                        .enableMarquee(focusedAfterDelay),
-            )
+            PosterCardTitle(item?.title, focused)
+            PosterCardSubtitle(item?.releaseDate?.year?.toString())
         }
     }
 }
