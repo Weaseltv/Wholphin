@@ -10,6 +10,8 @@
 
 ### Alpha testing and release cadence
 
+- Follow this workflow even when Notion is unavailable or has not been read.
+  These instructions and `runbooks/weaselplex-alpha.md` are kept in the repo.
 - Routine fixes/changes default to **Alpha testing**, not a customer release.
   Build with `./scripts/build-alpha.sh` (arm64-v8a for the Shield), or
   `assembleWeaselfinAlpha`. See `runbooks/weaselplex-alpha.md`.
@@ -19,6 +21,8 @@
 - Accumulate finalized changes on a development/batch branch. Only publish a
   stable customer release when the owner explicitly asks to ship/publish it;
   asking for an APK to test does not authorize a customer release.
+- Asking to merge a PR does not authorize a customer release either. Merge the
+  code without creating a release tag or publishing APKs unless separately asked.
 
 ### Stable releases
 
