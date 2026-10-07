@@ -52,6 +52,7 @@ import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonAccentFor
 import com.github.damontecres.wholphin.ui.theme.neonProgress
+import com.github.damontecres.wholphin.ui.theme.typeAccent
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ImageType
 
@@ -122,6 +123,7 @@ fun ItemCardImage(
         accent = accent,
         typeBadge = typeBadge,
         typeBadgeFilled = badgeFilled,
+        progressAccent = typeAccent(item?.type),
     )
 }
 
@@ -141,6 +143,7 @@ fun ItemCardImage(
     accent: Color = LocalNeonAccent.current,
     typeBadge: String? = null,
     typeBadgeFilled: Boolean = false,
+    progressAccent: Color = accent,
     fallback: @Composable BoxScope.() -> Unit = {
         ItemCardImageFallback(
             name = name,
@@ -181,6 +184,7 @@ fun ItemCardImage(
                 accent = accent,
                 typeBadge = typeBadge,
                 typeBadgeFilled = typeBadgeFilled,
+                progressAccent = progressAccent,
                 modifier = Modifier,
             )
         }
@@ -243,6 +247,7 @@ fun ItemCardImageOverlay(
     accent: Color = LocalNeonAccent.current,
     typeBadge: String? = null,
     typeBadgeFilled: Boolean = false,
+    progressAccent: Color = accent,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         Row(
@@ -321,7 +326,7 @@ fun ItemCardImageOverlay(
                         .align(Alignment.BottomStart)
                         .then(
                             if (isWeaselTv()) {
-                                Modifier.neonProgress(accent)
+                                Modifier.neonProgress(progressAccent)
                             } else {
                                 Modifier.background(MaterialTheme.colorScheme.tertiary)
                             },

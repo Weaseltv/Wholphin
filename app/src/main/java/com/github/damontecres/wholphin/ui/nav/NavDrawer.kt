@@ -101,6 +101,7 @@ import com.github.damontecres.wholphin.ui.theme.LocalTheme
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.ProvideNeonAccent
+import com.github.damontecres.wholphin.ui.theme.LocalNeonSectionAccent
 import com.github.damontecres.wholphin.ui.theme.RailAccents
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonDrawerItemColors
@@ -456,6 +457,7 @@ fun NavDrawer(
                             IconNavItem(
                                 text = stringResource(R.string.home),
                                 weaselIcon = WeaselNavIcons.HOME,
+                                accent = RailAccents.Home,
                                 icon = Icons.Default.Home,
                                 selected = selectedIndex == HOME_INDEX,
                                 drawerOpen = isOpen,
@@ -581,25 +583,7 @@ fun NavDrawer(
             // Page labels and cards keep their gutters; section rules extend to the rail and screen edge.
             // The page takes the SECTION accent of the rail item it belongs to; details
             // pages override it with their item's type accent.
-            val sectionAccent =
-                remember(selectedIndex, serviceState) {
-                    when {
-                        selectedIndex == NOW_PLAYING_INDEX -> {
-                            NeonBoard.Green
-                        }
-
-                        selectedIndex >= 0 -> {
-                            (serviceState.items + serviceState.moreItems)
-                                .getOrNull(selectedIndex)
-                                ?.let { sectionAccent(it) }
-                                ?: NeonBoard.Volt
-                        }
-
-                        else -> {
-                            NeonBoard.Volt
-                        }
-                    }
-                }
+            val sectionAccent = LocalNeonSectionAccent.current ?: RailAccents.Home
             ProvideNeonAccent(sectionAccent) {
                 InsetNeonSectionRules(
                     start = if (neon) NeonBoard.Size.OverscanX / 2 else 0.dp,

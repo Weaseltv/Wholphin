@@ -46,7 +46,7 @@ import com.github.damontecres.wholphin.ui.detail.PlaylistDialog
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.ui.theme.ProvideNeonAccent
-import com.github.damontecres.wholphin.ui.theme.itemAccent
+import com.github.damontecres.wholphin.ui.theme.neonAccentFor
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import kotlinx.coroutines.launch
@@ -134,7 +134,7 @@ fun EpisodeDetails(
                     viewModel.release()
                 }
             }
-            ProvideNeonAccent(itemAccent(ep)) {
+            ProvideNeonAccent(neonAccentFor(ep)) {
                 EpisodeDetailsContent(
                     preferences = preferences,
                     ep = ep,

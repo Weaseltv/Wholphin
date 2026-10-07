@@ -317,7 +317,7 @@ configure<ApplicationExtension> {
             buildConfigField(
                 "String",
                 "DEFAULT_NAV_ORDER",
-                "\"a_favorites,a_discover\"",
+                "\"a_favorites,a_discover,Collections,Movies,TV Shows,Sports,Stand Up Comedy\"",
             )
         }
         create("appstore") {

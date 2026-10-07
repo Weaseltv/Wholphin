@@ -46,6 +46,7 @@ import androidx.tv.material3.NavigationDrawerItemDefaults
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomeCardAppearance
+import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.ui.nav.NavDrawerItem
 import com.github.damontecres.wholphin.ui.nav.ServerNavDrawerItem
@@ -78,12 +79,17 @@ object NeonBoard {
     val Low = Color(0xFF6B7686)
     val OnAccent = Color(0xFF050608)
 
-    val Volt = Color(0xFFD4F63F)
-    val Green = Color(0xFF39FF14)
-    val Cyan = Color(0xFF00F0FF)
-    val Orange = Color(0xFFFF7A00)
-    val Yellow = Color(0xFFFFD400)
-    val Red = Color(0xFFFF3B4E)
+    val Volt = Color(0xFFC6FF00)
+    val Green = Color(0xFF3DFF6E)
+    val Cyan = Color(0xFF00E5FF)
+    val Orange = Color(0xFFFFB000)
+    val Yellow = Color(0xFFFFE600)
+    val Red = Color(0xFFFF2A3D)
+    val ElectricBlue = Color(0xFF0088FF)
+    val Teal = Color(0xFF00C2A0)
+    val Fuchsia = Color(0xFFFF1A8C)
+    val Violet = Color(0xFF7B4DFF)
+    val IceWhite = Color(0xFFE8F4FF)
     val Warn = Color(0xFFF5B93D)
 
     /** Player buttons over video. */
@@ -170,32 +176,88 @@ val LocalNeonAccent = compositionLocalOf { NeonBoard.Volt }
 fun ProvideNeonAccent(
     accent: Color,
     content: @Composable () -> Unit,
-) = CompositionLocalProvider(LocalNeonAccent provides accent, content = content)
+) {
+    CompositionLocalProvider(LocalNeonAccent provides accent) {
+        if (isWeaselTv()) {
+            val tvColors = MaterialTheme.colorScheme.copy(
+                primary = accent, onPrimary = NeonBoard.OnAccent,
+                primaryContainer = NeonBoard.chipOn(accent), onPrimaryContainer = NeonBoard.Text,
+                secondary = accent, onSecondary = NeonBoard.OnAccent,
+                tertiary = accent, onTertiary = NeonBoard.OnAccent,
+                border = accent, inversePrimary = accent,
+            )
+            val materialColors = androidx.compose.material3.MaterialTheme.colorScheme.copy(
+                primary = accent, onPrimary = NeonBoard.OnAccent,
+                primaryContainer = NeonBoard.chipOn(accent), onPrimaryContainer = NeonBoard.Text,
+                secondary = accent, onSecondary = NeonBoard.OnAccent,
+                tertiary = accent, onTertiary = NeonBoard.OnAccent,
+                inversePrimary = accent,
+            )
+            androidx.compose.material3.MaterialTheme(colorScheme = materialColors) {
+                MaterialTheme(colorScheme = tvColors, content = content)
+            }
+        } else {
+            content()
+        }
+    }
+}
 
-/**
- * Owner ruling 2026-09-17: every rail item gets its OWN neon; only the 4K libraries share
- * the colour of their regular movie / show counterparts. Built-ins match on id, libraries
- * on name; anything unnamed falls back to its collection type.
- */
+val LocalNeonSectionAccent = compositionLocalOf<Color?> { null }
+
+@Composable
+fun ProvideNeonSectionAccent(accent: Color, content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalNeonSectionAccent provides accent) {
+        ProvideNeonAccent(accent, content)
+    }
+}
+
+/** Owner palette v4, 2026-10-07: every sidebar section keeps its own color. */
 private val RAIL_ACCENT_BY_ID =
     mapOf(
-        "a_favorites" to Color(0xFF5268FF), // hyper blue
-        "a_discover" to Color(0xFF00FF8A), // spring mint (Requests)
+        "a_favorites" to NeonBoard.Cyan,
+        "a_discover" to NeonBoard.Teal,
         "a_more" to NeonBoard.Volt,
     )
 private val RAIL_ACCENT_BY_NAME =
     mapOf(
-        "stand up comedy" to Color(0xFFFF2EF7), // magenta
-        "boxing" to Color(0xFFFF2D95), // hot pink
-        "ufc" to Color(0xFF00A3FF), // azure
+        "collections" to NeonBoard.Yellow,
+        "movies" to NeonBoard.Orange,
+        "tv shows" to NeonBoard.Red,
+        "sports" to NeonBoard.Fuchsia,
+        "stand up comedy" to NeonBoard.Violet,
+        "standup comedy" to NeonBoard.Violet,
+        "stand-up comedy" to NeonBoard.Violet,
+        "boxing" to NeonBoard.Fuchsia,
+        "ufc" to NeonBoard.Fuchsia,
     )
 
-/** Fixed rail items: Search cyan, Home volt, Settings violet, Now playing green. */
 object RailAccents {
-    val Search = NeonBoard.Cyan
-    val Home = NeonBoard.Volt
-    val Settings = Color(0xFFC026FF)
+    val User = NeonBoard.Volt
+    val Search = NeonBoard.ElectricBlue
+    val Home = NeonBoard.Green
+    val Settings = NeonBoard.IceWhite
     val NowPlaying = NeonBoard.Green
+}
+
+/** Inherit the most recent sidebar section through nested details, dialogs and playback. */
+fun navigationSectionAccent(backStack: List<Destination>, items: List<NavDrawerItem>): Color {
+    var accent = RailAccents.Home
+    backStack.forEach { destination ->
+        accent = when (destination) {
+            is Destination.Home -> RailAccents.Home
+            is Destination.Search -> RailAccents.Search
+            Destination.Favorites -> NeonBoard.Cyan
+            Destination.Discover -> NeonBoard.Teal
+            is Destination.Settings, Destination.HomeSettings, is Destination.SubtitleSettings,
+            is Destination.UpdateApp, Destination.License, Destination.Debug -> RailAccents.Settings
+            Destination.UserAppPreferences -> RailAccents.User
+            Destination.NowPlaying -> RailAccents.NowPlaying
+            else -> items.filterIsInstance<ServerNavDrawerItem>()
+                .firstOrNull { it.destination == destination }
+                ?.let(::sectionAccent) ?: accent
+        }
+    }
+    return accent
 }
 
 /** Section accent for a nav rail item: its own neon, or its collection type's colour. */
@@ -220,8 +282,9 @@ fun libraryAccent(
 fun collectionAccent(type: CollectionType?): Color =
     when (type) {
         CollectionType.MOVIES -> NeonBoard.Orange
-        CollectionType.TVSHOWS -> NeonBoard.Yellow
+        CollectionType.TVSHOWS -> NeonBoard.Red
         CollectionType.LIVETV -> NeonBoard.Green
+        CollectionType.BOXSETS -> NeonBoard.Yellow
         else -> NeonBoard.Volt
     }
 
@@ -233,7 +296,7 @@ fun typeAccent(kind: BaseItemKind?): Color =
         BaseItemKind.SERIES,
         BaseItemKind.SEASON,
         BaseItemKind.EPISODE,
-        -> NeonBoard.Yellow
+        -> NeonBoard.Red
 
         BaseItemKind.TV_CHANNEL,
         BaseItemKind.LIVE_TV_CHANNEL,
@@ -267,7 +330,9 @@ fun itemAccent(item: BaseItem?): Color {
 /** Accent for an item when the theme is active, otherwise the page accent. */
 @Composable
 @ReadOnlyComposable
-fun neonAccentFor(item: BaseItem?): Color = if (item == null) LocalNeonAccent.current else itemAccent(item)
+fun neonAccentFor(item: BaseItem?): Color =
+    LocalHomeRowAccent.current ?: LocalNeonSectionAccent.current
+        ?: if (item == null) LocalNeonAccent.current else itemAccent(item)
 
 // ---------------------------------------------------------------------------------------
 // Cards
@@ -332,10 +397,10 @@ val LocalHomeRowAccent = compositionLocalOf<Color?> { null }
 private fun homeCardAccent(default: Color): Color =
     when (LocalHomeCardAppearance.current.accentIndex) {
         1 -> NeonBoard.Volt
-        2 -> Color(0xFFFF8A00)
-        3 -> NeonBoard.Text
-        4 -> Color(0xFF00E5FF)
-        5 -> Color(0xFFFF4DAD)
+        2 -> NeonBoard.Orange
+        3 -> NeonBoard.IceWhite
+        4 -> NeonBoard.Cyan
+        5 -> NeonBoard.Fuchsia
         else -> LocalHomeRowAccent.current ?: default
     }
 
@@ -730,7 +795,7 @@ fun Modifier.neonOverline(
     }
 }
 
-/** A progress bar in the accent with an 8dp glow, for cards and rows. */
+/** Card watch progress keeps its thickness and uses the approved Home divider glow. */
 @Composable
 fun Modifier.neonProgress(
     accent: Color = LocalNeonAccent.current,
@@ -738,11 +803,11 @@ fun Modifier.neonProgress(
 ): Modifier {
     if (!enabled || !isWeaselTv()) return this
     return drawBehind {
-        val glowH = NeonBoard.GlowSpec.Progress.toPx()
+        val glowH = 10.dp.toPx()
         drawRect(
             brush =
                 Brush.verticalGradient(
-                    colors = listOf(accent.copy(alpha = .4f), Color.Transparent),
+                    colors = listOf(accent.copy(alpha = .7f), Color.Transparent),
                     startY = 0f,
                     endY = -glowH,
                 ),

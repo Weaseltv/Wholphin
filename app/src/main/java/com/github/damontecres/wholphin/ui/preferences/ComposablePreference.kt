@@ -36,6 +36,7 @@ import com.github.damontecres.wholphin.ui.components.DialogParams
 import com.github.damontecres.wholphin.ui.components.DialogPopup
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.nav.Destination
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
@@ -280,7 +281,7 @@ val PreferenceTitleStyle: TextStyle
 
 val PreferenceSummaryStyle: TextStyle
     @Composable @ReadOnlyComposable
-    get() = if (isWeaselTv()) NeonType.settingsValue().copy(color = NeonBoard.Volt) else MaterialTheme.typography.bodySmall
+    get() = if (isWeaselTv()) NeonType.settingsValue().copy(color = LocalNeonAccent.current) else MaterialTheme.typography.bodySmall
 
 @Composable
 fun PreferenceTitle(

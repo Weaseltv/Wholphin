@@ -38,6 +38,7 @@ import com.github.damontecres.wholphin.services.CuratedCollections
 import com.github.damontecres.wholphin.ui.data.RowColumn
 import com.github.damontecres.wholphin.ui.handleDPadKeyEvents
 import com.github.damontecres.wholphin.ui.main.HomePageContent
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 
@@ -129,7 +130,7 @@ fun AlphaHomeLayoutTuner(
                         .focusProperties { onExit = { cancelFocusChange() } }
                         .focusGroup(),
             ) {
-                Text("Alpha · Card appearance", color = NeonBoard.Volt)
+                Text("Alpha · Card appearance", color = LocalNeonAccent.current)
                 Text("Up/down: select · Left/right: adjust", color = NeonBoard.Mid)
                 Text("Changes are live. Back saves and closes.", color = NeonBoard.Mid)
                 Text(

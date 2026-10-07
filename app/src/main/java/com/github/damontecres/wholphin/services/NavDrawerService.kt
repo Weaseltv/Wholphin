@@ -7,6 +7,7 @@ import com.github.damontecres.wholphin.data.ServerPreferencesDao
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.NavPinType
+import com.github.damontecres.wholphin.data.model.NavDrawerPinnedItem
 import com.github.damontecres.wholphin.services.hilt.DefaultCoroutineScope
 import com.github.damontecres.wholphin.ui.collectLatestIn
 import com.github.damontecres.wholphin.ui.launchDefault
@@ -31,6 +32,7 @@ import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.client.extensions.liveTvApi
 import org.jellyfin.sdk.api.client.extensions.userViewsApi
+import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
 import org.jellyfin.sdk.model.api.UserDto
@@ -204,6 +206,45 @@ class NavDrawerService
             return libraries
         }
 
+        /** Match Jellyfin's member library order once without replacing their other preferences. */
+        private suspend fun restoreServerLibraryOrder(
+            user: JellyfinUser,
+            libraries: List<Library>,
+        ): List<Library> {
+            if (BuildConfig.FLAVOR != "weaselfin" || libraries.isEmpty()) return libraries
+            val migrations = context.getSharedPreferences("sidebar_palette_migrations", Context.MODE_PRIVATE)
+            val key = "palette_v4_server_order_${user.rowId}"
+            if (migrations.getBoolean(key, false)) return libraries
+            val ordered = libraries.sortedBy {
+                defaultNavOrder(
+                    ServerNavDrawerItem(
+                        itemId = it.itemId,
+                        name = it.name,
+                        destination = Destination.MediaItem(it.itemId, it.type, it.collectionType),
+                        type = it.collectionType,
+                    ),
+                    context,
+                )
+            }
+            try {
+                // Fetch immediately before writing so unrelated server preferences stay current.
+                val configuration = api.userApi.getUserById(user.id).content.configuration ?: return ordered
+                val ids = ordered.map { it.itemId }
+                val orderedViews = ids + configuration.orderedViews.orEmpty().filterNot { it in ids }
+                if (configuration.orderedViews != orderedViews) {
+                    api.userApi.updateUserConfiguration(user.id, configuration.copy(orderedViews = orderedViews))
+                }
+                migrations.edit().putBoolean(key, true).apply()
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                // Keep the sidebar usable and retry the server update on the next refresh.
+                Timber.w(ex, "Unable to save the approved server library order")
+                showToast(context, "Couldn't save server library order; will retry on the next load")
+            }
+            return ordered
+        }
+
         /**
          * Update the current state of the nav drawer items
          */
@@ -217,7 +258,8 @@ class NavDrawerService
                     add(NavDrawerItem.Favorites)
                     if (discoverActive) add(NavDrawerItem.Discover)
                 }
-            val allLibraries = getAllUserLibraries(user.id, userDto.tvAccess)
+            var allLibraries = getAllUserLibraries(user.id, userDto.tvAccess)
+            allLibraries = restoreServerLibraryOrder(user, allLibraries)
             val libraries =
                 allLibraries
                     .map {
@@ -240,10 +282,26 @@ class NavDrawerService
                     }
             val allItems = builtins + libraries
 
-            val navDrawerPins =
+            var navDrawerPins =
                 withContext(WholphinDispatchers.IO) {
                     serverPreferencesDao.getNavDrawerPinnedItems(user).associateBy { it.itemId }
                 }
+
+            // Restore the owner's requested order once; preserve future explicit reordering.
+            if (BuildConfig.FLAVOR == "weaselfin") {
+                val migrations = context.getSharedPreferences("sidebar_palette_migrations", Context.MODE_PRIVATE)
+                val key = "palette_v4_order_${user.rowId}"
+                if (!migrations.getBoolean(key, false) && libraries.isNotEmpty()) {
+                    val restored = allItems.sortedBy { defaultNavOrder(it, context) }.mapIndexed { index, item ->
+                        NavDrawerPinnedItem(user.rowId, item.id, navDrawerPins[item.id]?.type ?: NavPinType.PINNED, index)
+                    }
+                    withContext(WholphinDispatchers.IO) {
+                        serverPreferencesDao.saveNavDrawerPinnedItems(*restored.toTypedArray())
+                    }
+                    navDrawerPins = restored.associateBy { it.itemId }
+                    migrations.edit().putBoolean(key, true).apply()
+                }
+            }
 
             val items = mutableListOf<NavDrawerItem>()
             val moreItems = mutableListOf<NavDrawerItem>()
@@ -285,7 +343,7 @@ data class NavDrawerItemState(
 val UserDto.tvAccess: Boolean get() = policy?.enableLiveTvAccess == true
 
 /**
- * Flavor builtin order, followed by libraries in UserViews order, then Playlists.
+ * Flavor builtin and named-library order, followed by other libraries, then Playlists.
  * Explicit per-user pins/reordering take precedence in updateNavDrawer.
  * A blank order preserves upstream behavior.
  */
@@ -297,10 +355,22 @@ internal fun defaultNavOrder(
 ): Int {
     if (order.isBlank()) return Int.MAX_VALUE
     val unnamed = Int.MAX_VALUE - 1
-    if (item is ServerNavDrawerItem) {
-        return if (item.type == CollectionType.PLAYLISTS) Int.MAX_VALUE else unnamed
-    }
     val wanted = order.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+    if (item is ServerNavDrawerItem) {
+        val byName = wanted.indexOfFirst { it.equals(item.name, ignoreCase = true) }
+        if (byName >= 0) return byName
+        val byType = when (item.type) {
+            CollectionType.BOXSETS -> wanted.indexOf("Collections")
+            CollectionType.MOVIES -> wanted.indexOf("Movies")
+            CollectionType.TVSHOWS -> wanted.indexOf("TV Shows")
+            else -> -1
+        }
+        return when {
+            byType >= 0 -> byType
+            item.type == CollectionType.PLAYLISTS -> Int.MAX_VALUE
+            else -> unnamed
+        }
+    }
     val byId = wanted.indexOf(item.id)
     if (byId >= 0) return byId
     val name = runCatching { item.name(context) }.getOrNull() ?: return unnamed

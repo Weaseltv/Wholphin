@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -19,6 +21,9 @@ import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.NavigationManager
+import com.github.damontecres.wholphin.services.NavDrawerService
+import com.github.damontecres.wholphin.ui.theme.ProvideNeonSectionAccent
+import com.github.damontecres.wholphin.ui.theme.navigationSectionAccent
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.launchIO
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -33,6 +38,7 @@ class ApplicationContentViewModel
     @Inject
     constructor(
         val backdropService: BackdropService,
+        val navDrawerService: NavDrawerService,
     ) : ViewModel() {
         fun clearBackdrop() {
             viewModelScope.launchIO { backdropService.clearBackdrop() }
@@ -54,6 +60,7 @@ fun ApplicationContent(
     enableTopScrim: Boolean = true,
     viewModel: ApplicationContentViewModel = hiltViewModel(),
 ) {
+    val navItems by viewModel.navDrawerService.state.collectAsState()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     Box(
         modifier = modifier,
@@ -78,26 +85,31 @@ fun ApplicationContent(
                 key as Destination
                 val contentKey = "${key}_${server?.id}_${user?.id}"
                 NavEntry(key, contentKey = contentKey) {
-                    if (key.fullScreen) {
-                        DestinationContent(
-                            destination = key,
-                            preferences = preferences,
-                            onClearBackdrop = viewModel::clearBackdrop,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    } else if (user != null && server != null) {
-                        NavDrawer(
-                            destination = key,
-                            preferences = preferences,
-                            user = user,
-                            server = server,
-                            drawerState = drawerState,
-                            navDrawerListState = navDrawerListState,
-                            onClearBackdrop = viewModel::clearBackdrop,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    } else {
-                        ErrorMessage("Trying to go to $key without a user logged in", null)
+                    val keyIndex = navigationManager.backStack.indexOf(key)
+                    val entryStack = navigationManager.backStack.take(if (keyIndex >= 0) keyIndex + 1 else navigationManager.backStack.size)
+                    val sectionAccent = navigationSectionAccent(entryStack, navItems.items + navItems.moreItems)
+                    ProvideNeonSectionAccent(sectionAccent) {
+                        if (key.fullScreen) {
+                            DestinationContent(
+                                destination = key,
+                                preferences = preferences,
+                                onClearBackdrop = viewModel::clearBackdrop,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        } else if (user != null && server != null) {
+                            NavDrawer(
+                                destination = key,
+                                preferences = preferences,
+                                user = user,
+                                server = server,
+                                drawerState = drawerState,
+                                navDrawerListState = navDrawerListState,
+                                onClearBackdrop = viewModel::clearBackdrop,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        } else {
+                            ErrorMessage("Trying to go to $key without a user logged in", null)
+                        }
                     }
                 }
             },

@@ -107,6 +107,43 @@ saves normal local per-user Home settings. **Discard this tuning session**
 restores values from when the tool opened. The tuner entry is hidden from
 customer builds. Normal Home row customization remains available.
 
+## Neon palette v4 and sidebar order
+
+Owner palette and order, 2026-10-07:
+
+| Sidebar item | Color | Hex |
+| --- | --- | --- |
+| User | Volt | #C6FF00 |
+| Search | Electric Blue | #0088FF |
+| Home | Neon Green | #3DFF6E |
+| Watchlist | Cyan | #00E5FF |
+| Requests | Teal | #00C2A0 |
+| Collections | Bright Yellow | #FFE600 |
+| Movies | Amber | #FFB000 |
+| TV Shows | Crimson | #FF2A3D |
+| Sports | Fuchsia | #FF1A8C |
+| Stand Up Comedy | Violet | #7B4DFF |
+| Settings | Ice White | #E8F4FF |
+
+Sidebar items use this order rather than server library order. Existing users'
+order is restored once, retaining pinned/hidden choices; later manual ordering
+is preserved. Additional libraries remain accessible after the named sections.
+On the next signed-in load, a separate one-time migration also saves Collections,
+Movies, TV Shows, Sports and Stand Up Comedy in that order to the member's
+Jellyfin `OrderedViews`. It fetches fresh configuration, preserves unrelated
+preferences and remaining view IDs, and retries failed writes on a later load.
+
+Poster watch-progress lines keep their existing 3 dp thickness and match the
+approved Home divider glow: 10 dp spread at 70% strength. Their color follows the
+media type (Amber for movies, Crimson for episodes), independently of the current
+section. The curated Home row is now named **The Weasel’s Picks**. HBO Max
+uses the normal focus border without a permanent unfocused outline.
+
+Section accents follow the navigation stack into details, grids, dialogs,
+settings and playback, including full-screen destinations. Home rows use their
+source library's mapped color. Explicit poster border color overrides still work.
+Both TV and Material theme accents inherit the current section.
+
 ## Sidebar focus border
 
 Sidebar buttons match the owner's poster border tuning captured on 2026-10-07:

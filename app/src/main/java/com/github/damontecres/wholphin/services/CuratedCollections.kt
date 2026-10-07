@@ -16,7 +16,7 @@ import java.util.UUID
 /** Server-managed Picks, using the existing query row and collection poster grid. */
 object CuratedCollections {
     const val TAG = "WeaselPlex Curated"
-    const val NAME = "WeaselPlex Picks"
+    const val NAME = "The Weasel’s Picks"
     const val CARD_SIZE_MULTIPLIER = 1.35f
     const val EXTRA_VERTICAL_PADDING_DP = 9
     val types = listOf(BaseItemKind.MOVIE)
@@ -58,7 +58,7 @@ object CuratedCollections {
             HomeRowConfigDisplay(
                 id = existing?.id ?: ((rows.maxOfOrNull { it.id } ?: -1) + 1),
                 title = StringStringProvider(NAME),
-                config = existing?.config ?: row,
+                config = (existing?.config as? HomeRowConfig.GetItems)?.copy(name = NAME) ?: row,
             ),
         )
         return HomePageResolvedSettings(rows)

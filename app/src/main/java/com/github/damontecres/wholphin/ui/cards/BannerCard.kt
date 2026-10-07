@@ -42,7 +42,6 @@ import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
-import com.github.damontecres.wholphin.services.StreamingCollections
 import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.FontAwesome
@@ -58,6 +57,7 @@ import com.github.damontecres.wholphin.ui.theme.neonCardGlow
 import com.github.damontecres.wholphin.ui.theme.neonCardScale
 import com.github.damontecres.wholphin.ui.theme.neonCardShape
 import com.github.damontecres.wholphin.ui.theme.neonProgress
+import com.github.damontecres.wholphin.ui.theme.typeAccent
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ImageType
 
@@ -89,11 +89,6 @@ fun BannerCard(
     val badgeInsetY = appearance.badgeVerticalInsetDp?.dp ?: (4.dp * cornerTextScale)
     val badgePaddingX = appearance.badgeHorizontalPaddingDp?.dp ?: (4.dp * cornerTextScale)
     val badgePaddingY = appearance.badgeVerticalPaddingDp?.dp ?: (4.dp * cornerTextScale)
-    val outlineMax =
-        isWeaselTv() && item?.data?.let {
-            StreamingCollections.isStreamingCollection(it) &&
-                (it.name.equals("Max", ignoreCase = true) || it.name.equals("HBO Max", ignoreCase = true))
-        } == true
     val imageUrlService = LocalImageUrlService.current
     val density = LocalDensity.current
     val fillHeight =
@@ -154,12 +149,7 @@ fun BannerCard(
             ),
         shape = neonCardShape(),
         scale = neonCardScale(),
-        border =
-            neonCardBorder(
-                accent = accent,
-                restWidth = if (outlineMax) 1.dp else 0.dp,
-                restColor = NeonBoard.Low,
-            ),
+        border = neonCardBorder(accent = accent),
         glow = neonCardGlow(accent),
     ) {
         Box(
@@ -249,7 +239,7 @@ fun BannerCard(
                             .align(Alignment.BottomStart)
                             .then(
                                 if (isWeaselTv()) {
-                                    Modifier.neonProgress(accent)
+                                    Modifier.neonProgress(typeAccent(item?.type))
                                 } else {
                                     Modifier.background(MaterialTheme.colorScheme.tertiary)
                                 },
