@@ -43,6 +43,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -56,7 +60,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -656,6 +662,14 @@ internal fun RailList(
 /** Rail rows don't grow when focused, so the room only has to cover their glow. */
 internal val RailGlowRoom = NeonBoard.GlowSpec.RowFocus
 
+/** Keep the full stroke and side glow inside the rail without moving its content. */
+private object RailItemShape : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val inset = with(density) { RailGlowRoom.toPx() }.coerceAtMost(size.width / 4f)
+        return Outline.Rectangle(Rect(inset, 0f, size.width - inset, size.height))
+    }
+}
+
 @Composable
 fun NavigationDrawerScope.ProfileIcon(
     user: JellyfinUser,
@@ -670,9 +684,9 @@ fun NavigationDrawerScope.ProfileIcon(
         modifier = modifier,
         selected = false,
         onClick = onClick,
-        shape = neonListItemShape(),
+        shape = neonListItemShape(shape = RailItemShape),
         colors = neonDrawerItemColors(NeonBoard.Volt),
-        border = neonListItemBorder(NeonBoard.Volt),
+        border = neonListItemBorder(NeonBoard.Volt, shape = RailItemShape),
         glow = neonListItemGlow(NeonBoard.Volt),
         leadingContent = {
             UserIconCardImage(
@@ -718,9 +732,9 @@ fun NavigationDrawerScope.IconNavItem(
         modifier = modifier.neonTally(accent, selected),
         selected = false,
         onClick = onClick,
-        shape = neonListItemShape(),
+        shape = neonListItemShape(shape = RailItemShape),
         colors = neonDrawerItemColors(accent),
-        border = neonListItemBorder(accent),
+        border = neonListItemBorder(accent, shape = RailItemShape),
         glow = neonListItemGlow(accent),
         leadingContent = {
             // WeaselFin ships its own drawable for the fixed items. Null on every upstream
@@ -814,9 +828,9 @@ fun NavigationDrawerScope.NavItem(
         modifier = modifier.neonTally(accent, selected),
         selected = false,
         onClick = onClick,
-        shape = neonListItemShape(),
+        shape = neonListItemShape(shape = RailItemShape),
         colors = neonDrawerItemColors(accent, containerColor),
-        border = neonListItemBorder(accent),
+        border = neonListItemBorder(accent, shape = RailItemShape),
         glow = neonListItemGlow(accent),
         leadingContent = {
             val color = railGlyphColor(accent, selected, focused) ?: navItemColor(selected, focused, drawerOpen)

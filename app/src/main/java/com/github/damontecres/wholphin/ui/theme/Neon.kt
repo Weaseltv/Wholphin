@@ -514,9 +514,10 @@ fun neonGlassColors(
 fun neonListItemBorder(
     accent: Color = LocalNeonAccent.current,
     fallback: ListItemBorder? = null,
+    shape: Shape = RectangleShape,
 ): ListItemBorder {
     if (!isWeaselTv()) return fallback ?: ListItemDefaults.border()
-    val focused = Border(border = BorderStroke(1.dp, accent), shape = RectangleShape)
+    val focused = Border(border = BorderStroke(1.dp, accent), shape = shape)
     return ListItemDefaults.border(
         focusedBorder = focused,
         pressedBorder = focused,
@@ -540,9 +541,9 @@ fun neonListItemGlow(
 }
 
 @Composable
-fun neonListItemShape(fallback: ListItemShape? = null): ListItemShape {
+fun neonListItemShape(fallback: ListItemShape? = null, shape: Shape = RectangleShape): ListItemShape {
     if (!isWeaselTv()) return fallback ?: ListItemDefaults.shape()
-    return ListItemDefaults.shape(RectangleShape)
+    return ListItemDefaults.shape(shape)
 }
 
 /** Rows: transparent at rest, `chipOn` when focused, labels `text`. */
