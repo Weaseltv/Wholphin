@@ -95,6 +95,7 @@ import com.github.damontecres.wholphin.ui.playback.playable
 import com.github.damontecres.wholphin.ui.playback.scale
 import com.github.damontecres.wholphin.ui.rememberPosition
 import com.github.damontecres.wholphin.ui.theme.LocalHomeCardAppearance
+import com.github.damontecres.wholphin.ui.theme.LocalHomeRowAccent
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
@@ -539,6 +540,7 @@ fun HomePageContent(
                                                     onClick = onClick,
                                                     onLongClick = onLongClick,
                                                     viewOptions = viewOptions,
+                                                    rowAccent = homeRowAccent(row.rowType, libraries),
                                                     cornerTextScale = if (curated) CuratedCollections.CARD_SIZE_MULTIPLIER else 1f,
                                                     modifier =
                                                         cardModifier
@@ -567,6 +569,7 @@ fun HomePageContent(
                                                     },
                                                     onLongClick = {},
                                                     viewOptions = viewOptions,
+                                                    rowAccent = homeRowAccent(row.rowType, libraries),
                                                     modifier =
                                                         mod.onFocusChanged {
                                                             if (it.isFocused) {
@@ -745,8 +748,12 @@ fun HomePageCardContent(
     viewOptions: HomeRowViewOptions,
     modifier: Modifier,
     cornerTextScale: Float = 1f,
+    rowAccent: Color? = null,
 ) {
-    CompositionLocalProvider(LocalHomeCardAppearance provides viewOptions.cardAppearance) {
+    CompositionLocalProvider(
+        LocalHomeCardAppearance provides viewOptions.cardAppearance,
+        LocalHomeRowAccent provides rowAccent,
+    ) {
         when (item?.type) {
             BaseItemKind.GENRE -> {
                 GenreCard(
@@ -849,6 +856,7 @@ fun HomePageViewMoreCard(
     onLongClick: () -> Unit,
     viewOptions: HomeRowViewOptions,
     modifier: Modifier,
+    rowAccent: Color? = null,
 ) {
     val aspectRatio =
         remember(isEpisode, viewOptions) {
@@ -858,7 +866,10 @@ fun HomePageViewMoreCard(
                 viewOptions.aspectRatio
             }
         }
-    CompositionLocalProvider(LocalHomeCardAppearance provides viewOptions.cardAppearance) {
+    CompositionLocalProvider(
+        LocalHomeCardAppearance provides viewOptions.cardAppearance,
+        LocalHomeRowAccent provides rowAccent,
+    ) {
         ViewMoreCard(
             onClick = onClick,
             onLongClick = onLongClick,

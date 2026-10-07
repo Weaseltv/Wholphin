@@ -326,6 +326,7 @@ fun neonCardShape(fallback: CardShape? = null): CardShape {
 }
 
 val LocalHomeCardAppearance = compositionLocalOf { HomeCardAppearance() }
+val LocalHomeRowAccent = compositionLocalOf<Color?> { null }
 
 @Composable
 private fun homeCardAccent(default: Color): Color =
@@ -335,7 +336,7 @@ private fun homeCardAccent(default: Color): Color =
         3 -> NeonBoard.Text
         4 -> Color(0xFF00E5FF)
         5 -> Color(0xFFFF4DAD)
-        else -> default
+        else -> LocalHomeRowAccent.current ?: default
     }
 
 // ---------------------------------------------------------------------------------------
