@@ -287,6 +287,7 @@ class HomeSettingsService
                                             dividerGapDp = source.dividerGapDp,
                                             rowGapDp = source.rowGapDp,
                                             edgePaddingDp = source.edgePaddingDp,
+                                            endPaddingDp = source.endPaddingDp,
                                             titleDividerGapDp = source.titleDividerGapDp,
                                             dividerThicknessDp = source.dividerThicknessDp,
                                             dividerGlowDp = source.dividerGlowDp,

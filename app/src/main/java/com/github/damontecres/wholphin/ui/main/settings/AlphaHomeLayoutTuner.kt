@@ -129,7 +129,8 @@ fun AlphaHomeLayoutTuner(
                 Text("Changes are live. Back saves and closes.", color = NeonBoard.Mid)
                 Text(
                     "${row.title.getString()}\n" +
-                        "Height ${options.heightDp} · Between ${options.spacing} · Side ${options.edgePaddingDp ?: options.spacing} dp\n" +
+                        "Height ${options.heightDp} · Between ${options.spacing} dp\n" +
+                        "Side ${options.edgePaddingDp ?: options.spacing} · End ${options.endPaddingDp ?: options.edgePaddingDp ?: options.spacing} dp\n" +
                         "Padding ${options.verticalPaddingDp} + extra $extra · Divider gap ${options.dividerGapDp} dp\n" +
                         "After row ${options.rowGapDp} · Title gap ${options.titleDividerGapDp} dp\n" +
                         "Line ${options.dividerThicknessDp} · Glow ${options.dividerGlowDp} dp · Strength ${options.dividerGlowStrength}/100",
@@ -261,7 +262,8 @@ private val LayoutControls =
         LayoutControl("Extra vertical padding", 0..64, { it.extraVerticalPaddingDp ?: 0 }, { o, v -> o.copy(extraVerticalPaddingDp = v) }),
         LayoutControl("Divider → padding gap", 0..64, { it.dividerGapDp }, { o, v -> o.copy(dividerGapDp = v) }),
         LayoutControl("After row", 0..64, { it.rowGapDp }, { o, v -> o.copy(rowGapDp = v) }),
-        LayoutControl("Row side padding", 0..80, { it.edgePaddingDp ?: it.spacing }, { o, v -> o.copy(edgePaddingDp = v) }),
+        LayoutControl("Row side padding", 0..80, { it.edgePaddingDp ?: it.spacing }, { o, v -> o.copy(edgePaddingDp = v, endPaddingDp = o.endPaddingDp ?: o.edgePaddingDp ?: o.spacing) }),
+        LayoutControl("Row end padding", 0..160, { it.endPaddingDp ?: it.edgePaddingDp ?: it.spacing }, { o, v -> o.copy(endPaddingDp = v) }),
         LayoutControl("Title → divider gap", 0..32, { it.titleDividerGapDp }, { o, v -> o.copy(titleDividerGapDp = v) }),
         LayoutControl("Divider thickness", 1..8, { it.dividerThicknessDp }, { o, v -> o.copy(dividerThicknessDp = v) }),
         LayoutControl("Divider glow spread", 0..48, { it.dividerGlowDp }, { o, v -> o.copy(dividerGlowDp = v) }),

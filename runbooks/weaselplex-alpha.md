@@ -64,7 +64,10 @@ preview. The fixed readout shows the current row's exact values for screenshots.
 
 Controls include card height, spacing between cards, base vertical padding,
 extra vertical padding, divider-to-padding gap, space after the row, row side
-padding and title-to-divider gap. Card shape, image fit and captions are also
+padding, separate row end padding and title-to-divider gap. Row side padding
+sets the left/start position; row end padding (0–160 dp) adds room after the last
+card without moving the first card. Existing end spacing stays unchanged until
+adjusted. Card shape, image fit and captions are also
 adjustable. Divider thickness (1–8 dp), glow spread (0–48 dp), and glow strength
 (0–100) are live controls too; 0 strength/spread disables glow. Base and extra padding apply both above and below the cards; the
 divider-to-card distance is the divider gap + base padding + extra padding.

@@ -483,13 +483,16 @@ fun HomePageContent(
                                             dividerGlowStrength = viewOptions.dividerGlowStrength / 100f,
                                             cardContentPadding =
                                                 if (isWeaselTv()) {
+                                                    val verticalPadding =
+                                                        (
+                                                            viewOptions.verticalPaddingDp +
+                                                                (viewOptions.extraVerticalPaddingDp ?: if (curated) CuratedCollections.EXTRA_VERTICAL_PADDING_DP else 0)
+                                                        ).dp
                                                     PaddingValues(
-                                                        horizontal = (viewOptions.edgePaddingDp ?: viewOptions.spacing).dp,
-                                                        vertical =
-                                                            (
-                                                                viewOptions.verticalPaddingDp +
-                                                                    (viewOptions.extraVerticalPaddingDp ?: if (curated) CuratedCollections.EXTRA_VERTICAL_PADDING_DP else 0)
-                                                            ).dp,
+                                                        start = (viewOptions.edgePaddingDp ?: viewOptions.spacing).dp,
+                                                        end = (viewOptions.endPaddingDp ?: viewOptions.edgePaddingDp ?: viewOptions.spacing).dp,
+                                                        top = verticalPadding,
+                                                        bottom = verticalPadding,
                                                     )
                                                 } else {
                                                     null
