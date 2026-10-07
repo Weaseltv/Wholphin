@@ -47,6 +47,7 @@ import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.enableMarquee
+import com.github.damontecres.wholphin.ui.theme.LocalPosterCountAppearance
 import com.github.damontecres.wholphin.ui.theme.LocalHomeCardAppearance
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
@@ -84,7 +85,7 @@ fun BannerCard(
     useSeriesForPrimary: Boolean = true,
     cornerTextScale: Float = 1f,
 ) {
-    val appearance = LocalHomeCardAppearance.current
+    val appearance = LocalPosterCountAppearance.current ?: LocalHomeCardAppearance.current
     val badgeInsetX = appearance.badgeHorizontalInsetDp?.dp ?: (4.dp * cornerTextScale)
     val badgeInsetY = appearance.badgeVerticalInsetDp?.dp ?: (4.dp * cornerTextScale)
     val badgePaddingX = appearance.badgeHorizontalPaddingDp?.dp ?: (4.dp * cornerTextScale)

@@ -674,10 +674,10 @@ class HomeSettingsService
                 ResStringProvider(R.string.unknown)
             }
 
-        private val continueWatchingLibraries = java.util.concurrent.ConcurrentHashMap<Pair<UUID, UUID>, UUID>()
+        private val mediaLibraries = java.util.concurrent.ConcurrentHashMap<Pair<UUID, UUID>, UUID>()
 
         /** Resolve real library membership; media type alone cannot distinguish Sports or Comedy. */
-        private suspend fun withContinueWatchingLibraries(
+        suspend fun resolveItemLibraries(
             items: List<BaseItem>,
             userId: UUID,
             libraries: List<Library>,
@@ -690,15 +690,15 @@ class HomeSettingsService
                         val ancestorId = item.data.seriesId ?: item.data.parentId ?: item.id
                         val key = userId to ancestorId
                         val direct = listOfNotNull(item.data.parentId, ancestorId).firstOrNull { it in libraryIds }
-                        val cached = continueWatchingLibraries[key]?.takeIf { it in libraryIds }
+                        val cached = mediaLibraries[key]?.takeIf { it in libraryIds }
                         val libraryId = direct ?: cached ?: try {
                             api.libraryApi.getAncestors(itemId = ancestorId, userId = userId)
                                 .content.firstOrNull { it.id in libraryIds }?.id
-                                ?.also { continueWatchingLibraries[key] = it }
+                                ?.also { mediaLibraries[key] = it }
                         } catch (ex: CancellationException) {
                             throw ex
                         } catch (ex: Exception) {
-                            Timber.w(ex, "Unable to resolve Continue Watching library")
+                            Timber.w(ex, "Unable to resolve item library")
                             null
                         }
                         item.copy(libraryId = libraryId)
@@ -732,7 +732,7 @@ class HomeSettingsService
 
                     Success(
                         title = ResStringProvider(R.string.continue_watching),
-                        items = withContinueWatchingLibraries(resume, userDto.id, libraries),
+                        items = resolveItemLibraries(resume, userDto.id, libraries),
                         viewOptions = row.viewOptions,
                         rowType = row,
                         showViewMore = resume.size >= limit,
@@ -780,7 +780,7 @@ class HomeSettingsService
 
                     Success(
                         title = ResStringProvider(R.string.continue_watching),
-                        items = withContinueWatchingLibraries(combined.take(limit), userDto.id, libraries),
+                        items = resolveItemLibraries(combined.take(limit), userDto.id, libraries),
                         viewOptions = row.viewOptions,
                         rowType = row,
                         showViewMore = combined.size >= limit,

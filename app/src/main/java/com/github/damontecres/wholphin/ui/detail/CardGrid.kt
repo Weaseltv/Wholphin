@@ -64,6 +64,8 @@ import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.ui.AppColors
 import com.github.damontecres.wholphin.ui.FontAwesome
@@ -118,6 +120,7 @@ fun <T : CardGridItem> CardGrid(
     spacing: Dp = 16.dp,
     bringIntoViewSpec: BringIntoViewSpec = LocalBringIntoViewSpec.current,
 ) {
+    val cardSpacing = if (isWeaselTv()) ApprovedHomeLayout.CARD_SPACING_DP.dp else spacing
     val startPosition =
         remember(initialPosition, pager.size) {
             initialPosition.coerceIn(0, (pager.size - 1).coerceAtLeast(0))
@@ -318,8 +321,8 @@ fun <T : CardGridItem> CardGrid(
                 CompositionLocalProvider(LocalBringIntoViewSpec provides bringIntoViewSpec) {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(columns),
-                        horizontalArrangement = Arrangement.spacedBy(spacing),
-                        verticalArrangement = Arrangement.spacedBy(spacing),
+                        horizontalArrangement = Arrangement.spacedBy(cardSpacing),
+                        verticalArrangement = Arrangement.spacedBy(cardSpacing),
                         state = gridState,
                         contentPadding = PaddingValues(vertical = 16.dp),
                         modifier =
@@ -335,7 +338,7 @@ fun <T : CardGridItem> CardGrid(
                                     }
                                 }.onLayoutRectChanged(0, 0) {
                                     val width = it.width
-                                    val spacingPx = with(density) { spacing.toPx() }
+                                    val spacingPx = with(density) { cardSpacing.toPx() }
                                     val cardWidth =
                                         ceil((width - (spacingPx * (columns - 1))) / columns)
                                     cardWidthPx = cardWidth.toInt()

@@ -49,6 +49,7 @@ fun WatchlistPage(
         onStopOrDispose { }
     }
     val state by viewModel.state.collectAsState()
+    val libraries by viewModel.libraries.collectAsState()
     var showFilters by rememberSaveable { mutableStateOf(true) }
     val contextMenu = rememberContextMenu(preferences, viewModel)
     val actions =
@@ -114,6 +115,7 @@ fun WatchlistPage(
             positionCallback = { columns, index -> showFilters = index < columns },
             focusRequesterOnEmpty = filterFocusRequesters[selectedIndex],
             filterOptions = DefaultForFavoritesFilterOptions,
+            watchlistLibraries = libraries,
         )
     }
     contextMenu.Compose()

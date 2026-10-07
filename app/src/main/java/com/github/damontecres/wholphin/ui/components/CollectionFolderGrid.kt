@@ -39,6 +39,8 @@ import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomeCardAppearance
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.ui.theme.ApprovedCollectionCardAppearance
+import com.github.damontecres.wholphin.ui.theme.WatchlistCardStyle
+import com.github.damontecres.wholphin.ui.main.settings.Library
 import com.github.damontecres.wholphin.ui.theme.CollectionCardStyle
 import com.github.damontecres.wholphin.data.model.GetItemsFilter
 import com.github.damontecres.wholphin.preferences.UserPreferences
@@ -80,6 +82,7 @@ fun CollectionFolderGrid(
     positionCallback: ((columns: Int, position: Int) -> Unit)? = null,
     collectionCardAppearance: HomeCardAppearance = ApprovedCollectionCardAppearance,
     streamingCardAppearance: HomeCardAppearance = collectionCardAppearance,
+    watchlistLibraries: List<Library>? = null,
 ) {
     Box(modifier = modifier) {
         Column(
@@ -112,6 +115,7 @@ fun CollectionFolderGrid(
                 initialPosition = initialPosition,
                 positionCallback = positionCallback,
                 cardContent = { (item, index, onClick, onLongClick, widthPx, mod) ->
+                    val card: @Composable () -> Unit = {
                     CollectionCardStyle(item, collectionCardAppearance, streamingCardAppearance) {
                     GridCard(
                         item = item,
@@ -125,6 +129,8 @@ fun CollectionFolderGrid(
                         modifier = mod,
                     )
                     }
+                    }
+                    if (watchlistLibraries != null) WatchlistCardStyle(item, watchlistLibraries, card) else card()
                 },
                 columns = viewOptions.columns,
                 spacing = viewOptions.spacing.dp,
@@ -372,7 +378,7 @@ fun CollectionFolderHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier =
                     Modifier
-                        .padding(start = 16.dp, end = endPadding, top = if (collectionsOptions != null) 12.dp else 0.dp, bottom = if (collectionsOptions != null) 16.dp else 0.dp)
+                        .padding(start = 16.dp, end = endPadding, top = if (collectionsOptions != null) 12.dp else 0.dp, bottom = if (isWeaselTv()) 16.dp else 0.dp)
                         .fillMaxWidth(),
             ) {
                 Row(

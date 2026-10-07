@@ -12,6 +12,10 @@ import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.GetItemsFilter
 import com.github.damontecres.wholphin.data.model.LibraryDisplayInfo
 import com.github.damontecres.wholphin.preferences.AppPreferences
+import com.github.damontecres.wholphin.services.HomeSettingsService
+import com.github.damontecres.wholphin.services.NavDrawerService
+import com.github.damontecres.wholphin.services.tvAccess
+import com.github.damontecres.wholphin.ui.main.settings.Library
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.FavoriteWatchManager
 import com.github.damontecres.wholphin.services.FilterOptionCache
@@ -71,12 +75,16 @@ class WatchlistViewModel
         private val mediaManagementService: MediaManagementService,
         private val serverReportService: ServerReportService,
         private val filterOptionCache: FilterOptionCache,
+        private val homeSettingsService: HomeSettingsService,
+        private val navDrawerService: NavDrawerService,
     ) : ViewModel(),
         ContextMenuProvider,
         CollectionFolderViewActions {
         private val _state = MutableStateFlow(CollectionFolderState(viewOptions = ViewOptionsPoster))
         val state: StateFlow<CollectionFolderState> = _state
 
+        private val _libraries = MutableStateFlow<List<Library>>(emptyList())
+        val libraries: StateFlow<List<Library>> = _libraries
         private var loaded = false
         private var fetchJob: Job? = null
 
@@ -144,6 +152,9 @@ class WatchlistViewModel
             }
             val items =
                 try {
+                    val user = serverRepository.currentUserDto
+                    val libraries = user?.let { navDrawerService.getAllUserLibraries(it.id, it.tvAccess) }.orEmpty()
+                    _libraries.value = libraries
                     val pager =
                         ApiRequestPager(
                             api,
@@ -153,6 +164,9 @@ class WatchlistViewModel
                             pageSize = 50,
                             // Episodes show their show's poster so the grid stays uniform
                             useSeriesForPrimary = true,
+                            transformItems = { page ->
+                                if (user != null) homeSettingsService.resolveItemLibraries(page, user.id, libraries) else page
+                            },
                         ).init()
                     DataLoadingState.Success(pager)
                 } catch (ex: CancellationException) {

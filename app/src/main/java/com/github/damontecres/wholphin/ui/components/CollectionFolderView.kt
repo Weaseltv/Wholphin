@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.CompositionLocalProvider
+import com.github.damontecres.wholphin.ui.theme.LocalHidePosterTypeBadge
+import com.github.damontecres.wholphin.ui.main.settings.Library
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -895,6 +898,7 @@ fun CollectionFolderViewContent(
     focusRequesterOnEmpty: FocusRequester? = null,
     collectionHomeOptions: HomeRowViewOptions = ApprovedHomeLayout.apply(HomeRowViewOptions(cardAppearance = ApprovedCollectionCardAppearance)),
     streamingCardAppearance: HomeCardAppearance = StreamingCollections.row.viewOptions.cardAppearance,
+    watchlistLibraries: List<Library>? = null,
 ) {
     var position by rememberInt(savedPosition)
 
@@ -1062,6 +1066,7 @@ fun CollectionFolderViewContent(
                             }
                             Box(Modifier.fillMaxSize()) {
                                 if (state.viewOptions.type == ViewOptionsType.GRID) {
+                                    CompositionLocalProvider(LocalHidePosterTypeBadge provides (isWeaselTv() && item?.data?.collectionType in listOf(CollectionType.MOVIES, CollectionType.TVSHOWS))) {
                                     CollectionFolderGrid(
                                         preferences = preferences,
                                         collectionType = item?.data?.collectionType,
@@ -1083,7 +1088,9 @@ fun CollectionFolderViewContent(
                                         focusedItem = focusedItem,
                                         collectionCardAppearance = collectionHomeOptions.cardAppearance,
                                         streamingCardAppearance = streamingCardAppearance,
+                                        watchlistLibraries = watchlistLibraries,
                                     )
+                                    }
                                 } else {
                                     CollectionFolderList(
                                         preferences = preferences,

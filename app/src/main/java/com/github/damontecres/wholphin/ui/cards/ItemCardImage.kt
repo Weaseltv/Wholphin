@@ -47,6 +47,8 @@ import com.github.damontecres.wholphin.ui.gt
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.logCoilError
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.LocalPosterCountAppearance
+import com.github.damontecres.wholphin.ui.theme.LocalHidePosterTypeBadge
 import com.github.damontecres.wholphin.ui.theme.LocalCollectionCardAppearance
 import com.github.damontecres.wholphin.ui.theme.NeonBadge
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
@@ -252,6 +254,7 @@ fun ItemCardImageOverlay(
 ) {
     val collectionAppearance = LocalCollectionCardAppearance.current.takeIf { isWeaselTv() }
     val collectionBadge = collectionAppearance?.collectionBadge
+    val countAppearance = LocalPosterCountAppearance.current.takeIf { isWeaselTv() }
     Box(modifier = modifier.fillMaxSize()) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -264,7 +267,7 @@ fun ItemCardImageOverlay(
                         vertical = collectionBadge?.verticalInsetDp?.dp ?: if (isWeaselTv()) 8.dp else 4.dp,
                     ),
         ) {
-            if (typeBadge != null && collectionAppearance == null) {
+            if (typeBadge != null && collectionAppearance == null && !LocalHidePosterTypeBadge.current) {
                 NeonBadge(
                     text = typeBadge,
                     accent = if (typeBadgeFilled) NeonBoard.Green else accent,
@@ -299,8 +302,8 @@ fun ItemCardImageOverlay(
             modifier =
                 Modifier
                     .padding(
-                        horizontal = collectionAppearance?.badgeHorizontalInsetDp?.dp ?: 4.dp,
-                        vertical = collectionAppearance?.badgeVerticalInsetDp?.dp ?: 4.dp,
+                        horizontal = countAppearance?.badgeHorizontalInsetDp?.dp ?: 4.dp,
+                        vertical = countAppearance?.badgeVerticalInsetDp?.dp ?: 4.dp,
                     )
                     .align(Alignment.TopEnd),
         ) {
@@ -312,23 +315,23 @@ fun ItemCardImageOverlay(
                     modifier =
                         Modifier
                             .background(
-                                Color.Black.copy(alpha = (collectionAppearance?.badgeBackgroundOpacityPercent ?: 50) / 100f),
-                                shape = RoundedCornerShape(collectionAppearance?.badgeCornerPercent ?: 25),
+                                Color.Black.copy(alpha = (countAppearance?.badgeBackgroundOpacityPercent ?: 50) / 100f),
+                                shape = RoundedCornerShape(countAppearance?.badgeCornerPercent ?: 25),
                             ),
                 ) {
                     Text(
                         text = unwatchedCount.toString(),
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = (collectionAppearance?.badgeTextOpacityPercent ?: 100) / 100f),
-                        style = if (collectionAppearance != null) {
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = (countAppearance?.badgeTextOpacityPercent ?: 100) / 100f),
+                        style = if (countAppearance != null) {
                             MaterialTheme.typography.bodySmall.let {
-                                val size = collectionAppearance.badgeTextSizeSp?.sp ?: it.fontSize
+                                val size = countAppearance.badgeTextSizeSp?.sp ?: it.fontSize
                                 it.copy(fontSize = size, lineHeight = size * (it.lineHeight.value / it.fontSize.value))
                             }
                         } else MaterialTheme.typography.bodyMedium,
 //                            fontSize = 16.sp,
                         modifier = Modifier.padding(
-                            horizontal = collectionAppearance?.badgeHorizontalPaddingDp?.dp ?: 4.dp,
-                            vertical = collectionAppearance?.badgeVerticalPaddingDp?.dp ?: 4.dp,
+                            horizontal = countAppearance?.badgeHorizontalPaddingDp?.dp ?: 4.dp,
+                            vertical = countAppearance?.badgeVerticalPaddingDp?.dp ?: 4.dp,
                         ),
                     )
                 }

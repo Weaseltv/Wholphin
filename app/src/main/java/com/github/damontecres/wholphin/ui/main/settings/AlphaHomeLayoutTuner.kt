@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,6 +39,7 @@ import com.github.damontecres.wholphin.services.CuratedCollections
 import com.github.damontecres.wholphin.ui.data.RowColumn
 import com.github.damontecres.wholphin.ui.handleDPadKeyEvents
 import com.github.damontecres.wholphin.ui.main.HomePageContent
+import com.github.damontecres.wholphin.ui.theme.LocalPosterCountAppearance
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.tryRequestFocus
@@ -92,6 +94,7 @@ fun AlphaHomeLayoutTuner(
 
     Box(modifier = modifier.fillMaxSize()) {
         key(inspect) {
+            CompositionLocalProvider(LocalPosterCountAppearance provides resolvedAppearance) {
             HomePageContent(
                 loadingState = state.loading,
                 homeRows = state.rowData,
@@ -110,6 +113,7 @@ fun AlphaHomeLayoutTuner(
                 showViewMore = false,
                 modifier = Modifier.fillMaxSize(),
             )
+            }
         }
         if (inspect) {
             Text(
@@ -168,20 +172,25 @@ fun AlphaHomeLayoutTuner(
                             onClick = { allRows = !allRows },
                         )
                         if (allRows) Text("Readouts show the selected row.", color = NeonBoard.Mid)
+                        Text("Poster count settings apply app-wide.", color = NeonBoard.Mid)
                     }
                     items(LayoutControls, key = { it.label }) { control ->
                         val resolved = options.copy(cardAppearance = resolvedAppearance)
                         val value = control.get(resolved)
+                        fun changeControl(next: Int) {
+                            val update: (HomeRowViewOptions) -> HomeRowViewOptions = { control.set(it, next.coerceIn(control.range)) }
+                            if (control.label.startsWith("Poster badge")) onChange(null, update) else change(update)
+                        }
                         val displayedValue = if (control.valueDivisor == 1) value.toString() else (value.toFloat() / control.valueDivisor).toString()
                         HomeSettingsListItem(
                             selected = false,
                             headlineText = "${control.label}: $displayedValue ${control.unit}",
-                            onClick = { change { control.set(it, (value + 1).coerceIn(control.range)) } },
+                            onClick = { changeControl(value + 1) },
                             modifier =
                                 Modifier.handleDPadKeyEvents(
                                     triggerOnAction = KeyEvent.ACTION_DOWN,
-                                    onLeft = { change { control.set(it, (value - 1).coerceIn(control.range)) } },
-                                    onRight = { change { control.set(it, (value + 1).coerceIn(control.range)) } },
+                                    onLeft = { changeControl(value - 1) },
+                                    onRight = { changeControl(value + 1) },
                                 ),
                         )
                     }

@@ -5,12 +5,13 @@ import com.github.damontecres.wholphin.ui.AspectRatio
 
 /** Owner-approved values captured from all eight Alpha rows on 2026-10-07. */
 object ApprovedHomeLayout {
-    const val REVISION = 4
+    const val REVISION = 5
+    const val CARD_SPACING_DP = 14
 
     fun apply(options: HomeRowViewOptions, streaming: Boolean = false): HomeRowViewOptions =
         options.copy(
             heightDp = 172,
-            spacing = 16,
+            spacing = CARD_SPACING_DP,
             verticalPaddingDp = 4,
             extraVerticalPaddingDp = 12,
             dividerGapDp = 12,
@@ -41,11 +42,12 @@ object ApprovedHomeLayout {
             revision < 2 -> options.copy(spacing = 16)
             else -> options
         }
-        return if ((revision < 3 && streaming) || (revision < 4 && curated)) {
+        val appearance = if ((revision < 3 && streaming) || (revision < 4 && curated)) {
             layout.copy(cardAppearance = layout.cardAppearance.copy(borderOpacityPercent = 100))
         } else {
             layout
         }
+        return if (revision < 5) appearance.copy(spacing = CARD_SPACING_DP) else appearance
     }
 }
 

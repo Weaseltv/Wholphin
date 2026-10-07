@@ -332,3 +332,10 @@ The COLLECTION type label is removed from the Collections grid; title counts rem
 Name ordering loads the complete member-scoped collection list and follows the explicit owner-supplied sequence in `CollectionDisplayOrder`: all 47 named themed collections (including The Big Score under T), then Boxing/UFC A–Z, then the 15 providers in Home order. Matching ignores punctuation/case and recognizes provider naming aliases. A one-time per-user library migration selects Name ascending for existing saved sorts. Collections queries retain BOX_SET when the UI type filter is unset; otherwise filter application clears the type and bypasses the ordered-list loader. Unrecognized collections follow those groups. Alphabet jumps use the displayed list rather than server SortName counts. Explicit alternative sorts and filters remain available.
 
 BritBox's provider SVG uses an expanded, normalized view box so the i dot and letter bottoms are fully included.
+
+### Media-card parity (2026-10-07)
+
+- Watchlist resolves actual library membership for per-item Movie, TV Show, Sports and Stand Up Comedy focus colors. Library pages share their saved Recently Added Home row focus treatment.
+- Numeric poster badges use the saved Home count appearance app-wide; poster badge controls update all rows.
+- Pure Movies/TV Shows library grids hide type badges; mixed-media grids retain them. The filter toolbar has the same 16 dp lower inset as Collections.
+- Home layout revision 5 updates saved local and server-default row spacing to 14 dp; WeaselPlex poster grids also use 14 dp.

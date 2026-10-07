@@ -3,6 +3,14 @@ package com.github.damontecres.wholphin.ui.nav
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.CompositionLocalProvider
+import com.github.damontecres.wholphin.services.HomeSettingsService
+import com.github.damontecres.wholphin.ui.theme.LocalHomeMediaSettings
+import com.github.damontecres.wholphin.ui.theme.LocalPosterCountAppearance
+import com.github.damontecres.wholphin.ui.theme.LocalHomeCardAppearance
+import com.github.damontecres.wholphin.ui.theme.homeMediaAppearance
+import com.github.damontecres.wholphin.ui.theme.libraryAccent
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -39,6 +47,7 @@ class ApplicationContentViewModel
     constructor(
         val backdropService: BackdropService,
         val navDrawerService: NavDrawerService,
+        val homeSettingsService: HomeSettingsService,
     ) : ViewModel() {
         fun clearBackdrop() {
             viewModelScope.launchIO { backdropService.clearBackdrop() }
@@ -61,7 +70,12 @@ fun ApplicationContent(
     viewModel: ApplicationContentViewModel = hiltViewModel(),
 ) {
     val navItems by viewModel.navDrawerService.state.collectAsState()
+    val homeSettings by viewModel.homeSettingsService.currentSettings.collectAsState()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
+    CompositionLocalProvider(
+        LocalHomeMediaSettings provides homeSettings,
+        LocalPosterCountAppearance provides homeMediaAppearance(homeSettings).takeIf { isWeaselTv() },
+    ) {
     Box(
         modifier = modifier,
     ) {
@@ -88,6 +102,9 @@ fun ApplicationContent(
                     val keyIndex = navigationManager.backStack.indexOf(key)
                     val entryStack = navigationManager.backStack.take(if (keyIndex >= 0) keyIndex + 1 else navigationManager.backStack.size)
                     val sectionAccent = navigationSectionAccent(entryStack, navItems.items + navItems.moreItems)
+                    val libraryId = (navItems.items + navItems.moreItems).filterIsInstance<ServerNavDrawerItem>()
+                        .firstOrNull { libraryAccent(it.name, it.type) == sectionAccent }?.itemId
+                    CompositionLocalProvider(LocalHomeCardAppearance provides if (isWeaselTv()) homeMediaAppearance(homeSettings, libraryId).copy(accentIndex = 0) else LocalHomeCardAppearance.current) {
                     ProvideNeonSectionAccent(sectionAccent) {
                         if (key.fullScreen) {
                             DestinationContent(
@@ -111,8 +128,10 @@ fun ApplicationContent(
                             ErrorMessage("Trying to go to $key without a user logged in", null)
                         }
                     }
+                    }
                 }
             },
         )
+    }
     }
 }
