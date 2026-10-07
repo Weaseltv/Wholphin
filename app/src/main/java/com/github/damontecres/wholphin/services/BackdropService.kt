@@ -15,6 +15,7 @@ import coil3.request.SuccessResult
 import coil3.request.allowHardware
 import coil3.request.bitmapConfig
 import com.github.damontecres.wholphin.data.model.BaseItem
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.model.DiscoverItem
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.BackdropStyle
@@ -64,6 +65,15 @@ class BackdropService
                     }
                 submit(item.id.toString(), imageUrl)
             }
+
+        /** Home renders provider wordmarks in the header instead of a collection photo. */
+        suspend fun submitHome(item: BaseItem) {
+            if (BuildConfig.FLAVOR == "weaselfin" && StreamingCollections.isStreamingCollection(item.data)) {
+                clearBackdrop()
+            } else {
+                submit(item)
+            }
+        }
 
         /**
          * Update the backdrop to use the specified discovered item

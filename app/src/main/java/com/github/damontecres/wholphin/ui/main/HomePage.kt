@@ -79,6 +79,7 @@ import com.github.damontecres.wholphin.ui.components.FocusableItemRow
 import com.github.damontecres.wholphin.ui.components.HeaderUtils
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.components.QuickDetails
+import com.github.damontecres.wholphin.ui.components.StreamingProviderHeader
 import com.github.damontecres.wholphin.ui.components.TitleOrLogo
 import com.github.damontecres.wholphin.ui.components.itemKindLabel
 import com.github.damontecres.wholphin.ui.components.rememberLogoUrl
@@ -679,6 +680,10 @@ fun HomePageHeader(
 ) {
     val isEpisode = item?.type == BaseItemKind.EPISODE
     val dto = item?.data
+    if (isWeaselTv() && item != null && StreamingCollections.isStreamingCollection(item.data)) {
+        StreamingProviderHeader(item = item, modifier = modifier)
+        return
+    }
     val context = LocalContext.current
     // Neon Board: eyebrow "KIND · GENRES" in the item's type accent above the title.
     val eyebrow =

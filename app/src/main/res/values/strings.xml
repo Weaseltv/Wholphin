@@ -951,4 +951,5 @@
     <string name="login_not_authorized">You are not authorized to access the server at this time</string>
     <string name="streaming_all">All</string>
     <string name="streaming_shows">Shows</string>
+    <string name="streaming_provider_description">Streaming on %1$s right now.</string>
 </resources>

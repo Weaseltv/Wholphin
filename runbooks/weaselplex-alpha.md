@@ -316,3 +316,7 @@ batch ends, the owner requests cleanup or disk pressure requires it. Preserve th
 host debug key and shared Gradle dependency cache. Check `df -h ~` after builds
 and report less than 30 GB free. This is the Alpha exception to generic disk
 cleanup in `AGENTS.md`; stable release cleanup/checks retain their requirements.
+
+### Streaming provider Home headers
+
+Streaming Services cards show “Streaming on [provider] right now.” rather than the server collection overview. Each provider has a bundled transparent wordmark on the right of the Home header, while the title and item count remain on the left. Home clears collection photo backdrops for these cards. Artwork sources are recorded in `provider-wordmark-sources.md`.

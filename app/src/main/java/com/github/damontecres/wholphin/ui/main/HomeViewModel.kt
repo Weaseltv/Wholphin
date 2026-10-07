@@ -241,7 +241,7 @@ class HomeViewModel
 
         fun updateBackdrop(item: BaseItem) {
             viewModelScope.launchIO {
-                backdropService.submit(item)
+                backdropService.submitHome(item)
             }
         }
 
