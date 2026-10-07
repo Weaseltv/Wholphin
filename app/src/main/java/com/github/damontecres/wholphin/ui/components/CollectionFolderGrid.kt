@@ -36,6 +36,10 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.filter.FilterValueOption
 import com.github.damontecres.wholphin.data.filter.ItemFilterBy
 import com.github.damontecres.wholphin.data.model.BaseItem
+import com.github.damontecres.wholphin.data.model.HomeCardAppearance
+import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
+import com.github.damontecres.wholphin.ui.theme.ApprovedCollectionCardAppearance
+import com.github.damontecres.wholphin.ui.theme.CollectionCardStyle
 import com.github.damontecres.wholphin.data.model.GetItemsFilter
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.ui.AspectRatios
@@ -74,6 +78,7 @@ fun CollectionFolderGrid(
     gridFocusRequester: FocusRequester,
     modifier: Modifier = Modifier,
     positionCallback: ((columns: Int, position: Int) -> Unit)? = null,
+    collectionCardAppearance: HomeCardAppearance = ApprovedCollectionCardAppearance,
 ) {
     Box(modifier = modifier) {
         Column(
@@ -106,6 +111,7 @@ fun CollectionFolderGrid(
                 initialPosition = initialPosition,
                 positionCallback = positionCallback,
                 cardContent = { (item, index, onClick, onLongClick, widthPx, mod) ->
+                    CollectionCardStyle(item, collectionCardAppearance) {
                     GridCard(
                         item = item,
                         onClick = onClick,
@@ -117,6 +123,7 @@ fun CollectionFolderGrid(
                         fillWidth = widthPx,
                         modifier = mod,
                     )
+                    }
                 },
                 columns = viewOptions.columns,
                 spacing = viewOptions.spacing.dp,
@@ -277,6 +284,7 @@ fun GridTitle(
     title: String,
     modifier: Modifier = Modifier,
     eyebrow: String? = null,
+    collectionsOptions: HomeRowViewOptions? = null,
 ) {
     if (!isWeaselTv()) {
         Text(
@@ -291,17 +299,23 @@ fun GridTitle(
         return
     }
     // Neon Board page head: eyebrow, Condensed 40 uppercase title, then the section rule.
-    Column(modifier = modifier.fillMaxWidth()) {
-        NeonEyebrow(text = eyebrow ?: stringResource(R.string.library), modifier = Modifier.padding(horizontal = 16.dp))
+    val titleInset = if (collectionsOptions != null) 0.dp else 16.dp
+    Column(modifier = modifier.fillMaxWidth().padding(top = if (collectionsOptions != null) 27.dp else 0.dp)) {
+        NeonEyebrow(text = eyebrow ?: stringResource(R.string.library), modifier = Modifier.padding(horizontal = titleInset))
         Text(
             text = title.uppercase(),
             style = NeonType.pageTitle(),
             color = NeonBoard.Text,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 2.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = titleInset, end = 16.dp, top = 2.dp),
         )
-        NeonSectionRule(modifier = Modifier.padding(top = 6.dp))
+        NeonSectionRule(
+            modifier = Modifier.padding(top = 6.dp),
+            thickness = collectionsOptions?.dividerThicknessDp?.dp ?: NeonBoard.Size.Rule,
+            glowHeight = collectionsOptions?.dividerGlowDp?.dp ?: NeonBoard.GlowSpec.Rule,
+            glowStrength = collectionsOptions?.dividerGlowStrength?.div(100f) ?: .35f,
+        )
     }
 }
 
@@ -333,6 +347,7 @@ fun CollectionFolderHeader(
     onShowFilterDropdown: ((Boolean) -> Unit)? = null,
     filterButtonFocusRequester: FocusRequester = remember { FocusRequester() },
     randomButtonFocusRequester: FocusRequester = remember { FocusRequester() },
+    collectionsOptions: HomeRowViewOptions? = null,
 ) {
     AnimatedVisibility(
         showHeader,
@@ -346,7 +361,7 @@ fun CollectionFolderHeader(
             modifier = Modifier.fillMaxWidth(),
         ) {
             if (showTitle) {
-                GridTitle(title)
+                GridTitle(title, collectionsOptions = collectionsOptions)
             }
             val endPadding =
                 16.dp + if (sortAndDirection.sort == ItemSortBy.SORT_NAME) 24.dp else 0.dp
@@ -356,7 +371,7 @@ fun CollectionFolderHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier =
                     Modifier
-                        .padding(start = 16.dp, end = endPadding)
+                        .padding(start = 16.dp, end = endPadding, top = if (collectionsOptions != null) 12.dp else 0.dp)
                         .fillMaxWidth(),
             ) {
                 Row(

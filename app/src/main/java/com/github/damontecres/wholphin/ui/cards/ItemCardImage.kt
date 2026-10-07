@@ -47,6 +47,8 @@ import com.github.damontecres.wholphin.ui.gt
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.logCoilError
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.LocalCollectionCardAppearance
+import com.github.damontecres.wholphin.ui.theme.CollectionTypeBadge
 import com.github.damontecres.wholphin.ui.theme.NeonBadge
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
@@ -249,6 +251,8 @@ fun ItemCardImageOverlay(
     typeBadgeFilled: Boolean = false,
     progressAccent: Color = accent,
 ) {
+    val collectionAppearance = LocalCollectionCardAppearance.current.takeIf { isWeaselTv() }
+    val collectionBadge = collectionAppearance?.collectionBadge
     Box(modifier = modifier.fillMaxSize()) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -256,14 +260,21 @@ fun ItemCardImageOverlay(
             modifier =
                 Modifier
                     .align(Alignment.TopStart)
-                    .padding(if (isWeaselTv()) 8.dp else 4.dp),
+                    .padding(
+                        horizontal = collectionBadge?.horizontalInsetDp?.dp ?: if (isWeaselTv()) 8.dp else 4.dp,
+                        vertical = collectionBadge?.verticalInsetDp?.dp ?: if (isWeaselTv()) 8.dp else 4.dp,
+                    ),
         ) {
             if (typeBadge != null) {
-                NeonBadge(
-                    text = typeBadge,
-                    accent = if (typeBadgeFilled) NeonBoard.Green else accent,
-                    filled = typeBadgeFilled,
-                )
+                if (collectionBadge != null) {
+                    CollectionTypeBadge(typeBadge, accent, collectionBadge)
+                } else {
+                    NeonBadge(
+                        text = typeBadge,
+                        accent = if (typeBadgeFilled) NeonBoard.Green else accent,
+                        filled = typeBadgeFilled,
+                    )
+                }
             }
             if (numberOfVersions > 1) {
                 Box(
@@ -292,7 +303,10 @@ fun ItemCardImageOverlay(
             verticalAlignment = Alignment.CenterVertically,
             modifier =
                 Modifier
-                    .padding(4.dp)
+                    .padding(
+                        horizontal = collectionAppearance?.badgeHorizontalInsetDp?.dp ?: 4.dp,
+                        vertical = collectionAppearance?.badgeVerticalInsetDp?.dp ?: 4.dp,
+                    )
                     .align(Alignment.TopEnd),
         ) {
             if (watched && (watchedPercent == null || watchedPercent <= 0.0 || watchedPercent >= 100.0)) {
@@ -303,16 +317,24 @@ fun ItemCardImageOverlay(
                     modifier =
                         Modifier
                             .background(
-                                AppColors.TransparentBlack50,
-                                shape = RoundedCornerShape(25),
+                                Color.Black.copy(alpha = (collectionAppearance?.badgeBackgroundOpacityPercent ?: 50) / 100f),
+                                shape = RoundedCornerShape(collectionAppearance?.badgeCornerPercent ?: 25),
                             ),
                 ) {
                     Text(
                         text = unwatchedCount.toString(),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = (collectionAppearance?.badgeTextOpacityPercent ?: 100) / 100f),
+                        style = if (collectionAppearance != null) {
+                            MaterialTheme.typography.bodySmall.let {
+                                val size = collectionAppearance.badgeTextSizeSp?.sp ?: it.fontSize
+                                it.copy(fontSize = size, lineHeight = size * (it.lineHeight.value / it.fontSize.value))
+                            }
+                        } else MaterialTheme.typography.bodyMedium,
 //                            fontSize = 16.sp,
-                        modifier = Modifier.padding(4.dp),
+                        modifier = Modifier.padding(
+                            horizontal = collectionAppearance?.badgeHorizontalPaddingDp?.dp ?: 4.dp,
+                            vertical = collectionAppearance?.badgeVerticalPaddingDp?.dp ?: 4.dp,
+                        ),
                     )
                 }
             }

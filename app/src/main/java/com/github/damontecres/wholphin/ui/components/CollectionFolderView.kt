@@ -36,6 +36,12 @@ import com.github.damontecres.wholphin.data.filter.DefaultFilterOptions
 import com.github.damontecres.wholphin.data.filter.FilterValueOption
 import com.github.damontecres.wholphin.data.filter.ItemFilterBy
 import com.github.damontecres.wholphin.data.model.BaseItem
+import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
+import com.github.damontecres.wholphin.services.HomeSettingsService
+import com.github.damontecres.wholphin.services.CuratedCollections
+import com.github.damontecres.wholphin.ui.theme.ApprovedCollectionCardAppearance
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.data.model.CollectionFolderFilter
 import com.github.damontecres.wholphin.data.model.GetItemsFilter
 import com.github.damontecres.wholphin.data.model.GetItemsFilterOverride
@@ -122,6 +128,7 @@ class CollectionFolderViewModel
         val streamChoiceService: StreamChoiceService,
         val serverReportService: ServerReportService,
         private val filterOptionCache: FilterOptionCache,
+        val homeSettingsService: HomeSettingsService,
         @Assisted val itemId: String,
         @Assisted initialSortAndDirection: SortAndDirection?,
         @Assisted("recursive") private val recursive: Boolean,
@@ -736,6 +743,9 @@ fun CollectionFolderView(
         },
 ) {
     val state by viewModel.state.collectAsState()
+    val homeSettings by viewModel.homeSettingsService.currentSettings.collectAsState()
+    val collectionHomeOptions = homeSettings.rows.firstOrNull { CuratedCollections.isCuratedRow(it.config) }?.config?.viewOptions
+        ?: ApprovedHomeLayout.apply(HomeRowViewOptions(cardAppearance = ApprovedCollectionCardAppearance))
     LifecycleResumeEffect(itemId) {
         viewModel.onResumePage()
 
@@ -764,6 +774,7 @@ fun CollectionFolderView(
         },
         filterOptions = filterOptions,
         focusRequesterOnEmpty = focusRequesterOnEmpty,
+        collectionHomeOptions = collectionHomeOptions,
     )
 }
 
@@ -814,6 +825,7 @@ fun CollectionFolderViewContent(
     positionCallback: ((columns: Int, position: Int) -> Unit)? = null,
     filterOptions: List<ItemFilterBy<*>> = DefaultFilterOptions,
     focusRequesterOnEmpty: FocusRequester? = null,
+    collectionHomeOptions: HomeRowViewOptions = ApprovedHomeLayout.apply(HomeRowViewOptions(cardAppearance = ApprovedCollectionCardAppearance)),
 ) {
     var position by rememberInt(savedPosition)
 
@@ -907,6 +919,8 @@ fun CollectionFolderViewContent(
                         ?: item?.name
                         ?: item?.data?.collectionType?.name
                         ?: stringResource(R.string.collection)
+                val collectionsLayout = isWeaselTv() && (item?.data?.collectionType == CollectionType.BOXSETS ||
+                    initialFilter.filter.includeItemTypes == listOf(BaseItemKind.BOX_SET))
                 Column(modifier = Modifier.fillMaxSize()) {
                     var showHeader by rememberSaveable { mutableStateOf(true) }
                     val gridFocusRequester = remember { FocusRequester() }
@@ -924,6 +938,7 @@ fun CollectionFolderViewContent(
                         showTitle = showTitle,
                         playEnabled = playEnabled,
                         title = title,
+                        collectionsOptions = collectionHomeOptions.takeIf { collectionsLayout },
                         sortAndDirection = state.sortAndDirection,
                         onSortChange = {
                             viewActions.onSortChange(it, recursive, state.filter)
@@ -997,6 +1012,7 @@ fun CollectionFolderViewContent(
                                         viewOptions = state.viewOptions,
                                         onClickPlay = gridActions.onClickPlayRemoteButton!!,
                                         focusedItem = focusedItem,
+                                        collectionCardAppearance = collectionHomeOptions.cardAppearance,
                                     )
                                 } else {
                                     CollectionFolderList(

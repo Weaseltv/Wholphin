@@ -22,3 +22,5 @@ Source SVGs retain their original geometry; the header tints monochrome marks fo
 | `angel.svg` | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Angel_Logo.svg) |
 
 AMC+ logo: Ardi3005, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), used with a teal display tint. Provider trademarks belong to their respective owners. See each linked source page for the artwork attribution and license.
+
+BritBox: normalized the original group transform and expanded the view box to include the complete i dot and lower letter curves.
