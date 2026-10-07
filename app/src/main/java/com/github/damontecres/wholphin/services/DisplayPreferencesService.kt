@@ -38,7 +38,7 @@ class DisplayPreferencesService
             block: MutableMap<String, String?>.() -> Unit,
         ) {
             mutex.withLock {
-                val current = getDisplayPreferences(userId, DEFAULT_DISPLAY_PREF_ID)
+                val current = getDisplayPreferences(userId, displayPreferencesId, client)
                 val customPrefs =
                     current.customPrefs.toMutableMap().apply {
                         block.invoke(this)

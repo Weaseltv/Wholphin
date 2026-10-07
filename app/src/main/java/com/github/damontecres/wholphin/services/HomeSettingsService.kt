@@ -42,6 +42,7 @@ import com.github.damontecres.wholphin.util.GetStudiosRequestHandler
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import com.github.damontecres.wholphin.util.HomeRowLoadingState.Success
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.firstOrNull
@@ -214,7 +215,11 @@ class HomeSettingsService
                             null
                         }
                     }.orEmpty()
-            return HomePageSettings(rows, version)
+            return HomePageSettings(
+                rows,
+                version,
+                layoutDefaultsRevision = element.jsonObject["layoutDefaultsRevision"]?.jsonPrimitive?.intOrNull ?: 0,
+            )
         }
 
         /**
@@ -264,6 +269,7 @@ class HomeSettingsService
                     resolvedSettings
                 }
             currentSettings.update { homeSettings }
+            if (BuildConfig.FLAVOR == "weaselfin") syncApprovedSpacingToServer(userId, homeSettings)
         }
 
         /** Owner requested matching the remaining Alpha rows to the first two tuned rows. */
@@ -277,12 +283,50 @@ class HomeSettingsService
             val matched = HomePageResolvedSettings(
                 settings.rows.map { row ->
                     row.copy(config = row.config.updateViewOptions(
-                        ApprovedHomeLayout.apply(row.config.viewOptions, StreamingCollections.isStreamingRow(row.config)),
+                        if (revision < 1) {
+                            ApprovedHomeLayout.apply(row.config.viewOptions, StreamingCollections.isStreamingRow(row.config))
+                        } else {
+                            row.config.viewOptions.copy(spacing = 16)
+                        },
                     ))
                 },
             )
             saveToLocal(userId, HomePageSettings(matched.rows.map { it.config }, SUPPORTED_HOME_PAGE_SETTINGS_VERSION))
             return matched
+        }
+
+        /** Save approved spacing to both Alpha and customer server-backed Home preferences. */
+        private suspend fun syncApprovedSpacingToServer(
+            userId: UUID,
+            settings: HomePageResolvedSettings,
+        ) {
+            val migrations = context.getSharedPreferences("home_layout_server_migrations", Context.MODE_PRIVATE)
+            for (client in listOf(DisplayPreferencesService.DEFAULT_CLIENT, "Wholphin").distinct()) {
+                val key = "spacing_16_${userId}_$client"
+                if (migrations.getBoolean(key, false)) continue
+                try {
+                    displayPreferencesService.updateDisplayPreferences(userId, client = client) {
+                        val existing = get(CUSTOM_PREF_ID)?.let { decode(jsonParser.parseToJsonElement(it)) }
+                        val base = existing ?: HomePageSettings(settings.rows.map { it.config }, SUPPORTED_HOME_PAGE_SETTINGS_VERSION)
+                        if (base.layoutDefaultsRevision < ApprovedHomeLayout.REVISION) {
+                            val rows = base.rows.map { row ->
+                                val options = if (existing != null && base.layoutDefaultsRevision < 1) {
+                                    ApprovedHomeLayout.apply(row.viewOptions, StreamingCollections.isStreamingRow(row))
+                                } else {
+                                    row.viewOptions.copy(spacing = 16)
+                                }
+                                row.updateViewOptions(options)
+                            }
+                            put(CUSTOM_PREF_ID, jsonParser.encodeToString(base.copy(rows = rows, layoutDefaultsRevision = ApprovedHomeLayout.REVISION)))
+                        }
+                    }
+                    migrations.edit().putBoolean(key, true).apply()
+                } catch (ex: CancellationException) {
+                    throw ex
+                } catch (ex: Exception) {
+                    Timber.w(ex, "Unable to save approved card spacing for %s", client)
+                }
+            }
         }
 
         /**

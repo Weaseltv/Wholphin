@@ -5,12 +5,12 @@ import com.github.damontecres.wholphin.ui.AspectRatio
 
 /** Owner-approved values captured from all eight Alpha rows on 2026-10-07. */
 object ApprovedHomeLayout {
-    const val REVISION = 1
+    const val REVISION = 2
 
     fun apply(options: HomeRowViewOptions, streaming: Boolean = false): HomeRowViewOptions =
         options.copy(
             heightDp = 172,
-            spacing = 20,
+            spacing = 16,
             verticalPaddingDp = 4,
             extraVerticalPaddingDp = 12,
             dividerGapDp = 12,

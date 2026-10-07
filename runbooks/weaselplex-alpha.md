@@ -63,7 +63,7 @@ no user IDs, library IDs, queries or login data are included.
 
 | Setting | Approved default |
 | --- | --- |
-| Card height / between cards | 172 dp / 20 dp |
+| Card height / between cards | 172 dp / 16 dp |
 | Start / end padding | 4 dp / 16 dp |
 | Base / extra vertical padding | 4 dp / 12 dp |
 | Divider-to-padding / after-row gap | 12 dp / 8 dp |
@@ -78,9 +78,14 @@ Streaming's saved episode shape remains 16:9; other episode shapes are 2:3.
 Image-source selections remain separate from layout defaults.
 
 New WeaselPlex installs and newly created rows use these defaults. Existing local
-or imported layouts receive the approved layout once, recorded as revision 1 in
-local Home settings. Row names, queries, order and image-source options are
-preserved. Later user changes are saved with revision 1 and remain overrides;
+or imported layouts receive the approved layout once. Revision 2 changes only
+between-card spacing to 16 dp for rows already on revision 1, preserving all other
+layout and card appearance tuning. The original capture above records the prior
+20 dp spacing. Row names, queries, order and image-source options are preserved.
+The 16 dp spacing is also saved once to each signed-in member's Alpha and customer
+server-backed Home preferences on their next load; failed writes retry later.
+Other display preferences are retained. Later user changes are saved with
+revision 2 and remain overrides;
 the approved values are never reapplied at every startup. This code will reach
 customer installs when the owner explicitly publishes a stable release.
 

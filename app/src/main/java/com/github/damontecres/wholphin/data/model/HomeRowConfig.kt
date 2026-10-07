@@ -218,7 +218,7 @@ const val SUPPORTED_HOME_PAGE_SETTINGS_VERSION = 1
 @Serializable
 data class HomeRowViewOptions(
     val heightDp: Int = BuildConfig.DEFAULT_CARD_HEIGHT_DP,
-    val spacing: Int = if (BuildConfig.FLAVOR == "weaselfin") 20 else 16,
+    val spacing: Int = 16,
     val contentScale: PrefContentScale = PrefContentScale.FILL,
     val aspectRatio: AspectRatio = AspectRatio.TALL,
     val imageType: ViewOptionImageType = ViewOptionImageType.PRIMARY,
