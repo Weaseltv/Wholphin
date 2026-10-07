@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +44,7 @@ import com.github.damontecres.wholphin.ui.main.settings.HomeSettingsDestination.
 import com.github.damontecres.wholphin.ui.main.settings.HomeSettingsDestination.RowSettings
 import com.github.damontecres.wholphin.ui.rememberPosition
 import com.github.damontecres.wholphin.ui.search.SearchForDialog
+import com.github.damontecres.wholphin.ui.theme.LocalNeonRuleInsets
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import kotlinx.coroutines.Job
@@ -324,27 +326,32 @@ fun HomeSettingsPage(
                 },
             )
         }
-        HomePageContent(
-            loadingState = state.loading,
-            homeRows = state.rowData,
-            libraries = state.libraries,
-            position = position,
-            onFocusPosition = { position = it },
-            onClickItem = { _, _ -> },
-            onLongClickItem = { _, _ -> },
-            onClickPlay = { _, _ -> },
-            showClock = false,
-            onUpdateBackdrop = viewModel::updateBackdrop,
-            listState = listState,
-            takeFocus = false,
-            showEmptyRows = true,
-            showLogo = preferences.appPreferences.interfacePreferences.showLogos,
-            showViewMore = false,
-            modifier =
-                Modifier
-                    .fillMaxHeight()
-                    .weight(1f),
-        )
+        // The preview starts after an 8dp panel gap, independently of the page's left gutter.
+        CompositionLocalProvider(
+            LocalNeonRuleInsets provides LocalNeonRuleInsets.current.copy(start = 8.dp),
+        ) {
+            HomePageContent(
+                loadingState = state.loading,
+                homeRows = state.rowData,
+                libraries = state.libraries,
+                position = position,
+                onFocusPosition = { position = it },
+                onClickItem = { _, _ -> },
+                onLongClickItem = { _, _ -> },
+                onClickPlay = { _, _ -> },
+                showClock = false,
+                onUpdateBackdrop = viewModel::updateBackdrop,
+                listState = listState,
+                takeFocus = false,
+                showEmptyRows = true,
+                showLogo = preferences.appPreferences.interfacePreferences.showLogos,
+                showViewMore = false,
+                modifier =
+                    Modifier
+                        .fillMaxHeight()
+                        .weight(1f),
+            )
+        }
     }
     showConfirmDialog?.let { (body, onConfirm) ->
         ConfirmDialog(
