@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
@@ -22,12 +24,15 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.ui.bleedHorizontal
 import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.LocalNeonRuleInsets
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonSectionRule
 import com.github.damontecres.wholphin.ui.theme.NeonType
@@ -61,6 +66,12 @@ fun <T> ItemRow(
 
     val currentOnClickItem by rememberUpdatedState(onClickItem)
     val currentOnLongClickItem by rememberUpdatedState(onLongClickItem)
+    val neon = isWeaselTv()
+    val startInset = if (neon) LocalNeonRuleInsets.current.start else 0.dp
+    val layoutDirection = LocalLayoutDirection.current
+    val cardPadding =
+        cardContentPadding
+            ?: PaddingValues(horizontal = horizontalPadding, vertical = if (neon) 4.dp else 8.dp)
 
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -77,11 +88,17 @@ fun <T> ItemRow(
             state = state,
             horizontalArrangement = Arrangement.spacedBy(horizontalPadding),
             contentPadding =
-                cardContentPadding
-                    ?: PaddingValues(horizontal = horizontalPadding, vertical = if (isWeaselTv()) 4.dp else 8.dp),
+                PaddingValues(
+                    start = cardPadding.calculateStartPadding(layoutDirection) + startInset,
+                    end = cardPadding.calculateEndPadding(layoutDirection),
+                    top = cardPadding.calculateTopPadding(),
+                    bottom = cardPadding.calculateBottomPadding(),
+                ),
             modifier =
                 Modifier
                     .fillMaxWidth()
+                    // Move the clipping edge into the gutter without moving the cards.
+                    .bleedHorizontal(start = startInset, end = 0.dp)
                     .focusGroup()
                     .focusRestorer(firstFocus)
                     .focusRequester(focusRequester),
