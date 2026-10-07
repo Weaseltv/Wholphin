@@ -659,8 +659,15 @@ internal fun RailList(
     )
 }
 
+/** Owner's poster border values captured from all eight Alpha rows on 2026-10-07. */
+private val RailFocusBorderWidth = 2.dp
+private const val RailFocusBorderOpacity = .8f
+private val RailFocusGlowSpread = 15.dp
+private const val RailFocusGlowOpacity = .7f
+
 /** Rail rows don't grow when focused, so the room only has to cover their glow. */
-internal val RailGlowRoom = NeonBoard.GlowSpec.RowFocus
+internal val RailGlowRoom = maxOf(NeonBoard.GlowSpec.RowFocus, RailFocusGlowSpread) + RailFocusBorderWidth / 2
+
 
 /** Keep the full stroke and side glow inside the rail without moving its content. */
 private object RailItemShape : Shape {
@@ -686,8 +693,8 @@ fun NavigationDrawerScope.ProfileIcon(
         onClick = onClick,
         shape = neonListItemShape(shape = RailItemShape),
         colors = neonDrawerItemColors(NeonBoard.Volt),
-        border = neonListItemBorder(NeonBoard.Volt, shape = RailItemShape),
-        glow = neonListItemGlow(NeonBoard.Volt),
+        border = neonListItemBorder(NeonBoard.Volt, shape = RailItemShape, width = RailFocusBorderWidth, opacity = RailFocusBorderOpacity),
+        glow = neonListItemGlow(NeonBoard.Volt, spread = RailFocusGlowSpread, opacity = RailFocusGlowOpacity),
         leadingContent = {
             UserIconCardImage(
                 id = user.id,
@@ -734,8 +741,8 @@ fun NavigationDrawerScope.IconNavItem(
         onClick = onClick,
         shape = neonListItemShape(shape = RailItemShape),
         colors = neonDrawerItemColors(accent),
-        border = neonListItemBorder(accent, shape = RailItemShape),
-        glow = neonListItemGlow(accent),
+        border = neonListItemBorder(accent, shape = RailItemShape, width = RailFocusBorderWidth, opacity = RailFocusBorderOpacity),
+        glow = neonListItemGlow(accent, spread = RailFocusGlowSpread, opacity = RailFocusGlowOpacity),
         leadingContent = {
             // WeaselFin ships its own drawable for the fixed items. Null on every upstream
             // flavor, where the Material vector below is used exactly as before.
@@ -830,8 +837,8 @@ fun NavigationDrawerScope.NavItem(
         onClick = onClick,
         shape = neonListItemShape(shape = RailItemShape),
         colors = neonDrawerItemColors(accent, containerColor),
-        border = neonListItemBorder(accent, shape = RailItemShape),
-        glow = neonListItemGlow(accent),
+        border = neonListItemBorder(accent, shape = RailItemShape, width = RailFocusBorderWidth, opacity = RailFocusBorderOpacity),
+        glow = neonListItemGlow(accent, spread = RailFocusGlowSpread, opacity = RailFocusGlowOpacity),
         leadingContent = {
             val color = railGlyphColor(accent, selected, focused) ?: navItemColor(selected, focused, drawerOpen)
             Box(

@@ -515,9 +515,11 @@ fun neonListItemBorder(
     accent: Color = LocalNeonAccent.current,
     fallback: ListItemBorder? = null,
     shape: Shape = RectangleShape,
+    width: Dp = 1.dp,
+    opacity: Float = 1f,
 ): ListItemBorder {
     if (!isWeaselTv()) return fallback ?: ListItemDefaults.border()
-    val focused = Border(border = BorderStroke(1.dp, accent), shape = shape)
+    val focused = Border(border = BorderStroke(width, accent.copy(alpha = opacity)), shape = shape)
     return ListItemDefaults.border(
         focusedBorder = focused,
         pressedBorder = focused,
@@ -530,12 +532,14 @@ fun neonListItemBorder(
 fun neonListItemGlow(
     accent: Color = LocalNeonAccent.current,
     fallback: ListItemGlow? = null,
+    spread: Dp = NeonBoard.GlowSpec.RowFocus,
+    opacity: Float = NeonBoard.GlowSpec.ROW_FOCUS_ALPHA,
 ): ListItemGlow {
     if (!isWeaselTv()) return fallback ?: ListItemDefaults.glow()
     val glow =
         Glow(
-            elevationColor = accent.copy(alpha = NeonBoard.GlowSpec.ROW_FOCUS_ALPHA),
-            elevation = NeonBoard.GlowSpec.RowFocus,
+            elevationColor = accent.copy(alpha = opacity),
+            elevation = spread,
         )
     return ListItemDefaults.glow(focusedGlow = glow, pressedGlow = glow, focusedSelectedGlow = glow)
 }

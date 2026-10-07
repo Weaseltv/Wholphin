@@ -107,6 +107,14 @@ saves normal local per-user Home settings. **Discard this tuning session**
 restores values from when the tool opened. The tuner entry is hidden from
 customer builds. Normal Home row customization remains available.
 
+## Sidebar focus border
+
+Sidebar buttons match the owner's poster border tuning captured on 2026-10-07:
+2 dp border at 80% opacity, 15 dp glow spread at 70% strength, square corners,
+and each button's section accent. Rail glow room includes half the border width
+so all four edges fit. This applies to profile, built-in and library buttons.
+Poster focus enlargement and poster badge settings remain Home-card controls.
+
 ## Alpha installation and build host
 
 - Launcher name: **WeaselPlex Alpha**.
