@@ -795,28 +795,21 @@ fun Modifier.neonOverline(
     }
 }
 
-/** Card watch progress keeps its thickness and uses the approved Home divider glow. */
+/** Match the visible Home rule fade while retaining the thinner card progress line. */
 @Composable
 fun Modifier.neonProgress(
     accent: Color = LocalNeonAccent.current,
     enabled: Boolean = true,
-): Modifier {
-    if (!enabled || !isWeaselTv()) return this
-    return drawBehind {
-        val glowH = 10.dp.toPx()
-        drawRect(
-            brush =
-                Brush.verticalGradient(
-                    colors = listOf(accent.copy(alpha = .7f), Color.Transparent),
-                    startY = 0f,
-                    endY = -glowH,
-                ),
-            topLeft = Offset(0f, -glowH),
-            size = Size(size.width, glowH),
-        )
-        drawRect(color = accent)
-    }
-}
+): Modifier =
+    // Home: 10dp gradient with a 5dp line, leaving 5dp visible at up to 35% alpha.
+    // Progress: 8dp gradient with a 3dp line; 56% gives the same visible fade.
+    neonRuleBelow(
+        accent = accent,
+        enabled = enabled,
+        thickness = NeonBoard.Size.ProgressCard,
+        glowHeight = 8.dp,
+        glowStrength = .56f,
+    )
 
 // ---------------------------------------------------------------------------------------
 // Small composables shared across pages

@@ -138,8 +138,10 @@ Movies, TV Shows, Sports and Stand Up Comedy in that order to the member's
 Jellyfin `OrderedViews`. It fetches fresh configuration, preserves unrelated
 preferences and remaining view IDs, and retries failed writes on a later load.
 
-Poster watch-progress lines keep their existing 3 dp thickness and match the
-approved Home divider glow: 10 dp spread at 70% strength. Their color follows the
+Poster watch-progress lines keep their existing 3 dp thickness and use the same
+renderer as the Home divider. The Home divider's 10 dp / 70% gradient includes
+its 5 dp solid line, leaving a visible 5 dp fade peaking at 35% alpha. Progress
+uses an 8 dp / 56% gradient including its 3 dp line to match that visible fade. Their color follows the
 media type (Amber for movies, Crimson for episodes), independently of the current
 section. The curated Home row is now named **The Weasel’s Picks**. HBO Max
 uses the normal focus border without a permanent unfocused outline.
