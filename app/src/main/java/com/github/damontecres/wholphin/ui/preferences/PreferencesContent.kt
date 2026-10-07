@@ -46,6 +46,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -237,7 +239,7 @@ fun PreferencesContent(
                         if (neon) {
                             drawRect(
                                 color = panelAccent,
-                                size = Size(NeonBoard.Size.Rule.toPx(), size.height),
+                                size = Size(5.dp.toPx(), size.height),
                             )
                         }
                     },
@@ -249,9 +251,9 @@ fun PreferencesContent(
                         text = stringResource(screenTitle).uppercase(),
                         style = NeonType.pageTitle(),
                         color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(horizontal = 16.dp),
+                        modifier = Modifier.padding(horizontal = 32.dp),
                     )
-                    NeonRule(modifier = Modifier.padding(top = 6.dp))
+                    NeonRule(modifier = Modifier.padding(top = 6.dp), thickness = 5.dp, glowHeight = 10.dp, glowStrength = .7f)
                 }
             } else {
                 Text(
@@ -269,7 +271,7 @@ fun PreferencesContent(
                 state = state,
                 horizontalAlignment = Alignment.Start,
                 verticalArrangement = Arrangement.spacedBy(0.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = DialogListEdge),
+                contentPadding = PaddingValues(horizontal = if (neon) 32.dp else 16.dp, vertical = DialogListEdge),
                 modifier = Modifier.fillMaxSize(),
             ) {
                 if (showUpdate) {
@@ -301,12 +303,13 @@ fun PreferencesContent(
                     item {
                         Text(
                             text = stringResource(group.title),
-                            style = MaterialTheme.typography.titleMedium,
+                            style = if (neon) MaterialTheme.typography.titleMedium.copy(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold) else MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                             textAlign = TextAlign.Start,
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
+                                    .padding(horizontal = if (neon) 8.dp else 0.dp, vertical = if (neon) 12.dp else 0.dp)
                                     .padding(top = 8.dp, bottom = 4.dp),
                         )
                     }

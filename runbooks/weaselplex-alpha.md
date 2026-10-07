@@ -89,6 +89,17 @@ revision 2 and remain overrides;
 the approved values are never reapplied at every startup. This code will reach
 customer installs when the owner explicitly publishes a stable release.
 
+## Home descriptions and Settings styling
+
+Home descriptions use 92% of the available header width instead of the previous
+400 dp cap. Their existing height and line limits remain.
+Settings uses a 5 dp horizontal divider with the Home rule's 10 dp / 70% glow,
+and a 5 dp vertical edge without glow. Section titles are 22 sp bold with extra
+space before controls. Controls have 32 dp panel edge padding. Preference sliders
+keep white text on a black background when focused, with a white outlined track,
+white fill and black unfilled section. Toggle colors follow the section accent
+(Ice White in Settings).
+
 ## Live card appearance tuner (Alpha only)
 
 Open **Settings → Customize home page → Live layout tuner (Alpha)**. The completed

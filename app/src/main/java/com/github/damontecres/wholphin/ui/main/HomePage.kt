@@ -723,7 +723,7 @@ fun HomePageHeader(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier =
                 Modifier
-                    .fillMaxWidth(.6f),
+                    .fillMaxWidth(if (isWeaselTv()) .92f else .6f),
         ) {
             if (subtitle != null) {
                 EpisodeName(subtitle)
@@ -733,7 +733,7 @@ fun HomePageHeader(
                 Modifier
                     .padding(0.dp)
                     .height(48.dp + if (!overviewTwoLines) 12.dp else 0.dp)
-                    .width(400.dp)
+                    .then(if (isWeaselTv()) Modifier.fillMaxWidth() else Modifier.width(400.dp))
             if (overview.isNotNullOrBlank()) {
                 Text(
                     text = overview,
