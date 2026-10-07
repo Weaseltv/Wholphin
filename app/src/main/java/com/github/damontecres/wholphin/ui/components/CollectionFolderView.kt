@@ -187,7 +187,7 @@ class CollectionFolderViewModel
                     }
 
                     val orderPreferences = context.getSharedPreferences("collections_display_order", Context.MODE_PRIVATE)
-                    val orderKey = "explicit_order_v1_${serverRepository.currentUser?.rowId}_${collectionFilter.libraryDisplayInfoIdOverride ?: itemId}"
+                    val orderKey = "explicit_order_v2_${serverRepository.currentUser?.rowId}_${collectionFilter.libraryDisplayInfoIdOverride ?: itemId}"
                     val useApprovedOrder = BuildConfig.FLAVOR == "weaselfin" &&
                         (item?.data?.collectionType == CollectionType.BOXSETS || collectionFilter.filter.includeItemTypes == listOf(BaseItemKind.BOX_SET)) &&
                         !orderPreferences.getBoolean(orderKey, false)
@@ -543,6 +543,10 @@ class CollectionFolderViewModel
                             },
                         fields = SlimItemFields,
                     ),
+                    // An unset UI type filter must not erase BOX_SET from the library query:
+                    // ordering selection below relies on the effective query, not just the page title.
+                    overwriteIncludeTypes = BuildConfig.FLAVOR != "weaselfin" ||
+                        item?.data?.collectionType != CollectionType.BOXSETS || filter.includeItemTypes != null,
                 )
             return request
         }
