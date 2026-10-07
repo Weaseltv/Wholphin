@@ -273,7 +273,7 @@ class HomeSettingsService
                     resolvedSettings
                 }
             currentSettings.update { homeSettings }
-            if (BuildConfig.FLAVOR == "weaselfin") syncApprovedSpacingToServer(userId, homeSettings)
+            if (BuildConfig.FLAVOR == "weaselfin") syncApprovedLayoutToServer(userId, homeSettings)
         }
 
         /** Owner requested matching the remaining Alpha rows to the first two tuned rows. */
@@ -287,11 +287,7 @@ class HomeSettingsService
             val matched = HomePageResolvedSettings(
                 settings.rows.map { row ->
                     row.copy(config = row.config.updateViewOptions(
-                        if (revision < 1) {
-                            ApprovedHomeLayout.apply(row.config.viewOptions, StreamingCollections.isStreamingRow(row.config))
-                        } else {
-                            row.config.viewOptions.copy(spacing = 16)
-                        },
+                        ApprovedHomeLayout.upgrade(row.config.viewOptions, revision, StreamingCollections.isStreamingRow(row.config)),
                     ))
                 },
             )
@@ -299,14 +295,14 @@ class HomeSettingsService
             return matched
         }
 
-        /** Save approved spacing to both Alpha and customer server-backed Home preferences. */
-        private suspend fun syncApprovedSpacingToServer(
+        /** Save approved defaults to both Alpha and customer server-backed Home preferences. */
+        private suspend fun syncApprovedLayoutToServer(
             userId: UUID,
             settings: HomePageResolvedSettings,
         ) {
             val migrations = context.getSharedPreferences("home_layout_server_migrations", Context.MODE_PRIVATE)
             for (client in listOf(DisplayPreferencesService.DEFAULT_CLIENT, "Wholphin").distinct()) {
-                val key = "spacing_16_${userId}_$client"
+                val key = "approved_layout_${ApprovedHomeLayout.REVISION}_${userId}_$client"
                 if (migrations.getBoolean(key, false)) continue
                 try {
                     displayPreferencesService.updateDisplayPreferences(userId, client = client) {
@@ -314,11 +310,11 @@ class HomeSettingsService
                         val base = existing ?: HomePageSettings(settings.rows.map { it.config }, SUPPORTED_HOME_PAGE_SETTINGS_VERSION)
                         if (base.layoutDefaultsRevision < ApprovedHomeLayout.REVISION) {
                             val rows = base.rows.map { row ->
-                                val options = if (existing != null && base.layoutDefaultsRevision < 1) {
-                                    ApprovedHomeLayout.apply(row.viewOptions, StreamingCollections.isStreamingRow(row))
-                                } else {
-                                    row.viewOptions.copy(spacing = 16)
-                                }
+                                val options = ApprovedHomeLayout.upgrade(
+                                    row.viewOptions,
+                                    if (existing == null) ApprovedHomeLayout.REVISION else base.layoutDefaultsRevision,
+                                    StreamingCollections.isStreamingRow(row),
+                                )
                                 row.updateViewOptions(options)
                             }
                             put(CUSTOM_PREF_ID, jsonParser.encodeToString(base.copy(rows = rows, layoutDefaultsRevision = ApprovedHomeLayout.REVISION)))
@@ -328,7 +324,7 @@ class HomeSettingsService
                 } catch (ex: CancellationException) {
                     throw ex
                 } catch (ex: Exception) {
-                    Timber.w(ex, "Unable to save approved card spacing for %s", client)
+                    Timber.w(ex, "Unable to save approved Home defaults for %s", client)
                 }
             }
         }

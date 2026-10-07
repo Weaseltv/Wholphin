@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -72,6 +73,7 @@ fun <T> ItemRow(
     countSize: TextUnit = 12.sp,
     countOpacity: Float = 1f,
     countEndPadding: Dp = 8.dp,
+    titleStartPadding: Dp = 8.dp,
 ) {
     val state = rememberLazyListState()
     val firstFocus = remember { FocusRequester() }
@@ -110,6 +112,7 @@ fun <T> ItemRow(
             countSize = countSize,
             countOpacity = countOpacity,
             countEndPadding = countEndPadding,
+            titleStartPadding = titleStartPadding,
         )
 
         LazyRow(
@@ -202,6 +205,7 @@ fun ItemRowTitle(
     countSize: TextUnit = 12.sp,
     countOpacity: Float = 1f,
     countEndPadding: Dp = 8.dp,
+    titleStartPadding: Dp = 8.dp,
 ) {
     if (!isWeaselTv()) {
         Text(
@@ -217,14 +221,14 @@ fun ItemRowTitle(
     ) {
         Row(
             verticalAlignment = Alignment.Bottom,
-            modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = countEndPadding),
+            modifier = Modifier.fillMaxWidth().padding(start = titleStartPadding.coerceAtLeast(0.dp), end = countEndPadding),
         ) {
             Text(
                 text = title.uppercase(),
                 style = NeonType.sectionTitle().copy(fontSize = titleSize, lineHeight = titleSize * .95f, letterSpacing = titleLetterSpacing),
                 color = NeonBoard.Text,
                 maxLines = 1,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).offset(x = titleStartPadding.coerceAtMost(0.dp)),
             )
             if (count != null && count > 0) {
                 Text(

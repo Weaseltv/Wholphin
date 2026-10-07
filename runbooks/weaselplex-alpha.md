@@ -85,14 +85,18 @@ layout and card appearance tuning. The original capture above records the prior
 The 16 dp spacing is also saved once to each signed-in member's Alpha and customer
 server-backed Home preferences on their next load; failed writes retry later.
 Other display preferences are retained. Later user changes are saved with
-revision 2 and remain overrides;
+the current revision and remain overrides;
 the approved values are never reapplied at every startup. This code will reach
 customer installs when the owner explicitly publishes a stable release.
 
 ## Streaming Services provider focus colors
 
 Streaming Services focus borders/glow use the owner's provider palette, keeping
-the existing border thickness, glow tuning and row divider color:
+the existing border thickness, glow tuning and row divider color. Revision 3
+sets only this row's focus border opacity to 100% once for existing settings;
+new Streaming rows use the same default. Other rows are unchanged and later
+explicit user adjustments remain overrides:
+
 
 | Provider | Hex |
 | --- | --- |
@@ -115,7 +119,10 @@ the existing border thickness, glow tuning and row divider color:
 ## Home descriptions and Settings styling
 
 Home descriptions use 92% of the available header width instead of the previous
-400 dp cap. Their existing height and line limits remain.
+400 dp cap. Their existing height and line limits remain. Home row titles align
+with the first poster's focused left edge, calculated from the saved card size,
+shape, focus enlargement, border thickness and start padding. Title position stays
+stable while navigating; full-width dividers and right-side counts stay in place.
 Settings uses a 5 dp horizontal divider with the Home rule's 10 dp / 70% glow,
 and a 5 dp vertical edge without glow. Section titles are 22 sp bold with extra
 space before controls. Controls have 32 dp panel edge padding. Preference sliders
