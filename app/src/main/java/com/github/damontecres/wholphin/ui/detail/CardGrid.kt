@@ -324,7 +324,11 @@ fun <T : CardGridItem> CardGrid(
                         horizontalArrangement = Arrangement.spacedBy(cardSpacing),
                         verticalArrangement = Arrangement.spacedBy(cardSpacing),
                         state = gridState,
-                        contentPadding = PaddingValues(vertical = 16.dp),
+                        // Keep the first row's enlarged focus border/glow inside the viewport.
+                        contentPadding = PaddingValues(
+                            top = if (isWeaselTv()) 32.dp else 16.dp,
+                            bottom = 16.dp,
+                        ),
                         modifier =
                             Modifier
                                 .fillMaxSize()
