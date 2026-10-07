@@ -32,7 +32,7 @@ import com.github.damontecres.wholphin.ui.detail.PlaylistDialog
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.ui.theme.ProvideNeonAccent
-import com.github.damontecres.wholphin.ui.theme.itemAccent
+import com.github.damontecres.wholphin.ui.theme.neonAccentFor
 import com.github.damontecres.wholphin.util.DataLoadingState
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
@@ -195,7 +195,7 @@ fun SeriesOverview(
                 }
             }
 
-            ProvideNeonAccent(itemAccent(st.data)) {
+            ProvideNeonAccent(neonAccentFor(st.data)) {
                 SeriesOverviewContent(
                     preferences = preferences,
                     series = st.data,

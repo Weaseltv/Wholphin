@@ -11,6 +11,7 @@ import androidx.tv.material3.SwitchColors
 import androidx.tv.material3.SwitchDefaults
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.ui.theme.LocalTheme
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
 import com.github.damontecres.wholphin.ui.theme.neonListItemColors
@@ -100,9 +101,9 @@ fun SwitchColors(): SwitchColors {
         AppThemeColors.WEASELTV -> {
             // Neon Board: track `line2` / volt, knob `mid` / `onAccent`.
             SwitchDefaults.colors(
-                checkedTrackColor = NeonBoard.Volt,
+                checkedTrackColor = LocalNeonAccent.current,
                 checkedThumbColor = NeonBoard.OnAccent,
-                checkedBorderColor = NeonBoard.Volt,
+                checkedBorderColor = LocalNeonAccent.current,
                 uncheckedTrackColor = NeonBoard.Line2,
                 uncheckedThumbColor = NeonBoard.Mid,
                 uncheckedBorderColor = NeonBoard.Line2,

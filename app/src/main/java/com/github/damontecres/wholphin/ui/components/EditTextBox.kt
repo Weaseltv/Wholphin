@@ -48,6 +48,7 @@ import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.MaterialTheme
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
@@ -197,7 +198,7 @@ fun SearchEditTextBox(
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = stringResource(R.string.search),
-                tint = if (isWeaselTv()) NeonBoard.Volt else MaterialTheme.colorScheme.onPrimaryContainer,
+                tint = if (isWeaselTv()) LocalNeonAccent.current else MaterialTheme.colorScheme.onPrimaryContainer,
             )
         },
         enabled = enabled,
@@ -350,7 +351,7 @@ fun SearchEditTextBox(
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = stringResource(R.string.search),
-                tint = if (isWeaselTv()) NeonBoard.Volt else MaterialTheme.colorScheme.onPrimaryContainer,
+                tint = if (isWeaselTv()) LocalNeonAccent.current else MaterialTheme.colorScheme.onPrimaryContainer,
             )
         },
         enabled = enabled,

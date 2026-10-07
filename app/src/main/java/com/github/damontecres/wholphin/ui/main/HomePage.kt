@@ -2,6 +2,7 @@ package com.github.damontecres.wholphin.ui.main
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +24,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -46,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.tv.material3.MaterialTheme
@@ -58,6 +61,7 @@ import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.data.model.QuickDetailsData
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.CuratedCollections
+import com.github.damontecres.wholphin.services.StreamingCollections
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.cards.BannerCard
 import com.github.damontecres.wholphin.ui.cards.BannerCardWithTitle
@@ -75,6 +79,7 @@ import com.github.damontecres.wholphin.ui.components.FocusableItemRow
 import com.github.damontecres.wholphin.ui.components.HeaderUtils
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.components.QuickDetails
+import com.github.damontecres.wholphin.ui.components.StreamingProviderHeader
 import com.github.damontecres.wholphin.ui.components.TitleOrLogo
 import com.github.damontecres.wholphin.ui.components.itemKindLabel
 import com.github.damontecres.wholphin.ui.components.rememberLogoUrl
@@ -91,15 +96,21 @@ import com.github.damontecres.wholphin.ui.playback.isPlayKeyUp
 import com.github.damontecres.wholphin.ui.playback.playable
 import com.github.damontecres.wholphin.ui.playback.scale
 import com.github.damontecres.wholphin.ui.rememberPosition
+import com.github.damontecres.wholphin.ui.theme.LocalHomeCardAppearance
+import com.github.damontecres.wholphin.ui.theme.LocalHomeCardBorderAccent
+import com.github.damontecres.wholphin.ui.theme.LocalHomeRowAccent
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.libraryAccent
+import com.github.damontecres.wholphin.ui.theme.curatedPickAccent
 import com.github.damontecres.wholphin.ui.theme.neonAccentFor
+import com.github.damontecres.wholphin.ui.theme.typeAccent
+import com.github.damontecres.wholphin.ui.theme.streamingProviderAccent
+import com.github.damontecres.wholphin.ui.theme.streamingProviderBorderAccent
 import com.github.damontecres.wholphin.ui.tryRequestFocus
-import com.github.damontecres.wholphin.ui.util.ScrollToTopBringIntoViewSpec
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import com.github.damontecres.wholphin.util.LoadingState
 import kotlinx.coroutines.delay
@@ -325,6 +336,7 @@ fun HomePageContent(
         }
 
     val rowFocusRequesters = remember(homeRows.size) { List(homeRows.size) { FocusRequester() } }
+    val rowTitleHeights = remember { mutableStateMapOf<Int, Int>() }
     var firstFocused by remember { mutableStateOf(false) }
 
     val currentPosition by rememberUpdatedState(position)
@@ -368,16 +380,34 @@ fun HomePageContent(
             headerComposable.invoke(focusedItem)
 
             val density = LocalDensity.current
+            val focusedRow = homeRows.getOrNull(position.row) as? HomeRowLoadingState.Success
             val spaceAbovePx =
-                remember(density) {
-                    with(density) {
-                        // The size of the row titles & spacing
+                with(density) {
+                    if (isWeaselTv() && focusedRow != null) {
+                        val options = focusedRow.viewOptions
+                        val curated = focusedRow.rowType?.let(CuratedCollections::isCuratedRow) == true
+                        val extra = options.extraVerticalPaddingDp ?: if (curated) CuratedCollections.EXTRA_VERTICAL_PADDING_DP else 0
+                        // Keep the complete title and the owner's chosen gaps above the focused card.
+                        (rowTitleHeights[position.row]?.toFloat() ?: 32.dp.toPx()) +
+                            (options.dividerGapDp + options.verticalPaddingDp + extra + 4).dp.toPx()
+                    } else {
                         50.dp.toPx()
+                    }
+                }
+            val currentSpaceAbovePx by rememberUpdatedState(spaceAbovePx)
+            val homeBringIntoViewSpec =
+                remember {
+                    object : BringIntoViewSpec {
+                        override fun calculateScrollDistance(
+                            offset: Float,
+                            size: Float,
+                            containerSize: Float,
+                        ): Float = offset - currentSpaceAbovePx
                     }
                 }
             val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
             CompositionLocalProvider(
-                LocalBringIntoViewSpec provides ScrollToTopBringIntoViewSpec(spaceAbovePx),
+                LocalBringIntoViewSpec provides homeBringIntoViewSpec,
             ) {
                 LazyColumn(
                     state = listState,
@@ -394,7 +424,7 @@ fun HomePageContent(
                         val rowModifier =
                             Modifier
                                 .animateItem(placementSpec = null)
-                                .padding(bottom = 8.dp)
+                                .padding(bottom = if (isWeaselTv() && row is HomeRowLoadingState.Success) row.viewOptions.rowGapDp.dp else 8.dp)
                         CompositionLocalProvider(
                             LocalBringIntoViewSpec provides defaultBringIntoViewSpec,
                         ) {
@@ -426,6 +456,7 @@ fun HomePageContent(
                                                 row.rowType?.let(CuratedCollections::isCuratedRow) == true
                                         ItemRow(
                                             title = row.title.getString(),
+                                            onTitleHeightChanged = { rowTitleHeights[rowIndex] = it },
                                             titleAccent = homeRowAccent(row.rowType, libraries),
                                             items = row.items,
                                             onClickItem =
@@ -455,16 +486,29 @@ fun HomePageContent(
                                                     .focusGroup()
                                                     .focusRequester(rowFocusRequesters[rowIndex]),
                                             horizontalPadding = viewOptions.spacing.dp,
+                                            dividerGap = if (isWeaselTv()) viewOptions.dividerGapDp.dp else 8.dp,
+                                            titleDividerGap = if (isWeaselTv()) viewOptions.titleDividerGapDp.dp else 4.dp,
+                                            titleStartPadding = if (isWeaselTv()) focusedFirstCardStart(viewOptions, row.items.firstOrNull()) else 8.dp,
+                                            titleSize = viewOptions.titleSizeSp.sp,
+                                            titleLetterSpacing = (viewOptions.titleLetterSpacingTenthsSp / 10f).sp,
+                                            countSize = viewOptions.countSizeSp.sp,
+                                            countOpacity = viewOptions.countOpacityPercent / 100f,
+                                            countEndPadding = viewOptions.countEndPaddingDp.dp,
+                                            dividerThickness = viewOptions.dividerThicknessDp.dp,
+                                            dividerGlow = viewOptions.dividerGlowDp.dp,
+                                            dividerGlowStrength = viewOptions.dividerGlowStrength / 100f,
                                             cardContentPadding =
-                                                if (curated) {
-                                                    // Keep focus growth and the border inside the scrolling row.
+                                                if (isWeaselTv()) {
+                                                    val verticalPadding =
+                                                        (
+                                                            viewOptions.verticalPaddingDp +
+                                                                (viewOptions.extraVerticalPaddingDp ?: if (curated) CuratedCollections.EXTRA_VERTICAL_PADDING_DP else 0)
+                                                        ).dp
                                                     PaddingValues(
-                                                        horizontal =
-                                                            maxOf(
-                                                                viewOptions.spacing.dp,
-                                                                viewOptions.heightDp.dp * viewOptions.aspectRatio.ratio * .05f + 4.dp,
-                                                            ),
-                                                        vertical = viewOptions.heightDp.dp * .05f + 4.dp,
+                                                        start = (viewOptions.edgePaddingDp ?: viewOptions.spacing).dp,
+                                                        end = (viewOptions.endPaddingDp ?: viewOptions.edgePaddingDp ?: viewOptions.spacing).dp,
+                                                        top = verticalPadding,
+                                                        bottom = verticalPadding,
                                                     )
                                                 } else {
                                                     null
@@ -504,6 +548,22 @@ fun HomePageContent(
                                                     onClick = onClick,
                                                     onLongClick = onLongClick,
                                                     viewOptions = viewOptions,
+                                                    rowAccent =
+                                                        if (item != null && (
+                                                            row.rowType is HomeRowConfig.ContinueWatching ||
+                                                                row.rowType is HomeRowConfig.ContinueWatchingCombined
+                                                            )) {
+                                                            libraries.firstOrNull { it.itemId == item.libraryId }?.let {
+                                                                libraryAccent(it.name, it.collectionType)
+                                                            } ?: typeAccent(item.type)
+                                                        } else if (item != null && row.rowType?.let(StreamingCollections::isStreamingRow) == true) {
+                                                            streamingProviderAccent(item.name) ?: homeRowAccent(row.rowType, libraries)
+                                                        } else if (curated && item != null) {
+                                                            curatedPickAccent(item.name) ?: homeRowAccent(row.rowType, libraries)
+                                                        } else {
+                                                            homeRowAccent(row.rowType, libraries)
+                                                        },
+                                                    borderAccent = if (row.rowType?.let(StreamingCollections::isStreamingRow) == true) streamingProviderBorderAccent(item?.name) else null,
                                                     cornerTextScale = if (curated) CuratedCollections.CARD_SIZE_MULTIPLIER else 1f,
                                                     modifier =
                                                         cardModifier
@@ -532,6 +592,7 @@ fun HomePageContent(
                                                     },
                                                     onLongClick = {},
                                                     viewOptions = viewOptions,
+                                                    rowAccent = homeRowAccent(row.rowType, libraries),
                                                     modifier =
                                                         mod.onFocusChanged {
                                                             if (it.isFocused) {
@@ -581,6 +642,16 @@ fun HomePageContent(
 }
 
 /** Resolve the source library, so named sections such as Boxing keep their rail colour. */
+/** Keep the title in the first focused poster's visual start column, including its border. */
+private fun focusedFirstCardStart(options: HomeRowViewOptions, firstItem: BaseItem?): Dp {
+    val ratio = if (firstItem?.type == BaseItemKind.EPISODE) options.episodeAspectRatio.ratio else options.aspectRatio.ratio
+    val appearance = options.cardAppearance
+    val scale = appearance.focusScalePercent / 100f
+    val growth = options.heightDp * ratio * (scale - 1f).coerceAtLeast(0f) / 2f
+    val border = if (appearance.borderOpacityPercent > 0) appearance.borderWidthDp * scale / 2f else 0f
+    return ((options.edgePaddingDp ?: options.spacing) - growth - border).dp
+}
+
 @Composable
 private fun homeRowAccent(
     row: HomeRowConfig?,
@@ -609,6 +680,10 @@ fun HomePageHeader(
 ) {
     val isEpisode = item?.type == BaseItemKind.EPISODE
     val dto = item?.data
+    if (isWeaselTv() && item != null && StreamingCollections.isStreamingCollection(item.data)) {
+        StreamingProviderHeader(item = item, modifier = modifier)
+        return
+    }
     val context = LocalContext.current
     // Neon Board: eyebrow "KIND · GENRES" in the item's type accent above the title.
     val eyebrow =
@@ -674,7 +749,7 @@ fun HomePageHeader(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier =
                 Modifier
-                    .fillMaxWidth(.6f),
+                    .fillMaxWidth(if (isWeaselTv()) .92f else .6f),
         ) {
             if (subtitle != null) {
                 EpisodeName(subtitle)
@@ -684,7 +759,7 @@ fun HomePageHeader(
                 Modifier
                     .padding(0.dp)
                     .height(48.dp + if (!overviewTwoLines) 12.dp else 0.dp)
-                    .width(400.dp)
+                    .then(if (isWeaselTv()) Modifier.fillMaxWidth() else Modifier.width(400.dp))
             if (overview.isNotNullOrBlank()) {
                 Text(
                     text = overview,
@@ -710,96 +785,104 @@ fun HomePageCardContent(
     viewOptions: HomeRowViewOptions,
     modifier: Modifier,
     cornerTextScale: Float = 1f,
+    rowAccent: Color? = null,
+    borderAccent: Color? = null,
 ) {
-    when (item?.type) {
-        BaseItemKind.GENRE -> {
-            GenreCard(
-                genreId = item.id,
-                name = item.name,
-                imageUrl = item.imageUrlOverride,
-                onClick = onClick,
-                onLongClick = onLongClick,
-                modifier = modifier.height(viewOptions.heightDp.dp),
-            )
-        }
-
-        BaseItemKind.STUDIO -> {
-            StudioCard(
-                studioId = item.id,
-                name = item.name,
-                imageUrl = item.imageUrlOverride,
-                onClick = onClick,
-                onLongClick = onLongClick,
-                modifier = modifier.height(viewOptions.heightDp.dp),
-            )
-        }
-
-        else -> {
-            val imageType =
-                remember(item, viewOptions) {
-                    if (item?.type == BaseItemKind.EPISODE) {
-                        viewOptions.episodeImageType.imageType
-                    } else {
-                        viewOptions.imageType.imageType
-                    }
-                }
-            val ratio =
-                remember(item, viewOptions) {
-                    if (item?.type == BaseItemKind.EPISODE) {
-                        viewOptions.episodeAspectRatio.ratio
-                    } else {
-                        viewOptions.aspectRatio.ratio
-                    }
-                }
-            val scale =
-                remember(item, viewOptions) {
-                    if (item?.type == BaseItemKind.EPISODE) {
-                        viewOptions.episodeContentScale.scale
-                    } else {
-                        viewOptions.contentScale.scale
-                    }
-                }
-            if (viewOptions.showTitles) {
-                BannerCardWithTitle(
-                    title = item?.title,
-                    subtitle = item?.subtitle,
-                    item = item,
-                    aspectRatio = ratio,
-                    imageType = imageType,
-                    imageContentScale = scale,
-                    cornerText = item?.ui?.episodeUnplayedCornerText,
-                    played = item?.data?.userData?.played ?: false,
-                    favorite = item?.favorite ?: false,
-                    playPercent =
-                        item?.data?.userData?.playedPercentage
-                            ?: 0.0,
+    CompositionLocalProvider(
+        LocalHomeCardAppearance provides viewOptions.cardAppearance,
+        LocalHomeRowAccent provides rowAccent,
+        LocalHomeCardBorderAccent provides borderAccent,
+    ) {
+        when (item?.type) {
+            BaseItemKind.GENRE -> {
+                GenreCard(
+                    genreId = item.id,
+                    name = item.name,
+                    imageUrl = item.imageUrlOverride,
                     onClick = onClick,
                     onLongClick = onLongClick,
-                    modifier = modifier,
-                    cardHeight = viewOptions.heightDp.dp,
-                    useSeriesForPrimary = viewOptions.useSeries,
+                    modifier = modifier.height(viewOptions.heightDp.dp),
                 )
-            } else {
-                BannerCard(
-                    name = item?.data?.seriesName ?: item?.name,
-                    item = item,
-                    aspectRatio = ratio,
-                    imageType = imageType,
-                    imageContentScale = scale,
-                    cornerText = item?.ui?.episodeUnplayedCornerText,
-                    played = item?.data?.userData?.played ?: false,
-                    favorite = item?.favorite ?: false,
-                    playPercent =
-                        item?.data?.userData?.playedPercentage
-                            ?: 0.0,
+            }
+
+            BaseItemKind.STUDIO -> {
+                StudioCard(
+                    studioId = item.id,
+                    name = item.name,
+                    imageUrl = item.imageUrlOverride,
                     onClick = onClick,
                     onLongClick = onLongClick,
-                    modifier = modifier,
-                    interactionSource = null,
-                    cardHeight = viewOptions.heightDp.dp,
-                    useSeriesForPrimary = viewOptions.useSeries,
-                    cornerTextScale = cornerTextScale,
+                    modifier = modifier.height(viewOptions.heightDp.dp),
                 )
+            }
+
+            else -> {
+                val imageType =
+                    remember(item, viewOptions) {
+                        if (item?.type == BaseItemKind.EPISODE) {
+                            viewOptions.episodeImageType.imageType
+                        } else {
+                            viewOptions.imageType.imageType
+                        }
+                    }
+                val ratio =
+                    remember(item, viewOptions) {
+                        if (item?.type == BaseItemKind.EPISODE) {
+                            viewOptions.episodeAspectRatio.ratio
+                        } else {
+                            viewOptions.aspectRatio.ratio
+                        }
+                    }
+                val scale =
+                    remember(item, viewOptions) {
+                        if (item?.type == BaseItemKind.EPISODE) {
+                            viewOptions.episodeContentScale.scale
+                        } else {
+                            viewOptions.contentScale.scale
+                        }
+                    }
+                if (viewOptions.showTitles) {
+                    BannerCardWithTitle(
+                        title = item?.title,
+                        subtitle = item?.subtitle,
+                        item = item,
+                        aspectRatio = ratio,
+                        imageType = imageType,
+                        imageContentScale = scale,
+                        cornerText = item?.ui?.episodeUnplayedCornerText,
+                        played = item?.data?.userData?.played ?: false,
+                        favorite = item?.favorite ?: false,
+                        playPercent =
+                            item?.data?.userData?.playedPercentage
+                                ?: 0.0,
+                        onClick = onClick,
+                        onLongClick = onLongClick,
+                        modifier = modifier,
+                        cardHeight = viewOptions.heightDp.dp,
+                        useSeriesForPrimary = viewOptions.useSeries,
+                    )
+                } else {
+                    BannerCard(
+                        name = item?.data?.seriesName ?: item?.name,
+                        item = item,
+                        aspectRatio = ratio,
+                        imageType = imageType,
+                        imageContentScale = scale,
+                        cornerText = item?.ui?.episodeUnplayedCornerText,
+                        played = item?.data?.userData?.played ?: false,
+                        favorite = item?.favorite ?: false,
+                        playPercent =
+                            item?.data?.userData?.playedPercentage
+                                ?: 0.0,
+                        onClick = onClick,
+                        onLongClick = onLongClick,
+                        modifier = modifier,
+                        interactionSource = null,
+                        cardHeight = viewOptions.heightDp.dp,
+                        useSeriesForPrimary = viewOptions.useSeries,
+                        cornerTextScale = cornerTextScale,
+                    )
+                }
             }
         }
     }
@@ -812,6 +895,7 @@ fun HomePageViewMoreCard(
     onLongClick: () -> Unit,
     viewOptions: HomeRowViewOptions,
     modifier: Modifier,
+    rowAccent: Color? = null,
 ) {
     val aspectRatio =
         remember(isEpisode, viewOptions) {
@@ -821,12 +905,17 @@ fun HomePageViewMoreCard(
                 viewOptions.aspectRatio
             }
         }
-    ViewMoreCard(
-        onClick = onClick,
-        onLongClick = onLongClick,
-        modifier = modifier,
-        aspectRatio = aspectRatio,
-        size = DpSize(height = viewOptions.heightDp.dp, width = Dp.Unspecified),
-        showTitle = viewOptions.showTitles,
-    )
+    CompositionLocalProvider(
+        LocalHomeCardAppearance provides viewOptions.cardAppearance,
+        LocalHomeRowAccent provides rowAccent,
+    ) {
+        ViewMoreCard(
+            onClick = onClick,
+            onLongClick = onLongClick,
+            modifier = modifier,
+            aspectRatio = aspectRatio,
+            size = DpSize(height = viewOptions.heightDp.dp, width = Dp.Unspecified),
+            showTitle = viewOptions.showTitles,
+        )
+    }
 }

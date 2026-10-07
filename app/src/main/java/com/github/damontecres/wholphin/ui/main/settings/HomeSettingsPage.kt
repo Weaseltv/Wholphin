@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,6 +29,7 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.surfaceColorAtElevation
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
@@ -43,6 +45,7 @@ import com.github.damontecres.wholphin.ui.main.settings.HomeSettingsDestination.
 import com.github.damontecres.wholphin.ui.main.settings.HomeSettingsDestination.RowSettings
 import com.github.damontecres.wholphin.ui.rememberPosition
 import com.github.damontecres.wholphin.ui.search.SearchForDialog
+import com.github.damontecres.wholphin.ui.theme.LocalNeonRuleInsets
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import kotlinx.coroutines.Job
@@ -66,6 +69,21 @@ fun HomeSettingsPage(
     var showRemovedNextUpDialog by remember { mutableStateOf(false) }
 
     val state by viewModel.state.collectAsState()
+    var showLayoutTuner by remember { mutableStateOf(false) }
+    if (BuildConfig.BUILD_TYPE == "alpha" && showLayoutTuner) {
+        AlphaHomeLayoutTuner(
+            state = state,
+            preferences = preferences,
+            onChange = viewModel::updateLayoutOptions,
+            onUpdateBackdrop = viewModel::updateBackdrop,
+            onClose = {
+                viewModel.saveToLocal()
+                showLayoutTuner = false
+            },
+            modifier = modifier,
+        )
+        return
+    }
     var position by rememberPosition(0, 0)
     // TODO discover rows
     val discoverEnabled = false // by viewModel.discoverEnabled.collectAsState(false)
@@ -120,6 +138,7 @@ fun HomeSettingsPage(
                                     onClickAdd = { backStack.add(HomeSettingsDestination.AddRow) },
                                     onClickSettings = { backStack.add(HomeSettingsDestination.GlobalSettings) },
                                     onClickPresets = { backStack.add(HomeSettingsDestination.Presets) },
+                                    onClickLayoutTuner = if (BuildConfig.BUILD_TYPE == "alpha") ({ showLayoutTuner = true }) else null,
                                     onClickMove = viewModel::moveRow,
                                     onClickDelete = viewModel::deleteRow,
                                     onClick = { index, row ->
@@ -324,27 +343,32 @@ fun HomeSettingsPage(
                 },
             )
         }
-        HomePageContent(
-            loadingState = state.loading,
-            homeRows = state.rowData,
-            libraries = state.libraries,
-            position = position,
-            onFocusPosition = { position = it },
-            onClickItem = { _, _ -> },
-            onLongClickItem = { _, _ -> },
-            onClickPlay = { _, _ -> },
-            showClock = false,
-            onUpdateBackdrop = viewModel::updateBackdrop,
-            listState = listState,
-            takeFocus = false,
-            showEmptyRows = true,
-            showLogo = preferences.appPreferences.interfacePreferences.showLogos,
-            showViewMore = false,
-            modifier =
-                Modifier
-                    .fillMaxHeight()
-                    .weight(1f),
-        )
+        // The preview starts after an 8dp panel gap, independently of the page's left gutter.
+        CompositionLocalProvider(
+            LocalNeonRuleInsets provides LocalNeonRuleInsets.current.copy(start = 8.dp),
+        ) {
+            HomePageContent(
+                loadingState = state.loading,
+                homeRows = state.rowData,
+                libraries = state.libraries,
+                position = position,
+                onFocusPosition = { position = it },
+                onClickItem = { _, _ -> },
+                onLongClickItem = { _, _ -> },
+                onClickPlay = { _, _ -> },
+                showClock = false,
+                onUpdateBackdrop = viewModel::updateBackdrop,
+                listState = listState,
+                takeFocus = false,
+                showEmptyRows = true,
+                showLogo = preferences.appPreferences.interfacePreferences.showLogos,
+                showViewMore = false,
+                modifier =
+                    Modifier
+                        .fillMaxHeight()
+                        .weight(1f),
+            )
+        }
     }
     showConfirmDialog?.let { (body, onConfirm) ->
         ConfirmDialog(

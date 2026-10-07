@@ -48,6 +48,7 @@ class ApiRequestPager<T>(
     pageSize: Int = DEFAULT_PAGE_SIZE,
     cacheSize: Long = 8,
     private val useSeriesForPrimary: Boolean = false,
+    private val transformItems: suspend (List<BaseItem>) -> List<BaseItem> = { it },
 ) : RequestPager<BaseItem>(scope, pageSize, cacheSize) {
     override suspend fun init(initialPosition: Int): ApiRequestPager<T> = super.init(initialPosition) as ApiRequestPager<T>
 
@@ -65,7 +66,7 @@ class ApiRequestPager<T>(
         val result = requestHandler.execute(api, newRequest).content
         val data = mutableListOf<BaseItem>()
         result.items.forEach { data.add(BaseItem(it, useSeriesForPrimary)) }
-        return QueryResult(data, result.totalRecordCount)
+        return QueryResult(transformItems(data), result.totalRecordCount)
     }
 
     suspend fun refreshItem(
@@ -85,7 +86,7 @@ class ApiRequestPager<T>(
             val index = position - pageNumber * pageSize
             val page = cachedPages.getIfPresent(pageNumber)
             if (page != null && index in page.indices) {
-                page[index] = item
+                page[index] = transformItems(listOf(item)).first()
                 cachedPages.put(pageNumber, page)
                 items = ItemList(size, pageSize, cachedPages.asMap())
             }

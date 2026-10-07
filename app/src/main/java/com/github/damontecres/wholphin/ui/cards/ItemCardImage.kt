@@ -47,11 +47,15 @@ import com.github.damontecres.wholphin.ui.gt
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.logCoilError
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.LocalPosterCountAppearance
+import com.github.damontecres.wholphin.ui.theme.LocalHidePosterTypeBadge
+import com.github.damontecres.wholphin.ui.theme.LocalCollectionCardAppearance
 import com.github.damontecres.wholphin.ui.theme.NeonBadge
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonAccentFor
 import com.github.damontecres.wholphin.ui.theme.neonProgress
+import com.github.damontecres.wholphin.ui.theme.typeAccent
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ImageType
 
@@ -122,6 +126,7 @@ fun ItemCardImage(
         accent = accent,
         typeBadge = typeBadge,
         typeBadgeFilled = badgeFilled,
+        progressAccent = typeAccent(item?.type),
     )
 }
 
@@ -141,6 +146,7 @@ fun ItemCardImage(
     accent: Color = LocalNeonAccent.current,
     typeBadge: String? = null,
     typeBadgeFilled: Boolean = false,
+    progressAccent: Color = accent,
     fallback: @Composable BoxScope.() -> Unit = {
         ItemCardImageFallback(
             name = name,
@@ -181,6 +187,7 @@ fun ItemCardImage(
                 accent = accent,
                 typeBadge = typeBadge,
                 typeBadgeFilled = typeBadgeFilled,
+                progressAccent = progressAccent,
                 modifier = Modifier,
             )
         }
@@ -243,7 +250,11 @@ fun ItemCardImageOverlay(
     accent: Color = LocalNeonAccent.current,
     typeBadge: String? = null,
     typeBadgeFilled: Boolean = false,
+    progressAccent: Color = accent,
 ) {
+    val collectionAppearance = LocalCollectionCardAppearance.current.takeIf { isWeaselTv() }
+    val collectionBadge = collectionAppearance?.collectionBadge
+    val countAppearance = LocalPosterCountAppearance.current.takeIf { isWeaselTv() }
     Box(modifier = modifier.fillMaxSize()) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -251,9 +262,12 @@ fun ItemCardImageOverlay(
             modifier =
                 Modifier
                     .align(Alignment.TopStart)
-                    .padding(if (isWeaselTv()) 8.dp else 4.dp),
+                    .padding(
+                        horizontal = collectionBadge?.horizontalInsetDp?.dp ?: if (isWeaselTv()) 8.dp else 4.dp,
+                        vertical = collectionBadge?.verticalInsetDp?.dp ?: if (isWeaselTv()) 8.dp else 4.dp,
+                    ),
         ) {
-            if (typeBadge != null) {
+            if (typeBadge != null && collectionAppearance == null && !LocalHidePosterTypeBadge.current) {
                 NeonBadge(
                     text = typeBadge,
                     accent = if (typeBadgeFilled) NeonBoard.Green else accent,
@@ -287,7 +301,10 @@ fun ItemCardImageOverlay(
             verticalAlignment = Alignment.CenterVertically,
             modifier =
                 Modifier
-                    .padding(4.dp)
+                    .padding(
+                        horizontal = countAppearance?.badgeHorizontalInsetDp?.dp ?: 4.dp,
+                        vertical = countAppearance?.badgeVerticalInsetDp?.dp ?: 4.dp,
+                    )
                     .align(Alignment.TopEnd),
         ) {
             if (watched && (watchedPercent == null || watchedPercent <= 0.0 || watchedPercent >= 100.0)) {
@@ -298,16 +315,24 @@ fun ItemCardImageOverlay(
                     modifier =
                         Modifier
                             .background(
-                                AppColors.TransparentBlack50,
-                                shape = RoundedCornerShape(25),
+                                Color.Black.copy(alpha = (countAppearance?.badgeBackgroundOpacityPercent ?: 50) / 100f),
+                                shape = RoundedCornerShape(countAppearance?.badgeCornerPercent ?: 25),
                             ),
                 ) {
                     Text(
                         text = unwatchedCount.toString(),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = (countAppearance?.badgeTextOpacityPercent ?: 100) / 100f),
+                        style = if (countAppearance != null) {
+                            MaterialTheme.typography.bodySmall.let {
+                                val size = countAppearance.badgeTextSizeSp?.sp ?: it.fontSize
+                                it.copy(fontSize = size, lineHeight = size * (it.lineHeight.value / it.fontSize.value))
+                            }
+                        } else MaterialTheme.typography.bodyMedium,
 //                            fontSize = 16.sp,
-                        modifier = Modifier.padding(4.dp),
+                        modifier = Modifier.padding(
+                            horizontal = countAppearance?.badgeHorizontalPaddingDp?.dp ?: 4.dp,
+                            vertical = countAppearance?.badgeVerticalPaddingDp?.dp ?: 4.dp,
+                        ),
                     )
                 }
             }
@@ -321,7 +346,7 @@ fun ItemCardImageOverlay(
                         .align(Alignment.BottomStart)
                         .then(
                             if (isWeaselTv()) {
-                                Modifier.neonProgress(accent)
+                                Modifier.neonProgress(progressAccent)
                             } else {
                                 Modifier.background(MaterialTheme.colorScheme.tertiary)
                             },

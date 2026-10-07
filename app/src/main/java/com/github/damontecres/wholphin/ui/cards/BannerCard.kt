@@ -42,13 +42,13 @@ import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
-import com.github.damontecres.wholphin.services.StreamingCollections
-import com.github.damontecres.wholphin.ui.AppColors
 import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.enableMarquee
+import com.github.damontecres.wholphin.ui.theme.LocalPosterCountAppearance
+import com.github.damontecres.wholphin.ui.theme.LocalHomeCardAppearance
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
@@ -58,6 +58,8 @@ import com.github.damontecres.wholphin.ui.theme.neonCardGlow
 import com.github.damontecres.wholphin.ui.theme.neonCardScale
 import com.github.damontecres.wholphin.ui.theme.neonCardShape
 import com.github.damontecres.wholphin.ui.theme.neonProgress
+import com.github.damontecres.wholphin.ui.theme.typeAccent
+import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ImageType
 
 /**
@@ -83,11 +85,11 @@ fun BannerCard(
     useSeriesForPrimary: Boolean = true,
     cornerTextScale: Float = 1f,
 ) {
-    val outlineMax =
-        isWeaselTv() && item?.data?.let {
-            StreamingCollections.isStreamingCollection(it) &&
-                (it.name.equals("Max", ignoreCase = true) || it.name.equals("HBO Max", ignoreCase = true))
-        } == true
+    val appearance = LocalPosterCountAppearance.current ?: LocalHomeCardAppearance.current
+    val badgeInsetX = appearance.badgeHorizontalInsetDp?.dp ?: (4.dp * cornerTextScale)
+    val badgeInsetY = appearance.badgeVerticalInsetDp?.dp ?: (4.dp * cornerTextScale)
+    val badgePaddingX = appearance.badgeHorizontalPaddingDp?.dp ?: (4.dp * cornerTextScale)
+    val badgePaddingY = appearance.badgeVerticalPaddingDp?.dp ?: (4.dp * cornerTextScale)
     val imageUrlService = LocalImageUrlService.current
     val density = LocalDensity.current
     val fillHeight =
@@ -115,7 +117,23 @@ fun BannerCard(
                 null
             }
         }
-    var imageError by remember(imageUrl) { mutableStateOf(false) }
+    val collectionPosterUrl =
+        remember(item, fillHeight, imageType) {
+            if (item?.type == BaseItemKind.BOX_SET && imageType != ImageType.PRIMARY) {
+                imageUrlService.getItemImageUrl(
+                    item,
+                    ImageType.PRIMARY,
+                    fillHeight = fillHeight,
+                    useSeriesForPrimary = false,
+                )
+            } else {
+                null
+            }
+        }
+    // Retry after image-setting changes, even when a collection's URL stays the same.
+    var useCollectionPoster by remember(item, imageUrl, useSeriesForPrimary) { mutableStateOf(false) }
+    val displayedImageUrl = if (useCollectionPoster) collectionPosterUrl else imageUrl
+    var imageError by remember(item, displayedImageUrl, useSeriesForPrimary) { mutableStateOf(false) }
 
     // Stabilize callbacks to prevent AsyncImage from recomposing
     val currentOnClick by rememberUpdatedState(onClick)
@@ -132,12 +150,7 @@ fun BannerCard(
             ),
         shape = neonCardShape(),
         scale = neonCardScale(),
-        border =
-            neonCardBorder(
-                accent = accent,
-                restWidth = if (outlineMax) 1.dp else 0.dp,
-                restColor = NeonBoard.Low,
-            ),
+        border = neonCardBorder(accent = accent),
         glow = neonCardGlow(accent),
     ) {
         Box(
@@ -146,12 +159,18 @@ fun BannerCard(
                     .fillMaxSize(),
 //                    .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
-            if (!imageError && imageUrl != null) {
+            if (!imageError && displayedImageUrl != null) {
                 AsyncImage(
-                    model = imageUrl,
+                    model = displayedImageUrl,
                     contentDescription = null,
                     contentScale = imageContentScale,
-                    onError = remember { { imageError = true } },
+                    onError = {
+                        if (!useCollectionPoster && collectionPosterUrl != null && collectionPosterUrl != displayedImageUrl) {
+                            useCollectionPoster = true
+                        } else {
+                            imageError = true
+                        }
+                    },
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
@@ -173,7 +192,7 @@ fun BannerCard(
                     modifier =
                         Modifier
                             .align(Alignment.TopEnd)
-                            .padding(4.dp * cornerTextScale),
+                            .padding(horizontal = badgeInsetX, vertical = badgeInsetY),
                 ) {
                     if (played && (playPercent <= 0 || playPercent >= 100)) {
                         WatchedIcon(Modifier.size(24.dp))
@@ -183,18 +202,19 @@ fun BannerCard(
                             modifier =
                                 Modifier
                                     .background(
-                                        AppColors.TransparentBlack50,
-                                        shape = RoundedCornerShape(25),
+                                        Color.Black.copy(alpha = appearance.badgeBackgroundOpacityPercent / 100f),
+                                        shape = RoundedCornerShape(appearance.badgeCornerPercent),
                                     ),
                         ) {
                             Text(
                                 text = cornerText,
                                 style =
                                     MaterialTheme.typography.bodySmall.let {
-                                        it.copy(fontSize = it.fontSize * cornerTextScale, lineHeight = it.lineHeight * cornerTextScale)
+                                        val size = appearance.badgeTextSizeSp?.sp ?: (it.fontSize * cornerTextScale)
+                                        it.copy(fontSize = size, lineHeight = size * (it.lineHeight.value / it.fontSize.value))
                                     },
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(4.dp * cornerTextScale),
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = appearance.badgeTextOpacityPercent / 100f),
+                                modifier = Modifier.padding(horizontal = badgePaddingX, vertical = badgePaddingY),
                             )
                         }
                     }
@@ -220,7 +240,7 @@ fun BannerCard(
                             .align(Alignment.BottomStart)
                             .then(
                                 if (isWeaselTv()) {
-                                    Modifier.neonProgress(accent)
+                                    Modifier.neonProgress(typeAccent(item?.type))
                                 } else {
                                     Modifier.background(MaterialTheme.colorScheme.tertiary)
                                 },
@@ -280,30 +300,8 @@ fun BannerCardWithTitle(
             useSeriesForPrimary = useSeriesForPrimary,
         )
         SlidingCardText(focused) {
-            Text(
-                text = title ?: "",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                textAlign = TextAlign.Center,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp)
-                        .enableMarquee(focusedAfterDelay),
-            )
-            Text(
-                text = subtitle ?: "",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Normal,
-                maxLines = 1,
-                textAlign = TextAlign.Center,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp)
-                        .enableMarquee(focusedAfterDelay),
-            )
+            PosterCardTitle(title, focused)
+            PosterCardSubtitle(subtitle)
         }
     }
 }

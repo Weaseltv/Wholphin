@@ -138,7 +138,7 @@ fun ViewOptionsDialog(
 @Serializable
 data class ViewOptions(
     val columns: Int = 6,
-    val spacing: Int = 16,
+    val spacing: Int = 14,
     val contentScale: PrefContentScale = PrefContentScale.FIT,
     val aspectRatio: AspectRatio = AspectRatio.TALL,
     val showDetails: Boolean = false,
@@ -283,7 +283,7 @@ data class ViewOptions(
 val ViewOptionsPoster =
     ViewOptions(
         columns = 6,
-        spacing = 16,
+        spacing = 14,
         contentScale = PrefContentScale.FILL,
     )
 val ViewOptionsWide =
@@ -296,7 +296,7 @@ val ViewOptionsWide =
 val ViewOptionsSquare =
     ViewOptions(
         columns = 6,
-        spacing = 16,
+        spacing = 14,
         contentScale = PrefContentScale.FILL,
         aspectRatio = AspectRatio.SQUARE,
     )

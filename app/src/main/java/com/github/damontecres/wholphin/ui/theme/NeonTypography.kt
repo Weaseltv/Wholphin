@@ -233,10 +233,10 @@ object NeonType {
     @ReadOnlyComposable
     fun rowSubtitle(): TextStyle = barlow(14.sp, FontWeight.Normal, 1.3f, 0.sp, MaterialTheme.typography.bodyMedium)
 
-    /** Card title under the poster: 15 / 600. */
+    /** Card title under the poster: 14 / 600. */
     @Composable
     @ReadOnlyComposable
-    fun cardTitle(): TextStyle = barlow(15.sp, FontWeight.SemiBold, 1.3f, 0.sp, MaterialTheme.typography.titleSmall)
+    fun cardTitle(): TextStyle = barlow(14.sp, FontWeight.SemiBold, 1.3f, 0.sp, MaterialTheme.typography.titleSmall)
 
     /** Card subtitle: 13 / 400. */
     @Composable

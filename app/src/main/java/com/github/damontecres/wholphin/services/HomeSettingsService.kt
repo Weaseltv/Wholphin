@@ -8,6 +8,7 @@ import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomePageSettings
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.data.model.SUPPORTED_HOME_PAGE_SETTINGS_VERSION
 import com.github.damontecres.wholphin.data.model.createGenreDestination
@@ -41,7 +42,11 @@ import com.github.damontecres.wholphin.util.GetStudiosRequestHandler
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import com.github.damontecres.wholphin.util.HomeRowLoadingState.Success
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
@@ -56,6 +61,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.liveTvApi
+import org.jellyfin.sdk.api.client.extensions.libraryApi
 import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.model.DateTime
@@ -123,7 +129,9 @@ class HomeSettingsService
             displayPreferencesId: String = DisplayPreferencesService.DEFAULT_DISPLAY_PREF_ID,
         ) {
             displayPreferencesService.updateDisplayPreferences(userId, displayPreferencesId) {
-                put(CUSTOM_PREF_ID, jsonParser.encodeToString(settings))
+                put(CUSTOM_PREF_ID, jsonParser.encodeToString(
+                    if (BuildConfig.FLAVOR == "weaselfin") settings.copy(layoutDefaultsRevision = ApprovedHomeLayout.REVISION) else settings,
+                ))
             }
         }
 
@@ -164,7 +172,10 @@ class HomeSettingsService
             val dir = File(context.filesDir, CUSTOM_PREF_ID)
             dir.mkdirs()
             File(dir, filename(userId)).outputStream().use {
-                jsonParser.encodeToStream(settings, it)
+                jsonParser.encodeToStream(
+                    if (BuildConfig.FLAVOR == "weaselfin") settings.copy(layoutDefaultsRevision = ApprovedHomeLayout.REVISION) else settings,
+                    it,
+                )
             }
         }
 
@@ -208,7 +219,11 @@ class HomeSettingsService
                             null
                         }
                     }.orEmpty()
-            return HomePageSettings(rows, version)
+            return HomePageSettings(
+                rows,
+                version,
+                layoutDefaultsRevision = element.jsonObject["layoutDefaultsRevision"]?.jsonPrimitive?.intOrNull ?: 0,
+            )
         }
 
         /**
@@ -251,11 +266,66 @@ class HomeSettingsService
                     createDefault(userId)
                 }
 
-            currentSettings.update {
+            val homeSettings =
                 if (BuildConfig.FLAVOR == "weaselfin") {
-                    CuratedCollections.withCuratedRow(resolvedSettings)
+                    applyApprovedLayoutOnce(userId, settings?.layoutDefaultsRevision ?: 0, CuratedCollections.withCuratedRow(resolvedSettings))
                 } else {
                     resolvedSettings
+                }
+            currentSettings.update { homeSettings }
+            if (BuildConfig.FLAVOR == "weaselfin") syncApprovedLayoutToServer(userId, homeSettings)
+        }
+
+        /** Owner requested matching the remaining Alpha rows to the first two tuned rows. */
+        /** Apply the owner-approved layout once; later user edits are retained. */
+        private suspend fun applyApprovedLayoutOnce(
+            userId: UUID,
+            revision: Int,
+            settings: HomePageResolvedSettings,
+        ): HomePageResolvedSettings {
+            if (revision >= ApprovedHomeLayout.REVISION) return settings
+            val matched = HomePageResolvedSettings(
+                settings.rows.map { row ->
+                    row.copy(config = row.config.updateViewOptions(
+                        ApprovedHomeLayout.upgrade(row.config.viewOptions, revision, StreamingCollections.isStreamingRow(row.config), CuratedCollections.isCuratedRow(row.config)),
+                    ))
+                },
+            )
+            saveToLocal(userId, HomePageSettings(matched.rows.map { it.config }, SUPPORTED_HOME_PAGE_SETTINGS_VERSION))
+            return matched
+        }
+
+        /** Save approved defaults to both Alpha and customer server-backed Home preferences. */
+        private suspend fun syncApprovedLayoutToServer(
+            userId: UUID,
+            settings: HomePageResolvedSettings,
+        ) {
+            val migrations = context.getSharedPreferences("home_layout_server_migrations", Context.MODE_PRIVATE)
+            for (client in listOf(DisplayPreferencesService.DEFAULT_CLIENT, "Wholphin").distinct()) {
+                val key = "approved_layout_${ApprovedHomeLayout.REVISION}_${userId}_$client"
+                if (migrations.getBoolean(key, false)) continue
+                try {
+                    displayPreferencesService.updateDisplayPreferences(userId, client = client) {
+                        val existing = get(CUSTOM_PREF_ID)?.let { decode(jsonParser.parseToJsonElement(it)) }
+                        val base = existing ?: HomePageSettings(settings.rows.map { it.config }, SUPPORTED_HOME_PAGE_SETTINGS_VERSION)
+                        if (base.layoutDefaultsRevision < ApprovedHomeLayout.REVISION) {
+                            val rows = base.rows.map { row ->
+                                val options = ApprovedHomeLayout.upgrade(
+                                    row.viewOptions,
+                                    if (existing == null) ApprovedHomeLayout.REVISION else base.layoutDefaultsRevision,
+                                    StreamingCollections.isStreamingRow(row),
+                                    CuratedCollections.isCuratedRow(row),
+                                )
+                                row.updateViewOptions(options)
+                            }
+                            put(CUSTOM_PREF_ID, jsonParser.encodeToString(base.copy(rows = rows, layoutDefaultsRevision = ApprovedHomeLayout.REVISION)))
+                        }
+                    }
+                    migrations.edit().putBoolean(key, true).apply()
+                } catch (ex: CancellationException) {
+                    throw ex
+                } catch (ex: Exception) {
+                    Timber.w(ex, "Unable to save approved Home defaults for %s", client)
                 }
             }
         }
@@ -604,6 +674,39 @@ class HomeSettingsService
                 ResStringProvider(R.string.unknown)
             }
 
+        private val mediaLibraries = java.util.concurrent.ConcurrentHashMap<Pair<UUID, UUID>, UUID>()
+
+        /** Resolve real library membership; media type alone cannot distinguish Sports or Comedy. */
+        suspend fun resolveItemLibraries(
+            items: List<BaseItem>,
+            userId: UUID,
+            libraries: List<Library>,
+        ): List<BaseItem> {
+            if (BuildConfig.FLAVOR != "weaselfin") return items
+            val libraryIds = libraries.map { it.itemId }.toSet()
+            return coroutineScope {
+                items.map { item ->
+                    async {
+                        val ancestorId = item.data.seriesId ?: item.data.parentId ?: item.id
+                        val key = userId to ancestorId
+                        val direct = listOfNotNull(item.data.parentId, ancestorId).firstOrNull { it in libraryIds }
+                        val cached = mediaLibraries[key]?.takeIf { it in libraryIds }
+                        val libraryId = direct ?: cached ?: try {
+                            api.libraryApi.getAncestors(itemId = ancestorId, userId = userId)
+                                .content.firstOrNull { it.id in libraryIds }?.id
+                                ?.also { mediaLibraries[key] = it }
+                        } catch (ex: CancellationException) {
+                            throw ex
+                        } catch (ex: Exception) {
+                            Timber.w(ex, "Unable to resolve item library")
+                            null
+                        }
+                        item.copy(libraryId = libraryId)
+                    }
+                }.awaitAll()
+            }
+        }
+
         /**
          * Fetch the data from the server for a given [HomeRowConfig]
          */
@@ -629,7 +732,7 @@ class HomeSettingsService
 
                     Success(
                         title = ResStringProvider(R.string.continue_watching),
-                        items = resume,
+                        items = resolveItemLibraries(resume, userDto.id, libraries),
                         viewOptions = row.viewOptions,
                         rowType = row,
                         showViewMore = resume.size >= limit,
@@ -677,7 +780,7 @@ class HomeSettingsService
 
                     Success(
                         title = ResStringProvider(R.string.continue_watching),
-                        items = combined.take(limit),
+                        items = resolveItemLibraries(combined.take(limit), userDto.id, libraries),
                         viewOptions = row.viewOptions,
                         rowType = row,
                         showViewMore = combined.size >= limit,
@@ -1333,8 +1436,8 @@ fun viewOptionsForCollectionType(collectionType: CollectionType?): HomeRowViewOp
         CollectionType.MUSIC,
         -> {
             HomeRowViewOptions(
-                heightDp = Cards.HEIGHT_EPISODE,
-                aspectRatio = AspectRatio.SQUARE,
+                heightDp = if (BuildConfig.FLAVOR == "weaselfin") BuildConfig.DEFAULT_CARD_HEIGHT_DP else Cards.HEIGHT_EPISODE,
+                aspectRatio = if (BuildConfig.FLAVOR == "weaselfin") AspectRatio.TALL else AspectRatio.SQUARE,
             )
         }
 
@@ -1344,8 +1447,8 @@ fun viewOptionsForCollectionType(collectionType: CollectionType?): HomeRowViewOp
         CollectionType.TRAILERS,
         -> {
             HomeRowViewOptions(
-                heightDp = Cards.HEIGHT_EPISODE,
-                aspectRatio = AspectRatio.WIDE,
+                heightDp = if (BuildConfig.FLAVOR == "weaselfin") BuildConfig.DEFAULT_CARD_HEIGHT_DP else Cards.HEIGHT_EPISODE,
+                aspectRatio = if (BuildConfig.FLAVOR == "weaselfin") AspectRatio.TALL else AspectRatio.WIDE,
             )
         }
 

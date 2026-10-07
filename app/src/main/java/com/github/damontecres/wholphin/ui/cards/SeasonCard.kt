@@ -218,32 +218,8 @@ fun SeasonCard(
                         }
                     }.fillMaxWidth(),
         ) {
-            Text(
-                text = title ?: "",
-                maxLines = 1,
-                textAlign = TextAlign.Center,
-                style = if (isWeaselTv()) NeonType.cardTitle() else MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = if (isWeaselTv()) (if (focused) NeonBoard.Text else NeonBoard.Mid) else Color.Unspecified,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp)
-                        .enableMarquee(focusedAfterDelay),
-            )
-            Text(
-                text = subtitle ?: "",
-                maxLines = 1,
-                textAlign = TextAlign.Center,
-                style = if (isWeaselTv()) NeonType.cardSubtitle() else MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.Normal,
-                color = if (isWeaselTv()) NeonBoard.Low else Color.Unspecified,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp)
-                        .enableMarquee(focusedAfterDelay),
-            )
+            PosterCardTitle(title, focused)
+            PosterCardSubtitle(subtitle)
         }
     }
 }

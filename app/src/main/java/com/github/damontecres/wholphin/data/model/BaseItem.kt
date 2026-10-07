@@ -46,6 +46,7 @@ data class BaseItem(
     val useSeriesForPrimary: Boolean = false,
     val imageUrlOverride: String? = null,
     val destinationOverride: Destination? = null,
+    @Transient val libraryId: UUID? = null,
 ) : CardGridItem {
     val id get() = data.id
 

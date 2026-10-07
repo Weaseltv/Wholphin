@@ -18,9 +18,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import com.github.damontecres.wholphin.preferences.AppThemeColors
@@ -43,6 +46,7 @@ fun SliderBar(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     interval: Int = 1,
     colors: SliderColors = SliderColors.default(),
+    outlineColor: Color? = null,
 ) {
     val isFocused by interactionSource.collectIsFocusedAsState()
     val animatedIndicatorHeight by animateDpAsState(
@@ -89,6 +93,25 @@ fun SliderBar(
                     .focusable(interactionSource = interactionSource),
             onDraw = {
                 val yOffset = size.height.div(2)
+                if (outlineColor != null) {
+                    val radius = CornerRadius(size.height / 2f)
+                    drawRoundRect(color = Color.Black, cornerRadius = radius)
+                    if (percent > 0f) {
+                        drawRoundRect(
+                            color = if (isFocused) colors.activeFocused else colors.activeUnfocused,
+                            size = Size(size.width * percent.coerceIn(0f, 1f), size.height),
+                            cornerRadius = radius,
+                        )
+                    }
+                    val stroke = 1.dp.toPx()
+                    drawRoundRect(
+                        color = outlineColor,
+                        topLeft = Offset(stroke / 2f, stroke / 2f),
+                        size = Size((size.width - stroke).coerceAtLeast(0f), (size.height - stroke).coerceAtLeast(0f)),
+                        cornerRadius = radius,
+                        style = Stroke(stroke),
+                    )
+                } else {
                 drawLine(
                     color = if (isFocused) colors.inactiveFocused else colors.inactiveUnfocused,
                     start = Offset(x = 0f, y = yOffset),
@@ -108,6 +131,7 @@ fun SliderBar(
                     strokeWidth = size.height,
                     cap = StrokeCap.Round,
                 )
+                }
                 drawCircle(
                     color = Color.White,
                     radius = size.height + 2,

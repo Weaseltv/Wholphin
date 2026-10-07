@@ -83,7 +83,7 @@ import com.github.damontecres.wholphin.ui.letNotEmpty
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.ui.theme.ProvideNeonAccent
-import com.github.damontecres.wholphin.ui.theme.itemAccent
+import com.github.damontecres.wholphin.ui.theme.neonAccentFor
 import com.github.damontecres.wholphin.ui.util.ResStringProvider
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.DiscoverRequestType
@@ -185,7 +185,7 @@ fun SeriesDetails(
             }
             val series = st.data
             val played = series.data.userData?.played ?: false
-            ProvideNeonAccent(itemAccent(series)) {
+            ProvideNeonAccent(neonAccentFor(series)) {
                 SeriesDetailsContent(
                     preferences = preferences,
                     series = series,

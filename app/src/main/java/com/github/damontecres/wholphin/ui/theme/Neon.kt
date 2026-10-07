@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.ui.theme
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +22,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Border
 import androidx.tv.material3.CardBorder
 import androidx.tv.material3.CardDefaults
@@ -44,6 +46,8 @@ import androidx.tv.material3.NavigationDrawerItemColors
 import androidx.tv.material3.NavigationDrawerItemDefaults
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.data.model.BaseItem
+import com.github.damontecres.wholphin.data.model.HomeCardAppearance
+import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.ui.nav.NavDrawerItem
 import com.github.damontecres.wholphin.ui.nav.ServerNavDrawerItem
@@ -76,12 +80,17 @@ object NeonBoard {
     val Low = Color(0xFF6B7686)
     val OnAccent = Color(0xFF050608)
 
-    val Volt = Color(0xFFD4F63F)
-    val Green = Color(0xFF39FF14)
-    val Cyan = Color(0xFF00F0FF)
-    val Orange = Color(0xFFFF7A00)
-    val Yellow = Color(0xFFFFD400)
-    val Red = Color(0xFFFF3B4E)
+    val Volt = Color(0xFFC6FF00)
+    val Green = Color(0xFF3DFF6E)
+    val Cyan = Color(0xFF00E5FF)
+    val Orange = Color(0xFFFFB000)
+    val Yellow = Color(0xFFFFE600)
+    val Red = Color(0xFFFF2A3D)
+    val ElectricBlue = Color(0xFF0088FF)
+    val Teal = Color(0xFF00C2A0)
+    val Fuchsia = Color(0xFFFF1A8C)
+    val Violet = Color(0xFF7B4DFF)
+    val IceWhite = Color(0xFFE8F4FF)
     val Warn = Color(0xFFF5B93D)
 
     /** Player buttons over video. */
@@ -168,32 +177,88 @@ val LocalNeonAccent = compositionLocalOf { NeonBoard.Volt }
 fun ProvideNeonAccent(
     accent: Color,
     content: @Composable () -> Unit,
-) = CompositionLocalProvider(LocalNeonAccent provides accent, content = content)
+) {
+    CompositionLocalProvider(LocalNeonAccent provides accent) {
+        if (isWeaselTv()) {
+            val tvColors = MaterialTheme.colorScheme.copy(
+                primary = accent, onPrimary = NeonBoard.OnAccent,
+                primaryContainer = NeonBoard.chipOn(accent), onPrimaryContainer = NeonBoard.Text,
+                secondary = accent, onSecondary = NeonBoard.OnAccent,
+                tertiary = accent, onTertiary = NeonBoard.OnAccent,
+                border = accent, inversePrimary = accent,
+            )
+            val materialColors = androidx.compose.material3.MaterialTheme.colorScheme.copy(
+                primary = accent, onPrimary = NeonBoard.OnAccent,
+                primaryContainer = NeonBoard.chipOn(accent), onPrimaryContainer = NeonBoard.Text,
+                secondary = accent, onSecondary = NeonBoard.OnAccent,
+                tertiary = accent, onTertiary = NeonBoard.OnAccent,
+                inversePrimary = accent,
+            )
+            androidx.compose.material3.MaterialTheme(colorScheme = materialColors) {
+                MaterialTheme(colorScheme = tvColors, content = content)
+            }
+        } else {
+            content()
+        }
+    }
+}
 
-/**
- * Owner ruling 2026-09-17: every rail item gets its OWN neon; only the 4K libraries share
- * the colour of their regular movie / show counterparts. Built-ins match on id, libraries
- * on name; anything unnamed falls back to its collection type.
- */
+val LocalNeonSectionAccent = compositionLocalOf<Color?> { null }
+
+@Composable
+fun ProvideNeonSectionAccent(accent: Color, content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalNeonSectionAccent provides accent) {
+        ProvideNeonAccent(accent, content)
+    }
+}
+
+/** Owner palette v4, 2026-10-07: every sidebar section keeps its own color. */
 private val RAIL_ACCENT_BY_ID =
     mapOf(
-        "a_favorites" to Color(0xFF5268FF), // hyper blue
-        "a_discover" to Color(0xFF00FF8A), // spring mint (Requests)
+        "a_favorites" to NeonBoard.Cyan,
+        "a_discover" to NeonBoard.Teal,
         "a_more" to NeonBoard.Volt,
     )
 private val RAIL_ACCENT_BY_NAME =
     mapOf(
-        "stand up comedy" to Color(0xFFFF2EF7), // magenta
-        "boxing" to Color(0xFFFF2D95), // hot pink
-        "ufc" to Color(0xFF00A3FF), // azure
+        "collections" to NeonBoard.Yellow,
+        "movies" to NeonBoard.Orange,
+        "tv shows" to NeonBoard.Red,
+        "sports" to NeonBoard.Fuchsia,
+        "stand up comedy" to NeonBoard.Violet,
+        "standup comedy" to NeonBoard.Violet,
+        "stand-up comedy" to NeonBoard.Violet,
+        "boxing" to NeonBoard.Fuchsia,
+        "ufc" to NeonBoard.Fuchsia,
     )
 
-/** Fixed rail items: Search cyan, Home volt, Settings violet, Now playing green. */
 object RailAccents {
-    val Search = NeonBoard.Cyan
-    val Home = NeonBoard.Volt
-    val Settings = Color(0xFFC026FF)
+    val User = NeonBoard.Volt
+    val Search = NeonBoard.ElectricBlue
+    val Home = NeonBoard.Green
+    val Settings = NeonBoard.IceWhite
     val NowPlaying = NeonBoard.Green
+}
+
+/** Inherit the most recent sidebar section through nested details, dialogs and playback. */
+fun navigationSectionAccent(backStack: List<Destination>, items: List<NavDrawerItem>): Color {
+    var accent = RailAccents.Home
+    backStack.forEach { destination ->
+        accent = when (destination) {
+            is Destination.Home -> RailAccents.Home
+            is Destination.Search -> RailAccents.Search
+            Destination.Favorites -> NeonBoard.Cyan
+            Destination.Discover -> NeonBoard.Teal
+            is Destination.Settings, Destination.HomeSettings, is Destination.SubtitleSettings,
+            is Destination.UpdateApp, Destination.License, Destination.Debug -> RailAccents.Settings
+            Destination.UserAppPreferences -> RailAccents.User
+            Destination.NowPlaying -> RailAccents.NowPlaying
+            else -> items.filterIsInstance<ServerNavDrawerItem>()
+                .firstOrNull { it.destination == destination }
+                ?.let(::sectionAccent) ?: accent
+        }
+    }
+    return accent
 }
 
 /** Section accent for a nav rail item: its own neon, or its collection type's colour. */
@@ -214,12 +279,66 @@ fun libraryAccent(
     type: CollectionType?,
 ): Color = RAIL_ACCENT_BY_NAME[name.trim().lowercase()] ?: collectionAccent(type)
 
+/** Owner-supplied provider logo palette, used for Streaming Services poster focus. */
+fun streamingProviderAccent(name: String?): Color? =
+    when (name?.trim()?.lowercase(java.util.Locale.ROOT)) {
+        "netflix" -> Color(0xFFE50914)
+        "disney+", "disney plus" -> Color(0xFF113CCF)
+        "hulu" -> Color(0xFF1CE783)
+        "max", "hbo max", "max (hbo)", "hbo" -> Color(0xFF002BE7)
+        "prime video", "amazon prime video" -> Color(0xFF00A8E1)
+        "paramount+", "paramount plus" -> Color(0xFF0064FF)
+        "peacock" -> Color(0xFFFDB927)
+        "apple tv", "apple tv+" -> Color(0xFFA2AAAD)
+        "amc+", "amc plus" -> Color(0xFF00EEE6)
+        "mgm+", "mgm plus" -> Color(0xFFEFBE73)
+        "starz" -> Color(0xFFF5E000)
+        "britbox" -> Color(0xFF66D3EB)
+        "crunchyroll" -> Color(0xFFFF5E00)
+        "hallmark", "hallmark+", "hallmark plus" -> Color(0xFF613790)
+        "angel", "angel studios" -> Color(0xFFE8B923)
+        else -> null
+    }
+
+/** Contrast overrides affect the provider's focus border only; its logo-colored glow stays. */
+fun streamingProviderBorderAccent(name: String?): Color? =
+    when (name?.trim()?.lowercase(java.util.Locale.ROOT)) {
+        "paramount+", "paramount plus", "hallmark", "hallmark+", "hallmark plus" -> streamingProviderAccent("Apple TV")
+        "britbox", "crunchyroll" -> Color.Black
+        else -> null
+    }
+
+/** Owner-supplied Picks poster theme colors, shared by their focus border and glow. */
+fun curatedPickAccent(name: String?): Color? =
+    when (name?.trim()?.lowercase(java.util.Locale.ROOT)?.replace("’", "")?.replace("'", "")) {
+        "blockbuster friday" -> Color(0xFF2567F6)
+        "clear your evening" -> Color(0xFFFFA91E)
+        "cozy season" -> Color(0xFF40C7FF)
+        "critics circle", "critic circle" -> Color(0xFFF4AA3D)
+        "crowd pleasers" -> Color(0xFFFF1438)
+        "date night" -> Color(0xFFFF40A2)
+        "hot right now" -> Color(0xFFFE3B04)
+        "just dropped" -> Color(0xFFFFDF0F)
+        "lights off" -> Color(0xFFFC1132)
+        "originals only" -> Color(0xFFF6C93E)
+        "passport night" -> Color(0xFF0CD8CA)
+        "quick fix" -> Color(0xFF35FCAD)
+        "ripped from the headlines", "ripped from headlines" -> Color(0xFFFF080B)
+        "spin the wheel" -> Color(0xFFAA32FF)
+        "spooky season" -> Color(0xFFFF6F00)
+        "the big score" -> Color(0xFF40D4FF)
+        "vhs vault" -> Color(0xFFFF0AD5)
+        "y2k rewind" -> Color(0xFF406AFF)
+        else -> null
+    }
+
 /** Section accent for a library by its Jellyfin collection type. */
 fun collectionAccent(type: CollectionType?): Color =
     when (type) {
         CollectionType.MOVIES -> NeonBoard.Orange
-        CollectionType.TVSHOWS -> NeonBoard.Yellow
+        CollectionType.TVSHOWS -> NeonBoard.Red
         CollectionType.LIVETV -> NeonBoard.Green
+        CollectionType.BOXSETS -> NeonBoard.Yellow
         else -> NeonBoard.Volt
     }
 
@@ -231,7 +350,7 @@ fun typeAccent(kind: BaseItemKind?): Color =
         BaseItemKind.SERIES,
         BaseItemKind.SEASON,
         BaseItemKind.EPISODE,
-        -> NeonBoard.Yellow
+        -> NeonBoard.Red
 
         BaseItemKind.TV_CHANNEL,
         BaseItemKind.LIVE_TV_CHANNEL,
@@ -265,7 +384,9 @@ fun itemAccent(item: BaseItem?): Color {
 /** Accent for an item when the theme is active, otherwise the page accent. */
 @Composable
 @ReadOnlyComposable
-fun neonAccentFor(item: BaseItem?): Color = if (item == null) LocalNeonAccent.current else itemAccent(item)
+fun neonAccentFor(item: BaseItem?): Color =
+    LocalHomeRowAccent.current ?: LocalNeonSectionAccent.current
+        ?: if (item == null) LocalNeonAccent.current else itemAccent(item)
 
 // ---------------------------------------------------------------------------------------
 // Cards
@@ -281,9 +402,13 @@ fun neonCardBorder(
     restColor: Color = NeonBoard.Line2,
 ): CardBorder {
     if (!isWeaselTv()) return fallback ?: CardDefaults.border()
-    val focused = Border(border = BorderStroke(1.dp, accent), shape = shape)
+    val appearance = LocalHomeCardAppearance.current
+    val resolvedShape = if (shape == RectangleShape) RoundedCornerShape(appearance.cornerRadiusDp.dp) else shape
+    val focused = if (appearance.borderWidthDp > 0 && appearance.borderOpacityPercent > 0) {
+        Border(border = BorderStroke(appearance.borderWidthDp.dp, (LocalHomeCardBorderAccent.current ?: homeCardAccent(accent)).copy(alpha = appearance.borderOpacityPercent / 100f)), shape = resolvedShape)
+    } else Border.None
     return CardDefaults.border(
-        border = if (restWidth > 0.dp) Border(BorderStroke(restWidth, restColor), shape = shape) else Border.None,
+        border = if (restWidth > 0.dp) Border(BorderStroke(restWidth, restColor), shape = resolvedShape) else Border.None,
         focusedBorder = focused,
         pressedBorder = focused,
     )
@@ -296,10 +421,11 @@ fun neonCardGlow(
     fallback: CardGlow? = null,
 ): CardGlow {
     if (!isWeaselTv()) return fallback ?: CardDefaults.glow()
+    val appearance = LocalHomeCardAppearance.current
     val glow =
         Glow(
-            elevationColor = accent.copy(alpha = NeonBoard.GlowSpec.CARD_FOCUS_ALPHA),
-            elevation = NeonBoard.GlowSpec.CardFocus,
+            elevationColor = homeCardAccent(accent).copy(alpha = appearance.glowOpacityPercent / 100f),
+            elevation = appearance.glowSpreadDp.dp,
         )
     return CardDefaults.glow(focusedGlow = glow, pressedGlow = glow)
 }
@@ -308,15 +434,30 @@ fun neonCardGlow(
 @Composable
 fun neonCardScale(fallback: CardScale? = null): CardScale {
     if (!isWeaselTv()) return fallback ?: CardDefaults.scale()
-    return CardDefaults.scale(focusedScale = 1.06f, pressedScale = .97f)
+    return CardDefaults.scale(focusedScale = LocalHomeCardAppearance.current.focusScalePercent / 100f, pressedScale = .97f)
 }
 
 /** Square everything except people avatars. */
 @Composable
 fun neonCardShape(fallback: CardShape? = null): CardShape {
     if (!isWeaselTv()) return fallback ?: CardDefaults.shape()
-    return CardDefaults.shape(RectangleShape)
+    return CardDefaults.shape(RoundedCornerShape(LocalHomeCardAppearance.current.cornerRadiusDp.dp))
 }
+
+val LocalHomeCardAppearance = compositionLocalOf { HomeCardAppearance() }
+val LocalHomeRowAccent = compositionLocalOf<Color?> { null }
+val LocalHomeCardBorderAccent = compositionLocalOf<Color?> { null }
+
+@Composable
+private fun homeCardAccent(default: Color): Color =
+    when (LocalHomeCardAppearance.current.accentIndex) {
+        1 -> NeonBoard.Volt
+        2 -> NeonBoard.Orange
+        3 -> NeonBoard.IceWhite
+        4 -> NeonBoard.Cyan
+        5 -> NeonBoard.Fuchsia
+        else -> LocalHomeRowAccent.current ?: default
+    }
 
 // ---------------------------------------------------------------------------------------
 // Clickable surfaces (buttons, tiles)
@@ -493,9 +634,12 @@ fun neonGlassColors(
 fun neonListItemBorder(
     accent: Color = LocalNeonAccent.current,
     fallback: ListItemBorder? = null,
+    shape: Shape = RectangleShape,
+    width: Dp = 1.dp,
+    opacity: Float = 1f,
 ): ListItemBorder {
     if (!isWeaselTv()) return fallback ?: ListItemDefaults.border()
-    val focused = Border(border = BorderStroke(1.dp, accent), shape = RectangleShape)
+    val focused = Border(border = BorderStroke(width, accent.copy(alpha = opacity)), shape = shape)
     return ListItemDefaults.border(
         focusedBorder = focused,
         pressedBorder = focused,
@@ -508,20 +652,22 @@ fun neonListItemBorder(
 fun neonListItemGlow(
     accent: Color = LocalNeonAccent.current,
     fallback: ListItemGlow? = null,
+    spread: Dp = NeonBoard.GlowSpec.RowFocus,
+    opacity: Float = NeonBoard.GlowSpec.ROW_FOCUS_ALPHA,
 ): ListItemGlow {
     if (!isWeaselTv()) return fallback ?: ListItemDefaults.glow()
     val glow =
         Glow(
-            elevationColor = accent.copy(alpha = NeonBoard.GlowSpec.ROW_FOCUS_ALPHA),
-            elevation = NeonBoard.GlowSpec.RowFocus,
+            elevationColor = accent.copy(alpha = opacity),
+            elevation = spread,
         )
     return ListItemDefaults.glow(focusedGlow = glow, pressedGlow = glow, focusedSelectedGlow = glow)
 }
 
 @Composable
-fun neonListItemShape(fallback: ListItemShape? = null): ListItemShape {
+fun neonListItemShape(fallback: ListItemShape? = null, shape: Shape = RectangleShape): ListItemShape {
     if (!isWeaselTv()) return fallback ?: ListItemDefaults.shape()
-    return ListItemDefaults.shape(RectangleShape)
+    return ListItemDefaults.shape(shape)
 }
 
 /** Rows: transparent at rest, `chipOn` when focused, labels `text`. */
@@ -656,21 +802,26 @@ fun Modifier.neonFocusFill(
 fun Modifier.neonRuleBelow(
     accent: Color = LocalNeonAccent.current,
     enabled: Boolean = true,
+    thickness: Dp = NeonBoard.Size.Rule,
+    glowHeight: Dp = NeonBoard.GlowSpec.Rule,
+    glowStrength: Float = .35f,
 ): Modifier {
     if (!enabled || !isWeaselTv()) return this
     return drawBehind {
-        val h = NeonBoard.Size.Rule.toPx()
-        val glowH = NeonBoard.GlowSpec.Rule.toPx()
-        drawRect(
-            brush =
-                Brush.verticalGradient(
-                    colors = listOf(Color.Transparent, accent.copy(alpha = .35f)),
-                    startY = size.height - glowH,
-                    endY = size.height,
-                ),
-            topLeft = Offset(0f, size.height - glowH),
-            size = Size(size.width, glowH),
-        )
+        val h = thickness.toPx()
+        val glowH = glowHeight.toPx()
+        if (glowH > 0f && glowStrength > 0f) {
+            drawRect(
+                brush =
+                    Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, accent.copy(alpha = glowStrength.coerceIn(0f, 1f))),
+                        startY = size.height - glowH,
+                        endY = size.height,
+                    ),
+                topLeft = Offset(0f, size.height - glowH),
+                size = Size(size.width, glowH),
+            )
+        }
         drawRect(color = accent, topLeft = Offset(0f, size.height - h), size = Size(size.width, h))
     }
 }
@@ -699,28 +850,21 @@ fun Modifier.neonOverline(
     }
 }
 
-/** A progress bar in the accent with an 8dp glow, for cards and rows. */
+/** Match the visible Home rule fade while retaining the thinner card progress line. */
 @Composable
 fun Modifier.neonProgress(
     accent: Color = LocalNeonAccent.current,
     enabled: Boolean = true,
-): Modifier {
-    if (!enabled || !isWeaselTv()) return this
-    return drawBehind {
-        val glowH = NeonBoard.GlowSpec.Progress.toPx()
-        drawRect(
-            brush =
-                Brush.verticalGradient(
-                    colors = listOf(accent.copy(alpha = .4f), Color.Transparent),
-                    startY = 0f,
-                    endY = -glowH,
-                ),
-            topLeft = Offset(0f, -glowH),
-            size = Size(size.width, glowH),
-        )
-        drawRect(color = accent)
-    }
-}
+): Modifier =
+    // Home: 10dp gradient with a 5dp line, leaving 5dp visible at up to 35% alpha.
+    // Progress: 8dp gradient with a 3dp line; 56% gives the same visible fade.
+    neonRuleBelow(
+        accent = accent,
+        enabled = enabled,
+        thickness = NeonBoard.Size.ProgressCard,
+        glowHeight = 8.dp,
+        glowStrength = .56f,
+    )
 
 // ---------------------------------------------------------------------------------------
 // Small composables shared across pages
@@ -731,19 +875,22 @@ fun Modifier.neonProgress(
 fun NeonRule(
     modifier: Modifier = Modifier,
     accent: Color = LocalNeonAccent.current,
+    thickness: Dp = NeonBoard.Size.Rule,
+    glowHeight: Dp = NeonBoard.GlowSpec.Rule,
+    glowStrength: Float = .35f,
 ) {
     if (!isWeaselTv()) return
     Box(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(NeonBoard.Size.Rule)
-                .neonRuleBelow(accent),
+                .height(thickness)
+                .neonRuleBelow(accent, thickness = thickness, glowHeight = glowHeight, glowStrength = glowStrength),
     )
 }
 
 /**
- * The outline / filled badge: 11–12sp Barlow 700 uppercase, 3–4 / 9 padding, 12dp glow.
+ * The outline / filled poster badge shares the global count font size and padding.
  * Only rendered on the WeaselTV theme; callers keep their stock overlay for other themes.
  */
 @Composable
@@ -754,6 +901,9 @@ fun NeonBadge(
     filled: Boolean = false,
 ) {
     if (!isWeaselTv()) return
+    val countAppearance = LocalPosterCountAppearance.current
+    val textStyle = MaterialTheme.typography.bodySmall
+    val textSize = (countAppearance?.badgeTextSizeSp ?: 11).sp
     val fill = if (filled) accent else NeonBoard.Card.copy(alpha = .72f)
     val ink = if (filled) NeonBoard.OnAccent else accent
     Box(
@@ -779,12 +929,19 @@ fun NeonBadge(
                             androidx.compose.ui.graphics.drawscope
                                 .Stroke(width = 1.dp.toPx()),
                     )
-                }.padding(horizontal = 9.dp, vertical = 3.dp),
+                }.padding(
+                    horizontal = (countAppearance?.badgeHorizontalPaddingDp ?: 2).dp,
+                    vertical = (countAppearance?.badgeVerticalPaddingDp ?: 2).dp,
+                ),
     ) {
         Text(
             text = text.uppercase(),
             color = ink,
-            style = MaterialTheme.typography.labelSmall,
+            style = textStyle.copy(
+                fontSize = textSize,
+                lineHeight = textSize * (textStyle.lineHeight.value / textStyle.fontSize.value),
+                letterSpacing = 0.sp,
+            ),
             maxLines = 1,
         )
     }

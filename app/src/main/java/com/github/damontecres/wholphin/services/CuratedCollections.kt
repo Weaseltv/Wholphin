@@ -1,7 +1,7 @@
 package com.github.damontecres.wholphin.services
 
-import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
 import com.github.damontecres.wholphin.util.GetItemsRequestHandler
@@ -13,13 +13,13 @@ import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import java.util.UUID
-import kotlin.math.roundToInt
 
 /** Server-managed Picks, using the existing query row and collection poster grid. */
 object CuratedCollections {
     const val TAG = "WeaselPlex Curated"
-    const val NAME = "WeaselPlex Picks"
+    const val NAME = "The Weasel’s Picks"
     const val CARD_SIZE_MULTIPLIER = 1.35f
+    const val EXTRA_VERTICAL_PADDING_DP = 9
     val types = listOf(BaseItemKind.MOVIE)
 
     val row =
@@ -36,9 +36,9 @@ object CuratedCollections {
                 ),
             viewOptions =
                 HomeRowViewOptions(
-                    heightDp = (BuildConfig.DEFAULT_CARD_HEIGHT_DP * CARD_SIZE_MULTIPLIER).roundToInt(),
                     showTitles = false,
                     useSeries = false,
+                    cardAppearance = ApprovedHomeLayout.CARD_APPEARANCE.copy(borderOpacityPercent = 100),
                 ),
         )
 
@@ -60,7 +60,7 @@ object CuratedCollections {
             HomeRowConfigDisplay(
                 id = existing?.id ?: ((rows.maxOfOrNull { it.id } ?: -1) + 1),
                 title = StringStringProvider(NAME),
-                config = row,
+                config = (existing?.config as? HomeRowConfig.GetItems)?.copy(name = NAME) ?: row,
             ),
         )
         return HomePageResolvedSettings(rows)

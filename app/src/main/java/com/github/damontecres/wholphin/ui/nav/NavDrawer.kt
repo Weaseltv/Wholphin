@@ -43,6 +43,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -56,7 +60,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -95,6 +101,7 @@ import com.github.damontecres.wholphin.ui.theme.LocalTheme
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.ProvideNeonAccent
+import com.github.damontecres.wholphin.ui.theme.LocalNeonSectionAccent
 import com.github.damontecres.wholphin.ui.theme.RailAccents
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonDrawerItemColors
@@ -450,6 +457,7 @@ fun NavDrawer(
                             IconNavItem(
                                 text = stringResource(R.string.home),
                                 weaselIcon = WeaselNavIcons.HOME,
+                                accent = RailAccents.Home,
                                 icon = Icons.Default.Home,
                                 selected = selectedIndex == HOME_INDEX,
                                 drawerOpen = isOpen,
@@ -575,25 +583,7 @@ fun NavDrawer(
             // Page labels and cards keep their gutters; section rules extend to the rail and screen edge.
             // The page takes the SECTION accent of the rail item it belongs to; details
             // pages override it with their item's type accent.
-            val sectionAccent =
-                remember(selectedIndex, serviceState) {
-                    when {
-                        selectedIndex == NOW_PLAYING_INDEX -> {
-                            NeonBoard.Green
-                        }
-
-                        selectedIndex >= 0 -> {
-                            (serviceState.items + serviceState.moreItems)
-                                .getOrNull(selectedIndex)
-                                ?.let { sectionAccent(it) }
-                                ?: NeonBoard.Volt
-                        }
-
-                        else -> {
-                            NeonBoard.Volt
-                        }
-                    }
-                }
+            val sectionAccent = LocalNeonSectionAccent.current ?: RailAccents.Home
             ProvideNeonAccent(sectionAccent) {
                 InsetNeonSectionRules(
                     start = if (neon) NeonBoard.Size.OverscanX / 2 else 0.dp,
@@ -653,8 +643,23 @@ internal fun RailList(
     )
 }
 
+/** Owner's poster border values captured from all eight Alpha rows on 2026-10-07. */
+private val RailFocusBorderWidth = 2.dp
+private const val RailFocusBorderOpacity = .8f
+private val RailFocusGlowSpread = 15.dp
+private const val RailFocusGlowOpacity = .7f
+
 /** Rail rows don't grow when focused, so the room only has to cover their glow. */
-internal val RailGlowRoom = NeonBoard.GlowSpec.RowFocus
+internal val RailGlowRoom = maxOf(NeonBoard.GlowSpec.RowFocus, RailFocusGlowSpread) + RailFocusBorderWidth / 2
+
+
+/** Keep the full stroke and side glow inside the rail without moving its content. */
+private object RailItemShape : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val inset = with(density) { RailGlowRoom.toPx() }.coerceAtMost(size.width / 4f)
+        return Outline.Rectangle(Rect(inset, 0f, size.width - inset, size.height))
+    }
+}
 
 @Composable
 fun NavigationDrawerScope.ProfileIcon(
@@ -670,17 +675,20 @@ fun NavigationDrawerScope.ProfileIcon(
         modifier = modifier,
         selected = false,
         onClick = onClick,
-        shape = neonListItemShape(),
+        shape = neonListItemShape(shape = RailItemShape),
         colors = neonDrawerItemColors(NeonBoard.Volt),
-        border = neonListItemBorder(NeonBoard.Volt),
-        glow = neonListItemGlow(NeonBoard.Volt),
+        border = neonListItemBorder(NeonBoard.Volt, shape = RailItemShape, width = RailFocusBorderWidth, opacity = RailFocusBorderOpacity),
+        glow = neonListItemGlow(NeonBoard.Volt, spread = RailFocusGlowSpread, opacity = RailFocusGlowOpacity),
         leadingContent = {
             UserIconCardImage(
                 id = user.id,
                 name = user.name,
                 imageUrl = imageUrl,
                 alpha = if (drawerOpen || isWeaselTv()) 1f else .5f,
-                modifier = Modifier.size(DrawerIconSize),
+                modifier =
+                    Modifier
+                        .size(DrawerIconSize)
+                        .offset(x = if (isWeaselTv() && drawerOpen) 6.dp else 0.dp),
             )
         },
         supportingContent = {
@@ -718,10 +726,10 @@ fun NavigationDrawerScope.IconNavItem(
         modifier = modifier.neonTally(accent, selected),
         selected = false,
         onClick = onClick,
-        shape = neonListItemShape(),
+        shape = neonListItemShape(shape = RailItemShape),
         colors = neonDrawerItemColors(accent),
-        border = neonListItemBorder(accent),
-        glow = neonListItemGlow(accent),
+        border = neonListItemBorder(accent, shape = RailItemShape, width = RailFocusBorderWidth, opacity = RailFocusBorderOpacity),
+        glow = neonListItemGlow(accent, spread = RailFocusGlowSpread, opacity = RailFocusGlowOpacity),
         leadingContent = {
             // WeaselFin ships its own drawable for the fixed items. Null on every upstream
             // flavor, where the Material vector below is used exactly as before.
@@ -814,10 +822,10 @@ fun NavigationDrawerScope.NavItem(
         modifier = modifier.neonTally(accent, selected),
         selected = false,
         onClick = onClick,
-        shape = neonListItemShape(),
+        shape = neonListItemShape(shape = RailItemShape),
         colors = neonDrawerItemColors(accent, containerColor),
-        border = neonListItemBorder(accent),
-        glow = neonListItemGlow(accent),
+        border = neonListItemBorder(accent, shape = RailItemShape, width = RailFocusBorderWidth, opacity = RailFocusBorderOpacity),
+        glow = neonListItemGlow(accent, spread = RailFocusGlowSpread, opacity = RailFocusGlowOpacity),
         leadingContent = {
             val color = railGlyphColor(accent, selected, focused) ?: navItemColor(selected, focused, drawerOpen)
             Box(
