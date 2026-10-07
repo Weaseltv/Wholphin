@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.services
 
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
 import com.github.damontecres.wholphin.util.GetItemsRequestHandler
@@ -48,7 +49,7 @@ object StreamingCollections {
                     tags = listOf(TAG),
                     fields = listOf(ItemFields.CHILD_COUNT, ItemFields.OVERVIEW, ItemFields.TAGS),
                 ),
-            viewOptions = HomeRowViewOptions(),
+            viewOptions = ApprovedHomeLayout.apply(HomeRowViewOptions(), streaming = true),
         )
 
     fun isStreamingRow(config: HomeRowConfig): Boolean =

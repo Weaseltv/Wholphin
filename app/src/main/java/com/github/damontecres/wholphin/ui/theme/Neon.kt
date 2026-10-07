@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.ui.theme
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -44,6 +45,7 @@ import androidx.tv.material3.NavigationDrawerItemColors
 import androidx.tv.material3.NavigationDrawerItemDefaults
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.data.model.BaseItem
+import com.github.damontecres.wholphin.data.model.HomeCardAppearance
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.ui.nav.NavDrawerItem
 import com.github.damontecres.wholphin.ui.nav.ServerNavDrawerItem
@@ -281,9 +283,13 @@ fun neonCardBorder(
     restColor: Color = NeonBoard.Line2,
 ): CardBorder {
     if (!isWeaselTv()) return fallback ?: CardDefaults.border()
-    val focused = Border(border = BorderStroke(1.dp, accent), shape = shape)
+    val appearance = LocalHomeCardAppearance.current
+    val resolvedShape = if (shape == RectangleShape) RoundedCornerShape(appearance.cornerRadiusDp.dp) else shape
+    val focused = if (appearance.borderWidthDp > 0 && appearance.borderOpacityPercent > 0) {
+        Border(border = BorderStroke(appearance.borderWidthDp.dp, homeCardAccent(accent).copy(alpha = appearance.borderOpacityPercent / 100f)), shape = resolvedShape)
+    } else Border.None
     return CardDefaults.border(
-        border = if (restWidth > 0.dp) Border(BorderStroke(restWidth, restColor), shape = shape) else Border.None,
+        border = if (restWidth > 0.dp) Border(BorderStroke(restWidth, restColor), shape = resolvedShape) else Border.None,
         focusedBorder = focused,
         pressedBorder = focused,
     )
@@ -296,10 +302,11 @@ fun neonCardGlow(
     fallback: CardGlow? = null,
 ): CardGlow {
     if (!isWeaselTv()) return fallback ?: CardDefaults.glow()
+    val appearance = LocalHomeCardAppearance.current
     val glow =
         Glow(
-            elevationColor = accent.copy(alpha = NeonBoard.GlowSpec.CARD_FOCUS_ALPHA),
-            elevation = NeonBoard.GlowSpec.CardFocus,
+            elevationColor = homeCardAccent(accent).copy(alpha = appearance.glowOpacityPercent / 100f),
+            elevation = appearance.glowSpreadDp.dp,
         )
     return CardDefaults.glow(focusedGlow = glow, pressedGlow = glow)
 }
@@ -308,15 +315,28 @@ fun neonCardGlow(
 @Composable
 fun neonCardScale(fallback: CardScale? = null): CardScale {
     if (!isWeaselTv()) return fallback ?: CardDefaults.scale()
-    return CardDefaults.scale(focusedScale = 1.06f, pressedScale = .97f)
+    return CardDefaults.scale(focusedScale = LocalHomeCardAppearance.current.focusScalePercent / 100f, pressedScale = .97f)
 }
 
 /** Square everything except people avatars. */
 @Composable
 fun neonCardShape(fallback: CardShape? = null): CardShape {
     if (!isWeaselTv()) return fallback ?: CardDefaults.shape()
-    return CardDefaults.shape(RectangleShape)
+    return CardDefaults.shape(RoundedCornerShape(LocalHomeCardAppearance.current.cornerRadiusDp.dp))
 }
+
+val LocalHomeCardAppearance = compositionLocalOf { HomeCardAppearance() }
+
+@Composable
+private fun homeCardAccent(default: Color): Color =
+    when (LocalHomeCardAppearance.current.accentIndex) {
+        1 -> NeonBoard.Volt
+        2 -> Color(0xFFFF8A00)
+        3 -> NeonBoard.Text
+        4 -> Color(0xFF00E5FF)
+        5 -> Color(0xFFFF4DAD)
+        else -> default
+    }
 
 // ---------------------------------------------------------------------------------------
 // Clickable surfaces (buttons, tiles)

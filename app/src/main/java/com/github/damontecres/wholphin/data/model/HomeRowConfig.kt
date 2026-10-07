@@ -198,6 +198,7 @@ sealed interface HomeRowConfig {
 data class HomePageSettings(
     val rows: List<HomeRowConfig>,
     val version: Int,
+    val layoutDefaultsRevision: Int = 0,
 ) {
     companion object {
         val EMPTY = HomePageSettings(listOf(), SUPPORTED_HOME_PAGE_SETTINGS_VERSION)
@@ -217,7 +218,7 @@ const val SUPPORTED_HOME_PAGE_SETTINGS_VERSION = 1
 @Serializable
 data class HomeRowViewOptions(
     val heightDp: Int = BuildConfig.DEFAULT_CARD_HEIGHT_DP,
-    val spacing: Int = if (BuildConfig.FLAVOR == "weaselfin") 22 else 16,
+    val spacing: Int = if (BuildConfig.FLAVOR == "weaselfin") 20 else 16,
     val contentScale: PrefContentScale = PrefContentScale.FILL,
     val aspectRatio: AspectRatio = AspectRatio.TALL,
     val imageType: ViewOptionImageType = ViewOptionImageType.PRIMARY,
@@ -227,33 +228,34 @@ data class HomeRowViewOptions(
     val episodeAspectRatio: AspectRatio = AspectRatio.TALL,
     val episodeImageType: ViewOptionImageType = ViewOptionImageType.PRIMARY,
     val verticalPaddingDp: Int = 4,
-    val extraVerticalPaddingDp: Int? = null,
-    val dividerGapDp: Int = 8,
+    val extraVerticalPaddingDp: Int? = if (BuildConfig.FLAVOR == "weaselfin") 12 else null,
+    val dividerGapDp: Int = if (BuildConfig.FLAVOR == "weaselfin") 12 else 8,
     val rowGapDp: Int = 8,
-    val edgePaddingDp: Int? = null,
-    val endPaddingDp: Int? = null,
-    val titleDividerGapDp: Int = 4,
-    val titleSizeSp: Int = 22,
+    val edgePaddingDp: Int? = if (BuildConfig.FLAVOR == "weaselfin") 4 else null,
+    val endPaddingDp: Int? = if (BuildConfig.FLAVOR == "weaselfin") 16 else null,
+    val titleDividerGapDp: Int = if (BuildConfig.FLAVOR == "weaselfin") 3 else 4,
+    val titleSizeSp: Int = if (BuildConfig.FLAVOR == "weaselfin") 30 else 22,
     val titleLetterSpacingTenthsSp: Int = 0,
-    val countSizeSp: Int = 12,
+    val countSizeSp: Int = if (BuildConfig.FLAVOR == "weaselfin") 14 else 12,
     val countOpacityPercent: Int = 100,
-    val countEndPaddingDp: Int = 8,
-    val dividerThicknessDp: Int = 1,
-    val dividerGlowDp: Int = 12,
-    val dividerGlowStrength: Int = 35,
+    val countEndPaddingDp: Int = if (BuildConfig.FLAVOR == "weaselfin") 15 else 8,
+    val dividerThicknessDp: Int = if (BuildConfig.FLAVOR == "weaselfin") 5 else 1,
+    val dividerGlowDp: Int = if (BuildConfig.FLAVOR == "weaselfin") 10 else 12,
+    val cardAppearance: HomeCardAppearance = HomeCardAppearance(),
+    val dividerGlowStrength: Int = if (BuildConfig.FLAVOR == "weaselfin") 70 else 35,
 ) {
     companion object {
         val genreDefault =
             HomeRowViewOptions(
                 heightDp = if (BuildConfig.FLAVOR == "weaselfin") BuildConfig.DEFAULT_CARD_HEIGHT_DP else Cards.HEIGHT_EPISODE,
-                aspectRatio = AspectRatio.WIDE,
+                aspectRatio = if (BuildConfig.FLAVOR == "weaselfin") AspectRatio.TALL else AspectRatio.WIDE,
             )
 
         val liveTvDefault =
             HomeRowViewOptions(
                 heightDp = if (BuildConfig.FLAVOR == "weaselfin") BuildConfig.DEFAULT_CARD_HEIGHT_DP else Cards.HEIGHT_LIVE_TV,
-                aspectRatio = AspectRatio.WIDE,
-                contentScale = PrefContentScale.FIT,
+                aspectRatio = if (BuildConfig.FLAVOR == "weaselfin") AspectRatio.TALL else AspectRatio.WIDE,
+                contentScale = if (BuildConfig.FLAVOR == "weaselfin") PrefContentScale.FILL else PrefContentScale.FIT,
             )
     }
 }

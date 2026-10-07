@@ -33,10 +33,8 @@ import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
-import com.github.damontecres.wholphin.preferences.PrefContentScale
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.CuratedCollections
-import com.github.damontecres.wholphin.ui.AspectRatio
 import com.github.damontecres.wholphin.ui.data.RowColumn
 import com.github.damontecres.wholphin.ui.handleDPadKeyEvents
 import com.github.damontecres.wholphin.ui.main.HomePageContent
@@ -61,7 +59,14 @@ fun AlphaHomeLayoutTuner(
     val row = state.rows[rowIndex]
     val curated = CuratedCollections.isCuratedRow(row.config)
     val options = row.config.viewOptions
-    val extra = options.extraVerticalPaddingDp ?: if (curated) CuratedCollections.EXTRA_VERTICAL_PADDING_DP else 0
+    val appearance = options.cardAppearance
+    val resolvedAppearance = appearance.copy(
+        badgeTextSizeSp = appearance.badgeTextSizeSp ?: if (curated) 18 else 13,
+        badgeHorizontalInsetDp = appearance.badgeHorizontalInsetDp ?: if (curated) 5 else 4,
+        badgeVerticalInsetDp = appearance.badgeVerticalInsetDp ?: if (curated) 5 else 4,
+        badgeHorizontalPaddingDp = appearance.badgeHorizontalPaddingDp ?: if (curated) 5 else 4,
+        badgeVerticalPaddingDp = appearance.badgeVerticalPaddingDp ?: if (curated) 5 else 4,
+    )
     var allRows by remember { mutableStateOf(false) }
     var inspect by remember { mutableStateOf(false) }
     var position by remember { mutableStateOf(RowColumn(rowIndex, 0)) }
@@ -124,18 +129,17 @@ fun AlphaHomeLayoutTuner(
                         .focusProperties { onExit = { cancelFocusChange() } }
                         .focusGroup(),
             ) {
-                Text("Alpha · Live layout", color = NeonBoard.Volt)
+                Text("Alpha · Card appearance", color = NeonBoard.Volt)
                 Text("Up/down: select · Left/right: adjust", color = NeonBoard.Mid)
                 Text("Changes are live. Back saves and closes.", color = NeonBoard.Mid)
                 Text(
                     "${row.title.getString()}\n" +
-                        "Height ${options.heightDp} · Between ${options.spacing} dp\n" +
-                        "Side ${options.edgePaddingDp ?: options.spacing} · End ${options.endPaddingDp ?: options.edgePaddingDp ?: options.spacing} dp\n" +
-                        "Padding ${options.verticalPaddingDp} + extra $extra · Divider gap ${options.dividerGapDp} dp\n" +
-                        "After row ${options.rowGapDp} · Title gap ${options.titleDividerGapDp} dp\n" +
-                        "Title ${options.titleSizeSp} sp · Letter spacing ${options.titleLetterSpacingTenthsSp / 10f} sp\n" +
-                        "Count ${options.countSizeSp} sp · Opacity ${options.countOpacityPercent}% · Right ${options.countEndPaddingDp} dp\n" +
-                        "Line ${options.dividerThicknessDp} · Glow ${options.dividerGlowDp} dp · Strength ${options.dividerGlowStrength}/100",
+                        "Border ${appearance.borderWidthDp} dp · Opacity ${appearance.borderOpacityPercent}%\n" +
+                        "Glow ${appearance.glowSpreadDp} dp · Strength ${appearance.glowOpacityPercent}%\n" +
+                        "Focus ${appearance.focusScalePercent}% · Corners ${appearance.cornerRadiusDp} dp\n" +
+                        "Badge ${resolvedAppearance.badgeTextSizeSp} sp · Text ${appearance.badgeTextOpacityPercent}% · Background ${appearance.badgeBackgroundOpacityPercent}%\n" +
+                        "Badge inset ${resolvedAppearance.badgeHorizontalInsetDp}/${resolvedAppearance.badgeVerticalInsetDp} dp\n" +
+                        "Badge padding ${resolvedAppearance.badgeHorizontalPaddingDp}/${resolvedAppearance.badgeVerticalPaddingDp} dp · Corners ${appearance.badgeCornerPercent}%",
                     color = NeonBoard.Text,
                     fontSize = 12.sp,
                 )
@@ -165,7 +169,7 @@ fun AlphaHomeLayoutTuner(
                         if (allRows) Text("Readouts show the selected row.", color = NeonBoard.Mid)
                     }
                     items(LayoutControls, key = { it.label }) { control ->
-                        val resolved = options.copy(extraVerticalPaddingDp = extra, edgePaddingDp = options.edgePaddingDp ?: options.spacing)
+                        val resolved = options.copy(cardAppearance = resolvedAppearance)
                         val value = control.get(resolved)
                         val displayedValue = if (control.valueDivisor == 1) value.toString() else (value.toFloat() / control.valueDivisor).toString()
                         HomeSettingsListItem(
@@ -181,50 +185,16 @@ fun AlphaHomeLayoutTuner(
                         )
                     }
                     item {
-                        Text(
-                            "Divider → card: ${options.dividerGapDp} + ${options.verticalPaddingDp} + $extra = ${options.dividerGapDp + options.verticalPaddingDp + extra} dp (before focus enlargement)",
-                            color = NeonBoard.Volt,
-                        )
-                    }
-                    item {
+                        val colors = listOf("Row accent", "Volt", "Orange", "White", "Cyan", "Pink")
+                        fun changeColor(delta: Int) {
+                            val index = (appearance.accentIndex + delta + colors.size) % colors.size
+                            change { it.copy(cardAppearance = it.cardAppearance.copy(accentIndex = index)) }
+                        }
                         HomeSettingsListItem(
                             selected = false,
-                            headlineText = "Card shape: ${options.aspectRatio.label}",
-                            onClick = {
-                                change {
-                                    val ratio = AspectRatio.entries[(options.aspectRatio.ordinal + 1) % AspectRatio.entries.size]
-                                    it.copy(aspectRatio = ratio, episodeAspectRatio = ratio)
-                                }
-                            },
-                        )
-                    }
-                    item {
-                        HomeSettingsListItem(
-                            selected = options.showTitles,
-                            headlineText = "Card captions: ${if (options.showTitles) "on" else "off"}",
-                            onClick = { change { it.copy(showTitles = !options.showTitles) } },
-                        )
-                    }
-                    item {
-                        HomeSettingsListItem(
-                            selected = false,
-                            headlineText = "Image fit: ${options.contentScale.name.lowercase()}",
-                            onClick = {
-                                val scale =
-                                    when (options.contentScale) {
-                                        PrefContentScale.FILL -> PrefContentScale.FIT
-                                        PrefContentScale.FIT -> PrefContentScale.CROP
-                                        else -> PrefContentScale.FILL
-                                    }
-                                change { it.copy(contentScale = scale, episodeContentScale = scale) }
-                            },
-                        )
-                    }
-                    item {
-                        HomeSettingsListItem(
-                            selected = false,
-                            headlineText = "Set every row to 172 dp / 22 dp",
-                            onClick = { onChange(null) { it.copy(heightDp = 172, spacing = 22, edgePaddingDp = null) } },
+                            headlineText = "Focus border color: ${colors[appearance.accentIndex.coerceIn(colors.indices)]}",
+                            onClick = { changeColor(1) },
+                            modifier = Modifier.handleDPadKeyEvents(onLeft = { changeColor(-1) }, onRight = { changeColor(1) }),
                         )
                     }
                     item {
@@ -260,30 +230,18 @@ private data class LayoutControl(
 
 private val LayoutControls =
     listOf(
-        LayoutControl("Card height", 64..320, { it.heightDp }, { o, v -> o.copy(heightDp = v) }),
-        LayoutControl("Between cards", 0..80, { it.spacing }, { o, v -> o.copy(spacing = v) }),
-        LayoutControl("Base vertical padding", 0..64, { it.verticalPaddingDp }, { o, v -> o.copy(verticalPaddingDp = v) }),
-        LayoutControl("Extra vertical padding", 0..64, { it.extraVerticalPaddingDp ?: 0 }, { o, v -> o.copy(extraVerticalPaddingDp = v) }),
-        LayoutControl("Divider → padding gap", 0..64, { it.dividerGapDp }, { o, v -> o.copy(dividerGapDp = v) }),
-        LayoutControl("After row", 0..64, { it.rowGapDp }, { o, v -> o.copy(rowGapDp = v) }),
-        LayoutControl("Row side padding", 0..80, { it.edgePaddingDp ?: it.spacing }, { o, v -> o.copy(edgePaddingDp = v, endPaddingDp = o.endPaddingDp ?: o.edgePaddingDp ?: o.spacing) }),
-        LayoutControl("Row end padding", 0..160, { it.endPaddingDp ?: it.edgePaddingDp ?: it.spacing }, { o, v -> o.copy(endPaddingDp = v) }),
-        LayoutControl("Title → divider gap", 0..32, { it.titleDividerGapDp }, { o, v -> o.copy(titleDividerGapDp = v) }),
-        LayoutControl("Row title text size", 12..40, { it.titleSizeSp }, { o, v -> o.copy(titleSizeSp = v) }, "sp"),
-        LayoutControl("Row title letter spacing", -20..100, { it.titleLetterSpacingTenthsSp }, { o, v -> o.copy(titleLetterSpacingTenthsSp = v) }, "sp", 10),
-        LayoutControl("Row count text size", 8..40, { it.countSizeSp }, { o, v -> o.copy(countSizeSp = v) }, "sp"),
-        LayoutControl("Row count opacity", 0..100, { it.countOpacityPercent }, { o, v -> o.copy(countOpacityPercent = v) }, "%"),
-        LayoutControl("Row count right padding", 0..160, { it.countEndPaddingDp }, { o, v -> o.copy(countEndPaddingDp = v) }),
-        LayoutControl("Divider thickness", 1..8, { it.dividerThicknessDp }, { o, v -> o.copy(dividerThicknessDp = v) }),
-        LayoutControl("Divider glow spread", 0..48, { it.dividerGlowDp }, { o, v -> o.copy(dividerGlowDp = v) }),
-        LayoutControl("Divider glow strength", 0..100, { it.dividerGlowStrength }, { o, v -> o.copy(dividerGlowStrength = v) }, "/ 100"),
+        LayoutControl("Focus border thickness", 0..8, { it.cardAppearance.borderWidthDp }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(borderWidthDp = v)) }),
+        LayoutControl("Focus border opacity", 0..100, { it.cardAppearance.borderOpacityPercent }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(borderOpacityPercent = v)) }, "%"),
+        LayoutControl("Focus glow spread", 0..48, { it.cardAppearance.glowSpreadDp }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(glowSpreadDp = v)) }),
+        LayoutControl("Focus glow strength", 0..100, { it.cardAppearance.glowOpacityPercent }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(glowOpacityPercent = v)) }, "%"),
+        LayoutControl("Focused card scale", 100..120, { it.cardAppearance.focusScalePercent }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(focusScalePercent = v)) }, "%"),
+        LayoutControl("Card corner radius", 0..32, { it.cardAppearance.cornerRadiusDp }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(cornerRadiusDp = v)) }),
+        LayoutControl("Poster badge text size", 8..40, { it.cardAppearance.badgeTextSizeSp ?: 13 }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(badgeTextSizeSp = v)) }, "sp"),
+        LayoutControl("Poster badge text opacity", 0..100, { it.cardAppearance.badgeTextOpacityPercent }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(badgeTextOpacityPercent = v)) }, "%"),
+        LayoutControl("Poster badge background opacity", 0..100, { it.cardAppearance.badgeBackgroundOpacityPercent }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(badgeBackgroundOpacityPercent = v)) }, "%"),
+        LayoutControl("Poster badge right inset", 0..64, { it.cardAppearance.badgeHorizontalInsetDp ?: 4 }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(badgeHorizontalInsetDp = v)) }),
+        LayoutControl("Poster badge top inset", 0..64, { it.cardAppearance.badgeVerticalInsetDp ?: 4 }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(badgeVerticalInsetDp = v)) }),
+        LayoutControl("Poster badge horizontal padding", 0..32, { it.cardAppearance.badgeHorizontalPaddingDp ?: 4 }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(badgeHorizontalPaddingDp = v)) }),
+        LayoutControl("Poster badge vertical padding", 0..32, { it.cardAppearance.badgeVerticalPaddingDp ?: 4 }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(badgeVerticalPaddingDp = v)) }),
+        LayoutControl("Poster badge corner rounding", 0..50, { it.cardAppearance.badgeCornerPercent }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(badgeCornerPercent = v)) }, "%"),
     )
-
-private val AspectRatio.label: String
-    get() =
-        when (this) {
-            AspectRatio.TALL -> "Portrait 2:3"
-            AspectRatio.WIDE -> "Landscape 16:9"
-            AspectRatio.FOUR_THREE -> "Landscape 4:3"
-            AspectRatio.SQUARE -> "Square 1:1"
-        }

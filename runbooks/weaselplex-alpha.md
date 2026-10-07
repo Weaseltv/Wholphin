@@ -55,40 +55,57 @@ Gradle command is:
 ./gradlew :app:assembleWeaselfinAlpha -PWeaselPlexTargetAbi=arm64-v8a
 ```
 
-## Live Home layout tuner (Alpha only)
+## Approved Home layout defaults
 
-Open **Settings → Customize home page → Live layout tuner (Alpha)**. Select a
-Home row and choose whether edits apply to that row or all rows. Up/down selects a
-control; left/right adjusts numeric values by 1 dp, immediately in the full Home
-preview. The fixed readout shows the current row's exact values for screenshots.
+The owner-approved settings were read from Alpha on 2026-10-07. The sanitized
+snapshot of all eight rows is `runbooks/home-layout-defaults-2026-10-07.json`;
+no user IDs, library IDs, queries or login data are included.
 
-Controls include card height, spacing between cards, base vertical padding,
-extra vertical padding, divider-to-padding gap, space after the row, row side
-padding, separate row end padding and title-to-divider gap. Row side padding
-sets the left/start position; row end padding (0–160 dp) adds room after the last
-card without moving the first card. Existing end spacing stays unchanged until
-adjusted. Card shape, image fit and captions are also
-adjustable. Row title text size (12–40 sp, 1 sp steps) and letter spacing
-(−2.0–10.0 sp, 0.1 sp steps) update live; defaults are 22 sp and 0 sp.
-Title-to-divider gap controls the space below the title. Focus scrolling uses
-the measured title height so changing size keeps the title visible.
-The right-side row count has separate text size (8–40 sp), opacity (0–100%)
-and right padding (0–160 dp) controls; defaults are 12 sp, 100% and 8 dp.
-Increasing right padding moves the count inward without changing card spacing.
-Divider thickness (1–8 dp), glow spread (0–48 dp), and glow strength
-(0–100) are live controls too; 0 strength/spread disables glow. Base and extra padding apply both above and below the cards; the
-divider-to-card distance is the divider gap + base padding + extra padding.
-All padding values are absolute dp; Picks starts with 9 dp extra padding.
+| Setting | Approved default |
+| --- | --- |
+| Card height / between cards | 172 dp / 20 dp |
+| Start / end padding | 4 dp / 16 dp |
+| Base / extra vertical padding | 4 dp / 12 dp |
+| Divider-to-padding / after-row gap | 12 dp / 8 dp |
+| Title-to-divider gap | 3 dp |
+| Row title size / letter spacing | 30 sp / 0 sp |
+| Row count size / opacity / right padding | 14 sp / 100% / 15 dp |
+| Divider thickness / glow spread / strength | 5 dp / 10 dp / 70% |
+| Card shape / captions | Portrait 2:3 / off |
+| Image fit | Streaming: Fit; other rows: Fill |
 
-Use **Hide controls / inspect Home** to focus the cards and see their glow;
+Streaming's saved episode shape remains 16:9; other episode shapes are 2:3.
+Image-source selections remain separate from layout defaults.
+
+New WeaselPlex installs and newly created rows use these defaults. Existing local
+or imported layouts receive the approved layout once, recorded as revision 1 in
+local Home settings. Row names, queries, order and image-source options are
+preserved. Later user changes are saved with revision 1 and remain overrides;
+the approved values are never reapplied at every startup. This code will reach
+customer installs when the owner explicitly publishes a stable release.
+
+## Live card appearance tuner (Alpha only)
+
+Open **Settings → Customize home page → Live layout tuner (Alpha)**. The completed
+layout controls have been removed from this overlay; saved layout values remain.
+Select a Home row and choose whether edits apply to that row or all rows.
+Up/down selects a control; left/right adjusts the displayed value live.
+
+Focus controls include border thickness (0–8 dp), border opacity, glow spread
+(0–48 dp), glow strength, focus scale (100–120%), card corner radius (0–32 dp),
+and border/glow color (row accent, Volt, Orange, White, Cyan or Pink).
+
+Poster season/episode/collection-count badge controls include text size (8–40 sp),
+text and background opacity, right/top inset (0–64 dp), horizontal/vertical
+inner padding (0–32 dp) and corner rounding (0–50%). Opacity uses 0–100%.
+Untuned badges keep their existing sizing, including Picks' badge scaling.
+These controls change presentation, not the count or episode label itself.
+
+Use **Hide controls / inspect Home** to focus cards and see their border/glow;
 **Back** brings the overlay back. **Save & close** (or Back from the controls)
-saves the values in the usual local per-user Home settings. **Discard this tuning
-session** restores the settings from when the tool opened.
-
-WeaselPlex Home defaults are 172 dp card height and 22 dp between cards. Existing
-customized rows retain their saved values; **Set every row to 172 dp / 22 dp**
-applies those values to the current layout without resetting its other options.
-The tuner entry is hidden from customer builds.
+saves normal local per-user Home settings. **Discard this tuning session**
+restores values from when the tool opened. The tuner entry is hidden from
+customer builds. Normal Home row customization remains available.
 
 ## Alpha installation and build host
 

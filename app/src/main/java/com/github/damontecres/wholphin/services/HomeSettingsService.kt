@@ -8,6 +8,7 @@ import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomePageSettings
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.data.model.SUPPORTED_HOME_PAGE_SETTINGS_VERSION
 import com.github.damontecres.wholphin.data.model.createGenreDestination
@@ -123,7 +124,9 @@ class HomeSettingsService
             displayPreferencesId: String = DisplayPreferencesService.DEFAULT_DISPLAY_PREF_ID,
         ) {
             displayPreferencesService.updateDisplayPreferences(userId, displayPreferencesId) {
-                put(CUSTOM_PREF_ID, jsonParser.encodeToString(settings))
+                put(CUSTOM_PREF_ID, jsonParser.encodeToString(
+                    if (BuildConfig.FLAVOR == "weaselfin") settings.copy(layoutDefaultsRevision = ApprovedHomeLayout.REVISION) else settings,
+                ))
             }
         }
 
@@ -164,7 +167,10 @@ class HomeSettingsService
             val dir = File(context.filesDir, CUSTOM_PREF_ID)
             dir.mkdirs()
             File(dir, filename(userId)).outputStream().use {
-                jsonParser.encodeToStream(settings, it)
+                jsonParser.encodeToStream(
+                    if (BuildConfig.FLAVOR == "weaselfin") settings.copy(layoutDefaultsRevision = ApprovedHomeLayout.REVISION) else settings,
+                    it,
+                )
             }
         }
 
@@ -253,7 +259,7 @@ class HomeSettingsService
 
             val homeSettings =
                 if (BuildConfig.FLAVOR == "weaselfin") {
-                    matchAlphaRowLayoutOnce(userId, CuratedCollections.withCuratedRow(resolvedSettings))
+                    applyApprovedLayoutOnce(userId, settings?.layoutDefaultsRevision ?: 0, CuratedCollections.withCuratedRow(resolvedSettings))
                 } else {
                     resolvedSettings
                 }
@@ -261,55 +267,21 @@ class HomeSettingsService
         }
 
         /** Owner requested matching the remaining Alpha rows to the first two tuned rows. */
-        private suspend fun matchAlphaRowLayoutOnce(
+        /** Apply the owner-approved layout once; later user edits are retained. */
+        private suspend fun applyApprovedLayoutOnce(
             userId: UUID,
+            revision: Int,
             settings: HomePageResolvedSettings,
         ): HomePageResolvedSettings {
-            if (BuildConfig.BUILD_TYPE != "alpha" || settings.rows.size < 3) return settings
-            val migrations = context.getSharedPreferences("alpha_home_layout_migrations", Context.MODE_PRIVATE)
-            val key = "match_first_two_20261007_$userId"
-            if (migrations.getBoolean(key, false)) return settings
-            val source = settings.rows.first().config.viewOptions
-            val matched =
-                HomePageResolvedSettings(
-                    settings.rows.mapIndexed { index, row ->
-                        if (index < 2) {
-                            row
-                        } else {
-                            row.copy(
-                                config =
-                                    row.config.updateViewOptions(
-                                        row.config.viewOptions.copy(
-                                            heightDp = source.heightDp,
-                                            spacing = source.spacing,
-                                            verticalPaddingDp = source.verticalPaddingDp,
-                                            extraVerticalPaddingDp = source.extraVerticalPaddingDp ?: 0,
-                                            dividerGapDp = source.dividerGapDp,
-                                            rowGapDp = source.rowGapDp,
-                                            edgePaddingDp = source.edgePaddingDp,
-                                            endPaddingDp = source.endPaddingDp,
-                                            titleDividerGapDp = source.titleDividerGapDp,
-                                            titleSizeSp = source.titleSizeSp,
-                                            titleLetterSpacingTenthsSp = source.titleLetterSpacingTenthsSp,
-                                            countSizeSp = source.countSizeSp,
-                                            countOpacityPercent = source.countOpacityPercent,
-                                            countEndPaddingDp = source.countEndPaddingDp,
-                                            dividerThicknessDp = source.dividerThicknessDp,
-                                            dividerGlowDp = source.dividerGlowDp,
-                                            dividerGlowStrength = source.dividerGlowStrength,
-                                            aspectRatio = source.aspectRatio,
-                                            episodeAspectRatio = source.episodeAspectRatio,
-                                            contentScale = source.contentScale,
-                                            episodeContentScale = source.episodeContentScale,
-                                            showTitles = source.showTitles,
-                                        ),
-                                    ),
-                            )
-                        }
-                    },
-                )
+            if (revision >= ApprovedHomeLayout.REVISION) return settings
+            val matched = HomePageResolvedSettings(
+                settings.rows.map { row ->
+                    row.copy(config = row.config.updateViewOptions(
+                        ApprovedHomeLayout.apply(row.config.viewOptions, StreamingCollections.isStreamingRow(row.config)),
+                    ))
+                },
+            )
             saveToLocal(userId, HomePageSettings(matched.rows.map { it.config }, SUPPORTED_HOME_PAGE_SETTINGS_VERSION))
-            migrations.edit().putBoolean(key, true).apply()
             return matched
         }
 
@@ -1387,7 +1359,7 @@ fun viewOptionsForCollectionType(collectionType: CollectionType?): HomeRowViewOp
         -> {
             HomeRowViewOptions(
                 heightDp = if (BuildConfig.FLAVOR == "weaselfin") BuildConfig.DEFAULT_CARD_HEIGHT_DP else Cards.HEIGHT_EPISODE,
-                aspectRatio = AspectRatio.SQUARE,
+                aspectRatio = if (BuildConfig.FLAVOR == "weaselfin") AspectRatio.TALL else AspectRatio.SQUARE,
             )
         }
 
@@ -1398,7 +1370,7 @@ fun viewOptionsForCollectionType(collectionType: CollectionType?): HomeRowViewOp
         -> {
             HomeRowViewOptions(
                 heightDp = if (BuildConfig.FLAVOR == "weaselfin") BuildConfig.DEFAULT_CARD_HEIGHT_DP else Cards.HEIGHT_EPISODE,
-                aspectRatio = AspectRatio.WIDE,
+                aspectRatio = if (BuildConfig.FLAVOR == "weaselfin") AspectRatio.TALL else AspectRatio.WIDE,
             )
         }
 

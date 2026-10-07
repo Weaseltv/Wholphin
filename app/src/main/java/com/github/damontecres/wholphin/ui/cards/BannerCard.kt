@@ -43,12 +43,12 @@ import coil3.compose.AsyncImage
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.services.StreamingCollections
-import com.github.damontecres.wholphin.ui.AppColors
 import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.enableMarquee
+import com.github.damontecres.wholphin.ui.theme.LocalHomeCardAppearance
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
@@ -84,6 +84,11 @@ fun BannerCard(
     useSeriesForPrimary: Boolean = true,
     cornerTextScale: Float = 1f,
 ) {
+    val appearance = LocalHomeCardAppearance.current
+    val badgeInsetX = appearance.badgeHorizontalInsetDp?.dp ?: (4.dp * cornerTextScale)
+    val badgeInsetY = appearance.badgeVerticalInsetDp?.dp ?: (4.dp * cornerTextScale)
+    val badgePaddingX = appearance.badgeHorizontalPaddingDp?.dp ?: (4.dp * cornerTextScale)
+    val badgePaddingY = appearance.badgeVerticalPaddingDp?.dp ?: (4.dp * cornerTextScale)
     val outlineMax =
         isWeaselTv() && item?.data?.let {
             StreamingCollections.isStreamingCollection(it) &&
@@ -196,7 +201,7 @@ fun BannerCard(
                     modifier =
                         Modifier
                             .align(Alignment.TopEnd)
-                            .padding(4.dp * cornerTextScale),
+                            .padding(horizontal = badgeInsetX, vertical = badgeInsetY),
                 ) {
                     if (played && (playPercent <= 0 || playPercent >= 100)) {
                         WatchedIcon(Modifier.size(24.dp))
@@ -206,18 +211,19 @@ fun BannerCard(
                             modifier =
                                 Modifier
                                     .background(
-                                        AppColors.TransparentBlack50,
-                                        shape = RoundedCornerShape(25),
+                                        Color.Black.copy(alpha = appearance.badgeBackgroundOpacityPercent / 100f),
+                                        shape = RoundedCornerShape(appearance.badgeCornerPercent),
                                     ),
                         ) {
                             Text(
                                 text = cornerText,
                                 style =
                                     MaterialTheme.typography.bodySmall.let {
-                                        it.copy(fontSize = it.fontSize * cornerTextScale, lineHeight = it.lineHeight * cornerTextScale)
+                                        val size = appearance.badgeTextSizeSp?.sp ?: (it.fontSize * cornerTextScale)
+                                        it.copy(fontSize = size, lineHeight = size * (it.lineHeight.value / it.fontSize.value))
                                     },
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(4.dp * cornerTextScale),
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = appearance.badgeTextOpacityPercent / 100f),
+                                modifier = Modifier.padding(horizontal = badgePaddingX, vertical = badgePaddingY),
                             )
                         }
                     }

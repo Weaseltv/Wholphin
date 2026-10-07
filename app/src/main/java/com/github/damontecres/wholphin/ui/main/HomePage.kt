@@ -94,6 +94,7 @@ import com.github.damontecres.wholphin.ui.playback.isPlayKeyUp
 import com.github.damontecres.wholphin.ui.playback.playable
 import com.github.damontecres.wholphin.ui.playback.scale
 import com.github.damontecres.wholphin.ui.rememberPosition
+import com.github.damontecres.wholphin.ui.theme.LocalHomeCardAppearance
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
@@ -745,95 +746,97 @@ fun HomePageCardContent(
     modifier: Modifier,
     cornerTextScale: Float = 1f,
 ) {
-    when (item?.type) {
-        BaseItemKind.GENRE -> {
-            GenreCard(
-                genreId = item.id,
-                name = item.name,
-                imageUrl = item.imageUrlOverride,
-                onClick = onClick,
-                onLongClick = onLongClick,
-                modifier = modifier.height(viewOptions.heightDp.dp),
-            )
-        }
-
-        BaseItemKind.STUDIO -> {
-            StudioCard(
-                studioId = item.id,
-                name = item.name,
-                imageUrl = item.imageUrlOverride,
-                onClick = onClick,
-                onLongClick = onLongClick,
-                modifier = modifier.height(viewOptions.heightDp.dp),
-            )
-        }
-
-        else -> {
-            val imageType =
-                remember(item, viewOptions) {
-                    if (item?.type == BaseItemKind.EPISODE) {
-                        viewOptions.episodeImageType.imageType
-                    } else {
-                        viewOptions.imageType.imageType
-                    }
-                }
-            val ratio =
-                remember(item, viewOptions) {
-                    if (item?.type == BaseItemKind.EPISODE) {
-                        viewOptions.episodeAspectRatio.ratio
-                    } else {
-                        viewOptions.aspectRatio.ratio
-                    }
-                }
-            val scale =
-                remember(item, viewOptions) {
-                    if (item?.type == BaseItemKind.EPISODE) {
-                        viewOptions.episodeContentScale.scale
-                    } else {
-                        viewOptions.contentScale.scale
-                    }
-                }
-            if (viewOptions.showTitles) {
-                BannerCardWithTitle(
-                    title = item?.title,
-                    subtitle = item?.subtitle,
-                    item = item,
-                    aspectRatio = ratio,
-                    imageType = imageType,
-                    imageContentScale = scale,
-                    cornerText = item?.ui?.episodeUnplayedCornerText,
-                    played = item?.data?.userData?.played ?: false,
-                    favorite = item?.favorite ?: false,
-                    playPercent =
-                        item?.data?.userData?.playedPercentage
-                            ?: 0.0,
+    CompositionLocalProvider(LocalHomeCardAppearance provides viewOptions.cardAppearance) {
+        when (item?.type) {
+            BaseItemKind.GENRE -> {
+                GenreCard(
+                    genreId = item.id,
+                    name = item.name,
+                    imageUrl = item.imageUrlOverride,
                     onClick = onClick,
                     onLongClick = onLongClick,
-                    modifier = modifier,
-                    cardHeight = viewOptions.heightDp.dp,
-                    useSeriesForPrimary = viewOptions.useSeries,
+                    modifier = modifier.height(viewOptions.heightDp.dp),
                 )
-            } else {
-                BannerCard(
-                    name = item?.data?.seriesName ?: item?.name,
-                    item = item,
-                    aspectRatio = ratio,
-                    imageType = imageType,
-                    imageContentScale = scale,
-                    cornerText = item?.ui?.episodeUnplayedCornerText,
-                    played = item?.data?.userData?.played ?: false,
-                    favorite = item?.favorite ?: false,
-                    playPercent =
-                        item?.data?.userData?.playedPercentage
-                            ?: 0.0,
+            }
+
+            BaseItemKind.STUDIO -> {
+                StudioCard(
+                    studioId = item.id,
+                    name = item.name,
+                    imageUrl = item.imageUrlOverride,
                     onClick = onClick,
                     onLongClick = onLongClick,
-                    modifier = modifier,
-                    interactionSource = null,
-                    cardHeight = viewOptions.heightDp.dp,
-                    useSeriesForPrimary = viewOptions.useSeries,
-                    cornerTextScale = cornerTextScale,
+                    modifier = modifier.height(viewOptions.heightDp.dp),
                 )
+            }
+
+            else -> {
+                val imageType =
+                    remember(item, viewOptions) {
+                        if (item?.type == BaseItemKind.EPISODE) {
+                            viewOptions.episodeImageType.imageType
+                        } else {
+                            viewOptions.imageType.imageType
+                        }
+                    }
+                val ratio =
+                    remember(item, viewOptions) {
+                        if (item?.type == BaseItemKind.EPISODE) {
+                            viewOptions.episodeAspectRatio.ratio
+                        } else {
+                            viewOptions.aspectRatio.ratio
+                        }
+                    }
+                val scale =
+                    remember(item, viewOptions) {
+                        if (item?.type == BaseItemKind.EPISODE) {
+                            viewOptions.episodeContentScale.scale
+                        } else {
+                            viewOptions.contentScale.scale
+                        }
+                    }
+                if (viewOptions.showTitles) {
+                    BannerCardWithTitle(
+                        title = item?.title,
+                        subtitle = item?.subtitle,
+                        item = item,
+                        aspectRatio = ratio,
+                        imageType = imageType,
+                        imageContentScale = scale,
+                        cornerText = item?.ui?.episodeUnplayedCornerText,
+                        played = item?.data?.userData?.played ?: false,
+                        favorite = item?.favorite ?: false,
+                        playPercent =
+                            item?.data?.userData?.playedPercentage
+                                ?: 0.0,
+                        onClick = onClick,
+                        onLongClick = onLongClick,
+                        modifier = modifier,
+                        cardHeight = viewOptions.heightDp.dp,
+                        useSeriesForPrimary = viewOptions.useSeries,
+                    )
+                } else {
+                    BannerCard(
+                        name = item?.data?.seriesName ?: item?.name,
+                        item = item,
+                        aspectRatio = ratio,
+                        imageType = imageType,
+                        imageContentScale = scale,
+                        cornerText = item?.ui?.episodeUnplayedCornerText,
+                        played = item?.data?.userData?.played ?: false,
+                        favorite = item?.favorite ?: false,
+                        playPercent =
+                            item?.data?.userData?.playedPercentage
+                                ?: 0.0,
+                        onClick = onClick,
+                        onLongClick = onLongClick,
+                        modifier = modifier,
+                        interactionSource = null,
+                        cardHeight = viewOptions.heightDp.dp,
+                        useSeriesForPrimary = viewOptions.useSeries,
+                        cornerTextScale = cornerTextScale,
+                    )
+                }
             }
         }
     }
@@ -855,12 +858,14 @@ fun HomePageViewMoreCard(
                 viewOptions.aspectRatio
             }
         }
-    ViewMoreCard(
-        onClick = onClick,
-        onLongClick = onLongClick,
-        modifier = modifier,
-        aspectRatio = aspectRatio,
-        size = DpSize(height = viewOptions.heightDp.dp, width = Dp.Unspecified),
-        showTitle = viewOptions.showTitles,
-    )
+    CompositionLocalProvider(LocalHomeCardAppearance provides viewOptions.cardAppearance) {
+        ViewMoreCard(
+            onClick = onClick,
+            onLongClick = onLongClick,
+            modifier = modifier,
+            aspectRatio = aspectRatio,
+            size = DpSize(height = viewOptions.heightDp.dp, width = Dp.Unspecified),
+            showTitle = viewOptions.showTitles,
+        )
+    }
 }

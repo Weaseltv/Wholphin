@@ -37,7 +37,6 @@ object CuratedCollections {
                 HomeRowViewOptions(
                     showTitles = false,
                     useSeries = false,
-                    extraVerticalPaddingDp = EXTRA_VERTICAL_PADDING_DP,
                 ),
         )
 
