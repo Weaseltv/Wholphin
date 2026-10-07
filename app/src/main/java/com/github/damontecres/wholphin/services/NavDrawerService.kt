@@ -213,7 +213,7 @@ class NavDrawerService
         ): List<Library> {
             if (BuildConfig.FLAVOR != "weaselfin" || libraries.isEmpty()) return libraries
             val migrations = context.getSharedPreferences("sidebar_palette_migrations", Context.MODE_PRIVATE)
-            val key = "palette_v4_server_order_${user.rowId}"
+            val key = "palette_v5_server_order_${user.rowId}"
             if (migrations.getBoolean(key, false)) return libraries
             val ordered = libraries.sortedBy {
                 defaultNavOrder(
@@ -290,7 +290,7 @@ class NavDrawerService
             // Restore the owner's requested order once; preserve future explicit reordering.
             if (BuildConfig.FLAVOR == "weaselfin") {
                 val migrations = context.getSharedPreferences("sidebar_palette_migrations", Context.MODE_PRIVATE)
-                val key = "palette_v4_order_${user.rowId}"
+                val key = "palette_v5_order_${user.rowId}"
                 if (!migrations.getBoolean(key, false) && libraries.isNotEmpty()) {
                     val restored = allItems.sortedBy { defaultNavOrder(it, context) }.mapIndexed { index, item ->
                         NavDrawerPinnedItem(user.rowId, item.id, navDrawerPins[item.id]?.type ?: NavPinType.PINNED, index)

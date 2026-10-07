@@ -341,3 +341,5 @@ BritBox's provider SVG uses an expanded, normalized view box so the i dot and le
 - Home layout revision 5 updates saved local and server-default row spacing to 14 dp; WeaselPlex poster grids also use 14 dp.
 
 - Poster captions share a 14 sp, two-line title with ellipsis and fixed title-line allocation; subtitles also ellipsize. The text stays bounded instead of using a marquee. MOVIE/SHOW badge font size and padding follow global poster-count appearance.
+
+- Sidebar palette order revision 5 places Stand Up Comedy before Sports for new installs and migrates existing local pins/server library order once. Recommended rows inherit the live library Home card appearance instead of overriding it with default row options.

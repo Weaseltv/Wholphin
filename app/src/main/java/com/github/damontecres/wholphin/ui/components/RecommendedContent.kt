@@ -38,6 +38,8 @@ import com.github.damontecres.wholphin.ui.detail.PlaylistDialog
 import com.github.damontecres.wholphin.ui.detail.music.addToQueue
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
+import com.github.damontecres.wholphin.ui.theme.LocalHomeCardAppearance
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.main.HomePageContent
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberPosition
@@ -362,6 +364,16 @@ fun RecommendedContent(
         viewModel.init()
     }
     val state by viewModel.state.collectAsState()
+    // Recommended rows own their view options; apply the live library Home appearance here
+    // so their card provider cannot replace it with stock border/glow defaults.
+    val libraryCardAppearance = LocalHomeCardAppearance.current
+    val homeRows = if (isWeaselTv()) {
+        state.rows.map { row ->
+            if (row is HomeRowLoadingState.Success) {
+                row.copy(viewOptions = row.viewOptions.copy(cardAppearance = libraryCardAppearance))
+            } else row
+        }
+    } else state.rows
 
     when (val st = state.loading) {
         is LoadingState.Error -> {
@@ -406,7 +418,7 @@ fun RecommendedContent(
                 }
 
             HomePageContent(
-                homeRows = state.rows,
+                homeRows = homeRows,
                 position = position,
                 onClickItem = { _, item ->
                     viewModel.navigationManager.navigateTo(item.destination())
