@@ -28,9 +28,28 @@
   asking for an APK to test does not authorize a customer release.
 - Asking to merge a PR does not authorize a customer release either. Merge the
   code without creating a release tag or publishing APKs unless separately asked.
-- For launcher artwork changes, report APK/install checks separately from visual
-  verification. Projectivy can retain a separate tile image; verify the ALPHA
-  badge on the actual launcher before saying it is visible. See the runbook.
+
+### Fast Alpha iteration (owner policy, 2026-10-07)
+
+- Optimize routine Alpha tweaks for turnaround: make the change, build only the
+  arm64 Alpha APK, install directly from the VPS, and hand it back to the owner.
+  Build completion and `adb install -r` returning `Success` finish the iteration.
+- Skip optional checks unless the owner explicitly requests them: writing or
+  running tests, lint, formatting/pre-commit suites, extra reviews, APK signature/
+  checksum/native-library inspections, screenshots and visual checks. Keep the
+  build helper's existing Alpha-package/native-dependency safeguards.
+- The owner performs Alpha verification. Do not launch/navigate the app, send
+  remote input, inspect the launcher, capture screens, query installed package
+  metadata or run playback/D-pad/device tests before or after installation.
+  Use device diagnostics only to resolve an actual connection/install failure.
+- Do not require a clean tree, commit, PR, merge or CI result before delivering
+  an Alpha tweak. The helper records the source and uncommitted changes. Track
+  finalized changes afterward without delaying the owner's installed build.
+- Keep the active Alpha worktree's build outputs and Gradle/Kotlin caches across
+  tasks. Do not run `clean` or delete incremental state after each install.
+  The Alpha cache exception below overrides the generic cleanup requirement.
+- Report briefly: what changed and whether the Alpha build/install succeeded.
+  Leave visual verification to the owner; do not claim it was performed.
 
 ### Shield installs: direct VPS ADB over Tailscale
 
@@ -40,14 +59,11 @@
   The previous ThinkCentre install route is superseded.
 - Keep Tailscale connected on the VPS and Shield, and network debugging enabled
   on the Shield. If prompted, the owner approves the VPS's ADB authorization on
-  the Shield. Confirm the device before installing:
+  the Shield. For a requested install, the helper connects to the known target:
 
 ```bash
 export PATH="$HOME/Android/Sdk/platform-tools:$PATH"
-tailscale ping --c 1 100.105.135.30
-adb connect 100.105.135.30:5555
-adb -s 100.105.135.30:5555 get-state
-adb -s 100.105.135.30:5555 shell getprop ro.product.model
+./scripts/build-alpha.sh --install 100.105.135.30:5555
 ```
 
 - For an authorized Alpha install, build/install from the intended development
@@ -60,8 +76,7 @@ adb -s 100.105.135.30:5555 install -r app/build/outputs/apk/weaselfin/alpha/Weas
 
 - Retain the existing VPS Alpha debug signing key and use in-place installs to
   preserve Alpha login/settings. Do not uninstall or clear data to work around a
-  signing mismatch. Report build completion, install success and actual device
-  visual verification separately.
+  signing mismatch. Installation success is sufficient; owner testing follows.
 - If the direct connection fails, stop and report the problem. Ask for explicit
   approval before involving another machine; do not silently fall back to
   ThinkCentre. A paused install stays paused until the owner resumes it.
@@ -104,7 +119,15 @@ unzip -l <new-arm64-v8a>.apk | grep libffmpegJNI.so                  # native pl
 
 ## VPS and ThinkCentre disk hygiene (added 2026-10-03)
 
-Release and test builds leave gigabytes behind (`app/build`, Gradle outputs; 1–2 GB per TV build, about 6 GB per phone release). On 2026-10-03 the T3 VPS was down to 40 GB free from old release folders. Before you finish any task that built on either host, delete what you built:
+Release and test builds leave gigabytes behind (`app/build`, Gradle outputs; 1–2 GB per TV build, about 6 GB per phone release). On 2026-10-03 the T3 VPS was down to 40 GB free from old release folders. Apply the Alpha exception first; otherwise, before you finish any task that built on either host, delete what you built:
+
+- **Active Alpha iteration exception (2026-10-07):** retain `app/build`, root
+  `build`, `wholphin-mpv-stub/build`, `.gradle` and `.kotlin` in the active Alpha
+  worktree across task boundaries for incremental builds. Overwrite the current
+  Alpha APK instead of keeping an archive per tweak. Remove throwaway copies and
+  abandoned Alpha worktrees when the batch ends, the owner requests cleanup or
+  disk pressure requires it. Never delete the host debug key or shared Gradle
+  dependency cache. Check `df -h ~` after builds; report less than 30 GB free.
 
 - **Release build folders, once the GitHub release is published and verified:** remove the worktree you built from (e.g. `git -C ~/work/weaselfin/Wholphin worktree remove --force <path>`, or delete `~/work/weaselfin/releases/tv-vX.Y.Z`). The tag keeps the source and the GitHub release keeps the APKs.
 - **Everything else you built:** test builds, throwaway clones in `/tmp`, emulator test APKs.

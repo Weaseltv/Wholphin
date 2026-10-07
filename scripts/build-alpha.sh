@@ -7,7 +7,8 @@ Usage: scripts/build-alpha.sh [--abi ABI] [--install ADB_SERIAL]
 
 Build WeaselPlex Alpha for your Shield without tagging or publishing a release.
 Defaults to arm64-v8a. Supported ABIs: arm64-v8a, armeabi-v7a, x86_64.
---install replaces the Alpha app on an already-connected ADB device.
+--install connects to a network ADB target and replaces the Alpha app.
+No tests, lint, device launch or visual checks are run.
 EOF
 }
 
@@ -40,7 +41,6 @@ fi
 command -v python3 >/dev/null || { echo "python3 is required to read APK metadata" >&2; exit 1; }
 if [[ -n "$alpha_device" ]]; then
     command -v adb >/dev/null || { echo "adb must be on PATH for --install" >&2; exit 1; }
-    adb -s "$alpha_device" get-state >/dev/null
 fi
 
 # Keep Gradle's incremental outputs between iterations; don't run clean here.
@@ -75,5 +75,8 @@ cp -- "$alpha_source" "$alpha_apk"
 } > "$alpha_apk.build.txt"
 printf '\nAlpha APK: %s\nBuild record: %s.build.txt\n' "$alpha_apk" "$alpha_apk"
 if [[ -n "$alpha_device" ]]; then
+    if [[ "$alpha_device" == *:* ]]; then
+        adb connect "$alpha_device"
+    fi
     adb -s "$alpha_device" install -r "$alpha_apk"
 fi

@@ -1,33 +1,52 @@
 # WeaselPlex Alpha development
 
-Build and test as often as needed. Customers receive an update only when the owner
+Make a change, build and install Alpha, then let the owner verify and request the
+next tweak. Customers receive an update only when the owner
 asks to publish a stable release. An Alpha build never creates a GitHub release or
 tag and never changes Latest or the Downloader link.
 
-## Build for the Shield
+## Fast change → build → install → owner verification
 
-From the working branch containing the changes:
+Routine Alpha iterations skip optional tests, lint, formatting/pre-commit suites,
+extra reviews, APK inspections/checksums and visual/device checks unless the owner
+explicitly requests them. Compilation and the helper's existing Alpha-package and
+native-dependency safeguards remain. Do not gate an Alpha install on a clean tree,
+commit, PR, merge or CI result. Track finalized changes afterward.
+
+On the assigned VPS, from the working branch containing the change:
 
 ```bash
-./scripts/build-alpha.sh
+export PATH="$HOME/Android/Sdk/platform-tools:$PATH"
+./scripts/build-alpha.sh --install 100.105.135.30:5555
 ```
 
+This builds arm64 Alpha, connects directly over Tailscale and installs in place.
+When ADB returns **Success**, report the change and installation and hand the
+iteration back to the owner. Do not open the app, send remote input, inspect the
+launcher, take screenshots, query installed package metadata or test playback/
+D-pad behavior. Device diagnostics are only for actual connection/install errors.
+The owner performs visual checks and requests the next change.
+
+Keep Tailscale connected and network debugging enabled on the Shield. The target
+is `100.105.135.30:5555` (`shield.taildbfaa7.ts.net`), reached directly from VPS
+`srv1160496` (`100.72.23.45`). The owner approves ADB authorization if prompted.
+Do not use ThinkCentre or another machine for builds, transfers or ADB without
+explicit owner approval; a connection failure does not authorize a fallback.
+
 The helper builds only arm64-v8a, skips release code/resource shrinking, and keeps
-Gradle's incremental outputs for subsequent builds. The first build on a fresh
+Gradle's incremental outputs across tasks for subsequent builds. The first build on a fresh
 worktree is slower. It prints the path to `WeaselPlex-alpha-arm64-v8a.apk` and a
 build record with the commit, build time and any uncommitted changes.
 
-Install that APK using your usual sideload method, or install over ADB:
+If the intended Alpha APK is already built, install it without rebuilding:
 
 ```bash
-adb connect SHIELD_IP:5555
-./scripts/build-alpha.sh --install SHIELD_IP:5555
+adb connect 100.105.135.30:5555
+adb -s 100.105.135.30:5555 install -r app/build/outputs/apk/weaselfin/alpha/WeaselPlex-alpha-arm64-v8a.apk
 ```
 
-Enable the Shield's developer options and network debugging, and approve the host
-on the Shield first. `--install` needs an already-connected device; the build
-helper does not connect to a device automatically. For another device architecture,
-use `--abi armeabi-v7a` or `--abi x86_64`.
+For a build without installation, use `./scripts/build-alpha.sh`. For another
+device architecture, use `--abi armeabi-v7a` or `--abi x86_64`.
 
 Android Studio can also build the `weaselfinAlpha` variant. The equivalent direct
 Gradle command is:
@@ -62,7 +81,7 @@ Gradle command is:
   `~/.gradle/gradle.properties`, or all three local AARs in `app/libs`.
   Keep keys and credentials out of the repo.
 
-## Projectivy launcher artwork
+## Projectivy launcher artwork (owner reference)
 
 An installed APK's icon/banner and Projectivy's displayed tile can differ. On the
 owner's Shield, installing the badged Alpha APK and restarting Projectivy still
@@ -76,18 +95,20 @@ left an unbadged Alpha tile. Assigning the Alpha banner directly fixed it:
    customer app. Keep that picture on the Shield for the launcher to use.
 
 Preserve the owner's launcher layout and other tiles. Do not clear launcher data
-to refresh an icon. Report artwork packaged in an APK, successful installation,
-and actual launcher visual verification as separate checks.
+to refresh an icon. These steps are for the owner; agents only troubleshoot the
+launcher when explicitly asked. Successful installation does not establish what
+Projectivy displays; leave that verification to the owner.
 
 ## Accumulate changes, then ship once
 
 1. Start development from `weaselfin`. Use a feature branch for one change, or a
    shared `weaselfin-alpha` branch for a batch of changes. Merge completed feature
    branches into that batch branch so every Alpha build contains the whole batch.
-2. Make fixes, commit them, build Alpha, and test on the Shield. Repeat for as many
-   days as useful. Track the changes for the eventual customer release notes.
-3. Before shipping, commit the finalized changes and test an Alpha build of that
-   commit. Its build record should show a clean working tree. If the batch includes
+2. Make fixes, build Alpha and install directly on the Shield. The owner tests and
+   requests further tweaks; repeat for as many days as useful. Commit finalized
+   work and track release notes without delaying the owner's installed build.
+3. Before shipping, commit the finalized changes. If the owner requests another
+   Alpha verification build, install it for the owner to test. If the batch includes
    unfinished work, finish or revert it first; promotion includes everything merged.
 4. When the owner explicitly asks to ship, merge the finalized batch into
    **`weaselfin`**, tag that merge commit `vX.Y.Z`, then build the signed
@@ -102,9 +123,14 @@ and actual launcher visual verification as separate checks.
    Release optimization differs from Alpha; playback/performance bugs may need a
    final signed-build check before publishing. No pre-merge device check is required.
 6. Bring the development branch up to date with `weaselfin` for the next batch,
-   update the existing WeaselPlex Product in Notion, and clean build outputs.
+   update the existing WeaselPlex Product in Notion, and clean release/abandoned
+   outputs while retaining the active Alpha worktree's incremental state.
 
-Keep incremental outputs while actively iterating. At the end of a build task,
-remove its generated `app/build`, root `build`, `wholphin-mpv-stub/build`,
-`.gradle` and `.kotlin` outputs and throwaway APKs per `AGENTS.md`. Remove any
-throwaway build worktree as well. Check `df -h ~` and report less than 30 GB free.
+Keep the active Alpha worktree's `app/build`, root `build`,
+`wholphin-mpv-stub/build`, `.gradle` and `.kotlin` across tasks. Do not run `clean`
+or delete caches after each install. Overwrite the current APK instead of archiving
+every iteration. Remove throwaway APK copies and abandoned worktrees when the
+batch ends, the owner requests cleanup or disk pressure requires it. Preserve the
+host debug key and shared Gradle dependency cache. Check `df -h ~` after builds
+and report less than 30 GB free. This is the Alpha exception to generic disk
+cleanup in `AGENTS.md`; stable release cleanup/checks retain their requirements.
