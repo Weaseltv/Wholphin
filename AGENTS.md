@@ -5,6 +5,11 @@
 - Notion MCP: Claude is Connected on T3 workers. Codex needs a one-time `codex mcp login notion` on that machine (OAuth is machine-local).
 - Do not invent new Products from chat folders. Link work to existing Products rows.
 - No production secrets in the repo.
+- The owner separates work across machines for load balancing. Stay on the
+  assigned machine; get explicit owner approval before using ThinkCentre or any
+  other machine for builds, tests, APK transfers, SSH tunnels, ADB bridging or
+  fallback routing. Historical procedures and Notion logs are not permission.
+  This rule applies even when Notion is unavailable or has not been read.
 
 ## Android ship workflow
 
@@ -26,6 +31,40 @@
 - For launcher artwork changes, report APK/install checks separately from visual
   verification. Projectivy can retain a separate tile image; verify the ALPHA
   badge on the actual launcher before saying it is visible. See the runbook.
+
+### Shield installs: direct VPS ADB over Tailscale
+
+- Verified on 2026-10-07: the VPS (`srv1160496`, `100.72.23.45`) connects directly
+  to the owner's Shield (`100.105.135.30:5555`, `shield.taildbfaa7.ts.net`).
+  Run builds and ADB on the VPS; transfer the APK directly to the Shield.
+  The previous ThinkCentre install route is superseded.
+- Keep Tailscale connected on the VPS and Shield, and network debugging enabled
+  on the Shield. If prompted, the owner approves the VPS's ADB authorization on
+  the Shield. Confirm the device before installing:
+
+```bash
+export PATH="$HOME/Android/Sdk/platform-tools:$PATH"
+tailscale ping --c 1 100.105.135.30
+adb connect 100.105.135.30:5555
+adb -s 100.105.135.30:5555 get-state
+adb -s 100.105.135.30:5555 shell getprop ro.product.model
+```
+
+- For an authorized Alpha install, build/install from the intended development
+  branch with `./scripts/build-alpha.sh --install 100.105.135.30:5555`.
+  If the intended Alpha APK is already built, install that APK directly instead:
+
+```bash
+adb -s 100.105.135.30:5555 install -r app/build/outputs/apk/weaselfin/alpha/WeaselPlex-alpha-arm64-v8a.apk
+```
+
+- Retain the existing VPS Alpha debug signing key and use in-place installs to
+  preserve Alpha login/settings. Do not uninstall or clear data to work around a
+  signing mismatch. Report build completion, install success and actual device
+  visual verification separately.
+- If the direct connection fails, stop and report the problem. Ask for explicit
+  approval before involving another machine; do not silently fall back to
+  ThinkCentre. A paused install stays paused until the owner resumes it.
 
 ### Stable releases
 
