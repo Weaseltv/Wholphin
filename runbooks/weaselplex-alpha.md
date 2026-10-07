@@ -116,6 +116,10 @@ explicit user adjustments remain overrides:
 | Hallmark+ | #613790 |
 | Angel | #E8B923 |
 
+Border-only contrast overrides use Apple TV's #A2AAAD for Paramount+ and
+Hallmark, and #000000 for BritBox and Crunchyroll. Their glow retains the provider
+color listed above; other provider borders and glow remain matched.
+
 ## Home descriptions and Settings styling
 
 Home descriptions use 92% of the available header width instead of the previous

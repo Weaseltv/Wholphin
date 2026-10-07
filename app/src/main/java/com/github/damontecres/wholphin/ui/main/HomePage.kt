@@ -96,6 +96,7 @@ import com.github.damontecres.wholphin.ui.playback.playable
 import com.github.damontecres.wholphin.ui.playback.scale
 import com.github.damontecres.wholphin.ui.rememberPosition
 import com.github.damontecres.wholphin.ui.theme.LocalHomeCardAppearance
+import com.github.damontecres.wholphin.ui.theme.LocalHomeCardBorderAccent
 import com.github.damontecres.wholphin.ui.theme.LocalHomeRowAccent
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
@@ -106,6 +107,7 @@ import com.github.damontecres.wholphin.ui.theme.libraryAccent
 import com.github.damontecres.wholphin.ui.theme.neonAccentFor
 import com.github.damontecres.wholphin.ui.theme.typeAccent
 import com.github.damontecres.wholphin.ui.theme.streamingProviderAccent
+import com.github.damontecres.wholphin.ui.theme.streamingProviderBorderAccent
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import com.github.damontecres.wholphin.util.LoadingState
@@ -557,6 +559,7 @@ fun HomePageContent(
                                                         } else {
                                                             homeRowAccent(row.rowType, libraries)
                                                         },
+                                                    borderAccent = if (row.rowType?.let(StreamingCollections::isStreamingRow) == true) streamingProviderBorderAccent(item?.name) else null,
                                                     cornerTextScale = if (curated) CuratedCollections.CARD_SIZE_MULTIPLIER else 1f,
                                                     modifier =
                                                         cardModifier
@@ -775,10 +778,12 @@ fun HomePageCardContent(
     modifier: Modifier,
     cornerTextScale: Float = 1f,
     rowAccent: Color? = null,
+    borderAccent: Color? = null,
 ) {
     CompositionLocalProvider(
         LocalHomeCardAppearance provides viewOptions.cardAppearance,
         LocalHomeRowAccent provides rowAccent,
+        LocalHomeCardBorderAccent provides borderAccent,
     ) {
         when (item?.type) {
             BaseItemKind.GENRE -> {

@@ -299,6 +299,14 @@ fun streamingProviderAccent(name: String?): Color? =
         else -> null
     }
 
+/** Contrast overrides affect the provider's focus border only; its logo-colored glow stays. */
+fun streamingProviderBorderAccent(name: String?): Color? =
+    when (name?.trim()?.lowercase(java.util.Locale.ROOT)) {
+        "paramount+", "paramount plus", "hallmark", "hallmark+", "hallmark plus" -> streamingProviderAccent("Apple TV")
+        "britbox", "crunchyroll" -> Color.Black
+        else -> null
+    }
+
 /** Section accent for a library by its Jellyfin collection type. */
 fun collectionAccent(type: CollectionType?): Color =
     when (type) {
@@ -372,7 +380,7 @@ fun neonCardBorder(
     val appearance = LocalHomeCardAppearance.current
     val resolvedShape = if (shape == RectangleShape) RoundedCornerShape(appearance.cornerRadiusDp.dp) else shape
     val focused = if (appearance.borderWidthDp > 0 && appearance.borderOpacityPercent > 0) {
-        Border(border = BorderStroke(appearance.borderWidthDp.dp, homeCardAccent(accent).copy(alpha = appearance.borderOpacityPercent / 100f)), shape = resolvedShape)
+        Border(border = BorderStroke(appearance.borderWidthDp.dp, (LocalHomeCardBorderAccent.current ?: homeCardAccent(accent)).copy(alpha = appearance.borderOpacityPercent / 100f)), shape = resolvedShape)
     } else Border.None
     return CardDefaults.border(
         border = if (restWidth > 0.dp) Border(BorderStroke(restWidth, restColor), shape = resolvedShape) else Border.None,
@@ -413,6 +421,7 @@ fun neonCardShape(fallback: CardShape? = null): CardShape {
 
 val LocalHomeCardAppearance = compositionLocalOf { HomeCardAppearance() }
 val LocalHomeRowAccent = compositionLocalOf<Color?> { null }
+val LocalHomeCardBorderAccent = compositionLocalOf<Color?> { null }
 
 @Composable
 private fun homeCardAccent(default: Color): Color =
