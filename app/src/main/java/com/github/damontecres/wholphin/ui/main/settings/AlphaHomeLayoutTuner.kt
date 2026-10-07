@@ -134,6 +134,7 @@ fun AlphaHomeLayoutTuner(
                         "Padding ${options.verticalPaddingDp} + extra $extra · Divider gap ${options.dividerGapDp} dp\n" +
                         "After row ${options.rowGapDp} · Title gap ${options.titleDividerGapDp} dp\n" +
                         "Title ${options.titleSizeSp} sp · Letter spacing ${options.titleLetterSpacingTenthsSp / 10f} sp\n" +
+                        "Count ${options.countSizeSp} sp · Opacity ${options.countOpacityPercent}% · Right ${options.countEndPaddingDp} dp\n" +
                         "Line ${options.dividerThicknessDp} · Glow ${options.dividerGlowDp} dp · Strength ${options.dividerGlowStrength}/100",
                     color = NeonBoard.Text,
                     fontSize = 12.sp,
@@ -270,6 +271,9 @@ private val LayoutControls =
         LayoutControl("Title → divider gap", 0..32, { it.titleDividerGapDp }, { o, v -> o.copy(titleDividerGapDp = v) }),
         LayoutControl("Row title text size", 12..40, { it.titleSizeSp }, { o, v -> o.copy(titleSizeSp = v) }, "sp"),
         LayoutControl("Row title letter spacing", -20..100, { it.titleLetterSpacingTenthsSp }, { o, v -> o.copy(titleLetterSpacingTenthsSp = v) }, "sp", 10),
+        LayoutControl("Row count text size", 8..40, { it.countSizeSp }, { o, v -> o.copy(countSizeSp = v) }, "sp"),
+        LayoutControl("Row count opacity", 0..100, { it.countOpacityPercent }, { o, v -> o.copy(countOpacityPercent = v) }, "%"),
+        LayoutControl("Row count right padding", 0..160, { it.countEndPaddingDp }, { o, v -> o.copy(countEndPaddingDp = v) }),
         LayoutControl("Divider thickness", 1..8, { it.dividerThicknessDp }, { o, v -> o.copy(dividerThicknessDp = v) }),
         LayoutControl("Divider glow spread", 0..48, { it.dividerGlowDp }, { o, v -> o.copy(dividerGlowDp = v) }),
         LayoutControl("Divider glow strength", 0..100, { it.dividerGlowStrength }, { o, v -> o.copy(dividerGlowStrength = v) }, "/ 100"),

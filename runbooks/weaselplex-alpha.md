@@ -72,6 +72,9 @@ adjustable. Row title text size (12–40 sp, 1 sp steps) and letter spacing
 (−2.0–10.0 sp, 0.1 sp steps) update live; defaults are 22 sp and 0 sp.
 Title-to-divider gap controls the space below the title. Focus scrolling uses
 the measured title height so changing size keeps the title visible.
+The right-side row count has separate text size (8–40 sp), opacity (0–100%)
+and right padding (0–160 dp) controls; defaults are 12 sp, 100% and 8 dp.
+Increasing right padding moves the count inward without changing card spacing.
 Divider thickness (1–8 dp), glow spread (0–48 dp), and glow strength
 (0–100) are live controls too; 0 strength/spread disables glow. Base and extra padding apply both above and below the cards; the
 divider-to-card distance is the divider gap + base padding + extra padding.

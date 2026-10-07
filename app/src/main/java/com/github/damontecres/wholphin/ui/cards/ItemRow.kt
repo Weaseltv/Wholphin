@@ -69,6 +69,9 @@ fun <T> ItemRow(
     dividerGlowStrength: Float = .35f,
     titleSize: TextUnit = 22.sp,
     titleLetterSpacing: TextUnit = 0.sp,
+    countSize: TextUnit = 12.sp,
+    countOpacity: Float = 1f,
+    countEndPadding: Dp = 8.dp,
 ) {
     val state = rememberLazyListState()
     val firstFocus = remember { FocusRequester() }
@@ -104,6 +107,9 @@ fun <T> ItemRow(
             dividerGlowStrength = dividerGlowStrength,
             titleSize = titleSize,
             titleLetterSpacing = titleLetterSpacing,
+            countSize = countSize,
+            countOpacity = countOpacity,
+            countEndPadding = countEndPadding,
         )
 
         LazyRow(
@@ -193,6 +199,9 @@ fun ItemRowTitle(
     dividerGlowStrength: Float = .35f,
     titleSize: TextUnit = 22.sp,
     titleLetterSpacing: TextUnit = 0.sp,
+    countSize: TextUnit = 12.sp,
+    countOpacity: Float = 1f,
+    countEndPadding: Dp = 8.dp,
 ) {
     if (!isWeaselTv()) {
         Text(
@@ -208,7 +217,7 @@ fun ItemRowTitle(
     ) {
         Row(
             verticalAlignment = Alignment.Bottom,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = countEndPadding),
         ) {
             Text(
                 text = title.uppercase(),
@@ -220,8 +229,8 @@ fun ItemRowTitle(
             if (count != null && count > 0) {
                 Text(
                     text = count.toString(),
-                    style = NeonType.count(),
-                    color = NeonBoard.Mid,
+                    style = NeonType.count().copy(fontSize = countSize, lineHeight = countSize * 1.2f),
+                    color = NeonBoard.Mid.copy(alpha = countOpacity.coerceIn(0f, 1f)),
                     modifier = Modifier.padding(bottom = 3.dp),
                 )
             }
