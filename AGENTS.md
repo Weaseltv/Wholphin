@@ -23,6 +23,9 @@
   asking for an APK to test does not authorize a customer release.
 - Asking to merge a PR does not authorize a customer release either. Merge the
   code without creating a release tag or publishing APKs unless separately asked.
+- For launcher artwork changes, report APK/install checks separately from visual
+  verification. Projectivy can retain a separate tile image; verify the ALPHA
+  badge on the actual launcher before saying it is visible. See the runbook.
 
 ### Stable releases
 
