@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.services
 
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
 import com.github.damontecres.wholphin.util.GetItemsRequestHandler
@@ -37,6 +38,7 @@ object CuratedCollections {
                 HomeRowViewOptions(
                     showTitles = false,
                     useSeries = false,
+                    cardAppearance = ApprovedHomeLayout.CARD_APPEARANCE.copy(borderOpacityPercent = 100),
                 ),
         )
 

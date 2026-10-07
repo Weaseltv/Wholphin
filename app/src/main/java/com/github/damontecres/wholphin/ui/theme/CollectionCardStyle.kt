@@ -20,23 +20,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomeCardAppearance
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import org.jellyfin.sdk.model.api.BaseItemKind
 
 /** Owner-approved Picks focus/count values, also used before Home settings finish loading. */
-val ApprovedCollectionCardAppearance = HomeCardAppearance(
-    borderWidthDp = 2,
-    borderOpacityPercent = 100,
-    glowSpreadDp = 15,
-    glowOpacityPercent = 70,
-    focusScalePercent = 109,
-    badgeTextSizeSp = 11,
-    badgeBackgroundOpacityPercent = 75,
-    badgeHorizontalInsetDp = 5,
-    badgeVerticalInsetDp = 5,
-    badgeHorizontalPaddingDp = 2,
-    badgeVerticalPaddingDp = 2,
-    badgeCornerPercent = 20,
-)
+val ApprovedCollectionCardAppearance = ApprovedHomeLayout.CARD_APPEARANCE.copy(borderOpacityPercent = 100)
 
 val LocalCollectionCardAppearance = compositionLocalOf<HomeCardAppearance?> { null }
 

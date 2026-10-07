@@ -241,7 +241,7 @@ data class HomeRowViewOptions(
     val countEndPaddingDp: Int = if (BuildConfig.FLAVOR == "weaselfin") 15 else 8,
     val dividerThicknessDp: Int = if (BuildConfig.FLAVOR == "weaselfin") 5 else 1,
     val dividerGlowDp: Int = if (BuildConfig.FLAVOR == "weaselfin") 10 else 12,
-    val cardAppearance: HomeCardAppearance = HomeCardAppearance(),
+    val cardAppearance: HomeCardAppearance = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.CARD_APPEARANCE else HomeCardAppearance(),
     val dividerGlowStrength: Int = if (BuildConfig.FLAVOR == "weaselfin") 70 else 35,
 ) {
     companion object {

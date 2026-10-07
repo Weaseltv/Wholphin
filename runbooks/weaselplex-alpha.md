@@ -63,7 +63,7 @@ no user IDs, library IDs, queries or login data are included.
 
 | Setting | Approved default |
 | --- | --- |
-| Card height / between cards | 172 dp / 16 dp |
+| Card height / between cards | 172 dp / 14 dp |
 | Start / end padding | 4 dp / 16 dp |
 | Base / extra vertical padding | 4 dp / 12 dp |
 | Divider-to-padding / after-row gap | 12 dp / 8 dp |
@@ -343,3 +343,5 @@ BritBox's provider SVG uses an expanded, normalized view box so the i dot and le
 - Poster captions share a 14 sp, two-line title with ellipsis and fixed title-line allocation; subtitles also ellipsize. The text stays bounded instead of using a marquee. MOVIE/SHOW badge font size and padding follow global poster-count appearance.
 
 - Sidebar palette order revision 5 places Stand Up Comedy before Sports for new installs and migrates existing local pins/server library order once. Recommended rows inherit the live library Home card appearance instead of overriding it with default row options.
+
+- Home layout revision 6 packages the approved focus/count appearance for all WeaselPlex rows: 2 dp border, 80% opacity (100% for providers/Picks), 15 dp glow at 70%, 109% focused scale, and 11 sp counts with 75% backgrounds, 5 dp insets, 2 dp inner padding and 20% corners. Existing untouched legacy appearance fields migrate once locally and in server display preferences; non-default user tuning and later overrides are retained. This batch remains Alpha until the owner explicitly requests stable publication.

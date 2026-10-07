@@ -5,8 +5,22 @@ import com.github.damontecres.wholphin.ui.AspectRatio
 
 /** Owner-approved values captured from all eight Alpha rows on 2026-10-07. */
 object ApprovedHomeLayout {
-    const val REVISION = 5
+    const val REVISION = 6
     const val CARD_SPACING_DP = 14
+    val CARD_APPEARANCE = HomeCardAppearance(
+        borderWidthDp = 2,
+        borderOpacityPercent = 80,
+        glowSpreadDp = 15,
+        glowOpacityPercent = 70,
+        focusScalePercent = 109,
+        badgeTextSizeSp = 11,
+        badgeBackgroundOpacityPercent = 75,
+        badgeHorizontalInsetDp = 5,
+        badgeVerticalInsetDp = 5,
+        badgeHorizontalPaddingDp = 2,
+        badgeVerticalPaddingDp = 2,
+        badgeCornerPercent = 20,
+    )
 
     fun apply(options: HomeRowViewOptions, streaming: Boolean = false): HomeRowViewOptions =
         options.copy(
@@ -47,7 +61,31 @@ object ApprovedHomeLayout {
         } else {
             layout
         }
-        return if (revision < 5) appearance.copy(spacing = CARD_SPACING_DP) else appearance
+        val spaced = if (revision < 5) appearance.copy(spacing = CARD_SPACING_DP) else appearance
+        return if (revision < 6) {
+            spaced.copy(cardAppearance = upgradeCardDefaults(spaced.cardAppearance, streaming || curated))
+        } else spaced
+    }
+
+    /** Replace untouched legacy defaults; retain values a user has already tuned. */
+    private fun upgradeCardDefaults(saved: HomeCardAppearance, collection: Boolean): HomeCardAppearance {
+        val legacy = HomeCardAppearance()
+        val approved = CARD_APPEARANCE.copy(borderOpacityPercent = if (collection) 100 else 80)
+        fun <T> value(current: T, old: T, default: T): T = if (current == old) default else current
+        return saved.copy(
+            borderWidthDp = value(saved.borderWidthDp, legacy.borderWidthDp, approved.borderWidthDp),
+            borderOpacityPercent = value(saved.borderOpacityPercent, legacy.borderOpacityPercent, approved.borderOpacityPercent),
+            glowSpreadDp = value(saved.glowSpreadDp, legacy.glowSpreadDp, approved.glowSpreadDp),
+            glowOpacityPercent = value(saved.glowOpacityPercent, legacy.glowOpacityPercent, approved.glowOpacityPercent),
+            focusScalePercent = value(saved.focusScalePercent, legacy.focusScalePercent, approved.focusScalePercent),
+            badgeTextSizeSp = value(saved.badgeTextSizeSp, legacy.badgeTextSizeSp, approved.badgeTextSizeSp),
+            badgeBackgroundOpacityPercent = value(saved.badgeBackgroundOpacityPercent, legacy.badgeBackgroundOpacityPercent, approved.badgeBackgroundOpacityPercent),
+            badgeHorizontalInsetDp = value(saved.badgeHorizontalInsetDp, legacy.badgeHorizontalInsetDp, approved.badgeHorizontalInsetDp),
+            badgeVerticalInsetDp = value(saved.badgeVerticalInsetDp, legacy.badgeVerticalInsetDp, approved.badgeVerticalInsetDp),
+            badgeHorizontalPaddingDp = value(saved.badgeHorizontalPaddingDp, legacy.badgeHorizontalPaddingDp, approved.badgeHorizontalPaddingDp),
+            badgeVerticalPaddingDp = value(saved.badgeVerticalPaddingDp, legacy.badgeVerticalPaddingDp, approved.badgeVerticalPaddingDp),
+            badgeCornerPercent = value(saved.badgeCornerPercent, legacy.badgeCornerPercent, approved.badgeCornerPercent),
+        )
     }
 }
 
