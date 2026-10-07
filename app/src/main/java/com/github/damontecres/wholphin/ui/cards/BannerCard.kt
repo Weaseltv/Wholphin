@@ -58,6 +58,7 @@ import com.github.damontecres.wholphin.ui.theme.neonCardGlow
 import com.github.damontecres.wholphin.ui.theme.neonCardScale
 import com.github.damontecres.wholphin.ui.theme.neonCardShape
 import com.github.damontecres.wholphin.ui.theme.neonProgress
+import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ImageType
 
 /**
@@ -115,7 +116,23 @@ fun BannerCard(
                 null
             }
         }
-    var imageError by remember(imageUrl) { mutableStateOf(false) }
+    val collectionPosterUrl =
+        remember(item, fillHeight, imageType) {
+            if (item?.type == BaseItemKind.BOX_SET && imageType != ImageType.PRIMARY) {
+                imageUrlService.getItemImageUrl(
+                    item,
+                    ImageType.PRIMARY,
+                    fillHeight = fillHeight,
+                    useSeriesForPrimary = false,
+                )
+            } else {
+                null
+            }
+        }
+    // Retry after image-setting changes, even when a collection's URL stays the same.
+    var useCollectionPoster by remember(item, imageUrl, useSeriesForPrimary) { mutableStateOf(false) }
+    val displayedImageUrl = if (useCollectionPoster) collectionPosterUrl else imageUrl
+    var imageError by remember(item, displayedImageUrl, useSeriesForPrimary) { mutableStateOf(false) }
 
     // Stabilize callbacks to prevent AsyncImage from recomposing
     val currentOnClick by rememberUpdatedState(onClick)
@@ -146,12 +163,18 @@ fun BannerCard(
                     .fillMaxSize(),
 //                    .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
-            if (!imageError && imageUrl != null) {
+            if (!imageError && displayedImageUrl != null) {
                 AsyncImage(
-                    model = imageUrl,
+                    model = displayedImageUrl,
                     contentDescription = null,
                     contentScale = imageContentScale,
-                    onError = remember { { imageError = true } },
+                    onError = {
+                        if (!useCollectionPoster && collectionPosterUrl != null && collectionPosterUrl != displayedImageUrl) {
+                            useCollectionPoster = true
+                        } else {
+                            imageError = true
+                        }
+                    },
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
