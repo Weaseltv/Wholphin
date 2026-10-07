@@ -1,5 +1,10 @@
 # Wholphin - an OSS Android TV client for Jellyfin
 
+For this **WeaselPlex** fork, run `./scripts/build-alpha.sh` to build a separate
+**WeaselPlex Alpha** app for Shield testing. See the
+[Alpha workflow](runbooks/weaselplex-alpha.md) for installation and batching tested
+changes into a customer release.
+
 > "Never half-phin two jellies. Always wholphin one jelly."
 
 Wholphin is an open-source Android TV client for Jellyfin. It aims to provide a different app UI that's inspired by Plex for users interested in migrating to Jellyfin.

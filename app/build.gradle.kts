@@ -241,6 +241,17 @@ configure<ApplicationExtension> {
             isDebuggable = true
             applicationIdSuffix = ".debug"
         }
+
+        // On-device development without publishing a customer update. Keep the
+        // WeaselPlex flavor's resources/defaults, but use a separate install and
+        // the host's debug key. Skip R8/resource shrinking for quick iterations.
+        create("alpha") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".alpha"
+            versionNameSuffix = "-alpha"
+            matchingFallbacks += "debug"
+            buildConfigField("boolean", "UPDATING_ENABLED", "false")
+        }
     }
     flavorDimensions += "version"
     productFlavors {
@@ -339,8 +350,13 @@ configure<ApplicationExtension> {
             isEnable = !isBuildingBundle.get()
 
             reset()
-            include("armeabi-v7a", "arm64-v8a", "x86_64")
-            isUniversalApk = true
+            val targetAbi = providers.gradleProperty("WeaselPlexTargetAbi").orNull
+            val supportedAbis = listOf("armeabi-v7a", "arm64-v8a", "x86_64")
+            require(targetAbi == null || targetAbi in supportedAbis) {
+                "WeaselPlexTargetAbi must be one of $supportedAbis"
+            }
+            include(*(targetAbi?.let { listOf(it) } ?: supportedAbis).toTypedArray())
+            isUniversalApk = targetAbi == null
         }
     }
     packaging {
@@ -374,7 +390,16 @@ configure<ApplicationExtension> {
 }
 
 androidComponents {
+    beforeVariants(selector().withBuildType("alpha")) { variant ->
+        // Alpha is a WeaselPlex workflow; don't add upstream Alpha variants.
+        variant.enable = variant.productFlavors.any { it.second == "weaselfin" }
+    }
     onVariants(selector().all()) { variant ->
+        if (variant.buildType == "alpha") {
+            // Reinstalling the same versionCode is allowed. A constant avoids
+            // downgrades when testing another branch or an older commit.
+            variant.outputs.forEach { it.versionCode.set(1) }
+        }
         variant.outputs
             .map { it as com.android.build.api.variant.impl.VariantOutputImpl }
             .forEach { output ->
@@ -458,6 +483,22 @@ tasks.matching { it.name == "preWeaselfinReleaseBuild" }.configureEach {
                 "WeaselPlex versionCode $weaselfinVersionCode is not above " +
                     "$weaselfinLastTagCountVersionCode (git describe: '${gitDescribe.trim()}'). " +
                     "Tag the release commit vX.Y.Z and build from that tag.",
+            )
+        }
+    }
+}
+
+// An Alpha playback test must exercise the real decoder/MPV libraries too.
+// Unlike the release guard, this requires no release tag or production key.
+tasks.matching { it.name == "preWeaselfinAlphaBuild" }.configureEach {
+    doFirst {
+        if (!extensionsRepoActive.get() &&
+            !(ffmpegModuleExists.get() && av1ModuleExists.get() && mpvModuleExists.get())
+        ) {
+            throw GradleException(
+                "WeaselPlex Alpha requires ffmpeg, AV1 and MPV extensions. " +
+                    "Configure WholphinExtensionsUsername/WholphinExtensionsPassword in " +
+                    "~/.gradle/gradle.properties or provide all three AARs in app/libs.",
             )
         }
     }
