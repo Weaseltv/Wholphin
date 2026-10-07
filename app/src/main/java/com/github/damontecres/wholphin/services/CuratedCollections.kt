@@ -60,7 +60,7 @@ object CuratedCollections {
             HomeRowConfigDisplay(
                 id = existing?.id ?: ((rows.maxOfOrNull { it.id } ?: -1) + 1),
                 title = StringStringProvider(NAME),
-                config = row,
+                config = existing?.config ?: row,
             ),
         )
         return HomePageResolvedSettings(rows)

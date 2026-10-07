@@ -483,6 +483,10 @@ class HomeSettingsViewModel
             viewModelScope.launchIO {
                 updateState {
                     it.copy(
+                        rows =
+                            it.rows.map { row ->
+                                row.copy(config = row.config.updateViewOptions(viewOptions))
+                            },
                         rowData =
                             it.rowData.toMutableList().map { row ->
                                 if (row is HomeRowLoadingState.Success) {
@@ -493,6 +497,7 @@ class HomeSettingsViewModel
                             },
                     )
                 }
+                fetchRowData()
             }
         }
 
