@@ -394,7 +394,7 @@ fun HomePageContent(
                         val rowModifier =
                             Modifier
                                 .animateItem(placementSpec = null)
-                                .padding(bottom = 8.dp)
+                                .padding(bottom = if (isWeaselTv() && row is HomeRowLoadingState.Success) row.viewOptions.rowGapDp.dp else 8.dp)
                         CompositionLocalProvider(
                             LocalBringIntoViewSpec provides defaultBringIntoViewSpec,
                         ) {
@@ -455,16 +455,17 @@ fun HomePageContent(
                                                     .focusGroup()
                                                     .focusRequester(rowFocusRequesters[rowIndex]),
                                             horizontalPadding = viewOptions.spacing.dp,
+                                            dividerGap = if (isWeaselTv()) viewOptions.dividerGapDp.dp else 8.dp,
+                                            titleDividerGap = if (isWeaselTv()) viewOptions.titleDividerGapDp.dp else 4.dp,
                                             cardContentPadding =
-                                                if (curated) {
-                                                    // Keep focus growth and the border inside the scrolling row.
+                                                if (isWeaselTv()) {
                                                     PaddingValues(
-                                                        horizontal =
-                                                            maxOf(
-                                                                viewOptions.spacing.dp,
-                                                                viewOptions.heightDp.dp * viewOptions.aspectRatio.ratio * .05f + 4.dp,
-                                                            ),
-                                                        vertical = viewOptions.heightDp.dp * .05f + 4.dp,
+                                                        horizontal = (viewOptions.edgePaddingDp ?: viewOptions.spacing).dp,
+                                                        vertical =
+                                                            (
+                                                                viewOptions.verticalPaddingDp +
+                                                                    (viewOptions.extraVerticalPaddingDp ?: if (curated) CuratedCollections.EXTRA_VERTICAL_PADDING_DP else 0)
+                                                            ).dp,
                                                     )
                                                 } else {
                                                     null

@@ -271,9 +271,9 @@ internal object Options {
     val ViewOptionsSpacing =
         AppSliderPreference<HomeRowViewOptions>(
             title = R.string.spacing,
-            defaultValue = 16,
+            defaultValue = HomeRowViewOptions().spacing.toLong(),
             min = 0,
-            max = 32,
+            max = 64,
             interval = 2,
             getter = { it.spacing.toLong() },
             setter = { prefs, value -> prefs.copy(spacing = value.toInt()) },

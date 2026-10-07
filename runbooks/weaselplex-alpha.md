@@ -55,6 +55,30 @@ Gradle command is:
 ./gradlew :app:assembleWeaselfinAlpha -PWeaselPlexTargetAbi=arm64-v8a
 ```
 
+## Live Home layout tuner (Alpha only)
+
+Open **Settings → Customize home page → Live layout tuner (Alpha)**. Select a
+Home row and choose whether edits apply to that row or all rows. Up/down selects a
+control; left/right adjusts numeric values by 1 dp, immediately in the full Home
+preview. The fixed readout shows the current row's exact values for screenshots.
+
+Controls include card height, spacing between cards, base vertical padding,
+extra vertical padding, divider-to-padding gap, space after the row, row side
+padding and title-to-divider gap. Card shape, image fit and captions are also
+adjustable. Base and extra padding apply both above and below the cards; the
+divider-to-card distance is the divider gap + base padding + extra padding.
+All padding values are absolute dp; Picks starts with 9 dp extra padding.
+
+Use **Hide controls / inspect Home** to focus the cards and see their glow;
+**Back** brings the overlay back. **Save & close** (or Back from the controls)
+saves the values in the usual local per-user Home settings. **Discard this tuning
+session** restores the settings from when the tool opened.
+
+WeaselPlex Home defaults are 172 dp card height and 22 dp between cards. Existing
+customized rows retain their saved values; **Set every row to 172 dp / 22 dp**
+applies those values to the current layout without resetting its other options.
+The tuner entry is hidden from customer builds.
+
 ## Alpha installation and build host
 
 - Launcher name: **WeaselPlex Alpha**.

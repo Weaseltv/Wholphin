@@ -217,7 +217,7 @@ const val SUPPORTED_HOME_PAGE_SETTINGS_VERSION = 1
 @Serializable
 data class HomeRowViewOptions(
     val heightDp: Int = BuildConfig.DEFAULT_CARD_HEIGHT_DP,
-    val spacing: Int = 16,
+    val spacing: Int = if (BuildConfig.FLAVOR == "weaselfin") 22 else 16,
     val contentScale: PrefContentScale = PrefContentScale.FILL,
     val aspectRatio: AspectRatio = AspectRatio.TALL,
     val imageType: ViewOptionImageType = ViewOptionImageType.PRIMARY,
@@ -226,17 +226,23 @@ data class HomeRowViewOptions(
     val episodeContentScale: PrefContentScale = PrefContentScale.FILL,
     val episodeAspectRatio: AspectRatio = AspectRatio.TALL,
     val episodeImageType: ViewOptionImageType = ViewOptionImageType.PRIMARY,
+    val verticalPaddingDp: Int = 4,
+    val extraVerticalPaddingDp: Int? = null,
+    val dividerGapDp: Int = 8,
+    val rowGapDp: Int = 8,
+    val edgePaddingDp: Int? = null,
+    val titleDividerGapDp: Int = 4,
 ) {
     companion object {
         val genreDefault =
             HomeRowViewOptions(
-                heightDp = Cards.HEIGHT_EPISODE,
+                heightDp = if (BuildConfig.FLAVOR == "weaselfin") BuildConfig.DEFAULT_CARD_HEIGHT_DP else Cards.HEIGHT_EPISODE,
                 aspectRatio = AspectRatio.WIDE,
             )
 
         val liveTvDefault =
             HomeRowViewOptions(
-                heightDp = Cards.HEIGHT_LIVE_TV,
+                heightDp = if (BuildConfig.FLAVOR == "weaselfin") BuildConfig.DEFAULT_CARD_HEIGHT_DP else Cards.HEIGHT_LIVE_TV,
                 aspectRatio = AspectRatio.WIDE,
                 contentScale = PrefContentScale.FIT,
             )

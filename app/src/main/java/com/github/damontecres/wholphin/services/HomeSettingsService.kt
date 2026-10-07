@@ -1333,7 +1333,7 @@ fun viewOptionsForCollectionType(collectionType: CollectionType?): HomeRowViewOp
         CollectionType.MUSIC,
         -> {
             HomeRowViewOptions(
-                heightDp = Cards.HEIGHT_EPISODE,
+                heightDp = if (BuildConfig.FLAVOR == "weaselfin") BuildConfig.DEFAULT_CARD_HEIGHT_DP else Cards.HEIGHT_EPISODE,
                 aspectRatio = AspectRatio.SQUARE,
             )
         }
@@ -1344,7 +1344,7 @@ fun viewOptionsForCollectionType(collectionType: CollectionType?): HomeRowViewOp
         CollectionType.TRAILERS,
         -> {
             HomeRowViewOptions(
-                heightDp = Cards.HEIGHT_EPISODE,
+                heightDp = if (BuildConfig.FLAVOR == "weaselfin") BuildConfig.DEFAULT_CARD_HEIGHT_DP else Cards.HEIGHT_EPISODE,
                 aspectRatio = AspectRatio.WIDE,
             )
         }

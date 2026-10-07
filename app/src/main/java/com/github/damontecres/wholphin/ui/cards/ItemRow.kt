@@ -58,6 +58,8 @@ fun <T> ItemRow(
     titleAccent: Color = LocalNeonAccent.current,
     viewMoreCardContent: @Composable (Modifier) -> Unit = {},
     cardContentPadding: PaddingValues? = null,
+    dividerGap: Dp = 8.dp,
+    titleDividerGap: Dp = 4.dp,
 ) {
     val state = rememberLazyListState()
     val firstFocus = remember { FocusRequester() }
@@ -74,7 +76,7 @@ fun <T> ItemRow(
             ?: PaddingValues(horizontal = horizontalPadding, vertical = if (neon) 4.dp else 8.dp)
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(dividerGap),
         modifier =
             modifier.focusProperties {
                 onEnter = {
@@ -82,7 +84,7 @@ fun <T> ItemRow(
                 }
             },
     ) {
-        ItemRowTitle(title, count = items.size.takeIf { isWeaselTv() }, accent = titleAccent)
+        ItemRowTitle(title, count = items.size.takeIf { isWeaselTv() }, accent = titleAccent, dividerGap = titleDividerGap)
 
         LazyRow(
             state = state,
@@ -165,6 +167,7 @@ fun ItemRowTitle(
     modifier: Modifier = Modifier,
     count: Int? = null,
     accent: Color = LocalNeonAccent.current,
+    dividerGap: Dp = 4.dp,
 ) {
     if (!isWeaselTv()) {
         Text(
@@ -198,6 +201,6 @@ fun ItemRowTitle(
                 )
             }
         }
-        NeonSectionRule(modifier = Modifier.padding(top = 4.dp), accent = accent)
+        NeonSectionRule(modifier = Modifier.padding(top = dividerGap), accent = accent)
     }
 }
