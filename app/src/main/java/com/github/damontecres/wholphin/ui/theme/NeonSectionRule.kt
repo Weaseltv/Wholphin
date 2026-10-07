@@ -36,7 +36,16 @@ fun InsetNeonSectionRules(
 fun NeonSectionRule(
     modifier: Modifier = Modifier,
     accent: Color = LocalNeonAccent.current,
+    thickness: Dp = NeonBoard.Size.Rule,
+    glowHeight: Dp = NeonBoard.GlowSpec.Rule,
+    glowStrength: Float = .35f,
 ) {
     val insets = LocalNeonRuleInsets.current
-    NeonRule(modifier = modifier.bleedHorizontal(insets.start, insets.end), accent = accent)
+    NeonRule(
+        modifier = modifier.bleedHorizontal(insets.start, insets.end),
+        accent = accent,
+        thickness = thickness,
+        glowHeight = glowHeight,
+        glowStrength = glowStrength,
+    )
 }

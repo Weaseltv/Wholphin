@@ -232,6 +232,9 @@ data class HomeRowViewOptions(
     val rowGapDp: Int = 8,
     val edgePaddingDp: Int? = null,
     val titleDividerGapDp: Int = 4,
+    val dividerThicknessDp: Int = 1,
+    val dividerGlowDp: Int = 12,
+    val dividerGlowStrength: Int = 35,
 ) {
     companion object {
         val genreDefault =

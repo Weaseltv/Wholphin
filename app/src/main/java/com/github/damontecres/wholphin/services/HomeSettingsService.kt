@@ -251,13 +251,60 @@ class HomeSettingsService
                     createDefault(userId)
                 }
 
-            currentSettings.update {
+            val homeSettings =
                 if (BuildConfig.FLAVOR == "weaselfin") {
-                    CuratedCollections.withCuratedRow(resolvedSettings)
+                    matchAlphaRowLayoutOnce(userId, CuratedCollections.withCuratedRow(resolvedSettings))
                 } else {
                     resolvedSettings
                 }
-            }
+            currentSettings.update { homeSettings }
+        }
+
+        /** Owner requested matching the remaining Alpha rows to the first two tuned rows. */
+        private suspend fun matchAlphaRowLayoutOnce(
+            userId: UUID,
+            settings: HomePageResolvedSettings,
+        ): HomePageResolvedSettings {
+            if (BuildConfig.BUILD_TYPE != "alpha" || settings.rows.size < 3) return settings
+            val migrations = context.getSharedPreferences("alpha_home_layout_migrations", Context.MODE_PRIVATE)
+            val key = "match_first_two_20261007_$userId"
+            if (migrations.getBoolean(key, false)) return settings
+            val source = settings.rows.first().config.viewOptions
+            val matched =
+                HomePageResolvedSettings(
+                    settings.rows.mapIndexed { index, row ->
+                        if (index < 2) {
+                            row
+                        } else {
+                            row.copy(
+                                config =
+                                    row.config.updateViewOptions(
+                                        row.config.viewOptions.copy(
+                                            heightDp = source.heightDp,
+                                            spacing = source.spacing,
+                                            verticalPaddingDp = source.verticalPaddingDp,
+                                            extraVerticalPaddingDp = source.extraVerticalPaddingDp ?: 0,
+                                            dividerGapDp = source.dividerGapDp,
+                                            rowGapDp = source.rowGapDp,
+                                            edgePaddingDp = source.edgePaddingDp,
+                                            titleDividerGapDp = source.titleDividerGapDp,
+                                            dividerThicknessDp = source.dividerThicknessDp,
+                                            dividerGlowDp = source.dividerGlowDp,
+                                            dividerGlowStrength = source.dividerGlowStrength,
+                                            aspectRatio = source.aspectRatio,
+                                            episodeAspectRatio = source.episodeAspectRatio,
+                                            contentScale = source.contentScale,
+                                            episodeContentScale = source.episodeContentScale,
+                                            showTitles = source.showTitles,
+                                        ),
+                                    ),
+                            )
+                        }
+                    },
+                )
+            saveToLocal(userId, HomePageSettings(matched.rows.map { it.config }, SUPPORTED_HOME_PAGE_SETTINGS_VERSION))
+            migrations.edit().putBoolean(key, true).apply()
+            return matched
         }
 
         /**

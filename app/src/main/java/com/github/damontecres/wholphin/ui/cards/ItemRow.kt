@@ -24,6 +24,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -60,6 +61,10 @@ fun <T> ItemRow(
     cardContentPadding: PaddingValues? = null,
     dividerGap: Dp = 8.dp,
     titleDividerGap: Dp = 4.dp,
+    onTitleHeightChanged: (Int) -> Unit = {},
+    dividerThickness: Dp = 1.dp,
+    dividerGlow: Dp = 12.dp,
+    dividerGlowStrength: Float = .35f,
 ) {
     val state = rememberLazyListState()
     val firstFocus = remember { FocusRequester() }
@@ -84,7 +89,16 @@ fun <T> ItemRow(
                 }
             },
     ) {
-        ItemRowTitle(title, count = items.size.takeIf { isWeaselTv() }, accent = titleAccent, dividerGap = titleDividerGap)
+        ItemRowTitle(
+            title,
+            count = items.size.takeIf { isWeaselTv() },
+            accent = titleAccent,
+            dividerGap = titleDividerGap,
+            modifier = Modifier.onSizeChanged { onTitleHeightChanged(it.height) },
+            dividerThickness = dividerThickness,
+            dividerGlow = dividerGlow,
+            dividerGlowStrength = dividerGlowStrength,
+        )
 
         LazyRow(
             state = state,
@@ -168,6 +182,9 @@ fun ItemRowTitle(
     count: Int? = null,
     accent: Color = LocalNeonAccent.current,
     dividerGap: Dp = 4.dp,
+    dividerThickness: Dp = 1.dp,
+    dividerGlow: Dp = 12.dp,
+    dividerGlowStrength: Float = .35f,
 ) {
     if (!isWeaselTv()) {
         Text(
@@ -201,6 +218,12 @@ fun ItemRowTitle(
                 )
             }
         }
-        NeonSectionRule(modifier = Modifier.padding(top = dividerGap), accent = accent)
+        NeonSectionRule(
+            modifier = Modifier.padding(top = dividerGap),
+            accent = accent,
+            thickness = dividerThickness,
+            glowHeight = dividerGlow,
+            glowStrength = dividerGlowStrength,
+        )
     }
 }

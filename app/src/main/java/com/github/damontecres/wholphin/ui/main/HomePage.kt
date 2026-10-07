@@ -2,6 +2,7 @@ package com.github.damontecres.wholphin.ui.main
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +24,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -99,7 +101,6 @@ import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.libraryAccent
 import com.github.damontecres.wholphin.ui.theme.neonAccentFor
 import com.github.damontecres.wholphin.ui.tryRequestFocus
-import com.github.damontecres.wholphin.ui.util.ScrollToTopBringIntoViewSpec
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import com.github.damontecres.wholphin.util.LoadingState
 import kotlinx.coroutines.delay
@@ -325,6 +326,7 @@ fun HomePageContent(
         }
 
     val rowFocusRequesters = remember(homeRows.size) { List(homeRows.size) { FocusRequester() } }
+    val rowTitleHeights = remember { mutableStateMapOf<Int, Int>() }
     var firstFocused by remember { mutableStateOf(false) }
 
     val currentPosition by rememberUpdatedState(position)
@@ -368,16 +370,34 @@ fun HomePageContent(
             headerComposable.invoke(focusedItem)
 
             val density = LocalDensity.current
+            val focusedRow = homeRows.getOrNull(position.row) as? HomeRowLoadingState.Success
             val spaceAbovePx =
-                remember(density) {
-                    with(density) {
-                        // The size of the row titles & spacing
+                with(density) {
+                    if (isWeaselTv() && focusedRow != null) {
+                        val options = focusedRow.viewOptions
+                        val curated = focusedRow.rowType?.let(CuratedCollections::isCuratedRow) == true
+                        val extra = options.extraVerticalPaddingDp ?: if (curated) CuratedCollections.EXTRA_VERTICAL_PADDING_DP else 0
+                        // Keep the complete title and the owner's chosen gaps above the focused card.
+                        (rowTitleHeights[position.row]?.toFloat() ?: 32.dp.toPx()) +
+                            (options.dividerGapDp + options.verticalPaddingDp + extra + 4).dp.toPx()
+                    } else {
                         50.dp.toPx()
+                    }
+                }
+            val currentSpaceAbovePx by rememberUpdatedState(spaceAbovePx)
+            val homeBringIntoViewSpec =
+                remember {
+                    object : BringIntoViewSpec {
+                        override fun calculateScrollDistance(
+                            offset: Float,
+                            size: Float,
+                            containerSize: Float,
+                        ): Float = offset - currentSpaceAbovePx
                     }
                 }
             val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
             CompositionLocalProvider(
-                LocalBringIntoViewSpec provides ScrollToTopBringIntoViewSpec(spaceAbovePx),
+                LocalBringIntoViewSpec provides homeBringIntoViewSpec,
             ) {
                 LazyColumn(
                     state = listState,
@@ -426,6 +446,7 @@ fun HomePageContent(
                                                 row.rowType?.let(CuratedCollections::isCuratedRow) == true
                                         ItemRow(
                                             title = row.title.getString(),
+                                            onTitleHeightChanged = { rowTitleHeights[rowIndex] = it },
                                             titleAccent = homeRowAccent(row.rowType, libraries),
                                             items = row.items,
                                             onClickItem =
@@ -457,6 +478,9 @@ fun HomePageContent(
                                             horizontalPadding = viewOptions.spacing.dp,
                                             dividerGap = if (isWeaselTv()) viewOptions.dividerGapDp.dp else 8.dp,
                                             titleDividerGap = if (isWeaselTv()) viewOptions.titleDividerGapDp.dp else 4.dp,
+                                            dividerThickness = viewOptions.dividerThicknessDp.dp,
+                                            dividerGlow = viewOptions.dividerGlowDp.dp,
+                                            dividerGlowStrength = viewOptions.dividerGlowStrength / 100f,
                                             cardContentPadding =
                                                 if (isWeaselTv()) {
                                                     PaddingValues(

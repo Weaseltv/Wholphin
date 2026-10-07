@@ -65,7 +65,8 @@ preview. The fixed readout shows the current row's exact values for screenshots.
 Controls include card height, spacing between cards, base vertical padding,
 extra vertical padding, divider-to-padding gap, space after the row, row side
 padding and title-to-divider gap. Card shape, image fit and captions are also
-adjustable. Base and extra padding apply both above and below the cards; the
+adjustable. Divider thickness (1–8 dp), glow spread (0–48 dp), and glow strength
+(0–100) are live controls too; 0 strength/spread disables glow. Base and extra padding apply both above and below the cards; the
 divider-to-card distance is the divider gap + base padding + extra padding.
 All padding values are absolute dp; Picks starts with 9 dp extra padding.
 

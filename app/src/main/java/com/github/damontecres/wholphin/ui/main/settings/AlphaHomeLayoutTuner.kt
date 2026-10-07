@@ -131,7 +131,8 @@ fun AlphaHomeLayoutTuner(
                     "${row.title.getString()}\n" +
                         "Height ${options.heightDp} · Between ${options.spacing} · Side ${options.edgePaddingDp ?: options.spacing} dp\n" +
                         "Padding ${options.verticalPaddingDp} + extra $extra · Divider gap ${options.dividerGapDp} dp\n" +
-                        "After row ${options.rowGapDp} · Title gap ${options.titleDividerGapDp} dp",
+                        "After row ${options.rowGapDp} · Title gap ${options.titleDividerGapDp} dp\n" +
+                        "Line ${options.dividerThicknessDp} · Glow ${options.dividerGlowDp} dp · Strength ${options.dividerGlowStrength}/100",
                     color = NeonBoard.Text,
                     fontSize = 12.sp,
                 )
@@ -165,7 +166,7 @@ fun AlphaHomeLayoutTuner(
                         val value = control.get(resolved)
                         HomeSettingsListItem(
                             selected = false,
-                            headlineText = "${control.label}: $value dp",
+                            headlineText = "${control.label}: $value ${control.unit}",
                             onClick = { change { control.set(it, (value + 1).coerceIn(control.range)) } },
                             modifier =
                                 Modifier.handleDPadKeyEvents(
@@ -249,6 +250,7 @@ private data class LayoutControl(
     val range: IntRange,
     val get: (HomeRowViewOptions) -> Int,
     val set: (HomeRowViewOptions, Int) -> HomeRowViewOptions,
+    val unit: String = "dp",
 )
 
 private val LayoutControls =
@@ -261,6 +263,9 @@ private val LayoutControls =
         LayoutControl("After row", 0..64, { it.rowGapDp }, { o, v -> o.copy(rowGapDp = v) }),
         LayoutControl("Row side padding", 0..80, { it.edgePaddingDp ?: it.spacing }, { o, v -> o.copy(edgePaddingDp = v) }),
         LayoutControl("Title → divider gap", 0..32, { it.titleDividerGapDp }, { o, v -> o.copy(titleDividerGapDp = v) }),
+        LayoutControl("Divider thickness", 1..8, { it.dividerThicknessDp }, { o, v -> o.copy(dividerThicknessDp = v) }),
+        LayoutControl("Divider glow spread", 0..48, { it.dividerGlowDp }, { o, v -> o.copy(dividerGlowDp = v) }),
+        LayoutControl("Divider glow strength", 0..100, { it.dividerGlowStrength }, { o, v -> o.copy(dividerGlowStrength = v) }, "/ 100"),
     )
 
 private val AspectRatio.label: String

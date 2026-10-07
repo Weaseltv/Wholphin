@@ -656,21 +656,26 @@ fun Modifier.neonFocusFill(
 fun Modifier.neonRuleBelow(
     accent: Color = LocalNeonAccent.current,
     enabled: Boolean = true,
+    thickness: Dp = NeonBoard.Size.Rule,
+    glowHeight: Dp = NeonBoard.GlowSpec.Rule,
+    glowStrength: Float = .35f,
 ): Modifier {
     if (!enabled || !isWeaselTv()) return this
     return drawBehind {
-        val h = NeonBoard.Size.Rule.toPx()
-        val glowH = NeonBoard.GlowSpec.Rule.toPx()
-        drawRect(
-            brush =
-                Brush.verticalGradient(
-                    colors = listOf(Color.Transparent, accent.copy(alpha = .35f)),
-                    startY = size.height - glowH,
-                    endY = size.height,
-                ),
-            topLeft = Offset(0f, size.height - glowH),
-            size = Size(size.width, glowH),
-        )
+        val h = thickness.toPx()
+        val glowH = glowHeight.toPx()
+        if (glowH > 0f && glowStrength > 0f) {
+            drawRect(
+                brush =
+                    Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, accent.copy(alpha = glowStrength.coerceIn(0f, 1f))),
+                        startY = size.height - glowH,
+                        endY = size.height,
+                    ),
+                topLeft = Offset(0f, size.height - glowH),
+                size = Size(size.width, glowH),
+            )
+        }
         drawRect(color = accent, topLeft = Offset(0f, size.height - h), size = Size(size.width, h))
     }
 }
@@ -731,14 +736,17 @@ fun Modifier.neonProgress(
 fun NeonRule(
     modifier: Modifier = Modifier,
     accent: Color = LocalNeonAccent.current,
+    thickness: Dp = NeonBoard.Size.Rule,
+    glowHeight: Dp = NeonBoard.GlowSpec.Rule,
+    glowStrength: Float = .35f,
 ) {
     if (!isWeaselTv()) return
     Box(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(NeonBoard.Size.Rule)
-                .neonRuleBelow(accent),
+                .height(thickness)
+                .neonRuleBelow(accent, thickness = thickness, glowHeight = glowHeight, glowStrength = glowStrength),
     )
 }
 
