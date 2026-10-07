@@ -278,6 +278,27 @@ fun libraryAccent(
     type: CollectionType?,
 ): Color = RAIL_ACCENT_BY_NAME[name.trim().lowercase()] ?: collectionAccent(type)
 
+/** Owner-supplied provider logo palette, used for Streaming Services poster focus. */
+fun streamingProviderAccent(name: String?): Color? =
+    when (name?.trim()?.lowercase(java.util.Locale.ROOT)) {
+        "netflix" -> Color(0xFFE50914)
+        "disney+", "disney plus" -> Color(0xFF113CCF)
+        "hulu" -> Color(0xFF1CE783)
+        "max", "hbo max", "max (hbo)", "hbo" -> Color(0xFF002BE7)
+        "prime video", "amazon prime video" -> Color(0xFF00A8E1)
+        "paramount+", "paramount plus" -> Color(0xFF0064FF)
+        "peacock" -> Color(0xFFFDB927)
+        "apple tv", "apple tv+" -> Color(0xFFA2AAAD)
+        "amc+", "amc plus" -> Color(0xFF00EEE6)
+        "mgm+", "mgm plus" -> Color(0xFFEFBE73)
+        "starz" -> Color(0xFFF5E000)
+        "britbox" -> Color(0xFF66D3EB)
+        "crunchyroll" -> Color(0xFFFF5E00)
+        "hallmark", "hallmark+", "hallmark plus" -> Color(0xFF613790)
+        "angel", "angel studios" -> Color(0xFFE8B923)
+        else -> null
+    }
+
 /** Section accent for a library by its Jellyfin collection type. */
 fun collectionAccent(type: CollectionType?): Color =
     when (type) {

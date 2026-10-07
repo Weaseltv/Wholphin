@@ -605,7 +605,7 @@ sealed interface AppPreference<Pref, T> {
             AppDestinationPreference<AppPreferences>(
                 title = R.string.override_user_profile_settings,
                 destination = Destination.UserAppPreferences,
-                summary = R.string.override_user_profile_settings_summary,
+                summary = if (BuildConfig.FLAVOR == "weaselfin") null else R.string.override_user_profile_settings_summary,
             )
 
         val SkipIntros =
@@ -730,7 +730,7 @@ sealed interface AppPreference<Pref, T> {
         val UserPinnedNavDrawerItems =
             AppClickablePreference<AppPreferences>(
                 title = R.string.nav_drawer_pins,
-                summary = R.string.nav_drawer_pins_summary,
+                summary = if (BuildConfig.FLAVOR == "weaselfin") null else R.string.nav_drawer_pins_summary,
                 getter = { },
                 setter = { prefs, _ -> prefs },
             )
@@ -739,7 +739,7 @@ sealed interface AppPreference<Pref, T> {
             AppDestinationPreference<AppPreferences>(
                 title = R.string.customize_home,
                 destination = Destination.HomeSettings,
-                summary = R.string.customize_home_summary,
+                summary = if (BuildConfig.FLAVOR == "weaselfin") null else R.string.customize_home_summary,
             )
 
         val UserInterfaceLanguage =

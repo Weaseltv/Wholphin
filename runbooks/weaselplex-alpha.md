@@ -89,6 +89,29 @@ revision 2 and remain overrides;
 the approved values are never reapplied at every startup. This code will reach
 customer installs when the owner explicitly publishes a stable release.
 
+## Streaming Services provider focus colors
+
+Streaming Services focus borders/glow use the owner's provider palette, keeping
+the existing border thickness, glow tuning and row divider color:
+
+| Provider | Hex |
+| --- | --- |
+| Netflix | #E50914 |
+| Disney+ | #113CCF |
+| Hulu | #1CE783 |
+| Max (HBO) | #002BE7 |
+| Prime Video | #00A8E1 |
+| Paramount+ | #0064FF |
+| Peacock | #FDB927 |
+| Apple TV | #A2AAAD |
+| AMC+ | #00EEE6 |
+| MGM+ | #EFBE73 |
+| STARZ | #F5E000 |
+| BritBox | #66D3EB |
+| Crunchyroll | #FF5E00 |
+| Hallmark+ | #613790 |
+| Angel | #E8B923 |
+
 ## Home descriptions and Settings styling
 
 Home descriptions use 92% of the available header width instead of the previous
@@ -98,7 +121,8 @@ and a 5 dp vertical edge without glow. Section titles are 22 sp bold with extra
 space before controls. Controls have 32 dp panel edge padding. Preference sliders
 keep white text on a black background when focused, with a white outlined track,
 white fill and black unfilled section. Toggle colors follow the section accent
-(Ice White in Settings).
+(Ice White in Settings). The Customize home page, Customize Navigation Drawer
+Items and More user profile settings entries omit their explanatory subtitles.
 
 ## Live card appearance tuner (Alpha only)
 

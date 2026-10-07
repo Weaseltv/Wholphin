@@ -61,6 +61,7 @@ import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.data.model.QuickDetailsData
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.CuratedCollections
+import com.github.damontecres.wholphin.services.StreamingCollections
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.cards.BannerCard
 import com.github.damontecres.wholphin.ui.cards.BannerCardWithTitle
@@ -104,6 +105,7 @@ import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.libraryAccent
 import com.github.damontecres.wholphin.ui.theme.neonAccentFor
 import com.github.damontecres.wholphin.ui.theme.typeAccent
+import com.github.damontecres.wholphin.ui.theme.streamingProviderAccent
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import com.github.damontecres.wholphin.util.LoadingState
@@ -549,6 +551,8 @@ fun HomePageContent(
                                                             libraries.firstOrNull { it.itemId == item.libraryId }?.let {
                                                                 libraryAccent(it.name, it.collectionType)
                                                             } ?: typeAccent(item.type)
+                                                        } else if (item != null && row.rowType?.let(StreamingCollections::isStreamingRow) == true) {
+                                                            streamingProviderAccent(item.name) ?: homeRowAccent(row.rowType, libraries)
                                                         } else {
                                                             homeRowAccent(row.rowType, libraries)
                                                         },
