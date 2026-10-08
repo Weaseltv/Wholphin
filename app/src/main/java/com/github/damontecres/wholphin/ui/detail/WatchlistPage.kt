@@ -25,6 +25,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleStartEffect
 import com.github.damontecres.wholphin.data.filter.DefaultForFavoritesFilterOptions
 import com.github.damontecres.wholphin.data.model.CollectionFolderFilter
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.ui.components.CollectionFolderViewContent
 import com.github.damontecres.wholphin.ui.components.GridClickActions
@@ -79,7 +80,7 @@ fun WatchlistPage(
                 modifier =
                     Modifier
                         // Room for the focus glow inside the animation's clip
-                        .padding(start = 16.dp, top = 16.dp, bottom = 16.dp, end = endPadding)
+                        .padding(start = if (isWeaselTv()) 0.dp else 16.dp, top = 16.dp, bottom = 16.dp, end = endPadding)
                         .focusGroup()
                         .focusRestorer(filterFocusRequesters[selectedIndex]),
             ) {

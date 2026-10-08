@@ -5,11 +5,11 @@ import com.github.damontecres.wholphin.ui.AspectRatio
 
 /** Owner-approved values captured from all eight Alpha rows on 2026-10-07. */
 object ApprovedHomeLayout {
-    const val REVISION = 6
+    const val REVISION = 7
     const val CARD_SPACING_DP = 14
     val CARD_APPEARANCE = HomeCardAppearance(
         borderWidthDp = 2,
-        borderOpacityPercent = 80,
+        borderOpacityPercent = 100,
         glowSpreadDp = 15,
         glowOpacityPercent = 70,
         focusScalePercent = 109,
@@ -62,15 +62,17 @@ object ApprovedHomeLayout {
             layout
         }
         val spaced = if (revision < 5) appearance.copy(spacing = CARD_SPACING_DP) else appearance
-        return if (revision < 6) {
+        val defaults = if (revision < 6) {
             spaced.copy(cardAppearance = upgradeCardDefaults(spaced.cardAppearance, streaming || curated))
         } else spaced
+        // Revision 7 makes every poster border fully opaque once; later tuning remains available.
+        return if (revision < 7) defaults.copy(cardAppearance = defaults.cardAppearance.copy(borderOpacityPercent = 100)) else defaults
     }
 
     /** Replace untouched legacy defaults; retain values a user has already tuned. */
     private fun upgradeCardDefaults(saved: HomeCardAppearance, collection: Boolean): HomeCardAppearance {
         val legacy = HomeCardAppearance()
-        val approved = CARD_APPEARANCE.copy(borderOpacityPercent = if (collection) 100 else 80)
+        val approved = CARD_APPEARANCE
         fun <T> value(current: T, old: T, default: T): T = if (current == old) default else current
         return saved.copy(
             borderWidthDp = value(saved.borderWidthDp, legacy.borderWidthDp, approved.borderWidthDp),

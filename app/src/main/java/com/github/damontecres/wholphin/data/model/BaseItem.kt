@@ -5,6 +5,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.buildAnnotatedString
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.WholphinApplication
 import com.github.damontecres.wholphin.ui.abbreviateNumber
@@ -109,11 +110,16 @@ data class BaseItem(
     /**
      * Contains pre computed UI elements that would be expensive to create on the main thread
      */
+    private fun episodeBadge(episode: Int): String =
+        if (BuildConfig.FLAVOR == "weaselfin" && type == BaseItemKind.EPISODE && data.parentIndexNumber != null) {
+            "S${data.parentIndexNumber}E$episode"
+        } else formatEpisodeNumber(episode)
+
     @Transient
     val ui =
         BaseItemUi(
             episodeCornerText =
-                data.indexNumber?.let { formatEpisodeNumber(it) }
+                data.indexNumber?.let(::episodeBadge)
                     ?: data.premiereDate?.let(::formatDateTime),
             episodeUnplayedCornerText =
                 if (type == BaseItemKind.SERIES ||
@@ -121,7 +127,7 @@ data class BaseItem(
                     type == BaseItemKind.EPISODE ||
                     type == BaseItemKind.BOX_SET
                 ) {
-                    data.indexNumber?.let { formatEpisodeNumber(it) }
+                    data.indexNumber?.let(::episodeBadge)
                         ?: data.userData
                             ?.unplayedItemCount
                             ?.takeIf { it > 0 }

@@ -363,6 +363,7 @@ fun CollectionFolderHeader(
         modifier = modifier,
     ) {
         val focusRequester = remember { FocusRequester() }
+        val buttonSpacing = if (isWeaselTv()) 16.dp else 8.dp
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth(),
@@ -374,15 +375,15 @@ fun CollectionFolderHeader(
                 16.dp + if (sortAndDirection.sort == ItemSortBy.SORT_NAME) 24.dp else 0.dp
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(buttonSpacing),
                 verticalAlignment = Alignment.CenterVertically,
                 modifier =
                     Modifier
-                        .padding(start = 16.dp, end = endPadding, top = if (collectionsOptions != null) 12.dp else 0.dp, bottom = if (isWeaselTv()) 16.dp else 0.dp)
+                        .padding(start = if (isWeaselTv()) 0.dp else 16.dp, end = endPadding, top = if (collectionsOptions != null) 12.dp else 0.dp, bottom = if (isWeaselTv()) 16.dp else 0.dp)
                         .fillMaxWidth(),
             ) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(buttonSpacing),
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier,
                 ) {
@@ -425,7 +426,7 @@ fun CollectionFolderHeader(
                 Spacer(Modifier.weight(1f))
 
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(buttonSpacing),
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier,
                 ) {

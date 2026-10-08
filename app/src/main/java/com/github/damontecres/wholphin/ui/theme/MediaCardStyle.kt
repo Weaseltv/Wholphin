@@ -27,7 +27,7 @@ fun homeMediaAppearance(settings: HomePageResolvedSettings, libraryId: UUID? = n
         it.config is HomeRowConfig.ContinueWatchingCombined || it.config is HomeRowConfig.ContinueWatching
     } ?: settings.rows.firstOrNull { it.config is HomeRowConfig.RecentlyAdded }
     return (matched ?: standard)?.config?.viewOptions?.cardAppearance
-        ?: ApprovedCollectionCardAppearance.copy(borderOpacityPercent = 80)
+        ?: ApprovedCollectionCardAppearance
 }
 
 @Composable

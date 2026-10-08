@@ -10,6 +10,7 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -41,7 +42,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.ui.bleedHorizontal
+import com.github.damontecres.wholphin.ui.theme.neonOutlineColors
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceBorder
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
@@ -75,8 +80,11 @@ fun TabRow(
 
     LazyRow(
         state = state,
+        horizontalArrangement = Arrangement.spacedBy(if (isWeaselTv()) 16.dp else 0.dp),
+        contentPadding = if (isWeaselTv()) PaddingValues(20.dp) else PaddingValues(0.dp),
         modifier =
             modifier
+                .then(if (isWeaselTv()) Modifier.bleedHorizontal(20.dp, 20.dp) else Modifier)
                 .onFocusChanged {
                     rowHasFocus = it.hasFocus
                 }.focusGroup()
@@ -138,8 +146,11 @@ fun <T> KeyedTabRow(
 
     LazyRow(
         state = state,
+        horizontalArrangement = Arrangement.spacedBy(if (isWeaselTv()) 16.dp else 0.dp),
+        contentPadding = if (isWeaselTv()) PaddingValues(20.dp) else PaddingValues(0.dp),
         modifier =
             modifier
+                .then(if (isWeaselTv()) Modifier.bleedHorizontal(20.dp, 20.dp) else Modifier)
                 .onFocusChanged {
                     rowHasFocus = it.hasFocus
                 }.focusGroup()
@@ -201,76 +212,35 @@ fun Tab(
     interactionSource: MutableInteractionSource,
     modifier: Modifier = Modifier,
 ) {
+    if (isWeaselTv()) {
+        val accent = LocalNeonAccent.current
+        Button(
+            onClick = onClick,
+            interactionSource = interactionSource,
+            colors = neonOutlineColors(accent),
+            border = neonSurfaceBorder(restWidth = 1.dp, restColor = if (selected) accent else NeonBoard.Line2),
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            modifier = modifier,
+        ) {
+            Text(title.uppercase(), color = if (selected) accent else LocalContentColor.current)
+        }
+        return
+    }
     var tabWidth by remember { mutableStateOf(0.dp) }
     val density = LocalDensity.current
-
     val focused by interactionSource.collectIsFocusedAsState()
-    val contentColor =
-        if (rowActive || selected) {
-            MaterialTheme.colorScheme.onSurface
-        } else {
-            MaterialTheme.colorScheme.onSurface.copy(alpha = .5f)
-        }
+    val contentColor = if (rowActive || selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = .5f)
     Box(
-        modifier =
-            modifier
-                .clickable(
-                    enabled = true,
-                    interactionSource = interactionSource,
-                    onClick = onClick,
-                    indication = null,
-                ).onGloballyPositioned {
-                    tabWidth = with(density) { it.size.width.toDp() }
-                },
+        modifier = modifier.clickable(
+            enabled = true,
+            interactionSource = interactionSource,
+            onClick = onClick,
+            indication = null,
+        ).onGloballyPositioned { tabWidth = with(density) { it.size.width.toDp() } },
     ) {
-        if (isWeaselTv()) {
-            // Neon Board (`02-components-tv.md` § T5): square 40dp tabs, 15 / 700 uppercase,
-            // `low` at rest; selected = accent label + 2dp overline with its glow; focused =
-            // `chipOn` fill + 1dp accent border. Nothing is round and nothing animates.
-            val accent = LocalNeonAccent.current
-            val showFocus = rowActive && focused
-            val labelColor =
-                when {
-                    selected -> accent
-                    showFocus -> NeonBoard.Text
-                    else -> NeonBoard.Low
-                }
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier =
-                    Modifier
-                        .height(NeonBoard.Size.Tab)
-                        .then(if (showFocus) Modifier.background(NeonBoard.chipOn(accent)) else Modifier)
-                        .then(if (showFocus) Modifier.border(1.dp, accent, RectangleShape) else Modifier)
-                        .neonOverline(accent, selected)
-                        .padding(horizontal = 16.dp),
-            ) {
-                Text(
-                    text = title.uppercase(),
-                    style = NeonType.tab(),
-                    color = labelColor,
-                    maxLines = 1,
-                )
-            }
-        } else {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier,
-            ) {
-                Text(
-                    text = title,
-                    fontSize = 16.sp,
-                    color = contentColor,
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                )
-                TabIndicator(
-                    selected = selected,
-                    rowActive = rowActive,
-                    focused = focused,
-                    tabWidth = tabWidth,
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                )
-            }
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(title, fontSize = 16.sp, color = contentColor, modifier = Modifier.padding(horizontal = 16.dp))
+            TabIndicator(selected, rowActive, focused, tabWidth, Modifier.align(Alignment.CenterHorizontally))
         }
     }
 }

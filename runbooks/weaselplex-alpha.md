@@ -345,3 +345,13 @@ BritBox's provider SVG uses an expanded, normalized view box so the i dot and le
 - Sidebar palette order revision 5 places Stand Up Comedy before Sports for new installs and migrates existing local pins/server library order once. Recommended rows inherit the live library Home card appearance instead of overriding it with default row options.
 
 - Home layout revision 6 packages the approved focus/count appearance for all WeaselPlex rows: 2 dp border, 80% opacity (100% for providers/Picks), 15 dp glow at 70%, 109% focused scale, and 11 sp counts with 75% backgrounds, 5 dp insets, 2 dp inner padding and 20% corners. Existing untouched legacy appearance fields migrate once locally and in server display preferences; non-default user tuning and later overrides are retained. This batch remains Alpha until the owner explicitly requests stable publication.
+
+### Next Alpha batch after v1.2.27 (2026-10-08)
+
+Poster focus border opacity is now 100% app-wide. Approved Home layout revision 7 applies this once to every existing local/server Home row and packages it for new installs. This is the new default for existing and new users when the next stable release is published from Alpha; later personal adjustments remain overrides. Border thickness, glow strength/colors and count appearance remain unchanged.
+
+Library tabs now use outlined buttons with the normal section focus styling. Watchlist type buttons and library filter toolbars align with poster cards; toolbar buttons use the same 16 dp spacing as the type buttons. Episode poster counter badges use compact season/episode labels such as S1E4, with episode-only fallback when season metadata is absent. Series/season title counts remain counts.
+
+Search displays Movies, TV Shows, Episodes and People switches horizontally below the search bar. Their defaults are enabled; Collections and Requests remain under View options → Include types and default to disabled. Explicit saved search choices remain overrides. The Include types dialog has a larger heading, the standard section divider thickness/glow and internal clearance around focused rows.
+
+The prior grid-glow fix reserves 32 dp internal top padding. This batch is Alpha only until the owner explicitly requests another stable release.

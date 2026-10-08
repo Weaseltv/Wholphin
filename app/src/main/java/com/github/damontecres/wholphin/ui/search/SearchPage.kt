@@ -345,6 +345,13 @@ fun SearchPage(
                 )
             }
         }
+        if (isWeaselTv() && showHeader) {
+            SearchTypeToggleRow(
+                searchableTypes = state.possibleSearchableTypes,
+                excludedSearchableTypes = state.excludedSearchableTypes,
+                onClick = viewModel::onClickExcludeSearchableType,
+            )
+        }
         AnimatedVisibility(
             visible = showTabs,
             enter = expandVertically(),
@@ -494,7 +501,7 @@ fun SearchPage(
     if (showFilterTypeDialog) {
         SearchTypeOptionsDialog(
             onDismissRequest = { showFilterTypeDialog = false },
-            searchableTypes = state.possibleSearchableTypes,
+            searchableTypes = if (isWeaselTv()) state.possibleSearchableTypes.filterNot { it in PrimarySearchTypes } else state.possibleSearchableTypes,
             excludedSearchableTypes = state.excludedSearchableTypes,
             discoverAvailable = seerrActive,
             discoverEnabled = state.discoverEnabled,
