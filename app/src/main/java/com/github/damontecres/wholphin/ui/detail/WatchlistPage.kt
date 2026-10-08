@@ -21,6 +21,11 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.github.damontecres.wholphin.R
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
+import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
+import com.github.damontecres.wholphin.ui.components.GridTitle
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleStartEffect
 import com.github.damontecres.wholphin.data.filter.DefaultForFavoritesFilterOptions
@@ -74,28 +79,37 @@ fun WatchlistPage(
             enter = expandVertically(),
             exit = shrinkVertically(),
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier =
-                    Modifier
-                        // Room for the focus glow inside the animation's clip
-                        .padding(start = if (isWeaselTv()) 0.dp else 16.dp, top = 16.dp, bottom = 16.dp, end = endPadding)
-                        .focusGroup()
-                        .focusRestorer(filterFocusRequesters[selectedIndex]),
-            ) {
-                WatchlistTypeFilters.forEachIndexed { index, option ->
-                    TypeFilterButton(
-                        option = option,
-                        selected = index == selectedIndex,
-                        onClick = {
-                            viewModel.onFilterChange(
-                                state.filter.copy(includeItemTypes = option.types),
-                                recursive = true,
-                            )
-                        },
-                        modifier = Modifier.focusRequester(filterFocusRequesters[index]),
+            Column {
+                if (isWeaselTv()) {
+                    GridTitle(
+                        title = stringResource(R.string.watchlist),
+                        collectionsOptions = ApprovedHomeLayout.apply(HomeRowViewOptions()),
+                        modifier = Modifier.padding(bottom = 12.dp),
                     )
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier =
+                        Modifier
+                            // Room for the focus glow inside the animation's clip
+                            .padding(start = if (isWeaselTv()) 0.dp else 16.dp, top = 16.dp, bottom = 16.dp, end = endPadding)
+                            .focusGroup()
+                            .focusRestorer(filterFocusRequesters[selectedIndex]),
+                ) {
+                    WatchlistTypeFilters.forEachIndexed { index, option ->
+                        TypeFilterButton(
+                            option = option,
+                            selected = index == selectedIndex,
+                            onClick = {
+                                viewModel.onFilterChange(
+                                    state.filter.copy(includeItemTypes = option.types),
+                                    recursive = true,
+                                )
+                            },
+                            modifier = Modifier.focusRequester(filterFocusRequesters[index]),
+                        )
+                    }
                 }
             }
         }

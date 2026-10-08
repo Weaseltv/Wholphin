@@ -411,3 +411,8 @@ Row headings align with the first un-enlarged card edge throughout WeaselPlex. S
 ### Media-library button-row spacing (2026-10-08)
 
 Movies, TV Shows, Stand Up Comedy and Sports retain the 8 dp tab-button top alignment with the sidebar mascot. Reduce the tab-to-toolbar gap from 36 dp to 16 dp, matching Watchlist's type-button-to-toolbar spacing. Keep the shared 48 dp toolbar-to-first-card clearance (16 dp toolbar bottom padding plus 32 dp inside the grid), matching Watchlist and retaining room for enlarged poster borders and glow. Tab focus glow uses the remaining 16 dp internal lower inset; other tabbed pages retain their prior spacing.
+
+
+### Watchlist heading and global badge alignment (2026-10-08)
+
+Watchlist uses the Collections page-title component above its type buttons and toolbar, with a WATCHLIST title and full-width section-colored divider. Counts and MOVIE/SHOW labels share a vertically centered overlay row, including when a favorite heart is present. Both sides use the global count edge inset, and version-count badges also follow count appearance. Approved Home layout revision 8 sets 8 dp top/side insets and 4 dp inner padding on all four sides for existing local/server rows and new users once; later user adjustments remain available. Episode/series counts and media-type badge sizing use the same global appearance throughout the app. This change remains Alpha until a stable release is explicitly authorized.

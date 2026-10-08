@@ -50,6 +50,7 @@
     <string name="error_loading_collection">Error loading collection %1$s</string>
     <string name="external_track">External</string>
     <string name="favorites">Favorites</string>
+    <string name="watchlist">Watchlist</string>
     <string name="file_size">Size</string>
     <string name="forced_track">Forced</string>
     <string name="genres">Genres</string>

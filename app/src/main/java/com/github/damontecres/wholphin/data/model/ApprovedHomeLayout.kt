@@ -5,7 +5,7 @@ import com.github.damontecres.wholphin.ui.AspectRatio
 
 /** Owner-approved values captured from all eight Alpha rows on 2026-10-07. */
 object ApprovedHomeLayout {
-    const val REVISION = 7
+    const val REVISION = 8
     const val CARD_SPACING_DP = 14
     val CARD_APPEARANCE = HomeCardAppearance(
         borderWidthDp = 2,
@@ -15,10 +15,10 @@ object ApprovedHomeLayout {
         focusScalePercent = 109,
         badgeTextSizeSp = 11,
         badgeBackgroundOpacityPercent = 75,
-        badgeHorizontalInsetDp = 5,
-        badgeVerticalInsetDp = 5,
-        badgeHorizontalPaddingDp = 2,
-        badgeVerticalPaddingDp = 2,
+        badgeHorizontalInsetDp = 8,
+        badgeVerticalInsetDp = 8,
+        badgeHorizontalPaddingDp = 4,
+        badgeVerticalPaddingDp = 4,
         badgeCornerPercent = 20,
     )
 
@@ -66,7 +66,14 @@ object ApprovedHomeLayout {
             spaced.copy(cardAppearance = upgradeCardDefaults(spaced.cardAppearance, streaming || curated))
         } else spaced
         // Revision 7 makes every poster border fully opaque once; later tuning remains available.
-        return if (revision < 7) defaults.copy(cardAppearance = defaults.cardAppearance.copy(borderOpacityPercent = 100)) else defaults
+        val opaque = if (revision < 7) defaults.copy(cardAppearance = defaults.cardAppearance.copy(borderOpacityPercent = 100)) else defaults
+        // Revision 8 aligns media/count badges and makes their inner padding symmetric once.
+        return if (revision < 8) opaque.copy(cardAppearance = opaque.cardAppearance.copy(
+            badgeHorizontalInsetDp = CARD_APPEARANCE.badgeHorizontalInsetDp,
+            badgeVerticalInsetDp = CARD_APPEARANCE.badgeVerticalInsetDp,
+            badgeHorizontalPaddingDp = CARD_APPEARANCE.badgeHorizontalPaddingDp,
+            badgeVerticalPaddingDp = CARD_APPEARANCE.badgeVerticalPaddingDp,
+        )) else opaque
     }
 
     /** Replace untouched legacy defaults; retain values a user has already tuned. */

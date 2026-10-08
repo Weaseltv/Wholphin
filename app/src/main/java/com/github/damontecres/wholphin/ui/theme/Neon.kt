@@ -953,8 +953,8 @@ fun NeonBadge(
                                 .Stroke(width = 1.dp.toPx()),
                     )
                 }.padding(
-                    horizontal = (countAppearance?.badgeHorizontalPaddingDp ?: 2).dp,
-                    vertical = (countAppearance?.badgeVerticalPaddingDp ?: 2).dp,
+                    horizontal = (countAppearance?.badgeHorizontalPaddingDp ?: 4).dp,
+                    vertical = (countAppearance?.badgeVerticalPaddingDp ?: 4).dp,
                 ),
     ) {
         Text(
