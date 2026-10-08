@@ -42,7 +42,7 @@ fun OverviewText(
         if (isFocused) {
             MaterialTheme.colorScheme.onPrimary.copy(alpha = .4f)
         } else {
-            Color.Unspecified
+            Color.Transparent
         }
     Box(
         modifier =

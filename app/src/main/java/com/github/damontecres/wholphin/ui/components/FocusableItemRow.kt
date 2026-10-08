@@ -68,11 +68,12 @@ fun FocusableItemRow(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
+    // Background paint needs a drawable color; Unspecified has no Android color space.
     val background by animateColorAsState(
         if (focused) {
             if (isWeaselTv()) NeonBoard.chipOn(LocalNeonAccent.current) else MaterialTheme.colorScheme.border.copy(alpha = .25f)
         } else {
-            Color.Unspecified
+            Color.Transparent
         },
     )
     val neon = isWeaselTv()

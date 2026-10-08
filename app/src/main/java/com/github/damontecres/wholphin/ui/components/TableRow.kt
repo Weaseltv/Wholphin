@@ -43,7 +43,7 @@ fun TableRowComposable(
         } else if (isFocused) {
             MaterialTheme.colorScheme.onBackground.copy(alpha = .25f)
         } else {
-            Color.Unspecified
+            Color.Transparent
         }
     Row(
         modifier

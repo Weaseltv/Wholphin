@@ -97,7 +97,7 @@ private fun MaybeClickColumn(
             if (isFocused) {
                 MaterialTheme.colorScheme.onPrimary.copy(alpha = .75f)
             } else {
-                Color.Unspecified
+                Color.Transparent
             }
 
         Column(

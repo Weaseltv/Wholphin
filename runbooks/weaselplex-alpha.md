@@ -355,3 +355,9 @@ Library tabs now use outlined buttons with the normal section focus styling. Wat
 Search displays Movies, TV Shows, Episodes and People switches horizontally below the search bar. Their defaults are enabled; Collections and Requests remain under View options → Include types and default to disabled. Explicit saved search choices remain overrides. The Include types dialog has a larger heading, the standard section divider thickness/glow and internal clearance around focused rows.
 
 The prior grid-glow fix reserves 32 dp internal top padding. This batch is Alpha only until the owner explicitly requests another stable release.
+
+### Alpha background-color crash fix (2026-10-08)
+
+Owner-requested direct Shield ADB diagnostics captured a main-thread crash at 00:37:52 while entering TV Shows Recommended: `IllegalArgumentException: Invalid ID, must be in the range [0..16)`, through Android `ColorSpace.get` / `Paint.setColor` and Compose `BackgroundNode.drawRect`. Background states in focusable loading/empty rows passed `Color.Unspecified`, whose packed color-space ID is 16, to the drawable background and color animation. Replace that sentinel with explicit `Color.Transparent`. Apply the same correction to overview/value text, metadata rows, rating backgrounds and the non-neon slider background, while retaining unspecified text/icon tint semantics. No settings migration or visual styling changes are required.
+
+Build and install the arm64 Alpha in place; the owner checks the navigation that previously crashed. Do not submit the crash report or navigate the Shield remotely.
