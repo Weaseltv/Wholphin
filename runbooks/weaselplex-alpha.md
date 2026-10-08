@@ -391,3 +391,7 @@ Requests now uses True Teal `#009A93` for its sidebar and page accents, with Neo
 ### Sidebar active labels and content padding (2026-10-08)
 
 Remove the selected-page stripe from the sidebar. When focus moves to another menu item, the active page's label keeps its section border color without text glow. Its selected icon glow remains. Expanded sidebar icons, labels and supporting text gain 8 dp left inset within the existing focus border; border geometry and collapsed icon alignment stay fixed. Applies to all sidebar entries, including the profile button's shared padding.
+
+### Search filter alignment (2026-10-08)
+
+The inline Movies, TV Shows, Episodes and People row balances the page's unequal rail/right gutters with an extra 16 dp on the right, giving equal 40 dp clearance from the collapsed sidebar and right screen edge. Each label/switch pair is centered within its equal-width button. Top row padding drops from 20 dp to 4 dp, reducing the search-bar-to-filter gap from 32 dp to 16 dp; lower focus-glow clearance and 16 dp between buttons remain.

@@ -137,7 +137,7 @@ fun SearchTypeToggleRow(
     Row(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 20.dp),
+        modifier = modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 20.dp),
     ) {
         PrimarySearchTypes.filter { it in searchableTypes }.forEach { type ->
             Button(
@@ -145,7 +145,11 @@ fun SearchTypeToggleRow(
                 contentPadding = PaddingValues(horizontal = 12.dp),
                 modifier = Modifier.weight(1f),
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(stringResource(type.titleStringRes), style = MaterialTheme.typography.labelLarge)
                     Switch(checked = type !in excludedSearchableTypes, onCheckedChange = null, colors = SwitchColors())
                 }

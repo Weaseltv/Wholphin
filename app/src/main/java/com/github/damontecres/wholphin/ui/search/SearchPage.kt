@@ -350,6 +350,8 @@ fun SearchPage(
                 searchableTypes = state.possibleSearchableTypes,
                 excludedSearchableTypes = state.excludedSearchableTypes,
                 onClick = viewModel::onClickExcludeSearchableType,
+                // Balance the page's 24 dp rail-side gutter against its 8 dp right gutter.
+                modifier = Modifier.padding(end = 16.dp),
             )
         }
         AnimatedVisibility(
