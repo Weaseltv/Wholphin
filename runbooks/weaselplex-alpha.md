@@ -400,4 +400,6 @@ The inline Movies, TV Shows, Episodes and People row balances the page's unequal
 
 TV Shows tab buttons start at 8 dp, aligned with the sidebar mascot, instead of 36 dp. Remove the 16 dp outer top inset and reduce the tab row's internal top inset from 20 dp to 8 dp, retaining the lower focus-glow room. TV Recommended header top padding drops from 27 dp to 4 dp because the tabs already supply the screen-top clearance. Together these reclaim 51 dp for the first poster row and its focused border/glow; the header's 172 dp content height, card dimensions and appearance tuning remain.
 
-The same 8 dp tab-button top alignment now applies to Movies, Stand Up Comedy and Sports through their shared movie-library page. These buttons move up 28 dp, with lower tab glow padding retained. The additional Recommended header change remains specific to TV Shows.
+The same 8 dp tab-button top alignment now applies to Movies, Stand Up Comedy and Sports through their shared movie-library page. These buttons move up 28 dp, with lower tab glow padding retained.
+
+Movies, Stand Up Comedy and Sports also use the compact Recommended header, via the shared `HeaderUtils.recommendedModifier()`. Its 4 dp top inset reclaims another 23 dp beneath the tabs so the first row's posters and focus effects have the same room as TV Shows. TV Shows uses the same helper to keep these four pages in parity. Home retains its original header spacing; card size and appearance settings remain.

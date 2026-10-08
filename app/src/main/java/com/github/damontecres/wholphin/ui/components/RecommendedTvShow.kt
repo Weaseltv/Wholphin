@@ -1,9 +1,5 @@
 package com.github.damontecres.wholphin.ui.components
 
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.ui.unit.dp
-import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -144,11 +140,6 @@ fun RecommendedTvShow(
         viewModel = viewModel,
         onFocusPosition = onFocusPosition,
         modifier = modifier,
-        headerModifier = if (isWeaselTv()) {
-            // Tabs already reserve the top inset; leave the full poster and focus glow visible.
-            Modifier.padding(top = 4.dp, bottom = 12.dp, start = HeaderUtils.startPadding).height(172.dp)
-        } else {
-            HeaderUtils.homeModifier()
-        },
+        headerModifier = HeaderUtils.recommendedModifier(),
     )
 }

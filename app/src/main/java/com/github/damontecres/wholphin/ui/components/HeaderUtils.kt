@@ -40,6 +40,17 @@ object HeaderUtils {
         } else {
             modifier
         }
+
+    /** Library tabs already supply the top inset; reserve room for full posters and focus glow. */
+    @Composable
+    fun recommendedModifier(): Modifier =
+        if (isWeaselTv()) {
+            Modifier
+                .padding(top = 4.dp, bottom = 12.dp, start = startPadding)
+                .height(172.dp)
+        } else {
+            homeModifier()
+        }
 }
 
 /** A short, localized label for an item kind, used by eyebrows and card badges. */
