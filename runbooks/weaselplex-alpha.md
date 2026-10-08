@@ -407,3 +407,7 @@ Movies, Stand Up Comedy and Sports also use the compact Recommended header, via 
 ### Global row-title alignment (2026-10-08)
 
 Row headings align with the first un-enlarged card edge throughout WeaselPlex. Shared ItemRow resolves title start padding from its actual card content padding, covering Home, Recommended, details and Search rows. Remove Home's focus-scale/border offset calculation. Standalone Discover and chapter rows use their card gutters; Search grid headings use the grid's zero horizontal inset. People rows already share the same 8 dp heading/card inset. Title position does not move when focus changes; card positions, full-width dividers and row counts remain.
+
+### Media-library button-row spacing (2026-10-08)
+
+Movies, TV Shows, Stand Up Comedy and Sports retain the 8 dp tab-button top alignment with the sidebar mascot. Reduce the tab-to-toolbar gap from 36 dp to 16 dp, matching Watchlist's type-button-to-toolbar spacing. Keep the shared 48 dp toolbar-to-first-card clearance (16 dp toolbar bottom padding plus 32 dp inside the grid), matching Watchlist and retaining room for enlarged poster borders and glow. Tab focus glow uses the remaining 16 dp internal lower inset; other tabbed pages retain their prior spacing.

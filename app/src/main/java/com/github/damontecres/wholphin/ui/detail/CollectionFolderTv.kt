@@ -74,6 +74,8 @@ fun CollectionFolderTv(
         showTabs = showHeader,
         tabTopPadding = if (isWeaselTv()) 0.dp else 16.dp,
         tabContentTopPadding = if (isWeaselTv()) 8.dp else 20.dp,
+        tabBottomPadding = if (isWeaselTv()) 0.dp else 16.dp,
+        tabContentBottomPadding = if (isWeaselTv()) 16.dp else 20.dp,
     ) { tabIndex, tabDetails ->
         when (tabIndex) {
             // Recommended

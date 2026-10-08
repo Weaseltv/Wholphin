@@ -66,6 +66,7 @@ fun TabRow(
     onClick: (Int) -> Unit,
     modifier: Modifier = Modifier,
     topContentPadding: Dp = 20.dp,
+    bottomContentPadding: Dp = 20.dp,
 ) {
     val state = rememberLazyListState()
     LaunchedEffect(selectedTabIndex) {
@@ -82,7 +83,7 @@ fun TabRow(
     LazyRow(
         state = state,
         horizontalArrangement = Arrangement.spacedBy(if (isWeaselTv()) 16.dp else 0.dp),
-        contentPadding = if (isWeaselTv()) PaddingValues(start = 20.dp, top = topContentPadding, end = 20.dp, bottom = 20.dp) else PaddingValues(0.dp),
+        contentPadding = if (isWeaselTv()) PaddingValues(start = 20.dp, top = topContentPadding, end = 20.dp, bottom = bottomContentPadding) else PaddingValues(0.dp),
         modifier =
             modifier
                 .then(if (isWeaselTv()) Modifier.bleedHorizontal(20.dp, 20.dp) else Modifier)
