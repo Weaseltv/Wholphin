@@ -162,21 +162,29 @@ white fill and black unfilled section. Toggle colors follow the section accent
 (Ice White in Settings). The Customize home page, Customize Navigation Drawer
 Items and More user profile settings entries omit their explanatory subtitles.
 
-## Live card appearance tuner (Alpha only)
+## Live layout and card appearance tuner (Alpha only)
 
-Open **Settings → Customize home page → Live layout tuner (Alpha)**. The completed
-layout controls have been removed from this overlay; saved layout values remain.
+Open **Settings → Customize home page → Live layout tuner (Alpha)**. Layout
+controls are restored alongside the card appearance controls.
 Select a Home row and choose whether edits apply to that row or all rows.
 Up/down selects a control; left/right adjusts the displayed value live.
+
+Layout controls include card height and spacing, vertical padding, row side/end
+padding, row and divider gaps, title text size and letter spacing (0.1 sp steps),
+row-count text size/opacity/right padding, and divider thickness/glow. Edits can
+apply to the selected Home row or all Home rows; these do not replace packaged
+app-wide defaults or change Library grids.
 
 Focus controls include border thickness (0–8 dp), border opacity, glow spread
 (0–48 dp), glow strength, focus scale (100–120%), card corner radius (0–32 dp),
 and border/glow color (row accent, Volt, Orange, White, Cyan or Pink).
 
 Poster season/episode/collection-count badge controls include text size (8–40 sp),
-text and background opacity, right/top inset (0–64 dp), horizontal/vertical
+text and background opacity, horizontal/vertical inset (0–64 dp), horizontal/vertical
 inner padding (0–32 dp) and corner rounding (0–50%). Opacity uses 0–100%.
-Untuned badges keep their existing sizing, including Picks' badge scaling.
+Unset badge values use the approved defaults: 11 sp text, 8 dp edge insets
+and 4 dp inner padding. Badge controls apply to all Home rows and supply the
+app-wide poster-overlay appearance through the normal saved Home settings.
 These controls change presentation, not the count or episode label itself.
 
 Use **Hide controls / inspect Home** to focus cards and see their border/glow;

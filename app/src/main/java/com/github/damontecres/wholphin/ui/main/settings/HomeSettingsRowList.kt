@@ -149,7 +149,7 @@ fun HomeSettingsRowList(
                     HomeSettingsListItem(
                         selected = false,
                         headlineText = "Live layout tuner (Alpha)",
-                        supportingContent = { Text("Adjust Home spacing in dp with a live preview") },
+                        supportingContent = { Text("Adjust text, card spacing and hover styling live") },
                         onClick = {
                             position = 4
                             onClickLayoutTuner()

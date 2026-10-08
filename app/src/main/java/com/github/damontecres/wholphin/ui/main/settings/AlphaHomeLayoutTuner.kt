@@ -32,6 +32,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.BuildConfig
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.preferences.UserPreferences
@@ -54,21 +56,21 @@ fun AlphaHomeLayoutTuner(
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (state.rows.isEmpty()) return
+    if (BuildConfig.BUILD_TYPE != "alpha" || state.rows.isEmpty()) return
     var rowIndex by remember {
         mutableIntStateOf(state.rows.indexOfFirst { CuratedCollections.isCuratedRow(it.config) }.coerceAtLeast(0))
     }
     rowIndex = rowIndex.coerceAtMost(state.rows.lastIndex)
     val row = state.rows[rowIndex]
-    val curated = CuratedCollections.isCuratedRow(row.config)
     val options = row.config.viewOptions
     val appearance = options.cardAppearance
+    val defaults = ApprovedHomeLayout.CARD_APPEARANCE
     val resolvedAppearance = appearance.copy(
-        badgeTextSizeSp = appearance.badgeTextSizeSp ?: if (curated) 18 else 13,
-        badgeHorizontalInsetDp = appearance.badgeHorizontalInsetDp ?: if (curated) 5 else 4,
-        badgeVerticalInsetDp = appearance.badgeVerticalInsetDp ?: if (curated) 5 else 4,
-        badgeHorizontalPaddingDp = appearance.badgeHorizontalPaddingDp ?: if (curated) 5 else 4,
-        badgeVerticalPaddingDp = appearance.badgeVerticalPaddingDp ?: if (curated) 5 else 4,
+        badgeTextSizeSp = appearance.badgeTextSizeSp ?: defaults.badgeTextSizeSp,
+        badgeHorizontalInsetDp = appearance.badgeHorizontalInsetDp ?: defaults.badgeHorizontalInsetDp,
+        badgeVerticalInsetDp = appearance.badgeVerticalInsetDp ?: defaults.badgeVerticalInsetDp,
+        badgeHorizontalPaddingDp = appearance.badgeHorizontalPaddingDp ?: defaults.badgeHorizontalPaddingDp,
+        badgeVerticalPaddingDp = appearance.badgeVerticalPaddingDp ?: defaults.badgeVerticalPaddingDp,
     )
     var allRows by remember { mutableStateOf(false) }
     var inspect by remember { mutableStateOf(false) }
@@ -134,11 +136,13 @@ fun AlphaHomeLayoutTuner(
                         .focusProperties { onExit = { cancelFocusChange() } }
                         .focusGroup(),
             ) {
-                Text("Alpha · Card appearance", color = LocalNeonAccent.current)
+                Text("Alpha · Live layout tuner", color = LocalNeonAccent.current)
                 Text("Up/down: select · Left/right: adjust", color = NeonBoard.Mid)
                 Text("Changes are live. Back saves and closes.", color = NeonBoard.Mid)
                 Text(
                     "${row.title.getString()}\n" +
+                        "Cards ${options.heightDp} dp · Gap ${options.spacing} dp\n" +
+                        "Title ${options.titleSizeSp} sp · Tracking ${options.titleLetterSpacingTenthsSp / 10f} sp\n" +
                         "Border ${appearance.borderWidthDp} dp · Opacity ${appearance.borderOpacityPercent}%\n" +
                         "Glow ${appearance.glowSpreadDp} dp · Strength ${appearance.glowOpacityPercent}%\n" +
                         "Focus ${appearance.focusScalePercent}% · Corners ${appearance.cornerRadiusDp} dp\n" +
@@ -240,17 +244,34 @@ private data class LayoutControl(
 
 private val LayoutControls =
     listOf(
+        LayoutControl("Card height", 64..320, { it.heightDp }, { o, v -> o.copy(heightDp = v) }),
+        LayoutControl("Between cards", 0..80, { it.spacing }, { o, v -> o.copy(spacing = v) }),
+        LayoutControl("Base vertical padding", 0..64, { it.verticalPaddingDp }, { o, v -> o.copy(verticalPaddingDp = v) }),
+        LayoutControl("Extra vertical padding", 0..64, { it.extraVerticalPaddingDp ?: 0 }, { o, v -> o.copy(extraVerticalPaddingDp = v) }),
+        LayoutControl("Divider → padding gap", 0..64, { it.dividerGapDp }, { o, v -> o.copy(dividerGapDp = v) }),
+        LayoutControl("After row", 0..64, { it.rowGapDp }, { o, v -> o.copy(rowGapDp = v) }),
+        LayoutControl("Row side padding", 0..80, { it.edgePaddingDp ?: it.spacing }, { o, v -> o.copy(edgePaddingDp = v, endPaddingDp = o.endPaddingDp ?: o.edgePaddingDp ?: o.spacing) }),
+        LayoutControl("Row end padding", 0..160, { it.endPaddingDp ?: it.edgePaddingDp ?: it.spacing }, { o, v -> o.copy(endPaddingDp = v) }),
+        LayoutControl("Title → divider gap", 0..32, { it.titleDividerGapDp }, { o, v -> o.copy(titleDividerGapDp = v) }),
+        LayoutControl("Row title text size", 12..40, { it.titleSizeSp }, { o, v -> o.copy(titleSizeSp = v) }, "sp"),
+        LayoutControl("Row title letter spacing", -20..100, { it.titleLetterSpacingTenthsSp }, { o, v -> o.copy(titleLetterSpacingTenthsSp = v) }, "sp", 10),
+        LayoutControl("Row count text size", 8..40, { it.countSizeSp }, { o, v -> o.copy(countSizeSp = v) }, "sp"),
+        LayoutControl("Row count opacity", 0..100, { it.countOpacityPercent }, { o, v -> o.copy(countOpacityPercent = v) }, "%"),
+        LayoutControl("Row count right padding", 0..160, { it.countEndPaddingDp }, { o, v -> o.copy(countEndPaddingDp = v) }),
+        LayoutControl("Divider thickness", 1..8, { it.dividerThicknessDp }, { o, v -> o.copy(dividerThicknessDp = v) }),
+        LayoutControl("Divider glow spread", 0..48, { it.dividerGlowDp }, { o, v -> o.copy(dividerGlowDp = v) }),
+        LayoutControl("Divider glow strength", 0..100, { it.dividerGlowStrength }, { o, v -> o.copy(dividerGlowStrength = v) }, "%"),
         LayoutControl("Focus border thickness", 0..8, { it.cardAppearance.borderWidthDp }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(borderWidthDp = v)) }),
         LayoutControl("Focus border opacity", 0..100, { it.cardAppearance.borderOpacityPercent }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(borderOpacityPercent = v)) }, "%"),
         LayoutControl("Focus glow spread", 0..48, { it.cardAppearance.glowSpreadDp }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(glowSpreadDp = v)) }),
         LayoutControl("Focus glow strength", 0..100, { it.cardAppearance.glowOpacityPercent }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(glowOpacityPercent = v)) }, "%"),
         LayoutControl("Focused card scale", 100..120, { it.cardAppearance.focusScalePercent }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(focusScalePercent = v)) }, "%"),
         LayoutControl("Card corner radius", 0..32, { it.cardAppearance.cornerRadiusDp }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(cornerRadiusDp = v)) }),
-        LayoutControl("Poster badge text size", 8..40, { it.cardAppearance.badgeTextSizeSp ?: 13 }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(badgeTextSizeSp = v)) }, "sp"),
+        LayoutControl("Poster badge text size", 8..40, { it.cardAppearance.badgeTextSizeSp ?: 11 }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(badgeTextSizeSp = v)) }, "sp"),
         LayoutControl("Poster badge text opacity", 0..100, { it.cardAppearance.badgeTextOpacityPercent }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(badgeTextOpacityPercent = v)) }, "%"),
         LayoutControl("Poster badge background opacity", 0..100, { it.cardAppearance.badgeBackgroundOpacityPercent }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(badgeBackgroundOpacityPercent = v)) }, "%"),
-        LayoutControl("Poster badge right inset", 0..64, { it.cardAppearance.badgeHorizontalInsetDp ?: 4 }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(badgeHorizontalInsetDp = v)) }),
-        LayoutControl("Poster badge top inset", 0..64, { it.cardAppearance.badgeVerticalInsetDp ?: 4 }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(badgeVerticalInsetDp = v)) }),
+        LayoutControl("Poster badge horizontal inset", 0..64, { it.cardAppearance.badgeHorizontalInsetDp ?: 8 }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(badgeHorizontalInsetDp = v)) }),
+        LayoutControl("Poster badge vertical inset", 0..64, { it.cardAppearance.badgeVerticalInsetDp ?: 8 }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(badgeVerticalInsetDp = v)) }),
         LayoutControl("Poster badge horizontal padding", 0..32, { it.cardAppearance.badgeHorizontalPaddingDp ?: 4 }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(badgeHorizontalPaddingDp = v)) }),
         LayoutControl("Poster badge vertical padding", 0..32, { it.cardAppearance.badgeVerticalPaddingDp ?: 4 }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(badgeVerticalPaddingDp = v)) }),
         LayoutControl("Poster badge corner rounding", 0..50, { it.cardAppearance.badgeCornerPercent }, { o, v -> o.copy(cardAppearance = o.cardAppearance.copy(badgeCornerPercent = v)) }, "%"),
