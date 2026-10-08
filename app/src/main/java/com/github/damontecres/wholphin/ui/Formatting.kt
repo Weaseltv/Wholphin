@@ -149,25 +149,23 @@ val BaseItemDto.seasonEpisodePadded: String?
         )
 
 val BaseItemDto.seriesProductionYears: String?
-    get() =
-        if (productionYear != null) {
-            buildString {
-                append(productionYear.toString())
-                if (status == "Continuing") {
-                    append(" - ")
-                    append(WholphinApplication.instance.getString(R.string.series_continueing))
-                } else if (status == "Ended") {
-                    endDate?.let {
-                        if (it.year != productionYear) {
-                            append(" - ")
-                            append(it.year)
-                        }
+    get() {
+        val startYear = productionYear ?: premiereDate?.year ?: return null
+        return buildString {
+            append(startYear)
+            if (status == "Continuing") {
+                append(" - ")
+                append(WholphinApplication.instance.getString(R.string.series_continueing))
+            } else if (status == "Ended") {
+                endDate?.let {
+                    if (it.year != startYear) {
+                        append(" - ")
+                        append(it.year)
                     }
                 }
             }
-        } else {
-            null
         }
+    }
 
 private val abbrevSuffixes = listOf("", "K", "M", "B")
 

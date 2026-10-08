@@ -340,7 +340,7 @@ BritBox's provider SVG uses an expanded, normalized view box so the i dot and le
 - Pure Movies/TV Shows library grids hide type badges; mixed-media grids retain them. The filter toolbar has the same 16 dp lower inset as Collections.
 - Home layout revision 5 updates saved local and server-default row spacing to 14 dp; WeaselPlex poster grids also use 14 dp.
 
-- Poster captions share a 14 sp, two-line title with ellipsis and fixed title-line allocation; subtitles also ellipsize. The text stays bounded instead of using a marquee. MOVIE/SHOW badge font size and padding follow global poster-count appearance.
+- Poster captions share a 14 sp title with up to two lines and ellipsis; short titles use one line without reserving an empty second line. Subtitles also ellipsize, and missing subtitles do not reserve a blank line. Series year labels use the production year, falling back to the premiere-date year when available; when both are missing, no year is invented. The text stays bounded instead of using a marquee. MOVIE/SHOW badge font size and padding follow global poster-count appearance.
 
 - Sidebar palette order revision 5 places Stand Up Comedy before Sports for new installs and migrates existing local pins/server library order once. Recommended rows inherit the live library Home card appearance instead of overriding it with default row options.
 
