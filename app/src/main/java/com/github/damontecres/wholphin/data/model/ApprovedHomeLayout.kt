@@ -5,7 +5,7 @@ import com.github.damontecres.wholphin.ui.AspectRatio
 
 /** Owner-approved values captured from all eight Alpha rows on 2026-10-07. */
 object ApprovedHomeLayout {
-    const val REVISION = 8
+    const val REVISION = 9
     const val CARD_SPACING_DP = 14
     val CARD_APPEARANCE = HomeCardAppearance(
         borderWidthDp = 2,
@@ -34,7 +34,7 @@ object ApprovedHomeLayout {
             endPaddingDp = 16,
             titleDividerGapDp = 3,
             titleSizeSp = 30,
-            titleLetterSpacingTenthsSp = 0,
+            titleLetterSpacingTenthsSp = 24,
             countSizeSp = 14,
             countOpacityPercent = 100,
             countEndPaddingDp = 15,
@@ -68,12 +68,16 @@ object ApprovedHomeLayout {
         // Revision 7 makes every poster border fully opaque once; later tuning remains available.
         val opaque = if (revision < 7) defaults.copy(cardAppearance = defaults.cardAppearance.copy(borderOpacityPercent = 100)) else defaults
         // Revision 8 aligns media/count badges and makes their inner padding symmetric once.
-        return if (revision < 8) opaque.copy(cardAppearance = opaque.cardAppearance.copy(
+        val badges = if (revision < 8) opaque.copy(cardAppearance = opaque.cardAppearance.copy(
             badgeHorizontalInsetDp = CARD_APPEARANCE.badgeHorizontalInsetDp,
             badgeVerticalInsetDp = CARD_APPEARANCE.badgeVerticalInsetDp,
             badgeHorizontalPaddingDp = CARD_APPEARANCE.badgeHorizontalPaddingDp,
             badgeVerticalPaddingDp = CARD_APPEARANCE.badgeVerticalPaddingDp,
         )) else opaque
+        // Orbitron section headers use approximately 0.08 em tracking at their saved size.
+        return if (revision < 9) badges.copy(
+            titleLetterSpacingTenthsSp = (badges.titleSizeSp * 0.8f).toInt(),
+        ) else badges
     }
 
     /** Replace untouched legacy defaults; retain values a user has already tuned. */

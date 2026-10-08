@@ -30,6 +30,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -69,7 +70,7 @@ fun <T> ItemRow(
     dividerGlow: Dp = 12.dp,
     dividerGlowStrength: Float = .35f,
     titleSize: TextUnit = 22.sp,
-    titleLetterSpacing: TextUnit = 0.sp,
+    titleLetterSpacing: TextUnit = .08.em,
     countSize: TextUnit = 12.sp,
     countOpacity: Float = 1f,
     countEndPadding: Dp = 8.dp,
@@ -186,7 +187,7 @@ fun <T> ItemRow(
 }
 
 /**
- * A row's title. Neon Board (`02-components-tv.md` § T4): Barlow Condensed 800 22sp
+ * A row's title. Neon Board (`02-components-tv.md` § T4): Orbitron 800 22sp
  * uppercase, an optional count on the right, then a 1dp rule in the row accent with
  * 14dp to the cards. Stock title on every other theme.
  */
@@ -201,7 +202,7 @@ fun ItemRowTitle(
     dividerGlow: Dp = 12.dp,
     dividerGlowStrength: Float = .35f,
     titleSize: TextUnit = 22.sp,
-    titleLetterSpacing: TextUnit = 0.sp,
+    titleLetterSpacing: TextUnit = .08.em,
     countSize: TextUnit = 12.sp,
     countOpacity: Float = 1f,
     countEndPadding: Dp = 8.dp,
@@ -225,7 +226,7 @@ fun ItemRowTitle(
         ) {
             Text(
                 text = title.uppercase(),
-                style = NeonType.sectionTitle().copy(fontSize = titleSize, lineHeight = titleSize * .95f, letterSpacing = titleLetterSpacing),
+                style = NeonType.sectionTitle().copy(fontSize = titleSize, lineHeight = titleSize * 1.2f, letterSpacing = titleLetterSpacing),
                 color = NeonBoard.Text,
                 maxLines = 1,
                 modifier = Modifier.weight(1f).offset(x = titleStartPadding.coerceAtMost(0.dp)),

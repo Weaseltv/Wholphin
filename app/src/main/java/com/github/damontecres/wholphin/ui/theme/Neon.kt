@@ -238,7 +238,7 @@ object RailAccents {
     val User = NeonBoard.Volt
     val Search = NeonSectionPalette.Search.border
     val Home = NeonSectionPalette.Home.border
-    val Settings = NeonBoard.IceWhite
+    val Settings = Color(0xFFEAF2FF)
     val NowPlaying = NeonBoard.Green
 }
 
@@ -970,7 +970,7 @@ fun NeonBadge(
     }
 }
 
-/** Eyebrow: 12sp Barlow 700 uppercase, tracking 0.16em, in the accent. */
+/** Eyebrow: 12sp Exo 2 700 uppercase, tracking 0.16em, in the accent. */
 @Composable
 fun NeonEyebrow(
     text: String,

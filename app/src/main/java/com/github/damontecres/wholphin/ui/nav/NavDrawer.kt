@@ -58,6 +58,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Density
@@ -692,6 +693,7 @@ fun NavigationDrawerScope.ProfileIcon(
         supportingContent = {
             Text(
                 text = serverName,
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Normal),
                 maxLines = 1,
             )
         },
@@ -700,6 +702,7 @@ fun NavigationDrawerScope.ProfileIcon(
         Text(
             modifier = Modifier,
             text = user.name ?: user.id.toString(),
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
             maxLines = 1,
         )
     }
@@ -945,11 +948,7 @@ fun railGlyphColor(
     focused: Boolean,
 ): Color? {
     if (!isWeaselTv()) return null
-    return when {
-        selected -> accent
-        focused -> NeonBoard.Text
-        else -> NeonBoard.Low
-    }
+    return com.github.damontecres.wholphin.ui.theme.neonGlowAccent(accent)
 }
 
 @Composable
@@ -1036,6 +1035,7 @@ internal object WeaselNavIcons {
             "a_favorites" to "ic_nav_favorites",
             "a_discover" to "ic_nav_requests",
             "movies" to "ic_nav_movies",
+            "sports" to "ic_nav_sports",
             "tv shows" to "ic_nav_tvshows",
             "stand up comedy" to "ic_nav_standup",
             "ufc" to "ic_nav_ufc",
@@ -1062,7 +1062,14 @@ internal object WeaselNavIcons {
         item: NavDrawerItem,
     ): Int? {
         val key = if (item is ServerNavDrawerItem) item.name.trim().lowercase() else item.id
-        val entry = map[key] ?: return null
+        val entry = map[key] ?: (item as? ServerNavDrawerItem)?.type?.let {
+            when (it) {
+                CollectionType.MOVIES -> "ic_nav_movies"
+                CollectionType.TVSHOWS -> "ic_nav_tvshows"
+                CollectionType.BOXSETS -> "ic_nav_collections"
+                else -> null
+            }
+        } ?: return null
         return fixed(context, entry)
     }
 

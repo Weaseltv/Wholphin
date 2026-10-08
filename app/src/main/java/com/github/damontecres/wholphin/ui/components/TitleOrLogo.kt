@@ -64,7 +64,7 @@ private fun Title(
     modifier: Modifier = Modifier,
 ) {
     // Neon Board: the text title is the fallback when the server has no logo, and it is
-    // Barlow Condensed 800 uppercase in one solid color. No brush.
+    // Orbitron 800 uppercase in one solid color. No brush.
     val neon = isWeaselTv()
     Text(
         text = (title ?: "").let { if (neon) it.uppercase() else it },
