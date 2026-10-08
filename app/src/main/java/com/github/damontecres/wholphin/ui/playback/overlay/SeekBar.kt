@@ -53,6 +53,7 @@ import com.github.damontecres.wholphin.ui.playback.isDpadLeft
 import com.github.damontecres.wholphin.ui.playback.isDpadRight
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.neonGlowAccent
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import kotlinx.coroutines.FlowPreview
 import timber.log.Timber
@@ -303,7 +304,7 @@ private fun SeekBarDisplay(
                     drawRect(
                         brush =
                             Brush.verticalGradient(
-                                listOf(Color.Transparent, accent.copy(alpha = .35f), Color.Transparent),
+                                listOf(Color.Transparent, neonGlowAccent(accent).copy(alpha = .35f), Color.Transparent),
                                 startY = yOffset - 10.dp.toPx(),
                                 endY = yOffset + 10.dp.toPx(),
                             ),

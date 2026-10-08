@@ -560,6 +560,9 @@ fun HomePageContent(
                                                             streamingProviderAccent(item.name) ?: homeRowAccent(row.rowType, libraries)
                                                         } else if (curated && item != null) {
                                                             curatedPickAccent(item.name) ?: homeRowAccent(row.rowType, libraries)
+                                                        } else if (item?.type == BaseItemKind.MOVIE) {
+                                                            val rowColor = homeRowAccent(row.rowType, libraries)
+                                                            if (rowColor == NeonBoard.Violet || rowColor == NeonBoard.Fuchsia) rowColor else NeonBoard.Orange
                                                         } else {
                                                             homeRowAccent(row.rowType, libraries)
                                                         },

@@ -66,7 +66,7 @@ import java.time.LocalDateTime
  * the accent tint. Selected / current is the 3dp tally. Nothing animates on its own.
  */
 
-/** Tokens. Colors are identical to the iOS, Android phone and web packages. */
+/** Shared Neon tokens, with owner-approved WeaselPlex TV palette overrides. */
 object NeonBoard {
     val Stage = Color(0xFF050608)
     val Video = Color(0xFF000000)
@@ -83,7 +83,9 @@ object NeonBoard {
     val Volt = Color(0xFFC6FF00)
     val Green = Color(0xFF3DFF6E)
     val Cyan = Color(0xFF00E5FF)
-    val Orange = Color(0xFFFFB000)
+    // Movies: owner-approved Molten borders/accents with Safety Orange glow.
+    val Orange = Color(0xFFFF5200)
+    val OrangeGlow = Color(0xFFFF7900)
     val Yellow = Color(0xFFFFE600)
     val Red = Color(0xFFFF2A3D)
     val ElectricBlue = Color(0xFF0088FF)
@@ -255,7 +257,11 @@ fun navigationSectionAccent(backStack: List<Destination>, items: List<NavDrawerI
             Destination.NowPlaying -> RailAccents.NowPlaying
             else -> items.filterIsInstance<ServerNavDrawerItem>()
                 .firstOrNull { it.destination == destination }
-                ?.let(::sectionAccent) ?: accent
+                ?.let(::sectionAccent) ?: when (destination) {
+                    is Destination.MediaItem -> mediaAccent(destination.type, accent)
+                    is Destination.DiscoveredItem -> mediaAccent(destination.item.type.baseItemKind, accent)
+                    else -> accent
+                }
         }
     }
     return accent
@@ -332,6 +338,18 @@ fun curatedPickAccent(name: String?): Color? =
         else -> null
     }
 
+/** Resolve glow separately from solid ink/strokes throughout the shared Neon components. */
+fun neonGlowAccent(accent: Color): Color =
+    if (accent == NeonBoard.Orange) NeonBoard.OrangeGlow else accent
+
+/** Movies in mixed pages use their own palette; specialist libraries keep their identity. */
+private fun mediaAccent(kind: BaseItemKind?, section: Color?): Color =
+    if (kind == BaseItemKind.MOVIE && section != NeonBoard.Violet && section != NeonBoard.Fuchsia) {
+        NeonBoard.Orange
+    } else {
+        section ?: typeAccent(kind)
+    }
+
 /** Section accent for a library by its Jellyfin collection type. */
 fun collectionAccent(type: CollectionType?): Color =
     when (type) {
@@ -385,8 +403,13 @@ fun itemAccent(item: BaseItem?): Color {
 @Composable
 @ReadOnlyComposable
 fun neonAccentFor(item: BaseItem?): Color =
-    LocalHomeRowAccent.current ?: LocalNeonSectionAccent.current
-        ?: if (item == null) LocalNeonAccent.current else itemAccent(item)
+    LocalHomeRowAccent.current ?: if (item == null) {
+        LocalNeonSectionAccent.current ?: LocalNeonAccent.current
+    } else if (item.type == BaseItemKind.MOVIE) {
+        mediaAccent(item.type, LocalNeonSectionAccent.current)
+    } else {
+        LocalNeonSectionAccent.current ?: itemAccent(item)
+    }
 
 // ---------------------------------------------------------------------------------------
 // Cards
@@ -424,7 +447,7 @@ fun neonCardGlow(
     val appearance = LocalHomeCardAppearance.current
     val glow =
         Glow(
-            elevationColor = homeCardAccent(accent).copy(alpha = appearance.glowOpacityPercent / 100f),
+            elevationColor = neonGlowAccent(homeCardAccent(accent)).copy(alpha = appearance.glowOpacityPercent / 100f),
             elevation = appearance.glowSpreadDp.dp,
         )
     return CardDefaults.glow(focusedGlow = glow, pressedGlow = glow)
@@ -509,7 +532,7 @@ fun neonSurfaceGlow(
     fallback: ClickableSurfaceGlow? = null,
 ): ClickableSurfaceGlow {
     if (!isWeaselTv()) return fallback ?: ClickableSurfaceDefaults.glow()
-    val glow = Glow(elevationColor = accent.copy(alpha = alpha), elevation = elevation)
+    val glow = Glow(elevationColor = neonGlowAccent(accent).copy(alpha = alpha), elevation = elevation)
     return ClickableSurfaceDefaults.glow(focusedGlow = glow, pressedGlow = glow)
 }
 
@@ -593,13 +616,13 @@ fun neonPrimaryGlow(
     if (!isWeaselTv()) return fallback ?: ClickableSurfaceDefaults.glow()
     val focused =
         Glow(
-            elevationColor = accent.copy(alpha = NeonBoard.GlowSpec.PRIMARY_BUTTON_FOCUS_ALPHA),
+            elevationColor = neonGlowAccent(accent).copy(alpha = NeonBoard.GlowSpec.PRIMARY_BUTTON_FOCUS_ALPHA),
             elevation = NeonBoard.GlowSpec.PrimaryButtonFocus,
         )
     return ClickableSurfaceDefaults.glow(
         glow =
             Glow(
-                elevationColor = accent.copy(alpha = NeonBoard.GlowSpec.PRIMARY_BUTTON_ALPHA),
+                elevationColor = neonGlowAccent(accent).copy(alpha = NeonBoard.GlowSpec.PRIMARY_BUTTON_ALPHA),
                 elevation = NeonBoard.GlowSpec.PrimaryButton,
             ),
         focusedGlow = focused,
@@ -658,7 +681,7 @@ fun neonListItemGlow(
     if (!isWeaselTv()) return fallback ?: ListItemDefaults.glow()
     val glow =
         Glow(
-            elevationColor = accent.copy(alpha = opacity),
+            elevationColor = neonGlowAccent(accent).copy(alpha = opacity),
             elevation = spread,
         )
     return ListItemDefaults.glow(focusedGlow = glow, pressedGlow = glow, focusedSelectedGlow = glow)
@@ -750,7 +773,7 @@ fun Modifier.neonTally(
         drawRect(
             brush =
                 Brush.horizontalGradient(
-                    colors = listOf(accent.copy(alpha = .45f), Color.Transparent),
+                    colors = listOf(neonGlowAccent(accent).copy(alpha = .45f), Color.Transparent),
                     startX = 0f,
                     endX = glowW,
                 ),
@@ -775,8 +798,8 @@ fun Modifier.neonIconGlow(
                 Brush.radialGradient(
                     colors =
                         listOf(
-                            accent.copy(alpha = NeonBoard.GlowSpec.ICON_ALPHA * .5f),
-                            accent.copy(alpha = .12f),
+                            neonGlowAccent(accent).copy(alpha = NeonBoard.GlowSpec.ICON_ALPHA * .5f),
+                            neonGlowAccent(accent).copy(alpha = .12f),
                             Color.Transparent,
                         ),
                     center = center,
@@ -814,7 +837,7 @@ fun Modifier.neonRuleBelow(
             drawRect(
                 brush =
                     Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, accent.copy(alpha = glowStrength.coerceIn(0f, 1f))),
+                        colors = listOf(Color.Transparent, neonGlowAccent(accent).copy(alpha = glowStrength.coerceIn(0f, 1f))),
                         startY = size.height - glowH,
                         endY = size.height,
                     ),
@@ -839,7 +862,7 @@ fun Modifier.neonOverline(
         drawRect(
             brush =
                 Brush.verticalGradient(
-                    colors = listOf(accent.copy(alpha = .35f), Color.Transparent),
+                    colors = listOf(neonGlowAccent(accent).copy(alpha = .35f), Color.Transparent),
                     startY = 0f,
                     endY = glowH,
                 ),
@@ -915,7 +938,7 @@ fun NeonBadge(
                     drawRect(
                         brush =
                             Brush.radialGradient(
-                                colors = listOf(accent.copy(alpha = alpha * .5f), Color.Transparent),
+                                colors = listOf(neonGlowAccent(accent).copy(alpha = alpha * .5f), Color.Transparent),
                                 center = center,
                                 radius = size.maxDimension / 2 + g,
                             ),
