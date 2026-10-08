@@ -395,3 +395,7 @@ Remove the selected-page stripe from the sidebar. When focus moves to another me
 ### Search filter alignment (2026-10-08)
 
 The inline Movies, TV Shows, Episodes and People row balances the page's unequal rail/right gutters with an extra 16 dp on the right, giving equal 40 dp clearance from the collapsed sidebar and right screen edge. Each label/switch pair is centered within its equal-width button. Top row padding drops from 20 dp to 4 dp, reducing the search-bar-to-filter gap from 32 dp to 16 dp; lower focus-glow clearance and 16 dp between buttons remain.
+
+### TV Shows tab alignment and Recommended row clearance (2026-10-08)
+
+TV Shows tab buttons start at 8 dp, aligned with the sidebar mascot, instead of 36 dp. Remove the 16 dp outer top inset and reduce the tab row's internal top inset from 20 dp to 8 dp, retaining the lower focus-glow room. TV Recommended header top padding drops from 27 dp to 4 dp because the tabs already supply the screen-top clearance. Together these reclaim 51 dp for the first poster row and its focused border/glow; the header's 172 dp content height, card dimensions and appearance tuning remain. Other pages retain their existing positioning.

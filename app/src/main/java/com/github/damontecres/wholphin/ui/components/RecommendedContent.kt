@@ -41,6 +41,7 @@ import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.theme.LocalHomeCardAppearance
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.main.HomePageContent
+import com.github.damontecres.wholphin.ui.main.HomePageHeader
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberPosition
 import com.github.damontecres.wholphin.ui.toBaseItems
@@ -354,6 +355,7 @@ fun RecommendedContent(
     modifier: Modifier = Modifier,
     playlistViewModel: AddPlaylistViewModel = hiltViewModel(),
     onFocusPosition: ((RowColumn) -> Unit)? = null,
+    headerModifier: Modifier = HeaderUtils.homeModifier(),
 ) {
     var showContextMenu by remember { mutableStateOf<ContextMenu?>(null) }
     var overviewDialog by remember { mutableStateOf<ItemDetailsDialogInfo?>(null) }
@@ -461,6 +463,13 @@ fun RecommendedContent(
                 showViewMore = true,
                 onClickViewMore = viewModel::onClickViewMore,
                 modifier = modifier,
+                headerComposable = { focusedItem ->
+                    HomePageHeader(
+                        item = focusedItem,
+                        showLogo = preferences.appPreferences.interfacePreferences.showLogos,
+                        modifier = headerModifier,
+                    )
+                },
             )
         }
     }
