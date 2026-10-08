@@ -221,15 +221,12 @@ fun BannerCard(
                 }
             }
             if (favorite) {
-                Text(
+                FavoriteIndicator(
                     modifier =
                         Modifier
-                            .align(Alignment.TopStart)
-                            .padding(8.dp),
-                    color = colorResource(android.R.color.holo_red_light),
-                    text = stringResource(R.string.fa_heart),
+                            .align(Alignment.BottomEnd)
+                            .padding(end = badgeInsetX, bottom = badgeInsetY),
                     fontSize = 16.sp,
-                    fontFamily = FontAwesome,
                 )
             }
             if (playPercent > 0 && playPercent < 100) {

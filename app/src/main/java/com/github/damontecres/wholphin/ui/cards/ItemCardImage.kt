@@ -302,9 +302,6 @@ fun ItemCardImageOverlay(
                         )
                     }
                 }
-                if (favorite) {
-                    FavoriteIndicator()
-                }
             }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -339,6 +336,17 @@ fun ItemCardImageOverlay(
                     }
                 }
             }
+        }
+
+        if (favorite) {
+            FavoriteIndicator(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(
+                        end = countAppearance?.badgeHorizontalInsetDp?.dp ?: 4.dp,
+                        bottom = countAppearance?.badgeVerticalInsetDp?.dp ?: 4.dp,
+                    ),
+            )
         }
 
         if (watchedPercent != null && watchedPercent > 0 && watchedPercent < 100) {

@@ -416,3 +416,7 @@ Movies, TV Shows, Stand Up Comedy and Sports retain the 8 dp tab-button top alig
 ### Watchlist heading and global badge alignment (2026-10-08)
 
 Watchlist uses the Collections page-title component above its type buttons and toolbar, with a WATCHLIST title and full-width section-colored divider. Counts and MOVIE/SHOW labels share a vertically centered overlay row, including when a favorite heart is present. Both sides use the global count edge inset, and version-count badges also follow count appearance. Approved Home layout revision 8 sets 8 dp top/side insets and 4 dp inner padding on all four sides for existing local/server rows and new users once; later user adjustments remain available. Episode/series counts and media-type badge sizing use the same global appearance throughout the app. This change remains Alpha until a stable release is explicitly authorized.
+
+### Watchlist hearts at bottom right (2026-10-08)
+
+Favorite/watchlist hearts sit at the bottom right of shared poster and banner cards throughout the app. Right and bottom clearance use the same global badge horizontal/vertical insets as MOVIE/SHOW overlays (8 dp by default), keeping each card path's existing heart size and color. Media-type and count badges stay in their aligned top row. This shared placement is standard for existing and new users when the next stable release is promoted from Alpha; no settings migration is needed for placement.
