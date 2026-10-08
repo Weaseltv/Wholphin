@@ -1,5 +1,7 @@
 package com.github.damontecres.wholphin.ui.discover
 
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -116,7 +118,7 @@ fun DiscoverItemRow(
                 }
             },
     ) {
-        ItemRowTitle(title)
+        ItemRowTitle(title, titleStartPadding = if (isWeaselTv()) horizontalPadding else 8.dp)
 
         LazyRow(
             state = state,

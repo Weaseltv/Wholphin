@@ -17,6 +17,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.Chapter
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 
 @Composable
 fun ChapterRow(
@@ -29,7 +30,7 @@ fun ChapterRow(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier,
     ) {
-        ItemRowTitle(stringResource(R.string.chapters))
+        ItemRowTitle(stringResource(R.string.chapters), titleStartPadding = if (isWeaselTv()) 16.dp else 8.dp)
         LazyRow(
             state = rememberLazyListState(),
             horizontalArrangement = Arrangement.spacedBy(16.dp),

@@ -660,7 +660,7 @@ private fun <T : CardGridItem> SearchGrid(
         verticalArrangement = Arrangement.spacedBy(0.dp),
         modifier = modifier,
     ) {
-        ItemRowTitle(stringResource(R.string.results))
+        ItemRowTitle(stringResource(R.string.results), titleStartPadding = if (isWeaselTv()) 0.dp else 8.dp)
 
         CardGrid(
             pager = items,

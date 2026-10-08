@@ -73,7 +73,7 @@ fun <T> ItemRow(
     countSize: TextUnit = 12.sp,
     countOpacity: Float = 1f,
     countEndPadding: Dp = 8.dp,
-    titleStartPadding: Dp = 8.dp,
+    titleStartPadding: Dp? = null,
 ) {
     val state = rememberLazyListState()
     val firstFocus = remember { FocusRequester() }
@@ -112,7 +112,7 @@ fun <T> ItemRow(
             countSize = countSize,
             countOpacity = countOpacity,
             countEndPadding = countEndPadding,
-            titleStartPadding = titleStartPadding,
+            titleStartPadding = titleStartPadding ?: if (neon) cardPadding.calculateStartPadding(layoutDirection) else 8.dp,
         )
 
         LazyRow(

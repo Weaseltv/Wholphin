@@ -489,7 +489,6 @@ fun HomePageContent(
                                             horizontalPadding = viewOptions.spacing.dp,
                                             dividerGap = if (isWeaselTv()) viewOptions.dividerGapDp.dp else 8.dp,
                                             titleDividerGap = if (isWeaselTv()) viewOptions.titleDividerGapDp.dp else 4.dp,
-                                            titleStartPadding = if (isWeaselTv()) focusedFirstCardStart(viewOptions, row.items.firstOrNull()) else 8.dp,
                                             titleSize = viewOptions.titleSizeSp.sp,
                                             titleLetterSpacing = (viewOptions.titleLetterSpacingTenthsSp / 10f).sp,
                                             countSize = viewOptions.countSizeSp.sp,
@@ -646,16 +645,6 @@ fun HomePageContent(
 }
 
 /** Resolve the source library, so named sections such as Boxing keep their rail colour. */
-/** Keep the title in the first focused poster's visual start column, including its border. */
-private fun focusedFirstCardStart(options: HomeRowViewOptions, firstItem: BaseItem?): Dp {
-    val ratio = if (firstItem?.type == BaseItemKind.EPISODE) options.episodeAspectRatio.ratio else options.aspectRatio.ratio
-    val appearance = options.cardAppearance
-    val scale = appearance.focusScalePercent / 100f
-    val growth = options.heightDp * ratio * (scale - 1f).coerceAtLeast(0f) / 2f
-    val border = if (appearance.borderOpacityPercent > 0) appearance.borderWidthDp * scale / 2f else 0f
-    return ((options.edgePaddingDp ?: options.spacing) - growth - border).dp
-}
-
 @Composable
 private fun homeRowAccent(
     row: HomeRowConfig?,

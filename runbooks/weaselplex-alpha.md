@@ -150,9 +150,9 @@ names retain the row accent.
 ## Home descriptions and Settings styling
 
 Home descriptions use 92% of the available header width instead of the previous
-400 dp cap. Their existing height and line limits remain. Home row titles align
-with the first poster's focused left edge, calculated from the saved card size,
-shape, focus enlargement, border thickness and start padding. Title position stays
+400 dp cap. Their existing height and line limits remain. Row titles align
+with the first poster's normal left edge using the row's start padding,
+independently of focus enlargement or border width. Title position stays
 stable while navigating; full-width dividers and right-side counts stay in place.
 Settings uses a 5 dp horizontal divider with the Home rule's 10 dp / 70% glow,
 and a 5 dp vertical edge without glow. Section titles are 22 sp bold with extra
@@ -403,3 +403,7 @@ TV Shows tab buttons start at 8 dp, aligned with the sidebar mascot, instead of 
 The same 8 dp tab-button top alignment now applies to Movies, Stand Up Comedy and Sports through their shared movie-library page. These buttons move up 28 dp, with lower tab glow padding retained.
 
 Movies, Stand Up Comedy and Sports also use the compact Recommended header, via the shared `HeaderUtils.recommendedModifier()`. Its 4 dp top inset reclaims another 23 dp beneath the tabs so the first row's posters and focus effects have the same room as TV Shows. TV Shows uses the same helper to keep these four pages in parity. Home retains its original header spacing; card size and appearance settings remain.
+
+### Global row-title alignment (2026-10-08)
+
+Row headings align with the first un-enlarged card edge throughout WeaselPlex. Shared ItemRow resolves title start padding from its actual card content padding, covering Home, Recommended, details and Search rows. Remove Home's focus-scale/border offset calculation. Standalone Discover and chapter rows use their card gutters; Search grid headings use the grid's zero horizontal inset. People rows already share the same 8 dp heading/card inset. Title position does not move when focus changes; card positions, full-width dividers and row counts remain.
