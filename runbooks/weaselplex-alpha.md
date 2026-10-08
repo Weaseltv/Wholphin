@@ -376,6 +376,7 @@ The following owner-approved pairs supersede the prior section accent colors thr
 | --- | --- | --- |
 | Search | Midnight Volt `#0A2CFF` | Glacier Glow `#00A3FF` |
 | Watchlist | Deep Cyan `#00B8D9` | Electric Cyan `#00E1FF` |
+| Requests | True Teal `#009A93` | Neon Teal `#00F2D6` |
 | Home | Forest Neon `#0B8A42` | Matrix Green `#00E04B` |
 | Collections | Taxi Neon `#FFD300` | Lemon Glow `#FFFF33` |
 | Movies | Molten `#FF5200` | Safety Orange `#FF7900` |
@@ -384,3 +385,5 @@ The following owner-approved pairs supersede the prior section accent colors thr
 | Sports | Electric Rose `#FF0099` | Blush Volt `#FF85D0` |
 
 `NeonSectionPalette` is the single shared mapping for those section pairs. Navigation and library/type resolution apply it across Home, Watchlist, Search/Discover, library tabs, nested details and controls. Movie and show cards in mixed pages use their media palettes; known Stand Up Comedy and Sports libraries keep their own identities. Provider, curated and sports-collection poster palettes retain their earlier exact values. Generic Live TV/status/error tokens stay separate from the section palette. These packaged values apply to existing and new users on the next owner-authorized stable release; this build remains Alpha.
+
+Requests now uses True Teal `#009A93` for its sidebar and page accents, with Neon Teal `#00F2D6` for shared focus, halo and divider glows. Nested Requests controls inherit this pair; movie/show posters retain their media-type palettes. Existing appearance settings remain in place.

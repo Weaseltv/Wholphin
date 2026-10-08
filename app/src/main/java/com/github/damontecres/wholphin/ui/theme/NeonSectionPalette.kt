@@ -8,6 +8,7 @@ object NeonSectionPalette {
 
     val Search = Colors(Color(0xFF0A2CFF), Color(0xFF00A3FF))
     val Watchlist = Colors(Color(0xFF00B8D9), Color(0xFF00E1FF))
+    val Requests = Colors(Color(0xFF009A93), Color(0xFF00F2D6))
     val Home = Colors(Color(0xFF0B8A42), Color(0xFF00E04B))
     val Collections = Colors(Color(0xFFFFD300), Color(0xFFFFFF33))
     val Movies = Colors(NeonBoard.Orange, NeonBoard.OrangeGlow)
@@ -16,7 +17,7 @@ object NeonSectionPalette {
     val Sports = Colors(Color(0xFFFF0099), Color(0xFFFF85D0))
 
     private val glowByBorder = listOf(
-        Search, Watchlist, Home, Collections, Movies, TvShows, StandUpComedy, Sports,
+        Search, Watchlist, Requests, Home, Collections, Movies, TvShows, StandUpComedy, Sports,
     ).associate { it.border to it.glow }
 
     fun glowAccent(accent: Color): Color =

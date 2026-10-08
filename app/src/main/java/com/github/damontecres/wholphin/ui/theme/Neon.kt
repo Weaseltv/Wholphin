@@ -218,7 +218,7 @@ fun ProvideNeonSectionAccent(accent: Color, content: @Composable () -> Unit) {
 private val RAIL_ACCENT_BY_ID =
     mapOf(
         "a_favorites" to NeonSectionPalette.Watchlist.border,
-        "a_discover" to NeonBoard.Teal,
+        "a_discover" to NeonSectionPalette.Requests.border,
         "a_more" to NeonBoard.Volt,
     )
 private val RAIL_ACCENT_BY_NAME =
@@ -250,7 +250,7 @@ fun navigationSectionAccent(backStack: List<Destination>, items: List<NavDrawerI
             is Destination.Home -> RailAccents.Home
             is Destination.Search -> RailAccents.Search
             Destination.Favorites -> NeonSectionPalette.Watchlist.border
-            Destination.Discover -> NeonBoard.Teal
+            Destination.Discover -> NeonSectionPalette.Requests.border
             is Destination.Settings, Destination.HomeSettings, is Destination.SubtitleSettings,
             is Destination.UpdateApp, Destination.License, Destination.Debug -> RailAccents.Settings
             Destination.UserAppPreferences -> RailAccents.User
