@@ -101,6 +101,7 @@ import com.github.damontecres.wholphin.ui.theme.LocalHomeCardBorderAccent
 import com.github.damontecres.wholphin.ui.theme.LocalHomeRowAccent
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.NeonSectionPalette
 import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
@@ -560,9 +561,9 @@ fun HomePageContent(
                                                             streamingProviderAccent(item.name) ?: homeRowAccent(row.rowType, libraries)
                                                         } else if (curated && item != null) {
                                                             curatedPickAccent(item.name) ?: homeRowAccent(row.rowType, libraries)
-                                                        } else if (item?.type == BaseItemKind.MOVIE) {
+                                                        } else if (item?.type in listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES, BaseItemKind.SEASON, BaseItemKind.EPISODE)) {
                                                             val rowColor = homeRowAccent(row.rowType, libraries)
-                                                            if (rowColor == NeonBoard.Violet || rowColor == NeonBoard.Fuchsia) rowColor else NeonBoard.Orange
+                                                            if (rowColor == NeonSectionPalette.StandUpComedy.border || rowColor == NeonSectionPalette.Sports.border) rowColor else typeAccent(item?.type)
                                                         } else {
                                                             homeRowAccent(row.rowType, libraries)
                                                         },

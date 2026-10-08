@@ -367,3 +367,20 @@ Build and install the arm64 Alpha in place; the owner checks the navigation that
 Movies now use Molten `#FF5200` for borders, icons, labels, controls and solid section/progress lines, with Safety Orange `#FF7900` for glow. Shared Neon glow helpers resolve the glow color separately from the solid accent, covering card focus, outline/primary buttons, list/sidebar focus, sidebar tally and icon halos, section rules, badges and playback seek/progress glow. Existing thickness, opacity, spread and focus scale remain.
 
 The palette follows Movies library chrome, Recommended/Library/Collections/Genres/Studios, Home movie rows and mixed-row movie cards, Watchlist posters and Movies filters, Search and Discover movie posters, movie details and inherited dialogs/playback. Mixed pages resolve movie cards/details to Movies rather than inheriting utility-page colors. Stand Up Comedy/Sports library identities and provider/curated collection palettes retain their own colors. These shared code defaults apply to existing and new users without a settings migration; customer publication remains a separate explicit release request.
+
+### Section border/glow palettes (2026-10-08)
+
+The following owner-approved pairs supersede the prior section accent colors throughout WeaselPlex. Borders, section accents, solid rules, labels/icons and control fills use the border color; focus glow, title-rule glow, sidebar halos/tallies and playback progress glow use the separate glow color. Shared helpers retain existing geometry, opacity, strength and scale.
+
+| Section | Border / solid accent | Glow |
+| --- | --- | --- |
+| Search | Midnight Volt `#0A2CFF` | Glacier Glow `#00A3FF` |
+| Watchlist | Deep Cyan `#00B8D9` | Electric Cyan `#00E1FF` |
+| Home | Forest Neon `#0B8A42` | Matrix Green `#00E04B` |
+| Collections | Taxi Neon `#FFD300` | Lemon Glow `#FFFF33` |
+| Movies | Molten `#FF5200` | Safety Orange `#FF7900` |
+| TV Shows | Laser Crimson `#E8112D` | Electric Red `#FF1A1A` |
+| Stand Up Comedy | Royal Neon `#5A00FF` | Grape Glow `#9B30FF` |
+| Sports | Electric Rose `#FF0099` | Blush Volt `#FF85D0` |
+
+`NeonSectionPalette` is the single shared mapping for those section pairs. Navigation and library/type resolution apply it across Home, Watchlist, Search/Discover, library tabs, nested details and controls. Movie and show cards in mixed pages use their media palettes; known Stand Up Comedy and Sports libraries keep their own identities. Provider, curated and sports-collection poster palettes retain their earlier exact values. Generic Live TV/status/error tokens stay separate from the section palette. These packaged values apply to existing and new users on the next owner-authorized stable release; this build remains Alpha.

@@ -46,7 +46,7 @@ import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.enableMarquee
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
-import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.typeAccent
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import com.github.damontecres.wholphin.ui.theme.neonCardBorder
@@ -64,7 +64,7 @@ fun DiscoverItemCard(
     showOverlay: Boolean = true,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     width: Dp = Cards.height2x3 * AspectRatios.TALL,
-    accent: Color = if (isWeaselTv() && item?.type == SeerrItemType.MOVIE) NeonBoard.Orange else LocalNeonAccent.current,
+    accent: Color = if (isWeaselTv() && item?.type in listOf(SeerrItemType.MOVIE, SeerrItemType.TV)) typeAccent(item?.type?.baseItemKind) else LocalNeonAccent.current,
 ) {
     val focused by interactionSource.collectIsFocusedAsState()
     var focusedAfterDelay by remember { mutableStateOf(false) }

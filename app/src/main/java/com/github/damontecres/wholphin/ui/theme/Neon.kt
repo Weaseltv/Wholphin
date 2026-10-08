@@ -214,30 +214,30 @@ fun ProvideNeonSectionAccent(accent: Color, content: @Composable () -> Unit) {
     }
 }
 
-/** Owner palette v4, 2026-10-07: every sidebar section keeps its own color. */
+/** Owner section palette, 2026-10-08: every sidebar section keeps its own color pair. */
 private val RAIL_ACCENT_BY_ID =
     mapOf(
-        "a_favorites" to NeonBoard.Cyan,
+        "a_favorites" to NeonSectionPalette.Watchlist.border,
         "a_discover" to NeonBoard.Teal,
         "a_more" to NeonBoard.Volt,
     )
 private val RAIL_ACCENT_BY_NAME =
     mapOf(
-        "collections" to NeonBoard.Yellow,
+        "collections" to NeonSectionPalette.Collections.border,
         "movies" to NeonBoard.Orange,
-        "tv shows" to NeonBoard.Red,
-        "sports" to NeonBoard.Fuchsia,
-        "stand up comedy" to NeonBoard.Violet,
-        "standup comedy" to NeonBoard.Violet,
-        "stand-up comedy" to NeonBoard.Violet,
-        "boxing" to NeonBoard.Fuchsia,
-        "ufc" to NeonBoard.Fuchsia,
+        "tv shows" to NeonSectionPalette.TvShows.border,
+        "sports" to NeonSectionPalette.Sports.border,
+        "stand up comedy" to NeonSectionPalette.StandUpComedy.border,
+        "standup comedy" to NeonSectionPalette.StandUpComedy.border,
+        "stand-up comedy" to NeonSectionPalette.StandUpComedy.border,
+        "boxing" to NeonSectionPalette.Sports.border,
+        "ufc" to NeonSectionPalette.Sports.border,
     )
 
 object RailAccents {
     val User = NeonBoard.Volt
-    val Search = NeonBoard.ElectricBlue
-    val Home = NeonBoard.Green
+    val Search = NeonSectionPalette.Search.border
+    val Home = NeonSectionPalette.Home.border
     val Settings = NeonBoard.IceWhite
     val NowPlaying = NeonBoard.Green
 }
@@ -249,7 +249,7 @@ fun navigationSectionAccent(backStack: List<Destination>, items: List<NavDrawerI
         accent = when (destination) {
             is Destination.Home -> RailAccents.Home
             is Destination.Search -> RailAccents.Search
-            Destination.Favorites -> NeonBoard.Cyan
+            Destination.Favorites -> NeonSectionPalette.Watchlist.border
             Destination.Discover -> NeonBoard.Teal
             is Destination.Settings, Destination.HomeSettings, is Destination.SubtitleSettings,
             is Destination.UpdateApp, Destination.License, Destination.Debug -> RailAccents.Settings
@@ -340,23 +340,23 @@ fun curatedPickAccent(name: String?): Color? =
 
 /** Resolve glow separately from solid ink/strokes throughout the shared Neon components. */
 fun neonGlowAccent(accent: Color): Color =
-    if (accent == NeonBoard.Orange) NeonBoard.OrangeGlow else accent
+    NeonSectionPalette.glowAccent(accent)
 
-/** Movies in mixed pages use their own palette; specialist libraries keep their identity. */
+/** Mixed pages use media colors; Stand Up Comedy and Sports retain their library identity. */
 private fun mediaAccent(kind: BaseItemKind?, section: Color?): Color =
-    if (kind == BaseItemKind.MOVIE && section != NeonBoard.Violet && section != NeonBoard.Fuchsia) {
-        NeonBoard.Orange
-    } else {
-        section ?: typeAccent(kind)
+    when {
+        section == NeonSectionPalette.StandUpComedy.border || section == NeonSectionPalette.Sports.border -> section
+        kind == BaseItemKind.MOVIE || kind == BaseItemKind.SERIES || kind == BaseItemKind.SEASON || kind == BaseItemKind.EPISODE -> typeAccent(kind)
+        else -> section ?: typeAccent(kind)
     }
 
 /** Section accent for a library by its Jellyfin collection type. */
 fun collectionAccent(type: CollectionType?): Color =
     when (type) {
         CollectionType.MOVIES -> NeonBoard.Orange
-        CollectionType.TVSHOWS -> NeonBoard.Red
+        CollectionType.TVSHOWS -> NeonSectionPalette.TvShows.border
         CollectionType.LIVETV -> NeonBoard.Green
-        CollectionType.BOXSETS -> NeonBoard.Yellow
+        CollectionType.BOXSETS -> NeonSectionPalette.Collections.border
         else -> NeonBoard.Volt
     }
 
@@ -368,7 +368,7 @@ fun typeAccent(kind: BaseItemKind?): Color =
         BaseItemKind.SERIES,
         BaseItemKind.SEASON,
         BaseItemKind.EPISODE,
-        -> NeonBoard.Red
+        -> NeonSectionPalette.TvShows.border
 
         BaseItemKind.TV_CHANNEL,
         BaseItemKind.LIVE_TV_CHANNEL,
@@ -405,7 +405,7 @@ fun itemAccent(item: BaseItem?): Color {
 fun neonAccentFor(item: BaseItem?): Color =
     LocalHomeRowAccent.current ?: if (item == null) {
         LocalNeonSectionAccent.current ?: LocalNeonAccent.current
-    } else if (item.type == BaseItemKind.MOVIE) {
+    } else if (item.type == BaseItemKind.MOVIE || item.type == BaseItemKind.SERIES || item.type == BaseItemKind.SEASON || item.type == BaseItemKind.EPISODE) {
         mediaAccent(item.type, LocalNeonSectionAccent.current)
     } else {
         LocalNeonSectionAccent.current ?: itemAccent(item)
