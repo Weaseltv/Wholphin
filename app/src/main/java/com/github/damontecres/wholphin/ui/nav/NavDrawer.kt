@@ -52,6 +52,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -109,7 +110,7 @@ import com.github.damontecres.wholphin.ui.theme.neonIconGlow
 import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
 import com.github.damontecres.wholphin.ui.theme.neonListItemGlow
 import com.github.damontecres.wholphin.ui.theme.neonListItemShape
-import com.github.damontecres.wholphin.ui.theme.neonTally
+import com.github.damontecres.wholphin.ui.theme.neonGlowAccent
 import com.github.damontecres.wholphin.ui.theme.sectionAccent
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.ui.tryRequestFocus
@@ -687,8 +688,7 @@ fun NavigationDrawerScope.ProfileIcon(
                 alpha = if (drawerOpen || isWeaselTv()) 1f else .5f,
                 modifier =
                     Modifier
-                        .size(DrawerIconSize)
-                        .offset(x = if (isWeaselTv() && drawerOpen) 6.dp else 0.dp),
+                        .size(DrawerIconSize),
             )
         },
         supportingContent = {
@@ -723,7 +723,7 @@ fun NavigationDrawerScope.IconNavItem(
     val focused by interactionSource.collectIsFocusedAsState()
     val context = LocalContext.current
     NavigationDrawerItem(
-        modifier = modifier.neonTally(accent, selected),
+        modifier = modifier,
         selected = false,
         onClick = onClick,
         shape = neonListItemShape(shape = RailItemShape),
@@ -767,7 +767,7 @@ fun NavigationDrawerScope.IconNavItem(
             modifier = Modifier,
             text = text,
             maxLines = 1,
-            style = if (isWeaselTv()) NeonType.railLabel(selected) else LocalTextStyle.current,
+            style = railLabelStyle(accent, selected, focused),
         )
     }
 }
@@ -819,7 +819,7 @@ fun NavigationDrawerScope.NavItem(
     val accent = remember(library) { sectionAccent(library) }
     val focused by interactionSource.collectIsFocusedAsState()
     NavigationDrawerItem(
-        modifier = modifier.neonTally(accent, selected),
+        modifier = modifier,
         selected = false,
         onClick = onClick,
         shape = neonListItemShape(shape = RailItemShape),
@@ -881,8 +881,26 @@ fun NavigationDrawerScope.NavItem(
             modifier = Modifier,
             text = library.name(context),
             maxLines = 1,
-            style = if (isWeaselTv()) NeonType.railLabel(selected) else LocalTextStyle.current,
+            style = railLabelStyle(accent, selected, focused),
         )
+    }
+}
+
+/** The active page remains visible when focus moves to a different sidebar button. */
+@Composable
+private fun railLabelStyle(accent: Color, selected: Boolean, focused: Boolean): androidx.compose.ui.text.TextStyle {
+    if (!isWeaselTv()) return LocalTextStyle.current
+    val style = NeonType.railLabel(selected)
+    return if (selected && !focused) {
+        style.copy(
+            color = accent,
+            shadow = Shadow(
+                color = neonGlowAccent(accent).copy(alpha = RailFocusGlowOpacity),
+                blurRadius = with(LocalDensity.current) { 10.dp.toPx() },
+            ),
+        )
+    } else {
+        style
     }
 }
 

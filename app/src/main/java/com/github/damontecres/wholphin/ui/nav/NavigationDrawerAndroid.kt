@@ -31,6 +31,7 @@ import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
@@ -228,19 +229,25 @@ internal fun NavigationDrawerScope.NavigationDrawerItem(
             NavigationDrawerItemDefaults.ContainerHeightTwoLine
         }
 
+    // Move expanded contents inside the existing stroke; keep collapsed icons and bounds fixed.
+    val contentInset = if (isWeaselTv() && hasFocus) 8.dp else 0.dp
+
     ListItem(
         selected = selected,
         onClick = onClick,
-        headlineContent = content,
+        headlineContent = { Box(Modifier.padding(start = contentInset)) { content() } },
         leadingContent = {
             Box(
                 Modifier
                     .padding(horizontal = DrawerIconPadding)
-                    .size(DrawerIconSize),
+                    .size(DrawerIconSize)
+                    .offset(x = contentInset),
             ) { leadingContent() }
         },
         trailingContent = trailingContent,
-        supportingContent = supportingContent,
+        supportingContent = supportingContent?.let { supporting ->
+            { Box(Modifier.padding(start = contentInset)) { supporting() } }
+        },
         modifier =
             modifier
                 .layout { measurable, constraints ->

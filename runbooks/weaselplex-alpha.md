@@ -387,3 +387,7 @@ The following owner-approved pairs supersede the prior section accent colors thr
 `NeonSectionPalette` is the single shared mapping for those section pairs. Navigation and library/type resolution apply it across Home, Watchlist, Search/Discover, library tabs, nested details and controls. Movie and show cards in mixed pages use their media palettes; known Stand Up Comedy and Sports libraries keep their own identities. Provider, curated and sports-collection poster palettes retain their earlier exact values. Generic Live TV/status/error tokens stay separate from the section palette. These packaged values apply to existing and new users on the next owner-authorized stable release; this build remains Alpha.
 
 Requests now uses True Teal `#009A93` for its sidebar and page accents, with Neon Teal `#00F2D6` for shared focus, halo and divider glows. Nested Requests controls inherit this pair; movie/show posters retain their media-type palettes. Existing appearance settings remain in place.
+
+### Sidebar active labels and content padding (2026-10-08)
+
+Remove the selected-page stripe from the sidebar. When focus moves to another menu item, the active page's label keeps its section border color and a matching paired-color text glow. Its selected icon glow remains. Expanded sidebar icons, labels and supporting text gain 8 dp left inset within the existing focus border; border geometry and collapsed icon alignment stay fixed. Applies to all sidebar entries, including the profile button's shared padding.
