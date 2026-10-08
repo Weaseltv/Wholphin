@@ -52,7 +52,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -110,7 +109,6 @@ import com.github.damontecres.wholphin.ui.theme.neonIconGlow
 import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
 import com.github.damontecres.wholphin.ui.theme.neonListItemGlow
 import com.github.damontecres.wholphin.ui.theme.neonListItemShape
-import com.github.damontecres.wholphin.ui.theme.neonGlowAccent
 import com.github.damontecres.wholphin.ui.theme.sectionAccent
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.ui.tryRequestFocus
@@ -892,13 +890,7 @@ private fun railLabelStyle(accent: Color, selected: Boolean, focused: Boolean): 
     if (!isWeaselTv()) return LocalTextStyle.current
     val style = NeonType.railLabel(selected)
     return if (selected && !focused) {
-        style.copy(
-            color = accent,
-            shadow = Shadow(
-                color = neonGlowAccent(accent).copy(alpha = RailFocusGlowOpacity),
-                blurRadius = with(LocalDensity.current) { 10.dp.toPx() },
-            ),
-        )
+        style.copy(color = accent)
     } else {
         style
     }

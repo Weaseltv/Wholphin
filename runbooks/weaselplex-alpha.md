@@ -390,4 +390,4 @@ Requests now uses True Teal `#009A93` for its sidebar and page accents, with Neo
 
 ### Sidebar active labels and content padding (2026-10-08)
 
-Remove the selected-page stripe from the sidebar. When focus moves to another menu item, the active page's label keeps its section border color and a matching paired-color text glow. Its selected icon glow remains. Expanded sidebar icons, labels and supporting text gain 8 dp left inset within the existing focus border; border geometry and collapsed icon alignment stay fixed. Applies to all sidebar entries, including the profile button's shared padding.
+Remove the selected-page stripe from the sidebar. When focus moves to another menu item, the active page's label keeps its section border color without text glow. Its selected icon glow remains. Expanded sidebar icons, labels and supporting text gain 8 dp left inset within the existing focus border; border geometry and collapsed icon alignment stay fixed. Applies to all sidebar entries, including the profile button's shared padding.
