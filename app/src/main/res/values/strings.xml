@@ -102,6 +102,7 @@
     <string name="recap">Recap</string>
     <string name="recently_added_in">Recently added in %1$s</string>
     <string name="recently_added">Recently added</string>
+    <string name="home_new_in">New in</string>
     <string name="recently_recorded">Recently Recorded</string>
     <string name="recently_released">Recently Released</string>
     <string name="recommended">Recommended</string>

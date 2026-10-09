@@ -457,3 +457,7 @@ The existing measured title-height scroll clearance includes the kicker.
 Sidebar labels stay Exo 2 Medium 500 at normal tracking with #E1E4EC inactive
 text; the active-page section color and focused appearance remain. Profile name
 uses #F0F2F8 and the server subtitle #828A9B. Sidebar icons remain unchanged.
+
+Movies, TV Shows, Stand Up Comedy and Sports Recently Added Home rows use the
+shorter **NEW IN** kicker (including library aliases resolved by their section
+palette). Recently Released kickers remain unchanged.
