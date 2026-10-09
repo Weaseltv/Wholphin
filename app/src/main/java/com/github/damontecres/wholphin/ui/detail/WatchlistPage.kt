@@ -84,7 +84,6 @@ fun WatchlistPage(
                     GridTitle(
                         title = stringResource(R.string.watchlist),
                         collectionsOptions = ApprovedHomeLayout.apply(HomeRowViewOptions()),
-                        modifier = Modifier.padding(bottom = 12.dp),
                     )
                 }
                 Row(
@@ -93,7 +92,7 @@ fun WatchlistPage(
                     modifier =
                         Modifier
                             // Room for the focus glow inside the animation's clip
-                            .padding(start = if (isWeaselTv()) 0.dp else 16.dp, top = 16.dp, bottom = 16.dp, end = endPadding)
+                            .padding(start = if (isWeaselTv()) 0.dp else 16.dp, top = if (isWeaselTv()) 12.dp else 16.dp, bottom = 16.dp, end = endPadding)
                             .focusGroup()
                             .focusRestorer(filterFocusRequesters[selectedIndex]),
                 ) {

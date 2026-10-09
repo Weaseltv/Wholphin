@@ -119,6 +119,7 @@ fun <T : CardGridItem> CardGrid(
     columns: Int = 6,
     spacing: Dp = 16.dp,
     bringIntoViewSpec: BringIntoViewSpec = LocalBringIntoViewSpec.current,
+    topContentPadding: Dp = if (isWeaselTv()) 32.dp else 16.dp,
 ) {
     val cardSpacing = if (isWeaselTv()) ApprovedHomeLayout.CARD_SPACING_DP.dp else spacing
     val startPosition =
@@ -326,7 +327,7 @@ fun <T : CardGridItem> CardGrid(
                         state = gridState,
                         // Keep the first row's enlarged focus border/glow inside the viewport.
                         contentPadding = PaddingValues(
-                            top = if (isWeaselTv()) 32.dp else 16.dp,
+                            top = topContentPadding,
                             bottom = 16.dp,
                         ),
                         modifier =

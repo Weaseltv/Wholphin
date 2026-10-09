@@ -533,3 +533,19 @@ resolution transparent logo source. All 15 current providers are covered,
 including existing naming aliases. Focus borders/glow and saved presentation
 settings are untouched. Source/attribution notes remain in
 `runbooks/provider-wordmark-sources.md`. Routine delivery remains Alpha.
+
+## Search outlines, tighter page spacing and rounded genres (2026-10-09)
+
+Shared search fields have a 1 dp neutral outline at rest and a 2 dp section-color
+outline on focus, including Requests search. Watchlist's title-rule-to-type-row
+gap is 12 dp, matching Collections' rule-to-toolbar gap; Watchlist's second
+toolbar moves up with the type row. Collection/library toolbars now have 8 dp
+bottom clearance and their poster grids 24 dp top clearance (32 dp combined,
+previously 48 dp), retaining room for poster focus scaling and glow. This covers
+Watchlist, Collections and the Movies, TV Shows, Stand Up Comedy and Sports
+library grids; other generic grids retain their existing top clearance.
+
+The shared genre renderer uses the same 8 dp rounded shape for the card surface,
+image clip and focused border, across every library. Poster-card shape, theme
+colors and focus strengths are unchanged. Build/install remains arm64 Alpha on
+the assigned VPS with direct Shield ADB, and owner visual verification follows.

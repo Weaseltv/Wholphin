@@ -134,6 +134,7 @@ fun CollectionFolderGrid(
                 },
                 columns = viewOptions.columns,
                 spacing = viewOptions.spacing.dp,
+                topContentPadding = if (isWeaselTv()) 24.dp else 16.dp,
                 bringIntoViewSpec =
                     remember(viewOptions, density) {
                         val spacingPx = with(density) { viewOptions.spacing.dp.toPx() }
@@ -379,7 +380,7 @@ fun CollectionFolderHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier =
                     Modifier
-                        .padding(start = if (isWeaselTv()) 0.dp else 16.dp, end = endPadding, top = if (collectionsOptions != null) 12.dp else 0.dp, bottom = if (isWeaselTv()) 16.dp else 0.dp)
+                        .padding(start = if (isWeaselTv()) 0.dp else 16.dp, end = endPadding, top = if (collectionsOptions != null) 4.dp else 0.dp, bottom = if (isWeaselTv()) 8.dp else 0.dp)
                         .fillMaxWidth(),
             ) {
                 Row(
