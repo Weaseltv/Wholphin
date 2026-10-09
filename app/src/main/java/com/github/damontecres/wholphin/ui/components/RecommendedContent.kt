@@ -353,7 +353,7 @@ data class RecommendedRow<T>(
 private fun recommendedRowHeading(row: HomeRowLoadingState.Success): Pair<String, String?> =
     when ((row.title as? ResStringProvider)?.stringResId) {
         R.string.continue_watching -> stringResource(R.string.continue_watching) to "${stringResource(R.string.next_up)} &"
-        R.string.next_up -> stringResource(R.string.recommended_title_up) to stringResource(R.string.recommended_kicker_next)
+        R.string.next_up -> stringResource(R.string.continue_watching) to "${stringResource(R.string.next_up)} &"
         R.string.recently_released -> stringResource(R.string.recommended_title_released) to stringResource(R.string.recommended_kicker_just)
         R.string.recently_added -> stringResource(R.string.recommended_title_added) to stringResource(R.string.recommended_kicker_just)
         R.string.top_unwatched -> stringResource(R.string.recommended_title_unwatched) to stringResource(R.string.recommended_kicker_top_rated)

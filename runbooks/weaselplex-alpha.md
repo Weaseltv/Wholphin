@@ -567,7 +567,8 @@ Movies, TV Shows, Stand Up Comedy and Sports Recommended rows now use the same
 Exo 2 kicker / white Audiowide main-title renderer as Home. Kickers retain each
 library's glow color. Heading pairs are NEXT UP & / CONTINUE WATCHING, JUST /
 RELEASED, JUST / ADDED, TOP RATED / UNWATCHED and YOUR / SUGGESTIONS. TV's separate
-Next Up row uses NEXT / UP; its query and row membership stay separate.
+Next Up row also uses NEXT UP & / CONTINUE WATCHING, matching Home and Movies;
+its query and row membership stay separate.
 
 Heading selection uses resource IDs rather than matching translated strings.
 The shared measured viewport/row/next-heading clearance now applies to these
