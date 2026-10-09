@@ -589,3 +589,14 @@ of 70%, preserving proportions with `ContentScale.Fit` and no cropping. This
 changes artwork sizing, not opacity. The source manifest and local preview match
 the new collection and sizing. Arm64 Alpha built successfully and installed in
 place on Shield directly from the assigned VPS; owner visual verification follows.
+
+## First Recommended row detail fitting (2026-10-09)
+
+The first nonempty Recommended row across Movies, TV Shows, Stand Up Comedy
+and Sports uses a compact detail header while library tabs occupy the viewport.
+Its logo/title and episode name share one line, with metadata below. Description
+text receives the remaining height and ellipsizes on complete lines, up to two,
+instead of using a fixed-height box that can cut through text. The measured
+next-heading clearance and all later row headers retain their existing layout.
+Routine delivery remains arm64 Alpha installed directly from VPS to Shield;
+owner performs visual verification.

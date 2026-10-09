@@ -16,6 +16,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
@@ -33,10 +34,12 @@ fun TitleOrLogo(
     logoImageUrl: String?,
     showLogo: Boolean,
     modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
-    var imageError by remember { mutableStateOf(false) }
+    var imageError by remember(logoImageUrl) { mutableStateOf(false) }
+    val logoHeight = if (compact) 28.dp else HeaderUtils.logoHeight
     Box(
-        modifier = modifier.heightIn(max = HeaderUtils.logoHeight),
+        modifier = modifier.heightIn(max = logoHeight),
     ) {
         if (showLogo && logoImageUrl != null && !imageError) {
             AsyncImage(
@@ -49,11 +52,11 @@ fun TitleOrLogo(
                 },
                 modifier =
                     Modifier
-                        .height(HeaderUtils.logoHeight)
+                        .height(logoHeight)
                         .widthIn(max = 320.dp),
             )
         } else {
-            Title(title, Modifier)
+            Title(title, Modifier, compact)
         }
     }
 }
@@ -62,16 +65,16 @@ fun TitleOrLogo(
 private fun Title(
     title: String?,
     modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
-    // Neon Board: the text title is the fallback when the server has no logo, and it is
-    // Orbitron 800 uppercase in one solid color. No brush.
+    // Use the bundled display face for text when the server has no usable logo.
     val neon = isWeaselTv()
     Text(
         text = (title ?: "").let { if (neon) it.uppercase() else it },
         color = MaterialTheme.colorScheme.onSurface,
-        style = if (neon) NeonType.hero() else MaterialTheme.typography.headlineMedium,
+        style = if (neon) NeonType.hero(if (compact) 20.sp else 48.sp) else MaterialTheme.typography.headlineMedium,
         fontWeight = if (neon) null else FontWeight.SemiBold,
-        maxLines = 2,
+        maxLines = if (compact) 1 else 2,
         overflow = TextOverflow.Ellipsis,
         modifier = modifier,
     )

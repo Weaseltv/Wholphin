@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -731,6 +732,7 @@ fun HomePageHeader(
     showLogo: Boolean,
     modifier: Modifier = Modifier,
     compactLogo: Boolean = false,
+    compactDetails: Boolean = false,
 ) {
     val isEpisode = item?.type == BaseItemKind.EPISODE
     val dto = item?.data
@@ -768,6 +770,7 @@ fun HomePageHeader(
         showLogo = showLogo,
         logoImageUrl = rememberLogoUrl(item),
         compactLogo = compactLogo,
+        compactDetails = compactDetails,
         modifier = modifier,
     )
 }
@@ -787,7 +790,60 @@ fun HomePageHeader(
     eyebrow: String? = null,
     accent: Color = LocalNeonAccent.current,
     compactLogo: Boolean = false,
+    compactDetails: Boolean = false,
 ) {
+    if (compactDetails) {
+        // The first Recommended row shares its viewport with library tabs. Keep
+        // identity and metadata compact, then let Text ellipsize at a complete
+        // line within the remaining height instead of clipping a fixed text box.
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = modifier,
+        ) {
+            if (eyebrow != null) {
+                NeonEyebrow(text = eyebrow, accent = accent)
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(.92f),
+            ) {
+                if (showLogo && logoImageUrl != null) {
+                    TitleOrLogo(
+                        title = title,
+                        logoImageUrl = logoImageUrl,
+                        showLogo = true,
+                        modifier = Modifier.width(160.dp).height(28.dp),
+                        compact = true,
+                    )
+                } else {
+                    Text(
+                        text = title.orEmpty().uppercase(),
+                        style = NeonType.hero(20.sp),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                if (subtitle != null) {
+                    EpisodeName(subtitle, Modifier.weight(1f))
+                }
+            }
+            QuickDetails(quickDetails, timeRemaining, endsAt = endsAt)
+            if (overview.isNotNullOrBlank()) {
+                Text(
+                    text = overview,
+                    style = NeonType.body(),
+                    color = NeonBoard.Mid,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth(.92f).weight(1f, fill = false),
+                )
+            }
+        }
+        return
+    }
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = modifier,

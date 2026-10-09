@@ -486,6 +486,10 @@ fun RecommendedContent(
                         showLogo = preferences.appPreferences.interfacePreferences.showLogos,
                         modifier = headerModifier,
                         compactLogo = splitRecommendedTitles && isWeaselTv(),
+                        compactDetails = splitRecommendedTitles && isWeaselTv() &&
+                            position.row <= homeRows.indexOfFirst {
+                                it is HomeRowLoadingState.Success && it.items.isNotEmpty()
+                            },
                     )
                 },
             )
