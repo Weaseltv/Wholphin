@@ -79,6 +79,7 @@ import com.github.damontecres.wholphin.ui.components.ContextMenuActions
 import com.github.damontecres.wholphin.ui.components.ContextMenuDialog
 import com.github.damontecres.wholphin.ui.components.EpisodeName
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
+import com.github.damontecres.wholphin.ui.components.FitHeaderToHeight
 import com.github.damontecres.wholphin.ui.components.FocusableItemRow
 import com.github.damontecres.wholphin.ui.components.HeaderUtils
 import com.github.damontecres.wholphin.ui.components.LoadingPage
@@ -105,25 +106,25 @@ import com.github.damontecres.wholphin.ui.theme.LocalHomeCardBorderAccent
 import com.github.damontecres.wholphin.ui.theme.LocalHomeRowAccent
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
-import com.github.damontecres.wholphin.ui.theme.NeonSectionPalette
 import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
+import com.github.damontecres.wholphin.ui.theme.NeonSectionPalette
 import com.github.damontecres.wholphin.ui.theme.NeonType
+import com.github.damontecres.wholphin.ui.theme.curatedPickAccent
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.libraryAccent
-import com.github.damontecres.wholphin.ui.theme.curatedPickAccent
 import com.github.damontecres.wholphin.ui.theme.neonAccentFor
-import com.github.damontecres.wholphin.ui.theme.typeAccent
 import com.github.damontecres.wholphin.ui.theme.streamingProviderAccent
 import com.github.damontecres.wholphin.ui.theme.streamingProviderBorderAccent
+import com.github.damontecres.wholphin.ui.theme.typeAccent
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import com.github.damontecres.wholphin.util.LoadingState
+import java.util.UUID
+import kotlin.time.Duration
 import kotlinx.coroutines.delay
 import org.jellyfin.sdk.model.DateTime
 import org.jellyfin.sdk.model.api.BaseItemKind
 import timber.log.Timber
-import java.util.UUID
-import kotlin.time.Duration
 
 @Composable
 fun HomePage(
@@ -388,10 +389,10 @@ fun HomePageContent(
         // Keep the next kicker, title and rule above the viewport edge. Use actual row
         // measurements so font, card, caption and spacing tuning all share this budget.
         val headerMaxHeight = if (
-            isWeaselTv() && (splitHomeTitles || rowHeading != null) && focusedRowHeight != null && nextTitleHeight != null
+            isWeaselTv() && focusedRowHeight != null
         ) {
-            with(density) { maxHeight - (focusedRowHeight + nextTitleHeight).toDp() - 16.dp }
-                .coerceAtLeast(120.dp)
+            with(density) { maxHeight - (focusedRowHeight + (nextTitleHeight ?: 0)).toDp() - 16.dp }
+                .coerceAtLeast(1.dp)
         } else {
             maxHeight
         }
@@ -404,7 +405,7 @@ fun HomePageContent(
                         }
                     }.fillMaxSize(),
         ) {
-            Box(Modifier.heightIn(max = headerMaxHeight)) {
+            FitHeaderToHeight(headerMaxHeight) {
                 headerComposable.invoke(focusedItem)
             }
 
@@ -423,6 +424,7 @@ fun HomePageContent(
                     }
                 }
             val currentSpaceAbovePx by rememberUpdatedState(spaceAbovePx)
+            val bottomClearancePx = with(density) { 8.dp.toPx() }
             val homeBringIntoViewSpec =
                 remember {
                     object : BringIntoViewSpec {
@@ -430,7 +432,7 @@ fun HomePageContent(
                             offset: Float,
                             size: Float,
                             containerSize: Float,
-                        ): Float = offset - currentSpaceAbovePx
+                        ): Float = offset - currentSpaceAbovePx.coerceAtMost((containerSize - size - bottomClearancePx).coerceAtLeast(0f))
                     }
                 }
             val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
@@ -452,6 +454,7 @@ fun HomePageContent(
                         val rowModifier =
                             Modifier
                                 .animateItem(placementSpec = null)
+                                .onSizeChanged { rowHeights[rowIndex] = it.height }
                                 .padding(bottom = if (isWeaselTv() && row is HomeRowLoadingState.Success) row.viewOptions.rowGapDp.dp else 8.dp)
                         CompositionLocalProvider(
                             LocalBringIntoViewSpec provides defaultBringIntoViewSpec,
@@ -518,7 +521,6 @@ fun HomePageContent(
                                                 },
                                             modifier =
                                                 rowModifier
-                                                    .onSizeChanged { rowHeights[rowIndex] = it.height }
                                                     .fillMaxWidth()
                                                     .focusGroup()
                                                     .focusRequester(rowFocusRequesters[rowIndex]),
@@ -797,10 +799,10 @@ fun HomePageHeader(
 ) {
     if (compactDetails) {
         // The first Recommended row shares its viewport with library tabs. Keep
-        // identity and metadata compact, then let Text ellipsize at a complete
-        // line within the remaining height instead of clipping a fixed text box.
+        // identity and metadata compact, and always measure a complete description
+        // line. The parent fits the complete header instead of clipping text.
         Column(
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
             modifier = modifier,
         ) {
             if (eyebrow != null) {
@@ -839,9 +841,9 @@ fun HomePageHeader(
                     text = overview,
                     style = NeonType.body(),
                     color = Color.White,
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth(.92f).weight(1f, fill = false),
+                    modifier = Modifier.fillMaxWidth(.92f),
                 )
             }
         }
@@ -875,7 +877,6 @@ fun HomePageHeader(
             val overviewModifier =
                 Modifier
                     .padding(0.dp)
-                    .height(48.dp + if (!overviewTwoLines) 12.dp else 0.dp)
                     .then(if (isWeaselTv()) Modifier.fillMaxWidth() else Modifier.width(400.dp))
             if (overview.isNotNullOrBlank()) {
                 Text(
@@ -887,7 +888,7 @@ fun HomePageHeader(
                     modifier = overviewModifier,
                 )
             } else {
-                Spacer(overviewModifier)
+                Spacer(overviewModifier.height(48.dp + if (!overviewTwoLines) 12.dp else 0.dp))
             }
         }
     }

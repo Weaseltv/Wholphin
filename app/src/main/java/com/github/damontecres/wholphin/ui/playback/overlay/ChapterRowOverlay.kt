@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.relocation.BringIntoViewRequester
@@ -32,6 +31,7 @@ import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.Chapter
 import com.github.damontecres.wholphin.ui.cards.ChapterCard
+import com.github.damontecres.wholphin.ui.components.FocusSafeLazyRow
 import com.github.damontecres.wholphin.ui.components.HiddenFocusBox
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.playback.ControllerViewState
@@ -92,7 +92,7 @@ fun ChapterRowOverlay(
             text = stringResource(R.string.chapters),
             style = if (isWeaselTv()) NeonType.sectionTitle() else MaterialTheme.typography.titleLarge,
         )
-        LazyRow(
+        FocusSafeLazyRow(
             state = listState,
             contentPadding = PaddingValues(16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),

@@ -40,7 +40,9 @@ import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.ui.components.ContextMenu
 import com.github.damontecres.wholphin.ui.components.ContextMenuActions
 import com.github.damontecres.wholphin.ui.components.ContextMenuDialog
+import com.github.damontecres.wholphin.ui.components.DetailPageViewport
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
+import com.github.damontecres.wholphin.ui.components.FittedDetailHeader
 import com.github.damontecres.wholphin.ui.components.HeaderUtils
 import com.github.damontecres.wholphin.ui.components.HiddenFocusBox
 import com.github.damontecres.wholphin.ui.components.LoadingPage
@@ -53,11 +55,12 @@ import com.github.damontecres.wholphin.ui.data.SortAndDirection
 import com.github.damontecres.wholphin.ui.detail.PlaylistDialog
 import com.github.damontecres.wholphin.ui.main.HomePageHeader
 import com.github.damontecres.wholphin.ui.nav.Destination
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import com.github.damontecres.wholphin.util.LoadingState
-import timber.log.Timber
 import java.util.UUID
+import timber.log.Timber
 
 @Composable
 fun CollectionDetails(
@@ -309,152 +312,158 @@ fun CollectionDetailsContent(
         focusedItem?.let { onChangeBackdrop.invoke(it) }
     }
 
-    Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier,
-    ) {
-        SharedTransitionLayout {
-            AnimatedContent(
-                targetState = itemsContentHasFocus,
-                label = "header_transition",
-            ) { targetState ->
-                if (targetState) {
-                    // Show item header
-                    LaunchedEffect(Unit) {
-                        contentFocusRequester.tryRequestFocus()
-                    }
-                    Column(
-                        Modifier.sharedBounds(
-                            rememberSharedContentState(key = "header"),
-                            animatedVisibilityScope = this@AnimatedContent,
-                            enter = slideInVertically { it / 2 } + fadeIn(),
-                            exit = slideOutVertically { it / 2 } + fadeOut(),
-                        ),
-                    ) {
-                        // This box exists so that there is something focusable above the item content
-                        // allowing focus to move up to restore the collection's header
-                        HiddenFocusBox {
-                            itemsContentHasFocus = false
+    DetailPageViewport(modifier = modifier) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier,
+        ) {
+            SharedTransitionLayout {
+                AnimatedContent(
+                    targetState = itemsContentHasFocus,
+                    label = "header_transition",
+                ) { targetState ->
+                    if (targetState) {
+                        // Show item header
+                        LaunchedEffect(Unit) {
+                            contentFocusRequester.tryRequestFocus()
                         }
-                        if (state.viewOptions.cardViewOptions.showDetails) {
-                            HomePageHeader(
-                                item = focusedItem,
-                                showLogo = preferences.appPreferences.interfacePreferences.showLogos,
+                        Column(
+                            Modifier.sharedBounds(
+                                rememberSharedContentState(key = "header"),
+                                animatedVisibilityScope = this@AnimatedContent,
+                                enter = slideInVertically { it / 2 } + fadeIn(),
+                                exit = slideOutVertically { it / 2 } + fadeOut(),
+                            ),
+                        ) {
+                            // This box exists so that there is something focusable above the item content
+                            // allowing focus to move up to restore the collection's header
+                            HiddenFocusBox {
+                                itemsContentHasFocus = false
+                            }
+                            if (state.viewOptions.cardViewOptions.showDetails) {
+                                FittedDetailHeader {
+                                    HomePageHeader(
+                                        item = focusedItem,
+                                        showLogo = preferences.appPreferences.interfacePreferences.showLogos,
+                                        modifier =
+                                            Modifier
+                                                .padding(
+                                                    start = HeaderUtils.startPadding,
+                                                    top = HeaderUtils.detailTopPadding(),
+                                                    bottom = 8.dp,
+                                                ).then(if (isWeaselTv()) Modifier else Modifier.height(HeaderUtils.height)),
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        // Show collection header
+                        LaunchedEffect(Unit) {
+                            focusRequester.tryRequestFocus()
+                            focusedItem = state.collection
+                        }
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier =
+                                Modifier
+                                    .sharedBounds(
+                                        rememberSharedContentState(key = "header"),
+                                        animatedVisibilityScope = this@AnimatedContent,
+                                        enter = slideInVertically { -it / 2 } + fadeIn(),
+                                        exit = slideOutVertically { -it / 2 } + fadeOut(),
+                                    ).padding(bottom = if (state.isStreaming) 8.dp else 16.dp)
+                                    .fillMaxWidth()
+                                    .onFocusChanged {
+                                        if (it.hasFocus) {
+                                            onChangeBackdrop.invoke(state.collection!!)
+                                        }
+                                    },
+                        ) {
+                            FittedDetailHeader {
+                                CollectionDetailsHeader(
+                                    collection = state.collection!!,
+                                    streaming = state.isStreaming,
+                                    showLogo = preferences.appPreferences.interfacePreferences.showLogos,
+                                    logoImageUrl = state.logoImageUrl,
+                                    overviewOnClick = overviewOnClick,
+                                    bringIntoViewRequester = bringIntoViewRequester,
+                                    modifier =
+                                        Modifier
+                                            .padding(
+                                                top = if (state.isStreaming) 27.dp else HeaderUtils.detailTopPadding(),
+                                                bottom = if (state.isStreaming) 12.dp else HeaderUtils.bottomPadding,
+                                            ).then(if (isWeaselTv()) Modifier else Modifier.height(if (state.isStreaming) 150.dp else HeaderUtils.height)),
+                                )
+                            }
+                            CollectionButtons(
+                                state = state,
+                                onSortChange = onSortChange,
+                                onClickPlayAll = onClickPlayAll,
+                                onFilterChange = onFilterChange,
+                                getPossibleFilterValues = getPossibleFilterValues,
+                                onClickViewOptions = onClickViewOptions,
+                                favoriteOnClick = favoriteOnClick,
+                                onConfirmDelete = onConfirmDelete,
+                                canDelete = canDelete,
+                                moreOnClick = moreOnClick,
                                 modifier =
                                     Modifier
-                                        .padding(
-                                            start = HeaderUtils.startPadding,
-                                            top = HeaderUtils.topPadding,
-                                            bottom = 8.dp,
-                                        ).height(HeaderUtils.height),
+                                        .focusRequester(focusRequester)
+                                        .fillMaxWidth(),
                             )
                         }
                     }
-                } else {
-                    // Show collection header
-                    LaunchedEffect(Unit) {
-                        focusRequester.tryRequestFocus()
-                        focusedItem = state.collection
-                    }
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier =
-                            Modifier
-                                .sharedBounds(
-                                    rememberSharedContentState(key = "header"),
-                                    animatedVisibilityScope = this@AnimatedContent,
-                                    enter = slideInVertically { -it / 2 } + fadeIn(),
-                                    exit = slideOutVertically { -it / 2 } + fadeOut(),
-                                ).padding(bottom = if (state.isStreaming) 8.dp else 16.dp)
-                                .fillMaxWidth()
-                                .onFocusChanged {
-                                    if (it.hasFocus) {
-                                        onChangeBackdrop.invoke(state.collection!!)
-                                    }
-                                },
-                    ) {
-                        CollectionDetailsHeader(
-                            collection = state.collection!!,
-                            streaming = state.isStreaming,
-                            showLogo = preferences.appPreferences.interfacePreferences.showLogos,
-                            logoImageUrl = state.logoImageUrl,
-                            overviewOnClick = overviewOnClick,
-                            bringIntoViewRequester = bringIntoViewRequester,
-                            modifier =
-                                Modifier
-                                    .padding(
-                                        top = if (state.isStreaming) 27.dp else HeaderUtils.topPadding,
-                                        bottom = if (state.isStreaming) 12.dp else HeaderUtils.bottomPadding,
-                                    ).height(if (state.isStreaming) 150.dp else HeaderUtils.height),
-                        )
-                        CollectionButtons(
-                            state = state,
-                            onSortChange = onSortChange,
-                            onClickPlayAll = onClickPlayAll,
-                            onFilterChange = onFilterChange,
-                            getPossibleFilterValues = getPossibleFilterValues,
-                            onClickViewOptions = onClickViewOptions,
-                            favoriteOnClick = favoriteOnClick,
-                            onConfirmDelete = onConfirmDelete,
-                            canDelete = canDelete,
-                            moreOnClick = moreOnClick,
-                            modifier =
-                                Modifier
-                                    .focusRequester(focusRequester)
-                                    .fillMaxWidth(),
-                        )
-                    }
                 }
             }
-        }
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .onFocusChanged {
-                        if (it.hasFocus) itemsContentHasFocus = true
-                    }.focusProperties {
-                        up = focusRequester
-                    }.focusRequester(contentFocusRequester),
-        ) {
-            if (state.isStreaming && state.loadingState != LoadingState.Success) {
-                LoadingPage(Modifier.fillMaxSize(), focusEnabled = false)
-            } else if (state.viewOptions.separateTypes) {
-                CollectionRows(
-                    preferences = preferences,
-                    state = state,
-                    onClickItem = onClickItem,
-                    onLongClickItem = onLongClickItem,
-                    onClickPlay = onClickPlay,
-                    modifier = Modifier.fillMaxSize(),
-                    onFocusPosition = { position ->
-//                        Timber.v("onFocusPosition=%s", position)
-                        focusedItem =
-                            position.let {
-                                val key =
-                                    state.separateItems.keys
-                                        .toList()
-                                        .getOrNull(it.row)
-                                (state.separateItems[key] as? HomeRowLoadingState.Success)?.items?.getOrNull(
-                                    it.column,
-                                )
-                            }
-                    },
-                )
-            } else {
-                CollectionMixedGrid(
-                    preferences = preferences,
-                    state = state,
-                    onClickItem = onClickItem,
-                    onLongClickItem = onLongClickItem,
-                    onClickPlay = onClickPlay,
-                    letterPosition = letterPosition,
-                    modifier = Modifier.fillMaxSize(),
-                    onFocusPosition = {
-                        Timber.v("onFocusPosition=%s", it)
-                        focusedItem = state.items.getOrNull(it.column)
-                    },
-                )
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .onFocusChanged {
+                            if (it.hasFocus) itemsContentHasFocus = true
+                        }.focusProperties {
+                            up = focusRequester
+                        }.focusRequester(contentFocusRequester),
+            ) {
+                if (state.isStreaming && state.loadingState != LoadingState.Success) {
+                    LoadingPage(Modifier.fillMaxSize(), focusEnabled = false)
+                } else if (state.viewOptions.separateTypes) {
+                    CollectionRows(
+                        preferences = preferences,
+                        state = state,
+                        onClickItem = onClickItem,
+                        onLongClickItem = onLongClickItem,
+                        onClickPlay = onClickPlay,
+                        modifier = Modifier.fillMaxSize(),
+                        onFocusPosition = { position ->
+    //                        Timber.v("onFocusPosition=%s", position)
+                            focusedItem =
+                                position.let {
+                                    val key =
+                                        state.separateItems.keys
+                                            .toList()
+                                            .getOrNull(it.row)
+                                    (state.separateItems[key] as? HomeRowLoadingState.Success)?.items?.getOrNull(
+                                        it.column,
+                                    )
+                                }
+                        },
+                    )
+                } else {
+                    CollectionMixedGrid(
+                        preferences = preferences,
+                        state = state,
+                        onClickItem = onClickItem,
+                        onLongClickItem = onLongClickItem,
+                        onClickPlay = onClickPlay,
+                        letterPosition = letterPosition,
+                        modifier = Modifier.fillMaxSize(),
+                        onFocusPosition = {
+                            Timber.v("onFocusPosition=%s", it)
+                            focusedItem = state.items.getOrNull(it.column)
+                        },
+                    )
+                }
             }
         }
     }

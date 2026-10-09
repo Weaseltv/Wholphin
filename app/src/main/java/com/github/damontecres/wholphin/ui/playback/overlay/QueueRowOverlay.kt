@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -24,6 +23,7 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.PlaylistItem
 import com.github.damontecres.wholphin.ui.cards.SeasonCard
+import com.github.damontecres.wholphin.ui.components.FocusSafeLazyRow
 import com.github.damontecres.wholphin.ui.components.HiddenFocusBox
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.playback.ControllerViewState
@@ -54,7 +54,7 @@ fun QueueRowOverlay(
             text = stringResource(R.string.queue),
             style = if (isWeaselTv()) NeonType.sectionTitle() else MaterialTheme.typography.titleLarge,
         )
-        LazyRow(
+        FocusSafeLazyRow(
             contentPadding =
                 PaddingValues(
                     horizontal = 16.dp,

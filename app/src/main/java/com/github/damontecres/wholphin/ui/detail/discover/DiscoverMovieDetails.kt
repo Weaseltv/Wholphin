@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.relocation.BringIntoViewRequester
@@ -53,9 +52,13 @@ import com.github.damontecres.wholphin.ui.cards.DiscoverItemCard
 import com.github.damontecres.wholphin.ui.cards.DiscoverPersonRow
 import com.github.damontecres.wholphin.ui.cards.ItemRow
 import com.github.damontecres.wholphin.ui.cards.SeasonCard
+import com.github.damontecres.wholphin.ui.components.DetailPageViewport
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
+import com.github.damontecres.wholphin.ui.components.FittedDetailHeader
+import com.github.damontecres.wholphin.ui.components.FocusSafeLazyRow
 import com.github.damontecres.wholphin.ui.components.HeaderUtils
 import com.github.damontecres.wholphin.ui.components.LoadingPage
+import com.github.damontecres.wholphin.ui.components.reportDetailRowHeight
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialog
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialogInfo
 import com.github.damontecres.wholphin.ui.nav.Destination
@@ -212,7 +215,7 @@ fun DiscoverMovieDetailsContent(
     LaunchedEffect(Unit) {
         focusRequesters.getOrNull(position)?.tryRequestFocus()
     }
-    Box(modifier = modifier) {
+    DetailPageViewport(modifier = modifier) {
         InsetNeonSectionRules(start = 32.dp) {
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -227,18 +230,20 @@ fun DiscoverMovieDetailsContent(
                                 .fillMaxWidth()
                                 .bringIntoViewRequester(bringIntoViewRequester),
                     ) {
-                        DiscoverMovieDetailsHeader(
-                            preferences = preferences,
-                            movie = movie,
-                            rating = rating,
-                            bringIntoViewRequester = bringIntoViewRequester,
-                            overviewOnClick = overviewOnClick,
-                            showLogo = preferences.appPreferences.interfacePreferences.showLogos,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = HeaderUtils.topPadding, bottom = 16.dp),
-                        )
+                        FittedDetailHeader {
+                            DiscoverMovieDetailsHeader(
+                                preferences = preferences,
+                                movie = movie,
+                                rating = rating,
+                                bringIntoViewRequester = bringIntoViewRequester,
+                                overviewOnClick = overviewOnClick,
+                                showLogo = preferences.appPreferences.interfacePreferences.showLogos,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = HeaderUtils.detailTopPadding(), bottom = 8.dp),
+                            )
+                        }
                         ExpandableDiscoverButtons(
                             availability =
                                 SeerrAvailability.from(movie.mediaInfo?.status)
@@ -279,7 +284,7 @@ fun DiscoverMovieDetailsContent(
                                 position = PEOPLE_ROW
                                 onLongClickPerson.invoke(index, person)
                             },
-                            modifier = Modifier.focusRequester(focusRequesters[PEOPLE_ROW]),
+                            modifier = Modifier.reportDetailRowHeight(PEOPLE_ROW).focusRequester(focusRequesters[PEOPLE_ROW]),
                         )
                     }
                 }
@@ -309,7 +314,7 @@ fun DiscoverMovieDetailsContent(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .focusRequester(focusRequesters[SIMILAR_ROW]),
+                                    .reportDetailRowHeight(SIMILAR_ROW).focusRequester(focusRequesters[SIMILAR_ROW]),
                         )
                     }
                 }
@@ -338,7 +343,7 @@ fun DiscoverMovieDetailsContent(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .focusRequester(focusRequesters[RECOMMENDED_ROW]),
+                                    .reportDetailRowHeight(RECOMMENDED_ROW).focusRequester(focusRequesters[RECOMMENDED_ROW]),
                         )
                     }
                 }
@@ -364,7 +369,7 @@ fun TrailerRow(
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onBackground,
         )
-        LazyRow(
+        FocusSafeLazyRow(
             state = state,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),

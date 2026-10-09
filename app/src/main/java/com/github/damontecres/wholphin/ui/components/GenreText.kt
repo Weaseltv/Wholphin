@@ -38,6 +38,7 @@ fun GenreText(
         style = textStyle,
         color = color,
         overflow = TextOverflow.Ellipsis,
+        maxLines = if (LocalCompactDetailHeader.current) 1 else Int.MAX_VALUE,
         modifier = modifier,
     )
 }

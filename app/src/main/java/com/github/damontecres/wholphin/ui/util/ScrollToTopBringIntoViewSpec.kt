@@ -39,6 +39,6 @@ class ScrollToTopBringIntoViewSpec(
 //            size,
 //            containerSize,
 //        )
-        return offset - spaceAbovePx
+        return offset - spaceAbovePx.coerceAtMost((containerSize - size).coerceAtLeast(0f))
     }
 }

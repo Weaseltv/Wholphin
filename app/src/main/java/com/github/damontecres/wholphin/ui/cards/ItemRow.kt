@@ -8,9 +8,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
@@ -37,13 +36,15 @@ import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.ui.bleedHorizontal
+import com.github.damontecres.wholphin.ui.components.FocusSafeLazyRow
+import com.github.damontecres.wholphin.ui.components.reportDetailRowHeight
 import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.LocalNeonRuleInsets
 import com.github.damontecres.wholphin.ui.theme.NeonSectionRule
 import com.github.damontecres.wholphin.ui.theme.NeonType
-import com.github.damontecres.wholphin.ui.theme.neonGlowAccent
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.neonGlowAccent
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 
 @Composable
@@ -101,7 +102,7 @@ fun <T> ItemRow(
     Column(
         verticalArrangement = Arrangement.spacedBy(dividerGap),
         modifier =
-            modifier.focusProperties {
+            modifier.reportDetailRowHeight().focusProperties {
                 onEnter = {
                     focusRequester.tryRequestFocus()
                 }
@@ -125,7 +126,7 @@ fun <T> ItemRow(
             titleStartPadding = titleStartPadding ?: if (neon) cardPadding.calculateStartPadding(layoutDirection) else 8.dp,
         )
 
-        LazyRow(
+        FocusSafeLazyRow(
             state = state,
             horizontalArrangement = Arrangement.spacedBy(horizontalPadding),
             contentPadding =

@@ -33,8 +33,10 @@ import com.github.damontecres.wholphin.ui.RequestOrRestoreFocus
 import com.github.damontecres.wholphin.ui.components.ContextMenu
 import com.github.damontecres.wholphin.ui.components.ContextMenuActions
 import com.github.damontecres.wholphin.ui.components.ContextMenuDialog
+import com.github.damontecres.wholphin.ui.components.DetailPageViewport
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.ExpandablePlayButtons
+import com.github.damontecres.wholphin.ui.components.FittedDetailHeader
 import com.github.damontecres.wholphin.ui.components.HeaderUtils
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.components.Optional
@@ -49,12 +51,12 @@ import com.github.damontecres.wholphin.ui.theme.ProvideNeonAccent
 import com.github.damontecres.wholphin.ui.theme.neonAccentFor
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.ExceptionHandler
+import java.util.UUID
+import kotlin.time.Duration
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.MediaSourceInfo
 import org.jellyfin.sdk.model.extensions.ticks
 import org.jellyfin.sdk.model.serializer.toUUID
-import java.util.UUID
-import kotlin.time.Duration
 
 @Composable
 fun EpisodeDetails(
@@ -243,7 +245,7 @@ fun EpisodeDetailsContent(
 
     val bringIntoViewRequester = remember { BringIntoViewRequester() }
     RequestOrRestoreFocus(focusRequesters.getOrNull(position))
-    Box(modifier = modifier) {
+    DetailPageViewport(modifier = modifier) {
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(bottom = 8.dp),
@@ -257,17 +259,19 @@ fun EpisodeDetailsContent(
                             .fillMaxWidth()
                             .bringIntoViewRequester(bringIntoViewRequester),
                 ) {
-                    EpisodeDetailsHeader(
-                        preferences = preferences,
-                        ep = ep,
-                        chosenStreams = chosenStreams,
-                        bringIntoViewRequester = bringIntoViewRequester,
-                        overviewOnClick = overviewOnClick,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(top = HeaderUtils.topPadding, bottom = 16.dp),
-                    )
+                    FittedDetailHeader {
+                        EpisodeDetailsHeader(
+                            preferences = preferences,
+                            ep = ep,
+                            chosenStreams = chosenStreams,
+                            bringIntoViewRequester = bringIntoViewRequester,
+                            overviewOnClick = overviewOnClick,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = HeaderUtils.detailTopPadding(), bottom = 8.dp),
+                        )
+                    }
                     ExpandablePlayButtons(
                         title = ep.title ?: "",
                         resumePosition = resumePosition,

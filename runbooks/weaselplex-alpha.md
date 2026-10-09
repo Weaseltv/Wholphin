@@ -631,3 +631,13 @@ Release policy: merge PR #51 to weaselfin, tag that merge commit v1.2.28, build
 the signed stable package from the tag on this VPS and publish the universal
 plus three ABI APKs as Latest with user-facing release notes. Alpha and stable
 remain distinct packages; an Alpha APK is never renamed into a stable release.
+
+## Alphabet navigator text focus (2026-10-09, post-v1.2.28 Alpha)
+
+The shared right-side alphabet navigator on grids and list views now uses text
+color and a text shadow for selection, D-pad focus and pointer hover. Its accent
+comes from the current page, so Watchlist uses orange independently of a mixed
+row's movie/TV card colors. Unselected/unfocused/unhovered letters stay opaque
+white. The WeaselPlex letter control has no circle, button fill, border, ripple
+or focus scale; centered letter cells retain existing size, ordering, scrolling
+and jump behavior. This new change is delivered for Alpha testing only.

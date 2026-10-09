@@ -64,15 +64,19 @@ import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.PreviewInteractionSource
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.neonOutlineColors
 import com.github.damontecres.wholphin.ui.theme.neonPrimaryBorder
 import com.github.damontecres.wholphin.ui.theme.neonPrimaryColors
 import com.github.damontecres.wholphin.ui.theme.neonPrimaryGlow
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceBorder
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceGlow
 import com.github.damontecres.wholphin.ui.tryRequestFocus
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Standard row of [ExpandablePlayButton] including Play (or Resume & Restart), Mark played, & More
@@ -112,7 +116,7 @@ fun ExpandablePlayButtons(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(8.dp),
         modifier =
-            modifier
+            Modifier.reportDetailActionHeight().then(modifier)
                 .focusGroup()
                 .focusRestorer(firstFocus),
     ) {
@@ -236,7 +240,7 @@ val MinButtonSize = 40.dp
 /**
  * An icon button typically used in a row for playing media
  *
- * Only shows the icon until focused when it expands to show the title
+ * WeaselPlex keeps action labels expanded; other themes expand them on focus.
  */
 @Composable
 fun ExpandablePlayButton(
@@ -308,9 +312,10 @@ fun ExpandablePlayButton(
 ) {
     val isFocused = interactionSource.collectIsFocusedAsState().value
     // Neon Board (`02-components-tv.md` § T5): the Play button is the PRIMARY in the item's
-    // type accent (movie orange, episode yellow, live green) with dark ink; every other
+    // type accent with dark ink; every other
     // action stays an outline. The page provides the accent through LocalNeonAccent.
     val accent = LocalNeonAccent.current
+    val primaryAction = !isWeaselTv() || title == R.string.play || title == R.string.resume || title == R.string.restart
     Button(
         onClick = { onClick.invoke(resume) },
         enabled = enabled,
@@ -323,7 +328,7 @@ fun ExpandablePlayButton(
         contentPadding = DefaultButtonPadding,
         interactionSource = interactionSource,
         colors =
-            neonPrimaryColors(
+            if (primaryAction) neonPrimaryColors(
                 accent = accent,
                 // Verbatim from Button.kt's own default, so nothing changes off-theme.
                 fallback =
@@ -339,9 +344,9 @@ fun ExpandablePlayButton(
                         disabledContentColor =
                             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                     ),
-            ),
-        border = neonPrimaryBorder(),
-        glow = neonPrimaryGlow(accent),
+            ) else neonOutlineColors(accent),
+        border = if (primaryAction) neonPrimaryBorder() else neonSurfaceBorder(restWidth = 1.dp),
+        glow = if (primaryAction) neonPrimaryGlow(accent) else neonSurfaceGlow(accent),
     ) {
         Box(
             contentAlignment = Alignment.Center,
@@ -352,7 +357,7 @@ fun ExpandablePlayButton(
         ) {
             icon.invoke(this)
         }
-        AnimatedVisibility(isFocused) {
+        AnimatedVisibility(isWeaselTv() || isFocused) {
             Spacer(Modifier.size(8.dp))
             Text(
                 text = stringResource(title),
@@ -404,7 +409,7 @@ fun ExpandableFaButton(
                 modifier = Modifier.align(Alignment.Center),
             )
         }
-        AnimatedVisibility(isFocused) {
+        AnimatedVisibility(isWeaselTv() || isFocused) {
             Text(
                 text = stringResource(title),
                 style = MaterialTheme.typography.titleSmall,

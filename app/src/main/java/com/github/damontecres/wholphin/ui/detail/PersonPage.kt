@@ -7,7 +7,9 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -40,8 +42,8 @@ import androidx.tv.material3.Text
 import androidx.tv.material3.surfaceColorAtElevation
 import coil3.compose.AsyncImage
 import com.github.damontecres.wholphin.BuildConfig
-import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.R
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.DiscoverItem
 import com.github.damontecres.wholphin.preferences.UserPreferences
@@ -54,11 +56,15 @@ import com.github.damontecres.wholphin.ui.ItemRowFields
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.cards.SeasonCard
+import com.github.damontecres.wholphin.ui.components.DetailPageViewport
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.ExpandableFaButton
+import com.github.damontecres.wholphin.ui.components.FittedDetailHeader
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.components.LoadingRow
+import com.github.damontecres.wholphin.ui.components.LocalCompactDetailHeader
 import com.github.damontecres.wholphin.ui.components.OverviewText
+import com.github.damontecres.wholphin.ui.components.reportDetailRowHeight
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialog
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialogInfo
 import com.github.damontecres.wholphin.ui.data.RowColumn
@@ -82,6 +88,8 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.LocalDate
+import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -93,8 +101,6 @@ import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import timber.log.Timber
-import java.time.LocalDate
-import java.util.UUID
 
 @HiltViewModel(assistedFactory = PersonViewModel.Factory::class)
 class PersonViewModel
@@ -356,113 +362,116 @@ fun PersonPageContent(
         }
     }
     var focusedOnHeader by remember { mutableStateOf(true) }
-    LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        userScrollEnabled = !focusedOnHeader,
-        modifier = modifier,
-    ) {
-        item {
-            PersonHeader(
-                name = name,
-                overview = overview,
-                imageUrl = imageUrl,
-                birthdate = birthdate,
-                birthPlace = birthPlace,
-                deathdate = deathdate,
-                favorite = favorite,
-                overviewOnClick = overviewOnClick,
-                favoriteOnClick = favoriteOnClick,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 480.dp)
-                        .padding(top = 16.dp, bottom = 40.dp)
-                        .focusRequester(headerFocusRequester)
-                        .onFocusChanged {
-                            focusedOnHeader = it.hasFocus
-                        },
-            )
-        }
-        item {
-            LoadingRow(
-                title = rowTitle(stringResource(R.string.movies_title), movies),
-                state = movies,
-                rowIndex = MOVIE_ROW,
-                position = position,
-                focusRequester = focusRequester,
-                onClickItem = onClickItem,
-                onClickPosition = { position = it },
-                showIfEmpty = false,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-        item {
-            LoadingRow(
-                title = rowTitle(stringResource(R.string.tv_shows_title), series),
-                state = series,
-                rowIndex = SERIES_ROW,
-                position = position,
-                focusRequester = focusRequester,
-                onClickItem = onClickItem,
-                onClickPosition = { position = it },
-                showIfEmpty = false,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-        item {
-            LoadingRow(
-                title = rowTitle(stringResource(R.string.episodes), episodes),
-                state = episodes,
-                rowIndex = EPISODE_ROW,
-                position = position,
-                focusRequester = focusRequester,
-                onClickItem = onClickItem,
-                onClickPosition = { position = it },
-                showIfEmpty = false,
-                horizontalPadding = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.CARD_SPACING_DP.dp else 24.dp,
-                modifier = Modifier.fillMaxWidth(),
-                cardContent = { index, item, mod, onClick, onLongClick ->
-                    SeasonCard(
-                        item = item,
-                        onClick = {
-                            position = RowColumn(EPISODE_ROW, index)
-                            onClick.invoke()
-                        },
-                        onLongClick = onLongClick,
-                        imageHeight = Cards.heightEpisode,
-                        aspectRatio = item?.aspectRatio ?: AspectRatios.FOUR_THREE,
-                        modifier =
-                            mod
-                                .ifElse(
-                                    position.row == EPISODE_ROW && position.column == index,
-                                    Modifier.focusRequester(focusRequester),
-                                ),
-                    )
-                },
-            )
-        }
-        if (discovered.isNotEmpty()) {
+    DetailPageViewport(modifier) {
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            userScrollEnabled = !focusedOnHeader,
+            modifier = Modifier.fillMaxSize(),
+        ) {
             item {
-                DiscoverRow(
-                    row =
-                        DiscoverRowData(
-                            ResStringProvider(R.string.discover),
-                            DataLoadingState.Success(discovered),
-                            DiscoverRequestType.UNKNOWN,
-                        ),
-                    onClickItem = { index: Int, item: DiscoverItem ->
-                        position = RowColumn(DISCOVER_ROW, index)
-                        onClickDiscover.invoke(index, item)
-                    },
-                    onLongClickItem = { _, _ -> },
-                    onCardFocus = {},
+                FittedDetailHeader(reservedHeight = 16.dp) {
+                    PersonHeader(
+                        name = name,
+                        overview = overview,
+                        imageUrl = imageUrl,
+                        birthdate = birthdate,
+                        birthPlace = birthPlace,
+                        deathdate = deathdate,
+                        favorite = favorite,
+                        overviewOnClick = overviewOnClick,
+                        favoriteOnClick = favoriteOnClick,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(top = 16.dp, bottom = 16.dp)
+                                .focusRequester(headerFocusRequester)
+                                .onFocusChanged {
+                                    focusedOnHeader = it.hasFocus
+                                },
+                    )
+                }
+            }
+            item {
+                LoadingRow(
+                    title = rowTitle(stringResource(R.string.movies_title), movies),
+                    state = movies,
+                    rowIndex = MOVIE_ROW,
+                    position = position,
                     focusRequester = focusRequester,
-                    enableViewMore = enableViewMoreDiscover,
-                    onClickViewMore = {
-                        position = RowColumn(DISCOVER_ROW, discovered.size)
-                        onClickViewMoreDiscover.invoke()
+                    onClickItem = onClickItem,
+                    onClickPosition = { position = it },
+                    showIfEmpty = false,
+                    modifier = Modifier.fillMaxWidth().reportDetailRowHeight(MOVIE_ROW),
+                )
+            }
+            item {
+                LoadingRow(
+                    title = rowTitle(stringResource(R.string.tv_shows_title), series),
+                    state = series,
+                    rowIndex = SERIES_ROW,
+                    position = position,
+                    focusRequester = focusRequester,
+                    onClickItem = onClickItem,
+                    onClickPosition = { position = it },
+                    showIfEmpty = false,
+                    modifier = Modifier.fillMaxWidth().reportDetailRowHeight(SERIES_ROW),
+                )
+            }
+            item {
+                LoadingRow(
+                    title = rowTitle(stringResource(R.string.episodes), episodes),
+                    state = episodes,
+                    rowIndex = EPISODE_ROW,
+                    position = position,
+                    focusRequester = focusRequester,
+                    onClickItem = onClickItem,
+                    onClickPosition = { position = it },
+                    showIfEmpty = false,
+                    horizontalPadding = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.CARD_SPACING_DP.dp else 24.dp,
+                    modifier = Modifier.fillMaxWidth().reportDetailRowHeight(EPISODE_ROW),
+                    cardContent = { index, item, mod, onClick, onLongClick ->
+                        SeasonCard(
+                            item = item,
+                            onClick = {
+                                position = RowColumn(EPISODE_ROW, index)
+                                onClick.invoke()
+                            },
+                            onLongClick = onLongClick,
+                            imageHeight = Cards.heightEpisode,
+                            aspectRatio = item?.aspectRatio ?: AspectRatios.FOUR_THREE,
+                            modifier =
+                                mod
+                                    .ifElse(
+                                        position.row == EPISODE_ROW && position.column == index,
+                                        Modifier.focusRequester(focusRequester),
+                                    ),
+                        )
                     },
                 )
+            }
+            if (discovered.isNotEmpty()) {
+                item {
+                    DiscoverRow(
+                        row =
+                            DiscoverRowData(
+                                ResStringProvider(R.string.discover),
+                                DataLoadingState.Success(discovered),
+                                DiscoverRequestType.UNKNOWN,
+                            ),
+                        onClickItem = { index: Int, item: DiscoverItem ->
+                            position = RowColumn(DISCOVER_ROW, index)
+                            onClickDiscover.invoke(index, item)
+                        },
+                        onLongClickItem = { _, _ -> },
+                        onCardFocus = {},
+                        focusRequester = focusRequester,
+                        enableViewMore = enableViewMoreDiscover,
+                        onClickViewMore = {
+                            position = RowColumn(DISCOVER_ROW, discovered.size)
+                            onClickViewMoreDiscover.invoke()
+                        },
+                    )
+                }
             }
         }
     }
@@ -504,6 +513,7 @@ fun PersonHeader(
                 Modifier
 //                    .fillMaxWidth(.25f)
                     .weight(1f)
+                    .height(if (LocalCompactDetailHeader.current) 160.dp else 240.dp)
                     .clip(RoundedCornerShape(10)),
         )
         Column(
@@ -521,7 +531,7 @@ fun PersonHeader(
             Text(
                 text = name,
                 color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.displaySmall,
+                style = if (LocalCompactDetailHeader.current) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.displaySmall,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(bottom = 8.dp),

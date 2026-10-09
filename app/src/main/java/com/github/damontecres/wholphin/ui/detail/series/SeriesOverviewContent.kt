@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.relocation.BringIntoViewRequester
@@ -53,12 +52,16 @@ import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.cards.BannerCard
 import com.github.damontecres.wholphin.ui.cards.ExtrasRow
 import com.github.damontecres.wholphin.ui.cards.PersonRow
+import com.github.damontecres.wholphin.ui.components.DetailPageViewport
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
+import com.github.damontecres.wholphin.ui.components.FittedDetailHeader
+import com.github.damontecres.wholphin.ui.components.FocusSafeLazyRow
 import com.github.damontecres.wholphin.ui.components.HeaderUtils
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.components.TabDetails
 import com.github.damontecres.wholphin.ui.components.TabRow
 import com.github.damontecres.wholphin.ui.components.TitleOrLogo
+import com.github.damontecres.wholphin.ui.components.reportDetailRowHeight
 import com.github.damontecres.wholphin.ui.formatSeasonNumber
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.logTab
@@ -67,10 +70,10 @@ import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
 import com.github.damontecres.wholphin.ui.util.rememberDelayedNestedScroll
+import kotlin.time.Duration
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.MediaSourceInfo
 import org.jellyfin.sdk.model.api.PersonKind
-import kotlin.time.Duration
 
 @Composable
 fun SeriesOverviewContent(
@@ -139,11 +142,7 @@ fun SeriesOverviewContent(
 
     val currentOnChangeSeason by rememberUpdatedState(onChangeSeason)
 
-    Box(
-        modifier =
-            modifier
-                .fillMaxWidth(),
-    ) {
+    DetailPageViewport(modifier = modifier.fillMaxWidth()) {
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier =
@@ -188,25 +187,30 @@ fun SeriesOverviewContent(
                             .padding(bottom = 4.dp)
                             .fillMaxWidth(),
                 )
-                TitleOrLogo(
-                    item = series,
-                    showLogo = preferences.appPreferences.interfacePreferences.showLogos,
-                    modifier = Modifier.padding(start = HeaderUtils.startPadding),
-                )
-                FocusedEpisodeHeader(
-                    preferences = preferences,
-                    ep = focusedEpisode,
-                    chosenStreams = chosenStreams,
-                    overviewOnClick = overviewOnClick,
-                    overviewOnFocus = {
-                        if (it.isFocused) {
-                            scope.launch {
-                                bringIntoViewRequester.bringIntoView()
-                            }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(.6f),
-                )
+                FittedDetailHeader(reservedHeight = 160.dp) {
+                    Column {
+                        TitleOrLogo(
+                            item = series,
+                            showLogo = preferences.appPreferences.interfacePreferences.showLogos,
+                            modifier = Modifier.padding(start = HeaderUtils.startPadding),
+                        )
+                        FocusedEpisodeHeader(
+                            preferences = preferences,
+                            ep = focusedEpisode,
+                            chosenStreams = chosenStreams,
+                            overviewOnClick = overviewOnClick,
+                            overviewOnFocus = {
+                                if (it.isFocused) {
+                                    scope.launch {
+                                        bringIntoViewRequester.bringIntoView()
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(.6f),
+                        )
+
+                    }
+                }
 
 //                key(position.seasonTabIndex) {
                 when (val eps = episodes) {
@@ -228,12 +232,13 @@ fun SeriesOverviewContent(
                         }
                         val state = rememberLazyListState(position.episodeRowIndex)
                         var epPosition by rememberInt(position.episodeRowIndex)
-                        LazyRow(
+                        FocusSafeLazyRow(
                             state = state,
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             contentPadding = PaddingValues(horizontal = 16.dp),
                             modifier =
                                 Modifier
+                                    .reportDetailRowHeight(0)
                                     .focusRestorer(firstItemFocusRequester)
 //                                    .focusRequester(episodeRowFocusRequester)
                                     .onFocusChanged {

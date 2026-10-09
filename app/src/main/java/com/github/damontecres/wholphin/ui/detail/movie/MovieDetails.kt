@@ -45,12 +45,15 @@ import com.github.damontecres.wholphin.ui.cards.SeasonCard
 import com.github.damontecres.wholphin.ui.components.ContextMenu
 import com.github.damontecres.wholphin.ui.components.ContextMenuActions
 import com.github.damontecres.wholphin.ui.components.ContextMenuDialog
+import com.github.damontecres.wholphin.ui.components.DetailPageViewport
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.ExpandablePlayButtons
+import com.github.damontecres.wholphin.ui.components.FittedDetailHeader
 import com.github.damontecres.wholphin.ui.components.HeaderUtils
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.components.Optional
 import com.github.damontecres.wholphin.ui.components.PersonContextActions
+import com.github.damontecres.wholphin.ui.components.reportDetailRowHeight
 import com.github.damontecres.wholphin.ui.data.AddPlaylistViewModel
 import com.github.damontecres.wholphin.ui.data.ChooseVersionParams
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialog
@@ -67,13 +70,13 @@ import com.github.damontecres.wholphin.ui.util.ResStringProvider
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.DiscoverRequestType
 import com.github.damontecres.wholphin.util.ExceptionHandler
+import java.util.UUID
+import kotlin.time.Duration
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.MediaSourceInfo
 import org.jellyfin.sdk.model.extensions.ticks
 import org.jellyfin.sdk.model.serializer.toUUID
-import java.util.UUID
-import kotlin.time.Duration
 
 @Composable
 fun MovieDetails(
@@ -323,7 +326,7 @@ fun MovieDetailsContent(
 
     RequestOrRestoreFocus(focusRequesters.getOrNull(position))
 
-    Box(modifier = modifier) {
+    DetailPageViewport(modifier = modifier) {
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(bottom = 8.dp),
@@ -337,17 +340,19 @@ fun MovieDetailsContent(
                             .fillMaxWidth()
                             .bringIntoViewRequester(bringIntoViewRequester),
                 ) {
-                    MovieDetailsHeader(
-                        preferences = preferences,
-                        movie = movie,
-                        chosenStreams = state.chosenStreams,
-                        bringIntoViewRequester = bringIntoViewRequester,
-                        overviewOnClick = overviewOnClick,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(top = HeaderUtils.topPadding, bottom = 16.dp),
-                    )
+                    FittedDetailHeader {
+                        MovieDetailsHeader(
+                            preferences = preferences,
+                            movie = movie,
+                            chosenStreams = state.chosenStreams,
+                            bringIntoViewRequester = bringIntoViewRequester,
+                            overviewOnClick = overviewOnClick,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = HeaderUtils.detailTopPadding(), bottom = 8.dp),
+                        )
+                    }
                     ExpandablePlayButtons(
                         title = movie.title ?: "",
                         resumePosition = resumePosition,
@@ -406,7 +411,7 @@ fun MovieDetailsContent(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .focusRequester(focusRequesters[PEOPLE_ROW]),
+                                .reportDetailRowHeight(PEOPLE_ROW).focusRequester(focusRequesters[PEOPLE_ROW]),
                     )
                 }
             }
@@ -422,7 +427,7 @@ fun MovieDetailsContent(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .focusRequester(focusRequesters[CHAPTER_ROW]),
+                                .reportDetailRowHeight(CHAPTER_ROW).focusRequester(focusRequesters[CHAPTER_ROW]),
                     )
                 }
             }
@@ -438,7 +443,7 @@ fun MovieDetailsContent(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .focusRequester(focusRequesters[EXTRAS_ROW]),
+                                .reportDetailRowHeight(EXTRAS_ROW).focusRequester(focusRequesters[EXTRAS_ROW]),
                     )
                 }
             }
@@ -477,7 +482,7 @@ fun MovieDetailsContent(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .focusRequester(focusRequesters[SIMILAR_ROW]),
+                                .reportDetailRowHeight(SIMILAR_ROW).focusRequester(focusRequesters[SIMILAR_ROW]),
                     )
                 }
             }

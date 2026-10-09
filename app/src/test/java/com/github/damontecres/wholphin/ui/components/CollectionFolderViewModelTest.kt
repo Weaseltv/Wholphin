@@ -23,6 +23,7 @@ import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.slot
 import io.mockk.unmockkObject
+import java.util.UUID
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -42,7 +43,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import java.util.UUID
 
 /**
  * Each endpoint is stubbed with a distinct total, so a returned index identifies which endpoint
@@ -118,6 +118,7 @@ class CollectionFolderViewModelTest {
             streamChoiceService = mockk(relaxed = true),
             serverReportService = mockk(relaxed = true),
             filterOptionCache = mockk(relaxed = true),
+            homeSettingsService = mockk(relaxed = true),
             itemId = libraryId.toString(),
             initialSortAndDirection = null,
             recursive = true,
