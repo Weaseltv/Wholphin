@@ -4,11 +4,13 @@ import android.view.KeyEvent
 import androidx.annotation.StringRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,6 +50,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -55,10 +58,13 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onLayoutRectChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.LocalContentColor
@@ -66,6 +72,11 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.LocalNeonSectionAccent
+import com.github.damontecres.wholphin.ui.theme.neonGlowAccent
+import com.github.damontecres.wholphin.ui.playOnClickSound
+import com.github.damontecres.wholphin.ui.playSoundOnFocus
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.ui.AppColors
 import com.github.damontecres.wholphin.ui.FontAwesome
@@ -522,6 +533,11 @@ fun AlphabetButtons(
 ) {
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
+    val neon = isWeaselTv()
+    val pageAccent = LocalNeonSectionAccent.current ?: LocalNeonAccent.current
+    val glowAccent = neonGlowAccent(pageAccent)
+    val glowRadius = with(LocalDensity.current) { 6.dp.toPx() }
+    val context = LocalContext.current
 
     val index = remember(letters, currentLetter) { letters.indexOf(currentLetter) }
     LaunchedEffect(currentLetter) {
@@ -565,62 +581,93 @@ fun AlphabetButtons(
             val focused by interactionSource.collectIsFocusedAsState()
 
             val isCurrentLetter = letters[index] == currentLetter
-            // Apply alpha to individual items, but keep selected letter fully visible when picker is unfocused
-            val itemAlpha =
-                when {
-                    isCurrentLetter && !alphabetPickerFocused -> 1f
-                    alphabetPickerFocused -> .85f
-                    else -> .25f
-                }
-
-            // Only show circle background for the current letter (or when focused)
-            // Wrap in Box with clipping to prevent focus indicator from overflowing
-            Box(
-                modifier =
-                    Modifier
+            val hovered by interactionSource.collectIsHoveredAsState()
+            if (neon) {
+                val active = isCurrentLetter || focused || hovered
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
                         .size(letterButtonSize)
-                        .clip(CircleShape)
-                        .alpha(itemAlpha),
-            ) {
-                Button(
+                        .focusRequester(focusRequesters[index])
+                        .playSoundOnFocus(true)
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            role = Role.Button,
+                        ) {
+                            playOnClickSound(context)
+                            letterClicked(letters[index])
+                        },
+                ) {
+                    Text(
+                        text = letters[index].toString(),
+                        color = if (active) pageAccent else Color.White,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            lineHeight = 14.sp,
+                            shadow = if (active) Shadow(color = glowAccent, blurRadius = glowRadius) else null,
+                        ),
+                    )
+                }
+            } else {
+                // Apply alpha to individual items, but keep selected letter fully visible when picker is unfocused
+                val itemAlpha =
+                    when {
+                        isCurrentLetter && !alphabetPickerFocused -> 1f
+                        alphabetPickerFocused -> .85f
+                        else -> .25f
+                    }
+
+                // Only show circle background for the current letter (or when focused)
+                // Wrap in Box with clipping to prevent focus indicator from overflowing
+                Box(
                     modifier =
                         Modifier
                             .size(letterButtonSize)
-                            .focusRequester(focusRequesters[index]),
-                    contentPadding = PaddingValues(0.dp), // No padding to maximize text space
-                    interactionSource = interactionSource,
-                    onClick = {
-                        letterClicked.invoke(letters[index])
-                    },
-                    colors =
-                        if (isCurrentLetter || focused) {
-                            // Use default button colors for current letter or focused
-                            ButtonDefaults.colors()
-                        } else {
-                            // Transparent background for non-current letters (no circle)
-                            ButtonDefaults.colors(
-                                containerColor = Color.Transparent,
-                                contentColor = MaterialTheme.colorScheme.onSurface,
-                                focusedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                focusedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            )
-                        },
+                            .clip(CircleShape)
+                            .alpha(itemAlpha),
                 ) {
-                    // Use border color for selected letter when focused, tertiary for unfocused-selected
-                    val color =
-                        when {
-                            isCurrentLetter && focused -> MaterialTheme.colorScheme.border
-                            isCurrentLetter -> MaterialTheme.colorScheme.tertiary
-                            focused -> LocalContentColor.current
-                            else -> MaterialTheme.colorScheme.onSurface
-                        }
-                    Text(
-                        text = letters[index].toString(),
-                        color = color,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                    Button(
+                        modifier =
+                            Modifier
+                                .size(letterButtonSize)
+                                .focusRequester(focusRequesters[index]),
+                        contentPadding = PaddingValues(0.dp), // No padding to maximize text space
+                        interactionSource = interactionSource,
+                        onClick = {
+                            letterClicked.invoke(letters[index])
+                        },
+                        colors =
+                            if (isCurrentLetter || focused) {
+                                // Use default button colors for current letter or focused
+                                ButtonDefaults.colors()
+                            } else {
+                                // Transparent background for non-current letters (no circle)
+                                ButtonDefaults.colors(
+                                    containerColor = Color.Transparent,
+                                    contentColor = MaterialTheme.colorScheme.onSurface,
+                                    focusedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    focusedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                )
+                            },
+                    ) {
+                        // Use border color for selected letter when focused, tertiary for unfocused-selected
+                        val color =
+                            when {
+                                isCurrentLetter && focused -> MaterialTheme.colorScheme.border
+                                isCurrentLetter -> MaterialTheme.colorScheme.tertiary
+                                focused -> LocalContentColor.current
+                                else -> MaterialTheme.colorScheme.onSurface
+                            }
+                        Text(
+                            text = letters[index].toString(),
+                            color = color,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                 }
             }
         }
