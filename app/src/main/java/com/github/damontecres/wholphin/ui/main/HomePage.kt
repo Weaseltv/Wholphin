@@ -6,12 +6,14 @@ import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -39,6 +41,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -340,6 +343,7 @@ fun HomePageContent(
 
     val rowFocusRequesters = remember(homeRows.size) { List(homeRows.size) { FocusRequester() } }
     val rowTitleHeights = remember { mutableStateMapOf<Int, Int>() }
+    val rowHeights = remember { mutableStateMapOf<Int, Int>() }
     var firstFocused by remember { mutableStateOf(false) }
 
     val currentPosition by rememberUpdatedState(position)
@@ -370,7 +374,25 @@ fun HomePageContent(
     LaunchedEffect(onUpdateBackdrop, focusedItem) {
         focusedItem?.let { onUpdateBackdrop.invoke(it) }
     }
-    Box(modifier = modifier) {
+    BoxWithConstraints(modifier = modifier) {
+        val density = LocalDensity.current
+        val focusedRowIndex = position.row.coerceAtLeast(0)
+        val nextRowIndex = ((focusedRowIndex + 1) until homeRows.size).firstOrNull {
+            (homeRows[it] as? HomeRowLoadingState.Success)?.items?.isNotEmpty() == true
+        }
+        val focusedRowHeight = rowHeights[focusedRowIndex]
+        val focusedTitleHeight = rowTitleHeights[focusedRowIndex]
+        val nextTitleHeight = nextRowIndex?.let { rowTitleHeights[it] ?: focusedTitleHeight }
+        // Keep the next kicker, title and rule above the viewport edge. Use actual row
+        // measurements so font, card, caption and spacing tuning all share this budget.
+        val headerMaxHeight = if (
+            isWeaselTv() && splitHomeTitles && focusedRowHeight != null && nextTitleHeight != null
+        ) {
+            with(density) { maxHeight - (focusedRowHeight + nextTitleHeight).toDp() - 16.dp }
+                .coerceAtLeast(120.dp)
+        } else {
+            maxHeight
+        }
         Column(
             modifier =
                 Modifier
@@ -380,9 +402,10 @@ fun HomePageContent(
                         }
                     }.fillMaxSize(),
         ) {
-            headerComposable.invoke(focusedItem)
+            Box(Modifier.heightIn(max = headerMaxHeight)) {
+                headerComposable.invoke(focusedItem)
+            }
 
-            val density = LocalDensity.current
             val focusedRow = homeRows.getOrNull(position.row) as? HomeRowLoadingState.Success
             val spaceAbovePx =
                 with(density) {
@@ -491,6 +514,7 @@ fun HomePageContent(
                                                 },
                                             modifier =
                                                 rowModifier
+                                                    .onSizeChanged { rowHeights[rowIndex] = it.height }
                                                     .fillMaxWidth()
                                                     .focusGroup()
                                                     .focusRequester(rowFocusRequesters[rowIndex]),

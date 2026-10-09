@@ -510,3 +510,14 @@ experiments; revision 11 is applied once rather than every startup.
 The Weasel’s Picks is now the last Home row, beneath Sports in the current layout.
 The Home resolver relocates the existing row without duplicating it or replacing
 its settings. Streaming stays near Continue Watching. Sidebar ordering is untouched.
+
+## Home next-row heading clearance (2026-10-09)
+
+Home now caps its detail-header space using the available viewport height, the
+measured focused row and the next nonempty row's complete heading (kicker, title
+and rule), with additional bottom clearance. This fixes partially cut-off next
+headings after the approved title/card sizing changes across Continue Watching,
+Streaming Services, Movies, TV Shows, Stand Up Comedy and Sports. The same layout
+calculation is used in the Home previews. It preserves saved tuning and ordering;
+Recommended pages retain their own header layout. Delivery is arm64 Alpha via
+direct VPS ADB; visual verification belongs to the owner.
