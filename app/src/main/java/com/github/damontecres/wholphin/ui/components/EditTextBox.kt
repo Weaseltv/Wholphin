@@ -187,7 +187,7 @@ fun SearchEditTextBox(
     val focused by interactionSource.collectIsFocusedAsState()
     EditTextBox(
         state = state,
-        modifier = if (isWeaselTv()) modifier.border(if (focused) 2.dp else 1.dp, if (focused) LocalNeonAccent.current else NeonBoard.Line2) else modifier,
+        modifier = if (isWeaselTv()) modifier.border(1.dp, if (focused) LocalNeonAccent.current else NeonBoard.Line2) else modifier,
         keyboardOptions =
             KeyboardOptions(
                 autoCorrectEnabled = false,
@@ -308,7 +308,7 @@ fun EditTextBox(
                                 modifier = Modifier,
                                 colors = colors,
                                 shape = if (isWeaselTv()) RectangleShape else CircleShape,
-                                focusedIndicatorLineThickness = 4.dp,
+                                focusedIndicatorLineThickness = if (isWeaselTv()) 1.dp else 4.dp,
                                 unfocusedIndicatorLineThickness = 0.dp,
                             )
                         },
@@ -337,7 +337,7 @@ fun SearchEditTextBox(
     EditTextBox(
         value,
         onValueChange,
-        if (isWeaselTv()) modifier.border(if (focused) 2.dp else 1.dp, if (focused) LocalNeonAccent.current else NeonBoard.Line2) else modifier,
+        if (isWeaselTv()) modifier.border(1.dp, if (focused) LocalNeonAccent.current else NeonBoard.Line2) else modifier,
         keyboardOptions =
             KeyboardOptions(
                 autoCorrectEnabled = false,

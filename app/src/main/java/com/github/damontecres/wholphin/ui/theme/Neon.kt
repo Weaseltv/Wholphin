@@ -601,7 +601,7 @@ fun neonPrimaryColors(
 @Composable
 fun neonPrimaryBorder(fallback: ClickableSurfaceBorder? = null): ClickableSurfaceBorder {
     if (!isWeaselTv()) return fallback ?: ClickableSurfaceDefaults.border()
-    val focused = Border(border = BorderStroke(2.dp, NeonBoard.Text), shape = RectangleShape)
+    val focused = Border(border = BorderStroke(ApprovedHomeLayout.CARD_APPEARANCE.borderWidthDp.dp, NeonBoard.Text), shape = RectangleShape)
     return ClickableSurfaceDefaults.border(
         border = Border.None,
         focusedBorder = focused,

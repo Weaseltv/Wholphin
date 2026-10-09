@@ -5,7 +5,7 @@ import com.github.damontecres.wholphin.ui.AspectRatio
 
 /** Owner-approved presentation captured from all eight Alpha rows on 2026-10-09. */
 object ApprovedHomeLayout {
-    const val REVISION = 11
+    const val REVISION = 12
     const val CARD_SPACING_DP = 10
     const val CARD_HEIGHT_DP = 170
     const val VERTICAL_PADDING_DP = 4
@@ -24,7 +24,7 @@ object ApprovedHomeLayout {
     const val DIVIDER_GLOW_DP = 10
     const val DIVIDER_GLOW_STRENGTH = 80
     val CARD_APPEARANCE = HomeCardAppearance(
-        borderWidthDp = 2,
+        borderWidthDp = 1,
         borderOpacityPercent = 100,
         glowSpreadDp = 10,
         glowOpacityPercent = 85,
@@ -104,7 +104,11 @@ object ApprovedHomeLayout {
             titleLetterSpacingTenthsSp = (orbitron.titleSizeSp * 0.6f).toInt(),
         ) else orbitron
         // Owner approved this recipe globally for existing and new users, once per saved layout.
-        return if (revision < 11) applyPresentation(audiowide) else audiowide
+        val presentation = if (revision < 11) applyPresentation(audiowide) else audiowide
+        // Revision 12 changes only focus thickness; retain all other saved tuning.
+        return if (revision < 12) presentation.copy(
+            cardAppearance = presentation.cardAppearance.copy(borderWidthDp = CARD_APPEARANCE.borderWidthDp),
+        ) else presentation
     }
 
     /** Replace untouched legacy defaults; retain values a user has already tuned. */
@@ -128,4 +132,3 @@ object ApprovedHomeLayout {
         )
     }
 }
-

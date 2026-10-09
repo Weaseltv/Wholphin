@@ -496,7 +496,7 @@ customer builds still requires an explicit stable release request.
 | Title size / tracking / divider gap | 35 sp / 1.8 sp / 1 dp |
 | Row count size / opacity / right padding | 14 sp / 100% / 15 dp |
 | Divider thickness / glow / strength | 3 dp / 10 dp / 80% |
-| Poster focus border / opacity | 2 dp / 100% |
+| Poster focus border / opacity | 1 dp / 100% (revision 12) |
 | Focus glow / strength / scale | 10 dp / 85% / 108% |
 | Badge text / background / inset / inner padding | 11 sp / 75% / 8 dp / 4 dp |
 
@@ -549,3 +549,14 @@ The shared genre renderer uses the same 8 dp rounded shape for the card surface,
 image clip and focused border, across every library. Poster-card shape, theme
 colors and focus strengths are unchanged. Build/install remains arm64 Alpha on
 the assigned VPS with direct Shield ADB, and owner visual verification follows.
+
+## Global 1 dp focus borders (2026-10-09)
+
+Focus outlines now use 1 dp across shared poster/genre/person cards, buttons,
+primary actions, list items and the sidebar. Search outlines and focused text
+field indicators use 1 dp too. Revision 12 changes only saved Home card border
+widths once, preserving all other tuning, and the compiled defaults cover new
+users and layouts. This supersedes the 2 dp focus width in the original approved
+JSON capture and the preceding search-outline note. Colors, full border opacity,
+rounded genre shapes and glow settings remain as approved. Public rollout occurs
+with the next explicitly authorized stable release; routine delivery is Alpha.
