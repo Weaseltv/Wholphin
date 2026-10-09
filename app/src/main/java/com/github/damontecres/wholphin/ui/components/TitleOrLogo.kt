@@ -3,7 +3,6 @@ package com.github.damontecres.wholphin.ui.components
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,9 +36,10 @@ fun TitleOrLogo(
     compact: Boolean = false,
 ) {
     var imageError by remember(logoImageUrl) { mutableStateOf(false) }
-    val logoHeight = if (compact) 28.dp else HeaderUtils.logoHeight
+    val detailCompact = LocalCompactDetailHeader.current
+    val logoHeight = if (compact) 28.dp else if (detailCompact) 44.dp else HeaderUtils.logoHeight
     Box(
-        modifier = modifier.heightIn(max = logoHeight),
+        modifier = modifier,
     ) {
         if (showLogo && logoImageUrl != null && !imageError) {
             AsyncImage(
@@ -72,7 +72,7 @@ private fun Title(
     Text(
         text = (title ?: "").let { if (neon) it.uppercase() else it },
         color = MaterialTheme.colorScheme.onSurface,
-        style = if (neon) NeonType.hero(if (compact) 20.sp else 48.sp) else MaterialTheme.typography.headlineMedium,
+        style = if (neon) NeonType.hero(if (compact) 20.sp else if (LocalCompactDetailHeader.current) 32.sp else 48.sp) else MaterialTheme.typography.headlineMedium,
         fontWeight = if (neon) null else FontWeight.SemiBold,
         maxLines = if (compact) 1 else 2,
         overflow = TextOverflow.Ellipsis,

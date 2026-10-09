@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
@@ -23,10 +22,12 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.BuildConfig
-import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.R
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.DiscoverItem
 import com.github.damontecres.wholphin.data.model.Person
+import com.github.damontecres.wholphin.ui.components.FocusSafeLazyRow
+import com.github.damontecres.wholphin.ui.components.reportDetailRowHeight
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.rememberInt
 
@@ -42,10 +43,10 @@ fun PersonRow(
     var position by rememberInt()
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier,
+        modifier = modifier.reportDetailRowHeight(),
     ) {
         ItemRowTitle(stringResource(title))
-        LazyRow(
+        FocusSafeLazyRow(
             state = rememberLazyListState(),
             horizontalArrangement = Arrangement.spacedBy(if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.CARD_SPACING_DP.dp else 16.dp),
             contentPadding = PaddingValues(8.dp),
@@ -87,14 +88,14 @@ fun DiscoverPersonRow(
     val firstFocus = remember { FocusRequester() }
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier,
+        modifier = modifier.reportDetailRowHeight(),
     ) {
         Text(
             text = stringResource(title),
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onBackground,
         )
-        LazyRow(
+        FocusSafeLazyRow(
             state = rememberLazyListState(),
             horizontalArrangement = Arrangement.spacedBy(if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.CARD_SPACING_DP.dp else 16.dp),
             contentPadding = PaddingValues(8.dp),

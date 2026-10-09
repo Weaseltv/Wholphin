@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
@@ -16,9 +15,11 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.BuildConfig
-import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.R
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.Chapter
+import com.github.damontecres.wholphin.ui.components.FocusSafeLazyRow
+import com.github.damontecres.wholphin.ui.components.reportDetailRowHeight
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 
 @Composable
@@ -30,10 +31,10 @@ fun ChapterRow(
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier,
+        modifier = modifier.reportDetailRowHeight(),
     ) {
         ItemRowTitle(stringResource(R.string.chapters), titleStartPadding = if (isWeaselTv()) 16.dp else 8.dp)
-        LazyRow(
+        FocusSafeLazyRow(
             state = rememberLazyListState(),
             horizontalArrangement = Arrangement.spacedBy(if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.CARD_SPACING_DP.dp else 16.dp),
             contentPadding = PaddingValues(vertical = 8.dp, horizontal = 16.dp),

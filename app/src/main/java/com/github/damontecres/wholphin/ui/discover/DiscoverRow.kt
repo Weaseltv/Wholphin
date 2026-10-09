@@ -1,13 +1,10 @@
 package com.github.damontecres.wholphin.ui.discover
 
-import com.github.damontecres.wholphin.ui.theme.isWeaselTv
-
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
@@ -32,8 +29,11 @@ import com.github.damontecres.wholphin.ui.cards.DiscoverItemCard
 import com.github.damontecres.wholphin.ui.cards.ItemRowTitle
 import com.github.damontecres.wholphin.ui.cards.ViewMoreCard
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
+import com.github.damontecres.wholphin.ui.components.FocusSafeLazyRow
+import com.github.damontecres.wholphin.ui.components.reportDetailRowHeight
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.rememberInt
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.DataLoadingState
 
@@ -112,7 +112,7 @@ fun DiscoverItemRow(
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier =
-            modifier.focusProperties {
+            modifier.reportDetailRowHeight().focusProperties {
                 onEnter = {
                     focusRequester.tryRequestFocus()
                 }
@@ -120,7 +120,7 @@ fun DiscoverItemRow(
     ) {
         ItemRowTitle(title, titleStartPadding = if (isWeaselTv()) horizontalPadding else 8.dp)
 
-        LazyRow(
+        FocusSafeLazyRow(
             state = state,
             horizontalArrangement = Arrangement.spacedBy(horizontalPadding),
             contentPadding = PaddingValues(horizontal = horizontalPadding, vertical = 8.dp),

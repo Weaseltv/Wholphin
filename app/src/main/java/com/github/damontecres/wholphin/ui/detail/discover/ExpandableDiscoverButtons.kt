@@ -21,6 +21,7 @@ import com.github.damontecres.wholphin.data.model.Trailer
 import com.github.damontecres.wholphin.ui.components.ExpandableFaButton
 import com.github.damontecres.wholphin.ui.components.ExpandablePlayButton
 import com.github.damontecres.wholphin.ui.components.TrailerButton
+import com.github.damontecres.wholphin.ui.components.reportDetailActionHeight
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import kotlin.time.Duration
 
@@ -44,7 +45,7 @@ fun ExpandableDiscoverButtons(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(8.dp),
         modifier =
-            modifier
+            Modifier.reportDetailActionHeight().then(modifier)
                 .focusGroup()
                 .focusRestorer(firstFocus),
     ) {

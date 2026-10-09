@@ -57,8 +57,9 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onLayoutRectChanged
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
@@ -70,27 +71,29 @@ import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
-import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
-import com.github.damontecres.wholphin.ui.theme.isWeaselTv
-import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
-import com.github.damontecres.wholphin.ui.theme.LocalNeonSectionAccent
-import com.github.damontecres.wholphin.ui.theme.neonGlowAccent
-import com.github.damontecres.wholphin.ui.playOnClickSound
-import com.github.damontecres.wholphin.ui.playSoundOnFocus
 import com.github.damontecres.wholphin.R
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.ui.AppColors
 import com.github.damontecres.wholphin.ui.FontAwesome
+import com.github.damontecres.wholphin.ui.components.LocalDetailViewport
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.ifElse
+import com.github.damontecres.wholphin.ui.playOnClickSound
+import com.github.damontecres.wholphin.ui.playSoundOnFocus
 import com.github.damontecres.wholphin.ui.playback.isBackwardButton
 import com.github.damontecres.wholphin.ui.playback.isForwardButton
 import com.github.damontecres.wholphin.ui.playback.isPlayKeyUp
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.LocalNeonSectionAccent
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.neonGlowAccent
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import com.github.damontecres.wholphin.util.WholphinDispatchers
+import kotlin.math.ceil
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
-import kotlin.math.ceil
 
 private const val DEBUG = false
 
@@ -173,6 +176,7 @@ fun <T : CardGridItem> CardGrid(
 
     val useBackToJump = true // uiConfig.preferences.interfacePreferences.scrollTopOnBack
     val showFooter = true // uiConfig.preferences.interfacePreferences.showPositionFooter
+    val bottomContentPadding = if (isWeaselTv()) maxOf(topContentPadding, 32.dp) + 16.dp else 16.dp
     val useJumpRemoteButtons = true // uiConfig.preferences.interfacePreferences.pageWithRemoteButtons
     val jump2 =
         remember {
@@ -325,6 +329,8 @@ fun <T : CardGridItem> CardGrid(
                 )
             }
             val density = LocalDensity.current
+            val detailViewport = LocalDetailViewport.current
+            val detailRowKey = remember { Any() }
             var cardWidthPx by rememberSaveable { mutableIntStateOf(0) }
 
             Box(
@@ -339,7 +345,7 @@ fun <T : CardGridItem> CardGrid(
                         // Keep the first row's enlarged focus border/glow inside the viewport.
                         contentPadding = PaddingValues(
                             top = topContentPadding,
-                            bottom = 16.dp,
+                            bottom = bottomContentPadding,
                         ),
                         modifier =
                             Modifier
@@ -395,7 +401,9 @@ fun <T : CardGridItem> CardGrid(
                                                 .ifElse(
                                                     index == 0,
                                                     Modifier.focusRequester(zeroFocus),
-                                                ).onFocusChanged { focusState ->
+                                                ).onSizeChanged { size ->
+                                                    if (index == 0) detailViewport?.reportRow(detailRowKey, with(density) { size.height.toDp() } + topContentPadding + bottomContentPadding, priority = 0)
+                                                }.onFocusChanged { focusState ->
                                                     if (DEBUG) {
                                                         Timber.v(
                                                             "$index isFocused=${focusState.isFocused}",
@@ -409,7 +417,7 @@ fun <T : CardGridItem> CardGrid(
                                                 },
                                     )
                                 }
-                            cardContent.invoke(details)
+                            cardContent.invoke(details.copy(mod = details.mod.keepFocusedItemVisible()))
                         }
                     }
                     if (pager.isEmpty()) {

@@ -2,7 +2,6 @@ package com.github.damontecres.wholphin.ui.detail.discover
 
 import android.content.res.Resources
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,16 +46,19 @@ import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.cards.DiscoverItemCard
 import com.github.damontecres.wholphin.ui.cards.DiscoverPersonRow
 import com.github.damontecres.wholphin.ui.cards.ItemRow
+import com.github.damontecres.wholphin.ui.components.DetailPageViewport
 import com.github.damontecres.wholphin.ui.components.DialogItem
 import com.github.damontecres.wholphin.ui.components.DialogParams
 import com.github.damontecres.wholphin.ui.components.DialogPopup
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
+import com.github.damontecres.wholphin.ui.components.FittedDetailHeader
 import com.github.damontecres.wholphin.ui.components.GenreText
 import com.github.damontecres.wholphin.ui.components.HeaderUtils
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.components.OverviewText
 import com.github.damontecres.wholphin.ui.components.QuickDetailsText
 import com.github.damontecres.wholphin.ui.components.TitleOrLogo
+import com.github.damontecres.wholphin.ui.components.reportDetailRowHeight
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialog
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialogInfo
 import com.github.damontecres.wholphin.ui.formatDuration
@@ -69,10 +71,10 @@ import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import com.github.damontecres.wholphin.util.successValue
+import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ImageType
-import kotlin.time.Duration.Companion.minutes
 
 @Composable
 fun DiscoverSeriesDetails(
@@ -242,9 +244,7 @@ fun DiscoverSeriesDetailsContent(
     }
     var moreDialog by remember { mutableStateOf<DialogParams?>(null) }
 
-    Box(
-        modifier = modifier,
-    ) {
+    DetailPageViewport(modifier = modifier) {
         Column(
             modifier =
                 Modifier
@@ -263,16 +263,18 @@ fun DiscoverSeriesDetailsContent(
                                 .fillMaxWidth()
                                 .bringIntoViewRequester(bringIntoViewRequester),
                     ) {
-                        DiscoverSeriesDetailsHeader(
-                            series = series,
-                            rating = rating,
-                            overviewOnClick = overviewOnClick,
-                            showLogo = preferences.appPreferences.interfacePreferences.showLogos,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = HeaderUtils.topPadding, bottom = 16.dp),
-                        )
+                        FittedDetailHeader {
+                            DiscoverSeriesDetailsHeader(
+                                series = series,
+                                rating = rating,
+                                overviewOnClick = overviewOnClick,
+                                showLogo = preferences.appPreferences.interfacePreferences.showLogos,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = HeaderUtils.detailTopPadding(), bottom = 8.dp),
+                            )
+                        }
                         ExpandableDiscoverButtons(
                             availability =
                                 SeerrAvailability.from(series.mediaInfo?.status)
@@ -342,7 +344,7 @@ fun DiscoverSeriesDetailsContent(
                                 position = PEOPLE_ROW
                                 onLongClickPerson.invoke(index, person)
                             },
-                            modifier = Modifier.focusRequester(focusRequesters[PEOPLE_ROW]),
+                            modifier = Modifier.reportDetailRowHeight(PEOPLE_ROW).focusRequester(focusRequesters[PEOPLE_ROW]),
                         )
                     }
                 }
@@ -371,6 +373,7 @@ fun DiscoverSeriesDetailsContent(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
+                                    .reportDetailRowHeight(SIMILAR_ROW)
                                     .focusRequester(focusRequesters[SIMILAR_ROW]),
                         )
                     }
@@ -400,6 +403,7 @@ fun DiscoverSeriesDetailsContent(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
+                                    .reportDetailRowHeight(RECOMMENDED_ROW)
                                     .focusRequester(focusRequesters[RECOMMENDED_ROW]),
                         )
                     }

@@ -29,6 +29,7 @@ import com.github.damontecres.wholphin.ui.components.FilterByButton
 import com.github.damontecres.wholphin.ui.components.SortByButton
 import com.github.damontecres.wholphin.ui.components.StreamingTypeFilters
 import com.github.damontecres.wholphin.ui.components.TypeFilterButton
+import com.github.damontecres.wholphin.ui.components.reportDetailActionHeight
 import com.github.damontecres.wholphin.ui.data.MovieSortOptions
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
 import kotlin.time.Duration
@@ -52,7 +53,7 @@ fun CollectionButtons(
     val firstFocus = remember { FocusRequester() }
     Row(
         horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = modifier,
+        modifier = Modifier.reportDetailActionHeight().then(modifier),
     ) {
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(16.dp),

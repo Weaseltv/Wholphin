@@ -22,9 +22,10 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.ui.playOnClickSound
 import com.github.damontecres.wholphin.ui.playSoundOnFocus
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 
 /**
- * Show the overview text for an item. Uses a fixed size and allows for clicking.
+ * Show a clickable overview. WeaselPlex measures complete text lines naturally.
  */
 @Composable
 fun OverviewText(
@@ -36,6 +37,9 @@ fun OverviewText(
     textBoxHeight: Dp = maxLines * 20.dp,
     enabled: Boolean = true,
 ) {
+    val compact = LocalCompactDetailHeader.current
+    val visibleLines = if (compact) minOf(maxLines, 2) else maxLines
+    val visibleHeight = if (isWeaselTv()) Dp.Unspecified else textBoxHeight
     val context = LocalContext.current
     val isFocused = interactionSource.collectIsFocusedAsState().value
     val bgColor =
@@ -62,12 +66,12 @@ fun OverviewText(
             text = overview,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
-            maxLines = maxLines,
+            maxLines = visibleLines,
             overflow = TextOverflow.Ellipsis,
             modifier =
                 Modifier
                     .padding(8.dp)
-                    .height(textBoxHeight),
+                    .height(visibleHeight),
         )
     }
 }

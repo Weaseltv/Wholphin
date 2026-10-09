@@ -20,6 +20,9 @@ object HeaderUtils {
 
     val height = 180.dp
 
+    @Composable
+    fun detailTopPadding() = if (isWeaselTv()) 16.dp else topPadding
+
     val logoHeight = 60.dp
 
     val modifier =
@@ -28,7 +31,7 @@ object HeaderUtils {
             .height(height)
 
     /**
-     * The Home / Recommended header. Neon Board: 27dp overscan top, 16dp below, so the first
+     * The Home / Recommended header. Neon Board: 27dp overscan top, 12dp below, so the first
      * row's cards and captions fit under the header without being cut at the bottom.
      */
     @Composable
@@ -36,18 +39,16 @@ object HeaderUtils {
         if (isWeaselTv()) {
             Modifier
                 .padding(top = 27.dp, bottom = 12.dp, start = startPadding)
-                .height(172.dp)
         } else {
             modifier
         }
 
-    /** Library tabs already supply the top inset; reserve room for full posters and focus glow. */
+    /** Library tabs supply the top inset; measure copy naturally so fitting never scales empty space. */
     @Composable
     fun recommendedModifier(): Modifier =
         if (isWeaselTv()) {
             Modifier
                 .padding(top = 4.dp, bottom = 12.dp, start = startPadding)
-                .height(172.dp)
         } else {
             homeModifier()
         }

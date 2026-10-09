@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
@@ -59,20 +61,25 @@ import com.github.damontecres.wholphin.ui.components.ContextMenu
 import com.github.damontecres.wholphin.ui.components.ContextMenuActions
 import com.github.damontecres.wholphin.ui.components.ContextMenuDialog
 import com.github.damontecres.wholphin.ui.components.DeleteButton
+import com.github.damontecres.wholphin.ui.components.DetailPageViewport
 import com.github.damontecres.wholphin.ui.components.DialogItem
 import com.github.damontecres.wholphin.ui.components.DialogParams
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.ExpandableFaButton
 import com.github.damontecres.wholphin.ui.components.ExpandablePlayButton
+import com.github.damontecres.wholphin.ui.components.FittedDetailHeader
 import com.github.damontecres.wholphin.ui.components.GenreText
 import com.github.damontecres.wholphin.ui.components.HeaderUtils
 import com.github.damontecres.wholphin.ui.components.LoadingPage
+import com.github.damontecres.wholphin.ui.components.LocalCompactDetailHeader
 import com.github.damontecres.wholphin.ui.components.Optional
 import com.github.damontecres.wholphin.ui.components.OverviewText
 import com.github.damontecres.wholphin.ui.components.PersonContextActions
 import com.github.damontecres.wholphin.ui.components.QuickDetails
 import com.github.damontecres.wholphin.ui.components.TitleOrLogo
 import com.github.damontecres.wholphin.ui.components.TrailerButton
+import com.github.damontecres.wholphin.ui.components.reportDetailActionHeight
+import com.github.damontecres.wholphin.ui.components.reportDetailRowHeight
 import com.github.damontecres.wholphin.ui.data.AddPlaylistViewModel
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialog
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialogInfo
@@ -88,11 +95,11 @@ import com.github.damontecres.wholphin.ui.util.ResStringProvider
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.DiscoverRequestType
 import com.github.damontecres.wholphin.util.ExceptionHandler
+import java.util.UUID
+import kotlin.time.Duration
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.serializer.toUUID
-import java.util.UUID
-import kotlin.time.Duration
 
 @Composable
 fun SeriesDetails(
@@ -362,9 +369,7 @@ fun SeriesDetailsContent(
     val playFocusRequester = remember { FocusRequester() }
     RequestOrRestoreFocus(focusRequesters.getOrNull(position))
 
-    Box(
-        modifier = modifier,
-    ) {
+    DetailPageViewport(modifier = modifier) {
         Column(
             modifier =
                 Modifier
@@ -376,21 +381,25 @@ fun SeriesDetailsContent(
                 modifier = Modifier,
             ) {
                 item {
-                    SeriesDetailsHeader(
-                        series = series,
-                        showLogo = preferences.appPreferences.interfacePreferences.showLogos,
-                        overviewOnClick = overviewOnClick,
-                        bringIntoViewRequester = bringIntoViewRequester,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .bringIntoViewRequester(bringIntoViewRequester)
-                                .padding(top = HeaderUtils.topPadding, bottom = 16.dp),
-                    )
+                    FittedDetailHeader {
+                        SeriesDetailsHeader(
+                            series = series,
+                            showLogo = preferences.appPreferences.interfacePreferences.showLogos,
+                            overviewOnClick = overviewOnClick,
+                            bringIntoViewRequester = bringIntoViewRequester,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .bringIntoViewRequester(bringIntoViewRequester)
+                                    .padding(top = HeaderUtils.detailTopPadding(), bottom = 8.dp),
+                        )
+                    }
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         modifier =
                             Modifier
+                                .reportDetailActionHeight()
+                                .horizontalScroll(rememberScrollState())
                                 .padding(start = HeaderUtils.startPadding)
                                 .focusRequester(focusRequesters[HEADER_ROW])
                                 .focusRestorer(playFocusRequester)
@@ -525,7 +534,7 @@ fun SeriesDetailsContent(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .focusRequester(focusRequesters[SEASONS_ROW]),
+                                .reportDetailRowHeight(SEASONS_ROW).focusRequester(focusRequesters[SEASONS_ROW]),
                         cardContent = @Composable { index, item, mod, onClick, onLongClick ->
                             SeasonCard(
                                 item = item,
@@ -564,7 +573,7 @@ fun SeriesDetailsContent(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .focusRequester(focusRequesters[PEOPLE_ROW]),
+                                    .reportDetailRowHeight(PEOPLE_ROW).focusRequester(focusRequesters[PEOPLE_ROW]),
                         )
                     }
                 }
@@ -580,7 +589,7 @@ fun SeriesDetailsContent(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .focusRequester(focusRequesters[EXTRAS_ROW]),
+                                    .reportDetailRowHeight(EXTRAS_ROW).focusRequester(focusRequesters[EXTRAS_ROW]),
                         )
                     }
                 }
@@ -623,7 +632,7 @@ fun SeriesDetailsContent(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .focusRequester(focusRequesters[SIMILAR_ROW]),
+                                    .reportDetailRowHeight(SIMILAR_ROW).focusRequester(focusRequesters[SIMILAR_ROW]),
                         )
                     }
                 }
@@ -682,16 +691,23 @@ fun SeriesDetailsHeader(
                 null,
                 Modifier.padding(start = HeaderUtils.startPadding),
             )
-            dto.studios?.let {
-                val studios = remember { series.studioNames }
+            if (LocalCompactDetailHeader.current) {
                 GenreText(
-                    studios,
-                    textStyle = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(start = HeaderUtils.startPadding),
+                    series.studioNames + dto.genres.orEmpty(),
+                    Modifier.padding(start = HeaderUtils.startPadding),
                 )
-            }
-            dto.genres?.letNotEmpty {
-                GenreText(it, Modifier.padding(start = HeaderUtils.startPadding, bottom = 4.dp))
+            } else {
+                dto.studios?.let {
+                    val studios = remember { series.studioNames }
+                    GenreText(
+                        studios,
+                        textStyle = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(start = HeaderUtils.startPadding),
+                    )
+                }
+                dto.genres?.letNotEmpty {
+                    GenreText(it, Modifier.padding(start = HeaderUtils.startPadding, bottom = 4.dp))
+                }
             }
             dto.overview?.let { overview ->
                 OverviewText(
