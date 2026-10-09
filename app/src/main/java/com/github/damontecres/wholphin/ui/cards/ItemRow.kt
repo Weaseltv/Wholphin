@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.BuildConfig
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.ui.bleedHorizontal
 import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
@@ -58,22 +60,22 @@ fun <T> ItemRow(
         onLongClick: () -> Unit,
     ) -> Unit,
     modifier: Modifier = Modifier,
-    horizontalPadding: Dp = 16.dp,
+    horizontalPadding: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.CARD_SPACING_DP.dp else 16.dp,
     showViewMore: Boolean = false,
     titleAccent: Color = LocalNeonAccent.current,
     viewMoreCardContent: @Composable (Modifier) -> Unit = {},
     cardContentPadding: PaddingValues? = null,
-    dividerGap: Dp = 8.dp,
-    titleDividerGap: Dp = 4.dp,
+    dividerGap: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.DIVIDER_GAP_DP.dp else 8.dp,
+    titleDividerGap: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.TITLE_DIVIDER_GAP_DP.dp else 4.dp,
     onTitleHeightChanged: (Int) -> Unit = {},
-    dividerThickness: Dp = 1.dp,
-    dividerGlow: Dp = 12.dp,
-    dividerGlowStrength: Float = .35f,
-    titleSize: TextUnit = 22.sp,
-    titleLetterSpacing: TextUnit = .06.em,
-    countSize: TextUnit = 12.sp,
+    dividerThickness: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.DIVIDER_THICKNESS_DP.dp else 1.dp,
+    dividerGlow: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.DIVIDER_GLOW_DP.dp else 12.dp,
+    dividerGlowStrength: Float = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.DIVIDER_GLOW_STRENGTH / 100f else .35f,
+    titleSize: TextUnit = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.TITLE_SIZE_SP.sp else 22.sp,
+    titleLetterSpacing: TextUnit = if (BuildConfig.FLAVOR == "weaselfin") (ApprovedHomeLayout.TITLE_TRACKING_TENTHS_SP / 10f).sp else .06.em,
+    countSize: TextUnit = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.COUNT_SIZE_SP.sp else 12.sp,
     countOpacity: Float = 1f,
-    countEndPadding: Dp = 8.dp,
+    countEndPadding: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.COUNT_END_PADDING_DP.dp else 8.dp,
     titleStartPadding: Dp? = null,
     titleKicker: String? = null,
 ) {
@@ -89,7 +91,12 @@ fun <T> ItemRow(
     val layoutDirection = LocalLayoutDirection.current
     val cardPadding =
         cardContentPadding
-            ?: PaddingValues(horizontal = horizontalPadding, vertical = if (neon) 4.dp else 8.dp)
+            ?: PaddingValues(
+                start = if (neon) ApprovedHomeLayout.EDGE_PADDING_DP.dp else horizontalPadding,
+                end = if (neon) ApprovedHomeLayout.END_PADDING_DP.dp else horizontalPadding,
+                top = if (neon) (ApprovedHomeLayout.VERTICAL_PADDING_DP + ApprovedHomeLayout.EXTRA_VERTICAL_PADDING_DP).dp else 8.dp,
+                bottom = if (neon) (ApprovedHomeLayout.VERTICAL_PADDING_DP + ApprovedHomeLayout.EXTRA_VERTICAL_PADDING_DP).dp else 8.dp,
+            )
 
     Column(
         verticalArrangement = Arrangement.spacedBy(dividerGap),
@@ -199,15 +206,15 @@ fun ItemRowTitle(
     modifier: Modifier = Modifier,
     count: Int? = null,
     accent: Color = LocalNeonAccent.current,
-    dividerGap: Dp = 4.dp,
-    dividerThickness: Dp = 1.dp,
-    dividerGlow: Dp = 12.dp,
-    dividerGlowStrength: Float = .35f,
-    titleSize: TextUnit = 22.sp,
-    titleLetterSpacing: TextUnit = .06.em,
-    countSize: TextUnit = 12.sp,
+    dividerGap: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.TITLE_DIVIDER_GAP_DP.dp else 4.dp,
+    dividerThickness: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.DIVIDER_THICKNESS_DP.dp else 1.dp,
+    dividerGlow: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.DIVIDER_GLOW_DP.dp else 12.dp,
+    dividerGlowStrength: Float = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.DIVIDER_GLOW_STRENGTH / 100f else .35f,
+    titleSize: TextUnit = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.TITLE_SIZE_SP.sp else 22.sp,
+    titleLetterSpacing: TextUnit = if (BuildConfig.FLAVOR == "weaselfin") (ApprovedHomeLayout.TITLE_TRACKING_TENTHS_SP / 10f).sp else .06.em,
+    countSize: TextUnit = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.COUNT_SIZE_SP.sp else 12.sp,
     countOpacity: Float = 1f,
-    countEndPadding: Dp = 8.dp,
+    countEndPadding: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.COUNT_END_PADDING_DP.dp else 8.dp,
     titleStartPadding: Dp = 8.dp,
     kicker: String? = null,
 ) {

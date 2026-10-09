@@ -253,7 +253,7 @@ fun PreferencesContent(
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(horizontal = 32.dp),
                     )
-                    NeonRule(modifier = Modifier.padding(top = 6.dp), thickness = 5.dp, glowHeight = 10.dp, glowStrength = .7f)
+                    NeonRule(modifier = Modifier.padding(top = 6.dp))
                 }
             } else {
                 Text(

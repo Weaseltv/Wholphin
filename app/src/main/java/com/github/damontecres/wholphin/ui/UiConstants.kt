@@ -8,6 +8,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.github.damontecres.wholphin.R
+import com.github.damontecres.wholphin.BuildConfig
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.services.ImageUrlService
 import org.jellyfin.sdk.model.api.ItemFields
 
@@ -92,7 +94,7 @@ val ProgramItemFields = DetailItemFields + listOf(ItemFields.CHANNEL_INFO)
 
 object Cards {
     const val HEIGHT_2X3_DP = 172
-    val height2x3 = HEIGHT_2X3_DP.dp
+    val height2x3 = (if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.CARD_HEIGHT_DP else HEIGHT_2X3_DP).dp
     const val HEIGHT_EPISODE = 128
     const val HEIGHT_LIVE_TV = 96
     val heightEpisode = HEIGHT_EPISODE.dp

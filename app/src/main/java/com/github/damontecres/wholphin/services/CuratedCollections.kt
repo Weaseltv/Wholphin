@@ -49,14 +49,12 @@ object CuratedCollections {
 
     fun isCuratedCollection(item: BaseItemDto): Boolean = item.type == BaseItemKind.BOX_SET && TAG in item.tags.orEmpty()
 
-    /** Keep Picks directly after Streaming, including in previously saved Home layouts. */
+    /** Keep Picks last on Home, including in previously saved Home layouts. */
     fun withCuratedRow(settings: HomePageResolvedSettings): HomePageResolvedSettings {
         val streaming = StreamingCollections.withStreamingRow(settings)
         val existing = streaming.rows.firstOrNull { isCuratedRow(it.config) }
         val rows = streaming.rows.filterNot { isCuratedRow(it.config) }.toMutableList()
-        val index = rows.indexOfFirst { StreamingCollections.isStreamingRow(it.config) } + 1
         rows.add(
-            index,
             HomeRowConfigDisplay(
                 id = existing?.id ?: ((rows.maxOfOrNull { it.id } ?: -1) + 1),
                 title = StringStringProvider(NAME),

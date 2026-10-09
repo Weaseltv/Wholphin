@@ -80,6 +80,7 @@ import androidx.tv.material3.NavigationDrawerScope
 import androidx.tv.material3.ProvideTextStyle
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.preferences.AppThemeColors
@@ -644,10 +645,10 @@ internal fun RailList(
 }
 
 /** Owner's poster border values captured from all eight Alpha rows on 2026-10-07. */
-private val RailFocusBorderWidth = 2.dp
-private const val RailFocusBorderOpacity = .8f
-private val RailFocusGlowSpread = 15.dp
-private const val RailFocusGlowOpacity = .7f
+private val RailFocusBorderWidth = ApprovedHomeLayout.CARD_APPEARANCE.borderWidthDp.dp
+private val RailFocusBorderOpacity = ApprovedHomeLayout.CARD_APPEARANCE.borderOpacityPercent / 100f
+private val RailFocusGlowSpread = ApprovedHomeLayout.CARD_APPEARANCE.glowSpreadDp.dp
+private val RailFocusGlowOpacity = ApprovedHomeLayout.CARD_APPEARANCE.glowOpacityPercent / 100f
 
 /** Rail rows don't grow when focused, so the room only has to cover their glow. */
 internal val RailGlowRoom = maxOf(NeonBoard.GlowSpec.RowFocus, RailFocusGlowSpread) + RailFocusBorderWidth / 2

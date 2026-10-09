@@ -478,3 +478,35 @@ preview follow Movies too. Watchlist movie cards and its Movies filter follow
 Movies cyan, while native Watchlist chrome is orange. Other media/provider/pick
 palettes and configured appearance dimensions remain. These packaged colors
 apply to existing/new users without a preference reset; routine delivery is Alpha.
+
+## Locked global presentation and Picks Home order (2026-10-09)
+
+Owner accepted the latest live tuning from all eight Alpha Home rows. Sanitized
+full capture: `runbooks/home-layout-defaults-2026-10-09.json`. Revision 11 applies
+the approved presentation once to existing local/imported/server Home settings;
+new rows and shared renderers use the same compiled defaults. Publication to
+customer builds still requires an explicit stable release request.
+
+| Setting | New approved global default |
+| --- | --- |
+| Portrait card height / between cards | 170 dp / 10 dp |
+| Base / extra vertical padding | 4 dp / 4 dp |
+| Start / end padding | 4 dp / 16 dp |
+| Divider-to-card / after-row gap | 12 dp / 8 dp |
+| Title size / tracking / divider gap | 35 sp / 1.8 sp / 1 dp |
+| Row count size / opacity / right padding | 14 sp / 100% / 15 dp |
+| Divider thickness / glow / strength | 3 dp / 10 dp / 80% |
+| Poster focus border / opacity | 2 dp / 100% |
+| Focus glow / strength / scale | 10 dp / 85% / 108% |
+| Badge text / background / inset / inner padding | 11 sp / 75% / 8 dp / 4 dp |
+
+Shared section/title/rule, poster/collection/badge defaults, responsive grid gaps,
+Recommended rows, detail/Search/cast/chapter rows, and button/list/sidebar focus
+recipes consume these values beyond Home. Responsive grids and specialist card
+aspect ratios remain responsive; semantic image/fit/title settings are preserved
+by the saved-settings migration. Alpha's tuner remains available for later local
+experiments; revision 11 is applied once rather than every startup.
+
+The Weasel’s Picks is now the last Home row, beneath Sports in the current layout.
+The Home resolver relocates the existing row without duplicating it or replacing
+its settings. Streaming stays near Continue Watching. Sidebar ordering is untouched.

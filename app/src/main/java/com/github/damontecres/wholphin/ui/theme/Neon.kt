@@ -46,6 +46,8 @@ import androidx.tv.material3.NavigationDrawerItemColors
 import androidx.tv.material3.NavigationDrawerItemDefaults
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.data.model.BaseItem
+import com.github.damontecres.wholphin.BuildConfig
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.HomeCardAppearance
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.preferences.AppThemeColors
@@ -117,7 +119,7 @@ object NeonBoard {
         val RailGlyph = 24.dp
         val RailAvatar = 36.dp
         val Tally = 3.dp
-        val Rule = 1.dp
+        val Rule = ApprovedHomeLayout.DIVIDER_THICKNESS_DP.dp
         val ProgressCard = 3.dp
         val Button = 48.dp
         val ButtonHero = 52.dp
@@ -137,15 +139,15 @@ object NeonBoard {
 
     /** Glow elevations and alphas from `01-tokens-tv.md` § Glow. */
     object GlowSpec {
-        val CardFocus = 22.dp
-        const val CARD_FOCUS_ALPHA = .5f
-        val RowFocus = 16.dp
-        const val ROW_FOCUS_ALPHA = .45f
+        val CardFocus = 10.dp
+        const val CARD_FOCUS_ALPHA = .85f
+        val RowFocus = 10.dp
+        const val ROW_FOCUS_ALPHA = .85f
         val PrimaryButton = 20.dp
         const val PRIMARY_BUTTON_ALPHA = .4f
-        val PrimaryButtonFocus = 28.dp
-        const val PRIMARY_BUTTON_FOCUS_ALPHA = .62f
-        val Rule = 12.dp
+        val PrimaryButtonFocus = 10.dp
+        const val PRIMARY_BUTTON_FOCUS_ALPHA = .85f
+        val Rule = ApprovedHomeLayout.DIVIDER_GLOW_DP.dp
         const val RULE_ALPHA = .8f
         val Tally = 12.dp
         val Badge = 12.dp
@@ -467,7 +469,9 @@ fun neonCardShape(fallback: CardShape? = null): CardShape {
     return CardDefaults.shape(RoundedCornerShape(LocalHomeCardAppearance.current.cornerRadiusDp.dp))
 }
 
-val LocalHomeCardAppearance = compositionLocalOf { HomeCardAppearance() }
+val LocalHomeCardAppearance = compositionLocalOf {
+    if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.CARD_APPEARANCE else HomeCardAppearance()
+}
 val LocalHomeRowAccent = compositionLocalOf<Color?> { null }
 val LocalHomeCardBorderAccent = compositionLocalOf<Color?> { null }
 
@@ -504,7 +508,7 @@ fun neonSurfaceBorder(
         } else {
             Border.None
         }
-    val focused = Border(border = BorderStroke(1.dp, accent), shape = RectangleShape)
+    val focused = Border(border = BorderStroke(ApprovedHomeLayout.CARD_APPEARANCE.borderWidthDp.dp, accent.copy(alpha = ApprovedHomeLayout.CARD_APPEARANCE.borderOpacityPercent / 100f)), shape = RectangleShape)
     val disabled =
         if (restWidth > 0.dp) {
             Border(
@@ -658,7 +662,7 @@ fun neonListItemBorder(
     accent: Color = LocalNeonAccent.current,
     fallback: ListItemBorder? = null,
     shape: Shape = RectangleShape,
-    width: Dp = 1.dp,
+    width: Dp = ApprovedHomeLayout.CARD_APPEARANCE.borderWidthDp.dp,
     opacity: Float = 1f,
 ): ListItemBorder {
     if (!isWeaselTv()) return fallback ?: ListItemDefaults.border()
@@ -827,7 +831,7 @@ fun Modifier.neonRuleBelow(
     enabled: Boolean = true,
     thickness: Dp = NeonBoard.Size.Rule,
     glowHeight: Dp = NeonBoard.GlowSpec.Rule,
-    glowStrength: Float = .35f,
+    glowStrength: Float = ApprovedHomeLayout.DIVIDER_GLOW_STRENGTH / 100f,
 ): Modifier {
     if (!enabled || !isWeaselTv()) return this
     return drawBehind {
@@ -900,7 +904,7 @@ fun NeonRule(
     accent: Color = LocalNeonAccent.current,
     thickness: Dp = NeonBoard.Size.Rule,
     glowHeight: Dp = NeonBoard.GlowSpec.Rule,
-    glowStrength: Float = .35f,
+    glowStrength: Float = ApprovedHomeLayout.DIVIDER_GLOW_STRENGTH / 100f,
 ) {
     if (!isWeaselTv()) return
     Box(

@@ -282,6 +282,7 @@ configure<ApplicationExtension> {
         // from the flavor name.
         create("weaselfin") {
             dimension = "version"
+            buildConfigField("int", "DEFAULT_CARD_HEIGHT_DP", "170")
             // Install identity for the shipped build. Scoped to THIS flavor only:
             // `default`, `appstore` and `firetv` inherit defaultConfig's upstream id and are
             // untouched. Only applicationId is changed -- the Kotlin `namespace` above stays

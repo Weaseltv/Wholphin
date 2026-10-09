@@ -15,6 +15,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.BuildConfig
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.Chapter
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
@@ -33,7 +35,7 @@ fun ChapterRow(
         ItemRowTitle(stringResource(R.string.chapters), titleStartPadding = if (isWeaselTv()) 16.dp else 8.dp)
         LazyRow(
             state = rememberLazyListState(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.CARD_SPACING_DP.dp else 16.dp),
             contentPadding = PaddingValues(vertical = 8.dp, horizontal = 16.dp),
             modifier =
                 Modifier

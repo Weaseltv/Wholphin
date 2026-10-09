@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.ui.bleedHorizontal
 
 /** Gutters between page content and its edges, excluding the navigation rail itself. */
@@ -38,7 +39,7 @@ fun NeonSectionRule(
     accent: Color = LocalNeonAccent.current,
     thickness: Dp = NeonBoard.Size.Rule,
     glowHeight: Dp = NeonBoard.GlowSpec.Rule,
-    glowStrength: Float = .35f,
+    glowStrength: Float = ApprovedHomeLayout.DIVIDER_GLOW_STRENGTH / 100f,
 ) {
     val insets = LocalNeonRuleInsets.current
     NeonRule(

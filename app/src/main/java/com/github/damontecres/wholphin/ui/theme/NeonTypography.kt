@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Typography
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 
 /**
  * Exo 2 / Audiowide for the WeaselTV theme (`01-tokens-tv.md` § Type).
@@ -172,7 +173,9 @@ object NeonType {
     /** Row titles and section rules: 22. */
     @Composable
     @ReadOnlyComposable
-    fun sectionTitle(): TextStyle = header(22.sp, fallback = MaterialTheme.typography.titleLarge)
+    fun sectionTitle(): TextStyle = header(ApprovedHomeLayout.TITLE_SIZE_SP.sp, fallback = MaterialTheme.typography.titleLarge).let {
+        if (isWeaselTv()) it.copy(letterSpacing = (ApprovedHomeLayout.TITLE_TRACKING_TENTHS_SP / 10f).sp) else it
+    }
 
     /** Clocks, timecodes and count labels use Exo 2 for compact, readable numerals. */
     @Composable

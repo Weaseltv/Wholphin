@@ -15,6 +15,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.preferences.AppPreferences
@@ -372,7 +373,7 @@ fun RecommendedContent(
     val homeRows = if (isWeaselTv()) {
         state.rows.map { row ->
             if (row is HomeRowLoadingState.Success) {
-                row.copy(viewOptions = row.viewOptions.copy(cardAppearance = libraryCardAppearance))
+                row.copy(viewOptions = ApprovedHomeLayout.applyPresentation(row.viewOptions).copy(cardAppearance = libraryCardAppearance))
             } else row
         }
     } else state.rows
