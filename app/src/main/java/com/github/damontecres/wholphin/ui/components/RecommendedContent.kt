@@ -350,6 +350,18 @@ data class RecommendedRow<T>(
 )
 
 @Composable
+private fun recommendedRowHeading(row: HomeRowLoadingState.Success): Pair<String, String?> =
+    when ((row.title as? ResStringProvider)?.stringResId) {
+        R.string.continue_watching -> stringResource(R.string.continue_watching) to "${stringResource(R.string.next_up)} &"
+        R.string.next_up -> stringResource(R.string.recommended_title_up) to stringResource(R.string.recommended_kicker_next)
+        R.string.recently_released -> stringResource(R.string.recommended_title_released) to stringResource(R.string.recommended_kicker_just)
+        R.string.recently_added -> stringResource(R.string.recommended_title_added) to stringResource(R.string.recommended_kicker_just)
+        R.string.top_unwatched -> stringResource(R.string.recommended_title_unwatched) to stringResource(R.string.recommended_kicker_top_rated)
+        R.string.suggestions -> stringResource(R.string.suggestions) to stringResource(R.string.recommended_kicker_your)
+        else -> row.title.getString() to null
+    }
+
+@Composable
 fun RecommendedContent(
     preferences: UserPreferences,
     viewModel: RecommendedViewModel,
@@ -357,6 +369,7 @@ fun RecommendedContent(
     playlistViewModel: AddPlaylistViewModel = hiltViewModel(),
     onFocusPosition: ((RowColumn) -> Unit)? = null,
     headerModifier: Modifier = HeaderUtils.homeModifier(),
+    splitRecommendedTitles: Boolean = false,
 ) {
     var showContextMenu by remember { mutableStateOf<ContextMenu?>(null) }
     var overviewDialog by remember { mutableStateOf<ItemDetailsDialogInfo?>(null) }
@@ -422,6 +435,9 @@ fun RecommendedContent(
 
             HomePageContent(
                 homeRows = homeRows,
+                rowHeading = if (splitRecommendedTitles && isWeaselTv()) {
+                    { row -> recommendedRowHeading(row) }
+                } else null,
                 position = position,
                 onClickItem = { _, item ->
                     viewModel.navigationManager.navigateTo(item.destination())
@@ -469,6 +485,7 @@ fun RecommendedContent(
                         item = focusedItem,
                         showLogo = preferences.appPreferences.interfacePreferences.showLogos,
                         modifier = headerModifier,
+                        compactLogo = splitRecommendedTitles && isWeaselTv(),
                     )
                 },
             )

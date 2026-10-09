@@ -332,6 +332,7 @@ fun HomePageContent(
     },
     libraries: List<Library> = emptyList(),
     splitHomeTitles: Boolean = false,
+    rowHeading: (@Composable (HomeRowLoadingState.Success) -> Pair<String, String?>)? = null,
     onClickViewMore: (RowColumn, HomeRowLoadingState.Success) -> Unit = { _, _ -> },
 ) {
     val focusedItem =
@@ -386,7 +387,7 @@ fun HomePageContent(
         // Keep the next kicker, title and rule above the viewport edge. Use actual row
         // measurements so font, card, caption and spacing tuning all share this budget.
         val headerMaxHeight = if (
-            isWeaselTv() && splitHomeTitles && focusedRowHeight != null && nextTitleHeight != null
+            isWeaselTv() && (splitHomeTitles || rowHeading != null) && focusedRowHeight != null && nextTitleHeight != null
         ) {
             with(density) { maxHeight - (focusedRowHeight + nextTitleHeight).toDp() - 16.dp }
                 .coerceAtLeast(120.dp)
@@ -480,7 +481,9 @@ fun HomePageContent(
                                         val curated =
                                             BuildConfig.FLAVOR == "weaselfin" &&
                                                 row.rowType?.let(CuratedCollections::isCuratedRow) == true
-                                        val heading = if (splitHomeTitles && isWeaselTv()) {
+                                        val heading = if (rowHeading != null && isWeaselTv()) {
+                                            rowHeading(row)
+                                        } else if (splitHomeTitles && isWeaselTv()) {
                                             homeRowHeading(row.rowType, libraries, row.title.getString())
                                         } else {
                                             row.title.getString() to null
@@ -727,6 +730,7 @@ fun HomePageHeader(
     item: BaseItem?,
     showLogo: Boolean,
     modifier: Modifier = Modifier,
+    compactLogo: Boolean = false,
 ) {
     val isEpisode = item?.type == BaseItemKind.EPISODE
     val dto = item?.data
@@ -763,6 +767,7 @@ fun HomePageHeader(
         endsAt = item?.data?.endDate,
         showLogo = showLogo,
         logoImageUrl = rememberLogoUrl(item),
+        compactLogo = compactLogo,
         modifier = modifier,
     )
 }
@@ -781,6 +786,7 @@ fun HomePageHeader(
     modifier: Modifier = Modifier,
     eyebrow: String? = null,
     accent: Color = LocalNeonAccent.current,
+    compactLogo: Boolean = false,
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -793,7 +799,9 @@ fun HomePageHeader(
             title = title,
             logoImageUrl = logoImageUrl,
             showLogo = showLogo,
-            modifier = Modifier.fillMaxWidth(.75f),
+            modifier = Modifier.fillMaxWidth(.75f).then(
+                if (compactLogo && showLogo && logoImageUrl != null) Modifier.heightIn(max = 40.dp) else Modifier,
+            ),
         )
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),

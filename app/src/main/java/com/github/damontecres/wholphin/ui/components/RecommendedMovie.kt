@@ -116,5 +116,6 @@ fun RecommendedMovie(
         onFocusPosition = onFocusPosition,
         modifier = modifier,
         headerModifier = HeaderUtils.recommendedModifier(),
+        splitRecommendedTitles = true,
     )
 }

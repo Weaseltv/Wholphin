@@ -560,3 +560,18 @@ users and layouts. This supersedes the 2 dp focus width in the original approved
 JSON capture and the preceding search-outline note. Colors, full border opacity,
 rounded genre shapes and glow settings remain as approved. Public rollout occurs
 with the next explicitly authorized stable release; routine delivery is Alpha.
+
+## Split Recommended headings for all four media libraries (2026-10-09)
+
+Movies, TV Shows, Stand Up Comedy and Sports Recommended rows now use the same
+Exo 2 kicker / white Audiowide main-title renderer as Home. Kickers retain each
+library's glow color. Heading pairs are NEXT UP & / CONTINUE WATCHING, JUST /
+RELEASED, JUST / ADDED, TOP RATED / UNWATCHED and YOUR / SUGGESTIONS. TV's separate
+Next Up row uses NEXT / UP; its query and row membership stay separate.
+
+Heading selection uses resource IDs rather than matching translated strings.
+The shared measured viewport/row/next-heading clearance now applies to these
+Recommended pages too, including Home's focused-title scroll clearance. Their
+detail-header logos are capped at 40 dp to leave room for episode metadata under
+the taller row headings. Home and other page heading styles remain as configured.
+Delivery remains arm64 Alpha; owner performs visual verification.
