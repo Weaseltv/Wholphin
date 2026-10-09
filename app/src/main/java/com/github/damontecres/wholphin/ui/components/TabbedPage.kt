@@ -19,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -123,6 +124,10 @@ fun TabbedPage(
     tabs: List<TabDetails>,
     modifier: Modifier = Modifier,
     showTabs: Boolean = true,
+    tabTopPadding: Dp = 16.dp,
+    tabContentTopPadding: Dp = 20.dp,
+    tabBottomPadding: Dp = 16.dp,
+    tabContentBottomPadding: Dp = 20.dp,
     viewModel: TabViewModel =
         hiltViewModel<TabViewModel, TabViewModel.Factory>(
             key = "$itemId-${tabs.size}",
@@ -139,6 +144,10 @@ fun TabbedPage(
         isShowClock = isShowClock,
         modifier = modifier,
         showTabs = showTabs,
+        tabTopPadding = tabTopPadding,
+        tabContentTopPadding = tabContentTopPadding,
+        tabBottomPadding = tabBottomPadding,
+        tabContentBottomPadding = tabContentBottomPadding,
         tabContent = tabContent,
     )
 }
@@ -151,6 +160,10 @@ fun TabbedPage(
     isShowClock: Boolean,
     modifier: Modifier = Modifier,
     showTabs: Boolean = true,
+    tabTopPadding: Dp = 16.dp,
+    tabContentTopPadding: Dp = 20.dp,
+    tabBottomPadding: Dp = 16.dp,
+    tabContentBottomPadding: Dp = 20.dp,
     tabContent: @Composable (Int, TabDetails) -> Unit,
 ) {
     val endPadding =
@@ -173,7 +186,9 @@ fun TabbedPage(
                 selectedTabIndex = selectedTabIndex,
                 modifier =
                     Modifier
-                        .padding(top = 16.dp, bottom = 16.dp, end = endPadding),
+                        .padding(top = tabTopPadding, bottom = tabBottomPadding, end = endPadding),
+                topContentPadding = tabContentTopPadding,
+                bottomContentPadding = tabContentBottomPadding,
                 tabs = tabs,
                 onClick = updateSelectedTabIndex,
             )

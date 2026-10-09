@@ -32,6 +32,7 @@ import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.components.Genre
 import com.github.damontecres.wholphin.ui.setup.rememberIdColor
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import com.github.damontecres.wholphin.ui.theme.neonCardBorder
 import com.github.damontecres.wholphin.ui.theme.neonCardGlow
@@ -68,6 +69,7 @@ fun GenreCard(
     accent: Color = LocalNeonAccent.current,
 ) {
     val background = rememberIdColor(genreId).copy(alpha = .6f)
+    val genreShape = RoundedCornerShape(8.dp)
     Card(
         modifier = modifier,
         onClick = onClick,
@@ -77,9 +79,9 @@ fun GenreCard(
             CardDefaults.colors(
                 containerColor = Color.Transparent,
             ),
-        shape = neonCardShape(),
+        shape = if (isWeaselTv()) CardDefaults.shape(genreShape) else neonCardShape(),
         scale = neonCardScale(),
-        border = neonCardBorder(accent),
+        border = neonCardBorder(accent, shape = genreShape),
         glow = neonCardGlow(accent),
     ) {
         Box(
@@ -88,7 +90,7 @@ fun GenreCard(
                 Modifier
                     .aspectRatio(AspectRatios.WIDE)
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(8.dp)),
+                    .clip(genreShape),
         ) {
             if (imageUrl != null) {
                 AsyncImage(

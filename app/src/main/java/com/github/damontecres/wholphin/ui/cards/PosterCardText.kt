@@ -24,7 +24,6 @@ fun PosterCardTitle(title: String?, focused: Boolean, modifier: Modifier = Modif
         fontWeight = FontWeight.SemiBold,
         color = if (isWeaselTv()) (if (focused) NeonBoard.Text else NeonBoard.Mid) else Color.Unspecified,
         textAlign = TextAlign.Center,
-        minLines = 2,
         maxLines = 2,
         softWrap = true,
         overflow = TextOverflow.Ellipsis,
@@ -34,6 +33,8 @@ fun PosterCardTitle(title: String?, focused: Boolean, modifier: Modifier = Modif
 
 @Composable
 fun PosterCardSubtitle(subtitle: String?, modifier: Modifier = Modifier) {
+    if (subtitle.isNullOrBlank()) return
+
     Text(
         text = subtitle.orEmpty(),
         style = if (isWeaselTv()) NeonType.cardSubtitle() else MaterialTheme.typography.bodySmall,

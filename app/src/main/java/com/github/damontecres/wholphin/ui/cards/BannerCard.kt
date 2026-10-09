@@ -42,6 +42,8 @@ import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
+import com.github.damontecres.wholphin.ui.components.StreamingProviderPoster
+import com.github.damontecres.wholphin.ui.components.providerWordmark
 import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.FontAwesome
@@ -85,6 +87,7 @@ fun BannerCard(
     useSeriesForPrimary: Boolean = true,
     cornerTextScale: Float = 1f,
 ) {
+    val providerPoster = if (isWeaselTv() && item?.type == BaseItemKind.BOX_SET) providerWordmark(item.name) else null
     val appearance = LocalPosterCountAppearance.current ?: LocalHomeCardAppearance.current
     val badgeInsetX = appearance.badgeHorizontalInsetDp?.dp ?: (4.dp * cornerTextScale)
     val badgeInsetY = appearance.badgeVerticalInsetDp?.dp ?: (4.dp * cornerTextScale)
@@ -159,7 +162,9 @@ fun BannerCard(
                     .fillMaxSize(),
 //                    .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
-            if (!imageError && displayedImageUrl != null) {
+            if (providerPoster != null) {
+                StreamingProviderPoster(name = item?.name, wordmark = providerPoster, modifier = Modifier.fillMaxSize())
+            } else if (!imageError && displayedImageUrl != null) {
                 AsyncImage(
                     model = displayedImageUrl,
                     contentDescription = null,
@@ -221,15 +226,12 @@ fun BannerCard(
                 }
             }
             if (favorite) {
-                Text(
+                FavoriteIndicator(
                     modifier =
                         Modifier
-                            .align(Alignment.TopStart)
-                            .padding(8.dp),
-                    color = colorResource(android.R.color.holo_red_light),
-                    text = stringResource(R.string.fa_heart),
+                            .align(Alignment.BottomEnd)
+                            .padding(end = badgeInsetX, bottom = badgeInsetY),
                     fontSize = 16.sp,
-                    fontFamily = FontAwesome,
                 )
             }
             if (playPercent > 0 && playPercent < 100) {

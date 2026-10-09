@@ -8,6 +8,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import androidx.compose.ui.focus.focusRequester
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.github.damontecres.wholphin.R
@@ -52,6 +54,10 @@ fun CollectionFolderMovie(
         tabs = tabs,
         modifier = modifier,
         showTabs = showHeader,
+        tabTopPadding = if (isWeaselTv()) 0.dp else 16.dp,
+        tabContentTopPadding = if (isWeaselTv()) 8.dp else 20.dp,
+        tabBottomPadding = if (isWeaselTv()) 0.dp else 16.dp,
+        tabContentBottomPadding = if (isWeaselTv()) 16.dp else 20.dp,
     ) { tabIndex, tabDetails ->
         when (tabIndex) {
             // Recommended

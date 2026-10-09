@@ -125,7 +125,7 @@ class NeonMenuLayoutTest {
     @Test
     fun `progress wears the title's type colour`() {
         fun item(kind: BaseItemKind) = BaseItem(BaseItemDto(id = UUID.randomUUID(), type = kind))
-        assertEquals(NeonBoard.Orange, itemAccent(item(BaseItemKind.MOVIE)))
+        assertEquals(NeonSectionPalette.Movies.border, itemAccent(item(BaseItemKind.MOVIE)))
         assertEquals(NeonBoard.Yellow, itemAccent(item(BaseItemKind.EPISODE)))
     }
 }

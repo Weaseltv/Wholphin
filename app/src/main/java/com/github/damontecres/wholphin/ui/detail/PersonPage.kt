@@ -39,6 +39,8 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import androidx.tv.material3.surfaceColorAtElevation
 import coil3.compose.AsyncImage
+import com.github.damontecres.wholphin.BuildConfig
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.DiscoverItem
@@ -417,7 +419,7 @@ fun PersonPageContent(
                 onClickItem = onClickItem,
                 onClickPosition = { position = it },
                 showIfEmpty = false,
-                horizontalPadding = 24.dp,
+                horizontalPadding = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.CARD_SPACING_DP.dp else 24.dp,
                 modifier = Modifier.fillMaxWidth(),
                 cardContent = { index, item, mod, onClick, onLongClick ->
                     SeasonCard(

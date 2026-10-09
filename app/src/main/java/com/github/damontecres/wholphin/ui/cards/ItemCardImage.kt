@@ -253,89 +253,100 @@ fun ItemCardImageOverlay(
     progressAccent: Color = accent,
 ) {
     val collectionAppearance = LocalCollectionCardAppearance.current.takeIf { isWeaselTv() }
-    val collectionBadge = collectionAppearance?.collectionBadge
     val countAppearance = LocalPosterCountAppearance.current.takeIf { isWeaselTv() }
     Box(modifier = modifier.fillMaxSize()) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
-            modifier =
-                Modifier
-                    .align(Alignment.TopStart)
-                    .padding(
-                        horizontal = collectionBadge?.horizontalInsetDp?.dp ?: if (isWeaselTv()) 8.dp else 4.dp,
-                        vertical = collectionBadge?.verticalInsetDp?.dp ?: if (isWeaselTv()) 8.dp else 4.dp,
-                    ),
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .fillMaxWidth()
+                .padding(
+                    horizontal = countAppearance?.badgeHorizontalInsetDp?.dp ?: 4.dp,
+                    vertical = countAppearance?.badgeVerticalInsetDp?.dp ?: 4.dp,
+                ),
         ) {
-            if (typeBadge != null && collectionAppearance == null && !LocalHidePosterTypeBadge.current) {
-                NeonBadge(
-                    text = typeBadge,
-                    accent = if (typeBadgeFilled) NeonBoard.Green else accent,
-                    filled = typeBadgeFilled,
-                )
-            }
-            if (numberOfVersions > 1) {
-                Box(
-                    modifier =
-                        Modifier
-                            .background(
-                                AppColors.TransparentBlack50,
-                                shape = RoundedCornerShape(25),
-                            ),
-                ) {
-                    Text(
-                        text = numberOfVersions.toString(),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.bodyMedium,
-//                            fontSize = 16.sp,
-                        modifier = Modifier.padding(4.dp),
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (typeBadge != null && collectionAppearance == null && !LocalHidePosterTypeBadge.current) {
+                    NeonBadge(
+                        text = typeBadge,
+                        accent = if (typeBadgeFilled) NeonBoard.Green else accent,
+                        filled = typeBadgeFilled,
                     )
                 }
+                if (numberOfVersions > 1) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .background(
+                                    AppColors.TransparentBlack50,
+                                    shape = RoundedCornerShape(25),
+                                ),
+                    ) {
+                        Text(
+                            text = numberOfVersions.toString(),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = (countAppearance?.badgeTextOpacityPercent ?: 100) / 100f),
+                            style = if (countAppearance != null) {
+                                MaterialTheme.typography.bodySmall.let {
+                                    val size = countAppearance.badgeTextSizeSp?.sp ?: it.fontSize
+                                    it.copy(fontSize = size, lineHeight = size * (it.lineHeight.value / it.fontSize.value))
+                                }
+                            } else MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(
+                                horizontal = countAppearance?.badgeHorizontalPaddingDp?.dp ?: 4.dp,
+                                vertical = countAppearance?.badgeVerticalPaddingDp?.dp ?: 4.dp,
+                            ),
+                        )
+                    }
+                }
             }
-            if (favorite) {
-                FavoriteIndicator()
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (watched && (watchedPercent == null || watchedPercent <= 0.0 || watchedPercent >= 100.0)) {
+                    WatchedIcon(Modifier.size(24.dp))
+                }
+                if (unwatchedCount > 0) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .background(
+                                    Color.Black.copy(alpha = (countAppearance?.badgeBackgroundOpacityPercent ?: 50) / 100f),
+                                    shape = RoundedCornerShape(countAppearance?.badgeCornerPercent ?: 25),
+                                ),
+                    ) {
+                        Text(
+                            text = unwatchedCount.toString(),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = (countAppearance?.badgeTextOpacityPercent ?: 100) / 100f),
+                            style = if (countAppearance != null) {
+                                MaterialTheme.typography.bodySmall.let {
+                                    val size = countAppearance.badgeTextSizeSp?.sp ?: it.fontSize
+                                    it.copy(fontSize = size, lineHeight = size * (it.lineHeight.value / it.fontSize.value))
+                                }
+                            } else MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(
+                                horizontal = countAppearance?.badgeHorizontalPaddingDp?.dp ?: 4.dp,
+                                vertical = countAppearance?.badgeVerticalPaddingDp?.dp ?: 4.dp,
+                            ),
+                        )
+                    }
+                }
             }
         }
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier =
-                Modifier
+
+        if (favorite) {
+            FavoriteIndicator(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
                     .padding(
-                        horizontal = countAppearance?.badgeHorizontalInsetDp?.dp ?: 4.dp,
-                        vertical = countAppearance?.badgeVerticalInsetDp?.dp ?: 4.dp,
-                    )
-                    .align(Alignment.TopEnd),
-        ) {
-            if (watched && (watchedPercent == null || watchedPercent <= 0.0 || watchedPercent >= 100.0)) {
-                WatchedIcon(Modifier.size(24.dp))
-            }
-            if (unwatchedCount > 0) {
-                Box(
-                    modifier =
-                        Modifier
-                            .background(
-                                Color.Black.copy(alpha = (countAppearance?.badgeBackgroundOpacityPercent ?: 50) / 100f),
-                                shape = RoundedCornerShape(countAppearance?.badgeCornerPercent ?: 25),
-                            ),
-                ) {
-                    Text(
-                        text = unwatchedCount.toString(),
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = (countAppearance?.badgeTextOpacityPercent ?: 100) / 100f),
-                        style = if (countAppearance != null) {
-                            MaterialTheme.typography.bodySmall.let {
-                                val size = countAppearance.badgeTextSizeSp?.sp ?: it.fontSize
-                                it.copy(fontSize = size, lineHeight = size * (it.lineHeight.value / it.fontSize.value))
-                            }
-                        } else MaterialTheme.typography.bodyMedium,
-//                            fontSize = 16.sp,
-                        modifier = Modifier.padding(
-                            horizontal = countAppearance?.badgeHorizontalPaddingDp?.dp ?: 4.dp,
-                            vertical = countAppearance?.badgeVerticalPaddingDp?.dp ?: 4.dp,
-                        ),
-                    )
-                }
-            }
+                        end = countAppearance?.badgeHorizontalInsetDp?.dp ?: 4.dp,
+                        bottom = countAppearance?.badgeVerticalInsetDp?.dp ?: 4.dp,
+                    ),
+            )
         }
 
         if (watchedPercent != null && watchedPercent > 0 && watchedPercent < 100) {

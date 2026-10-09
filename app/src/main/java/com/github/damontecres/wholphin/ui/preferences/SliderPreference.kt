@@ -51,7 +51,7 @@ fun SliderPreference(
         } else if (focused) {
             MaterialTheme.colorScheme.inverseSurface
         } else {
-            Color.Unspecified
+            Color.Transparent
         }
     val contentColor = if (neon) NeonBoard.Text else contentColorFor(background)
 

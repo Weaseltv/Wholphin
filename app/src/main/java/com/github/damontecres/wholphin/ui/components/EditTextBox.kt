@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -183,9 +184,10 @@ fun SearchEditTextBox(
     readOnly: Boolean = false,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) {
+    val focused by interactionSource.collectIsFocusedAsState()
     EditTextBox(
         state = state,
-        modifier = modifier,
+        modifier = if (isWeaselTv()) modifier.border(1.dp, if (focused) LocalNeonAccent.current else NeonBoard.Line2) else modifier,
         keyboardOptions =
             KeyboardOptions(
                 autoCorrectEnabled = false,
@@ -306,7 +308,7 @@ fun EditTextBox(
                                 modifier = Modifier,
                                 colors = colors,
                                 shape = if (isWeaselTv()) RectangleShape else CircleShape,
-                                focusedIndicatorLineThickness = 4.dp,
+                                focusedIndicatorLineThickness = if (isWeaselTv()) 1.dp else 4.dp,
                                 unfocusedIndicatorLineThickness = 0.dp,
                             )
                         },
@@ -331,10 +333,11 @@ fun SearchEditTextBox(
     height: Dp = if (isWeaselTv()) 56.dp else 40.dp,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) {
+    val focused by interactionSource.collectIsFocusedAsState()
     EditTextBox(
         value,
         onValueChange,
-        modifier,
+        if (isWeaselTv()) modifier.border(1.dp, if (focused) LocalNeonAccent.current else NeonBoard.Line2) else modifier,
         keyboardOptions =
             KeyboardOptions(
                 autoCorrectEnabled = false,

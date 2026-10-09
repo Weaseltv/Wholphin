@@ -30,7 +30,7 @@ class CuratedCollectionsTest {
         )
 
     @Test
-    fun `Picks follows Streaming in default and saved layouts without duplicate rows or ids`() {
+    fun `Picks is last in default and saved layouts without duplicate rows or ids`() {
         val recent = HomeRowConfig.RecentlyAdded(UUID.randomUUID())
         listOf(
             settings(HomeRowConfig.ContinueWatching(), HomeRowConfig.NextUp(), recent),
@@ -39,8 +39,7 @@ class CuratedCollectionsTest {
             settings(CuratedCollections.row, recent, StreamingCollections.row),
         ).forEach { original ->
             val result = CuratedCollections.withCuratedRow(original)
-            val streaming = result.rows.indexOfFirst { StreamingCollections.isStreamingRow(it.config) }
-            assertEquals(CuratedCollections.row, result.rows[streaming + 1].config)
+            assertEquals(CuratedCollections.row, result.rows.last().config)
             assertEquals(1, result.rows.count { CuratedCollections.isCuratedRow(it.config) })
             assertEquals(
                 result.rows.size,

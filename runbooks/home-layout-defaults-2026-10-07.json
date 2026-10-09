@@ -34,7 +34,7 @@
         "dividerGlowStrength": 70,
         "cardAppearance": {
           "borderWidthDp": 2,
-          "borderOpacityPercent": 80,
+          "borderOpacityPercent": 100,
           "glowSpreadDp": 15,
           "glowOpacityPercent": 70,
           "focusScalePercent": 109,
@@ -181,7 +181,7 @@
         "dividerGlowStrength": 70,
         "cardAppearance": {
           "borderWidthDp": 2,
-          "borderOpacityPercent": 80,
+          "borderOpacityPercent": 100,
           "glowSpreadDp": 15,
           "glowOpacityPercent": 70,
           "focusScalePercent": 109,
@@ -230,7 +230,7 @@
         "dividerGlowStrength": 70,
         "cardAppearance": {
           "borderWidthDp": 2,
-          "borderOpacityPercent": 80,
+          "borderOpacityPercent": 100,
           "glowSpreadDp": 15,
           "glowOpacityPercent": 70,
           "focusScalePercent": 109,
@@ -279,7 +279,7 @@
         "dividerGlowStrength": 70,
         "cardAppearance": {
           "borderWidthDp": 2,
-          "borderOpacityPercent": 80,
+          "borderOpacityPercent": 100,
           "glowSpreadDp": 15,
           "glowOpacityPercent": 70,
           "focusScalePercent": 109,
@@ -328,7 +328,7 @@
         "dividerGlowStrength": 70,
         "cardAppearance": {
           "borderWidthDp": 2,
-          "borderOpacityPercent": 80,
+          "borderOpacityPercent": 100,
           "glowSpreadDp": 15,
           "glowOpacityPercent": 70,
           "focusScalePercent": 109,
@@ -377,7 +377,7 @@
         "dividerGlowStrength": 70,
         "cardAppearance": {
           "borderWidthDp": 2,
-          "borderOpacityPercent": 80,
+          "borderOpacityPercent": 100,
           "glowSpreadDp": 15,
           "glowOpacityPercent": 70,
           "focusScalePercent": 109,

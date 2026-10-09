@@ -58,6 +58,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Density
@@ -79,6 +80,7 @@ import androidx.tv.material3.NavigationDrawerScope
 import androidx.tv.material3.ProvideTextStyle
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.preferences.AppThemeColors
@@ -109,7 +111,6 @@ import com.github.damontecres.wholphin.ui.theme.neonIconGlow
 import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
 import com.github.damontecres.wholphin.ui.theme.neonListItemGlow
 import com.github.damontecres.wholphin.ui.theme.neonListItemShape
-import com.github.damontecres.wholphin.ui.theme.neonTally
 import com.github.damontecres.wholphin.ui.theme.sectionAccent
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.ui.tryRequestFocus
@@ -644,10 +645,10 @@ internal fun RailList(
 }
 
 /** Owner's poster border values captured from all eight Alpha rows on 2026-10-07. */
-private val RailFocusBorderWidth = 2.dp
-private const val RailFocusBorderOpacity = .8f
-private val RailFocusGlowSpread = 15.dp
-private const val RailFocusGlowOpacity = .7f
+private val RailFocusBorderWidth = ApprovedHomeLayout.CARD_APPEARANCE.borderWidthDp.dp
+private val RailFocusBorderOpacity = ApprovedHomeLayout.CARD_APPEARANCE.borderOpacityPercent / 100f
+private val RailFocusGlowSpread = ApprovedHomeLayout.CARD_APPEARANCE.glowSpreadDp.dp
+private val RailFocusGlowOpacity = ApprovedHomeLayout.CARD_APPEARANCE.glowOpacityPercent / 100f
 
 /** Rail rows don't grow when focused, so the room only has to cover their glow. */
 internal val RailGlowRoom = maxOf(NeonBoard.GlowSpec.RowFocus, RailFocusGlowSpread) + RailFocusBorderWidth / 2
@@ -687,13 +688,14 @@ fun NavigationDrawerScope.ProfileIcon(
                 alpha = if (drawerOpen || isWeaselTv()) 1f else .5f,
                 modifier =
                     Modifier
-                        .size(DrawerIconSize)
-                        .offset(x = if (isWeaselTv() && drawerOpen) 6.dp else 0.dp),
+                        .size(DrawerIconSize),
             )
         },
         supportingContent = {
             Text(
                 text = serverName,
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Normal),
+                color = if (isWeaselTv()) Color(0xFF828A9B) else Color.Unspecified,
                 maxLines = 1,
             )
         },
@@ -702,6 +704,8 @@ fun NavigationDrawerScope.ProfileIcon(
         Text(
             modifier = Modifier,
             text = user.name ?: user.id.toString(),
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = if (isWeaselTv()) Color(0xFFF0F2F8) else Color.Unspecified,
             maxLines = 1,
         )
     }
@@ -723,7 +727,7 @@ fun NavigationDrawerScope.IconNavItem(
     val focused by interactionSource.collectIsFocusedAsState()
     val context = LocalContext.current
     NavigationDrawerItem(
-        modifier = modifier.neonTally(accent, selected),
+        modifier = modifier,
         selected = false,
         onClick = onClick,
         shape = neonListItemShape(shape = RailItemShape),
@@ -767,7 +771,7 @@ fun NavigationDrawerScope.IconNavItem(
             modifier = Modifier,
             text = text,
             maxLines = 1,
-            style = if (isWeaselTv()) NeonType.railLabel(selected) else LocalTextStyle.current,
+            style = railLabelStyle(accent, selected, focused),
         )
     }
 }
@@ -819,7 +823,7 @@ fun NavigationDrawerScope.NavItem(
     val accent = remember(library) { sectionAccent(library) }
     val focused by interactionSource.collectIsFocusedAsState()
     NavigationDrawerItem(
-        modifier = modifier.neonTally(accent, selected),
+        modifier = modifier,
         selected = false,
         onClick = onClick,
         shape = neonListItemShape(shape = RailItemShape),
@@ -881,8 +885,20 @@ fun NavigationDrawerScope.NavItem(
             modifier = Modifier,
             text = library.name(context),
             maxLines = 1,
-            style = if (isWeaselTv()) NeonType.railLabel(selected) else LocalTextStyle.current,
+            style = railLabelStyle(accent, selected, focused),
         )
+    }
+}
+
+/** The active page remains visible when focus moves to a different sidebar button. */
+@Composable
+private fun railLabelStyle(accent: Color, selected: Boolean, focused: Boolean): androidx.compose.ui.text.TextStyle {
+    if (!isWeaselTv()) return LocalTextStyle.current
+    val style = NeonType.railLabel(selected)
+    return if (selected && !focused) {
+        style.copy(color = accent)
+    } else {
+        style.copy(color = if (focused) NeonBoard.Text else Color(0xFFE1E4EC))
     }
 }
 
@@ -935,11 +951,7 @@ fun railGlyphColor(
     focused: Boolean,
 ): Color? {
     if (!isWeaselTv()) return null
-    return when {
-        selected -> accent
-        focused -> NeonBoard.Text
-        else -> NeonBoard.Low
-    }
+    return com.github.damontecres.wholphin.ui.theme.neonGlowAccent(accent)
 }
 
 @Composable
@@ -1026,6 +1038,7 @@ internal object WeaselNavIcons {
             "a_favorites" to "ic_nav_favorites",
             "a_discover" to "ic_nav_requests",
             "movies" to "ic_nav_movies",
+            "sports" to "ic_nav_sports",
             "tv shows" to "ic_nav_tvshows",
             "stand up comedy" to "ic_nav_standup",
             "ufc" to "ic_nav_ufc",
@@ -1052,7 +1065,14 @@ internal object WeaselNavIcons {
         item: NavDrawerItem,
     ): Int? {
         val key = if (item is ServerNavDrawerItem) item.name.trim().lowercase() else item.id
-        val entry = map[key] ?: return null
+        val entry = map[key] ?: (item as? ServerNavDrawerItem)?.type?.let {
+            when (it) {
+                CollectionType.MOVIES -> "ic_nav_movies"
+                CollectionType.TVSHOWS -> "ic_nav_tvshows"
+                CollectionType.BOXSETS -> "ic_nav_collections"
+                else -> null
+            }
+        } ?: return null
         return fixed(context, entry)
     }
 

@@ -50,6 +50,7 @@
     <string name="error_loading_collection">Error loading collection %1$s</string>
     <string name="external_track">External</string>
     <string name="favorites">Favorites</string>
+    <string name="watchlist">Watchlist</string>
     <string name="file_size">Size</string>
     <string name="forced_track">Forced</string>
     <string name="genres">Genres</string>
@@ -101,6 +102,7 @@
     <string name="recap">Recap</string>
     <string name="recently_added_in">Recently added in %1$s</string>
     <string name="recently_added">Recently added</string>
+    <string name="home_new_in">New in</string>
     <string name="recently_recorded">Recently Recorded</string>
     <string name="recently_released">Recently Released</string>
     <string name="recommended">Recommended</string>
@@ -952,4 +954,10 @@
     <string name="streaming_all">All</string>
     <string name="streaming_shows">Shows</string>
     <string name="streaming_provider_description">Streaming on %1$s right now.</string>
+    <string name="recommended_kicker_just">Just</string>
+    <string name="recommended_kicker_top_rated">Top Rated</string>
+    <string name="recommended_kicker_your">Your</string>
+    <string name="recommended_title_released">Released</string>
+    <string name="recommended_title_added">Added</string>
+    <string name="recommended_title_unwatched">Unwatched</string>
 </resources>

@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.ui.theme
 
+import com.github.damontecres.wholphin.BuildConfig
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
@@ -45,14 +46,29 @@ fun WholphinTheme(
             darkTheme -> themeColors.darkScheme
             else -> themeColors.lightScheme
         }
-    // Barlow only when the WeaselTV theme is active; every other theme keeps the stock
-    // typography, so upstream flavors are untouched even though the code path is shared.
-    val typography =
-        if (appThemeColors == AppThemeColors.WEASELTV) rememberNeonTypography() else AppTypography
+    // Both TV and standard Material components share the packaged WeaselPlex fonts.
+    val useWeaselFonts = BuildConfig.FLAVOR == "weaselfin" || appThemeColors == AppThemeColors.WEASELTV
+    val typography = if (useWeaselFonts) rememberNeonTypography() else AppTypography
     CompositionLocalProvider(LocalTheme provides appThemeColors) {
         androidx.compose.material3.MaterialTheme(
             colorScheme = if (darkTheme) themeColors.darkSchemeMaterial else themeColors.lightSchemeMaterial,
-            typography = androidx.compose.material3.Typography(),
+            typography = if (useWeaselFonts) androidx.compose.material3.Typography(
+                displayLarge = typography.displayLarge,
+                displayMedium = typography.displayMedium,
+                displaySmall = typography.displaySmall,
+                headlineLarge = typography.headlineLarge,
+                headlineMedium = typography.headlineMedium,
+                headlineSmall = typography.headlineSmall,
+                titleLarge = typography.titleLarge,
+                titleMedium = typography.titleMedium,
+                titleSmall = typography.titleSmall,
+                bodyLarge = typography.bodyLarge,
+                bodyMedium = typography.bodyMedium,
+                bodySmall = typography.bodySmall,
+                labelLarge = typography.labelLarge,
+                labelMedium = typography.labelMedium,
+                labelSmall = typography.labelSmall,
+            ) else androidx.compose.material3.Typography(),
         ) {
             MaterialTheme(
                 colorScheme = colorScheme,

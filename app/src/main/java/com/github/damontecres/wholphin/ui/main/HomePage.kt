@@ -6,12 +6,15 @@ import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -39,6 +42,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -101,6 +105,7 @@ import com.github.damontecres.wholphin.ui.theme.LocalHomeCardBorderAccent
 import com.github.damontecres.wholphin.ui.theme.LocalHomeRowAccent
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.NeonSectionPalette
 import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
@@ -242,6 +247,7 @@ fun HomePage(
             HomePageContent(
                 homeRows = homeRows,
                 libraries = libraries,
+                splitHomeTitles = true,
                 position = position,
                 onFocusPosition = onFocusPosition,
                 onClickItem = onClickItem,
@@ -326,6 +332,8 @@ fun HomePageContent(
         )
     },
     libraries: List<Library> = emptyList(),
+    splitHomeTitles: Boolean = false,
+    rowHeading: (@Composable (HomeRowLoadingState.Success) -> Pair<String, String?>)? = null,
     onClickViewMore: (RowColumn, HomeRowLoadingState.Success) -> Unit = { _, _ -> },
 ) {
     val focusedItem =
@@ -337,6 +345,7 @@ fun HomePageContent(
 
     val rowFocusRequesters = remember(homeRows.size) { List(homeRows.size) { FocusRequester() } }
     val rowTitleHeights = remember { mutableStateMapOf<Int, Int>() }
+    val rowHeights = remember { mutableStateMapOf<Int, Int>() }
     var firstFocused by remember { mutableStateOf(false) }
 
     val currentPosition by rememberUpdatedState(position)
@@ -367,7 +376,25 @@ fun HomePageContent(
     LaunchedEffect(onUpdateBackdrop, focusedItem) {
         focusedItem?.let { onUpdateBackdrop.invoke(it) }
     }
-    Box(modifier = modifier) {
+    BoxWithConstraints(modifier = modifier) {
+        val density = LocalDensity.current
+        val focusedRowIndex = position.row.coerceAtLeast(0)
+        val nextRowIndex = ((focusedRowIndex + 1) until homeRows.size).firstOrNull {
+            (homeRows[it] as? HomeRowLoadingState.Success)?.items?.isNotEmpty() == true
+        }
+        val focusedRowHeight = rowHeights[focusedRowIndex]
+        val focusedTitleHeight = rowTitleHeights[focusedRowIndex]
+        val nextTitleHeight = nextRowIndex?.let { rowTitleHeights[it] ?: focusedTitleHeight }
+        // Keep the next kicker, title and rule above the viewport edge. Use actual row
+        // measurements so font, card, caption and spacing tuning all share this budget.
+        val headerMaxHeight = if (
+            isWeaselTv() && (splitHomeTitles || rowHeading != null) && focusedRowHeight != null && nextTitleHeight != null
+        ) {
+            with(density) { maxHeight - (focusedRowHeight + nextTitleHeight).toDp() - 16.dp }
+                .coerceAtLeast(120.dp)
+        } else {
+            maxHeight
+        }
         Column(
             modifier =
                 Modifier
@@ -377,9 +404,10 @@ fun HomePageContent(
                         }
                     }.fillMaxSize(),
         ) {
-            headerComposable.invoke(focusedItem)
+            Box(Modifier.heightIn(max = headerMaxHeight)) {
+                headerComposable.invoke(focusedItem)
+            }
 
-            val density = LocalDensity.current
             val focusedRow = homeRows.getOrNull(position.row) as? HomeRowLoadingState.Success
             val spaceAbovePx =
                 with(density) {
@@ -454,8 +482,16 @@ fun HomePageContent(
                                         val curated =
                                             BuildConfig.FLAVOR == "weaselfin" &&
                                                 row.rowType?.let(CuratedCollections::isCuratedRow) == true
+                                        val heading = if (rowHeading != null && isWeaselTv()) {
+                                            rowHeading(row)
+                                        } else if (splitHomeTitles && isWeaselTv()) {
+                                            homeRowHeading(row.rowType, libraries, row.title.getString())
+                                        } else {
+                                            row.title.getString() to null
+                                        }
                                         ItemRow(
-                                            title = row.title.getString(),
+                                            title = heading.first,
+                                            titleKicker = heading.second,
                                             onTitleHeightChanged = { rowTitleHeights[rowIndex] = it },
                                             titleAccent = homeRowAccent(row.rowType, libraries),
                                             items = row.items,
@@ -482,13 +518,13 @@ fun HomePageContent(
                                                 },
                                             modifier =
                                                 rowModifier
+                                                    .onSizeChanged { rowHeights[rowIndex] = it.height }
                                                     .fillMaxWidth()
                                                     .focusGroup()
                                                     .focusRequester(rowFocusRequesters[rowIndex]),
                                             horizontalPadding = viewOptions.spacing.dp,
                                             dividerGap = if (isWeaselTv()) viewOptions.dividerGapDp.dp else 8.dp,
                                             titleDividerGap = if (isWeaselTv()) viewOptions.titleDividerGapDp.dp else 4.dp,
-                                            titleStartPadding = if (isWeaselTv()) focusedFirstCardStart(viewOptions, row.items.firstOrNull()) else 8.dp,
                                             titleSize = viewOptions.titleSizeSp.sp,
                                             titleLetterSpacing = (viewOptions.titleLetterSpacingTenthsSp / 10f).sp,
                                             countSize = viewOptions.countSizeSp.sp,
@@ -560,6 +596,9 @@ fun HomePageContent(
                                                             streamingProviderAccent(item.name) ?: homeRowAccent(row.rowType, libraries)
                                                         } else if (curated && item != null) {
                                                             curatedPickAccent(item.name) ?: homeRowAccent(row.rowType, libraries)
+                                                        } else if (item?.type in listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES, BaseItemKind.SEASON, BaseItemKind.EPISODE)) {
+                                                            val rowColor = homeRowAccent(row.rowType, libraries)
+                                                            if (rowColor == NeonSectionPalette.StandUpComedy.border || rowColor == NeonSectionPalette.Sports.border) rowColor else typeAccent(item?.type)
                                                         } else {
                                                             homeRowAccent(row.rowType, libraries)
                                                         },
@@ -641,22 +680,40 @@ fun HomePageContent(
     }
 }
 
-/** Resolve the source library, so named sections such as Boxing keep their rail colour. */
-/** Keep the title in the first focused poster's visual start column, including its border. */
-private fun focusedFirstCardStart(options: HomeRowViewOptions, firstItem: BaseItem?): Dp {
-    val ratio = if (firstItem?.type == BaseItemKind.EPISODE) options.episodeAspectRatio.ratio else options.aspectRatio.ratio
-    val appearance = options.cardAppearance
-    val scale = appearance.focusScalePercent / 100f
-    val growth = options.heightDp * ratio * (scale - 1f).coerceAtLeast(0f) / 2f
-    val border = if (appearance.borderOpacityPercent > 0) appearance.borderWidthDp * scale / 2f else 0f
-    return ((options.edgePaddingDp ?: options.spacing) - growth - border).dp
-}
+/** Split Home headings from row semantics rather than parsing a translated title. */
+@Composable
+private fun homeRowHeading(
+    row: HomeRowConfig?,
+    libraries: List<Library>,
+    fallback: String,
+): Pair<String, String?> =
+    when {
+        row is HomeRowConfig.ContinueWatchingCombined ->
+            stringResource(R.string.continue_watching) to "${stringResource(R.string.next_up)} &"
+        row?.let(StreamingCollections::isStreamingRow) == true ->
+            StreamingCollections.NAME to stringResource(R.string.collections)
+        row?.let(CuratedCollections::isCuratedRow) == true ->
+            CuratedCollections.NAME to stringResource(R.string.collections)
+        row is HomeRowConfig.RecentlyAdded ->
+            libraries.firstOrNull { it.itemId == row.parentId }?.let { library ->
+                library.name to stringResource(R.string.home_new_in)
+            } ?: (fallback to null)
+        row is HomeRowConfig.RecentlyReleased ->
+            libraries.firstOrNull { it.itemId == row.parentId }?.name?.let {
+                it to stringResource(R.string.recently_released)
+            } ?: (fallback to null)
+        else -> fallback to null
+    }
 
+/** Resolve the source library, so named sections such as Boxing keep their rail colour. */
 @Composable
 private fun homeRowAccent(
     row: HomeRowConfig?,
     libraries: List<Library>,
 ): Color {
+    if (row?.let(StreamingCollections::isStreamingRow) == true) {
+        return NeonSectionPalette.Collections.border
+    }
     val parentId =
         when (row) {
             is HomeRowConfig.RecentlyAdded -> row.parentId
@@ -677,6 +734,8 @@ fun HomePageHeader(
     item: BaseItem?,
     showLogo: Boolean,
     modifier: Modifier = Modifier,
+    compactLogo: Boolean = false,
+    compactDetails: Boolean = false,
 ) {
     val isEpisode = item?.type == BaseItemKind.EPISODE
     val dto = item?.data
@@ -713,6 +772,8 @@ fun HomePageHeader(
         endsAt = item?.data?.endDate,
         showLogo = showLogo,
         logoImageUrl = rememberLogoUrl(item),
+        compactLogo = compactLogo,
+        compactDetails = compactDetails,
         modifier = modifier,
     )
 }
@@ -731,7 +792,61 @@ fun HomePageHeader(
     modifier: Modifier = Modifier,
     eyebrow: String? = null,
     accent: Color = LocalNeonAccent.current,
+    compactLogo: Boolean = false,
+    compactDetails: Boolean = false,
 ) {
+    if (compactDetails) {
+        // The first Recommended row shares its viewport with library tabs. Keep
+        // identity and metadata compact, then let Text ellipsize at a complete
+        // line within the remaining height instead of clipping a fixed text box.
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = modifier,
+        ) {
+            if (eyebrow != null) {
+                NeonEyebrow(text = eyebrow, accent = accent)
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(.92f),
+            ) {
+                if (showLogo && logoImageUrl != null) {
+                    TitleOrLogo(
+                        title = title,
+                        logoImageUrl = logoImageUrl,
+                        showLogo = true,
+                        modifier = Modifier.width(160.dp).height(28.dp),
+                        compact = true,
+                    )
+                } else {
+                    Text(
+                        text = title.orEmpty().uppercase(),
+                        style = NeonType.hero(20.sp),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                if (subtitle != null) {
+                    EpisodeName(subtitle, Modifier.weight(1f))
+                }
+            }
+            QuickDetails(quickDetails, timeRemaining, endsAt = endsAt)
+            if (overview.isNotNullOrBlank()) {
+                Text(
+                    text = overview,
+                    style = NeonType.body(),
+                    color = Color.White,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth(.92f).weight(1f, fill = false),
+                )
+            }
+        }
+        return
+    }
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = modifier,
@@ -743,7 +858,9 @@ fun HomePageHeader(
             title = title,
             logoImageUrl = logoImageUrl,
             showLogo = showLogo,
-            modifier = Modifier.fillMaxWidth(.75f),
+            modifier = Modifier.fillMaxWidth(.75f).then(
+                if (compactLogo && showLogo && logoImageUrl != null) Modifier.heightIn(max = 40.dp) else Modifier,
+            ),
         )
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -764,7 +881,7 @@ fun HomePageHeader(
                 Text(
                     text = overview,
                     style = if (isWeaselTv()) NeonType.body() else MaterialTheme.typography.bodyMedium,
-                    color = if (isWeaselTv()) NeonBoard.Mid else MaterialTheme.colorScheme.onSurface,
+                    color = if (isWeaselTv()) Color.White else MaterialTheme.colorScheme.onSurface,
                     maxLines = if (overviewTwoLines) 2 else 3,
                     overflow = TextOverflow.Ellipsis,
                     modifier = overviewModifier,

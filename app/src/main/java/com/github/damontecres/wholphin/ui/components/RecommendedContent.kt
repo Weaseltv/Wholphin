@@ -15,6 +15,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.preferences.AppPreferences
@@ -41,6 +42,7 @@ import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.theme.LocalHomeCardAppearance
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.main.HomePageContent
+import com.github.damontecres.wholphin.ui.main.HomePageHeader
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberPosition
 import com.github.damontecres.wholphin.ui.toBaseItems
@@ -348,12 +350,26 @@ data class RecommendedRow<T>(
 )
 
 @Composable
+private fun recommendedRowHeading(row: HomeRowLoadingState.Success): Pair<String, String?> =
+    when ((row.title as? ResStringProvider)?.stringResId) {
+        R.string.continue_watching -> stringResource(R.string.continue_watching) to "${stringResource(R.string.next_up)} &"
+        R.string.next_up -> stringResource(R.string.continue_watching) to "${stringResource(R.string.next_up)} &"
+        R.string.recently_released -> stringResource(R.string.recommended_title_released) to stringResource(R.string.recommended_kicker_just)
+        R.string.recently_added -> stringResource(R.string.recommended_title_added) to stringResource(R.string.recommended_kicker_just)
+        R.string.top_unwatched -> stringResource(R.string.recommended_title_unwatched) to stringResource(R.string.recommended_kicker_top_rated)
+        R.string.suggestions -> stringResource(R.string.suggestions) to stringResource(R.string.recommended_kicker_your)
+        else -> row.title.getString() to null
+    }
+
+@Composable
 fun RecommendedContent(
     preferences: UserPreferences,
     viewModel: RecommendedViewModel,
     modifier: Modifier = Modifier,
     playlistViewModel: AddPlaylistViewModel = hiltViewModel(),
     onFocusPosition: ((RowColumn) -> Unit)? = null,
+    headerModifier: Modifier = HeaderUtils.homeModifier(),
+    splitRecommendedTitles: Boolean = false,
 ) {
     var showContextMenu by remember { mutableStateOf<ContextMenu?>(null) }
     var overviewDialog by remember { mutableStateOf<ItemDetailsDialogInfo?>(null) }
@@ -370,7 +386,7 @@ fun RecommendedContent(
     val homeRows = if (isWeaselTv()) {
         state.rows.map { row ->
             if (row is HomeRowLoadingState.Success) {
-                row.copy(viewOptions = row.viewOptions.copy(cardAppearance = libraryCardAppearance))
+                row.copy(viewOptions = ApprovedHomeLayout.applyPresentation(row.viewOptions).copy(cardAppearance = libraryCardAppearance))
             } else row
         }
     } else state.rows
@@ -419,6 +435,9 @@ fun RecommendedContent(
 
             HomePageContent(
                 homeRows = homeRows,
+                rowHeading = if (splitRecommendedTitles && isWeaselTv()) {
+                    { row -> recommendedRowHeading(row) }
+                } else null,
                 position = position,
                 onClickItem = { _, item ->
                     viewModel.navigationManager.navigateTo(item.destination())
@@ -461,6 +480,18 @@ fun RecommendedContent(
                 showViewMore = true,
                 onClickViewMore = viewModel::onClickViewMore,
                 modifier = modifier,
+                headerComposable = { focusedItem ->
+                    HomePageHeader(
+                        item = focusedItem,
+                        showLogo = preferences.appPreferences.interfacePreferences.showLogos,
+                        modifier = headerModifier,
+                        compactLogo = splitRecommendedTitles && isWeaselTv(),
+                        compactDetails = splitRecommendedTitles && isWeaselTv() &&
+                            position.row <= homeRows.indexOfFirst {
+                                it is HomeRowLoadingState.Success && it.items.isNotEmpty()
+                            },
+                    )
+                },
             )
         }
     }

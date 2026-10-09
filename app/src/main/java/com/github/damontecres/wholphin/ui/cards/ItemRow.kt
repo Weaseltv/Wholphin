@@ -30,16 +30,19 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.BuildConfig
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.ui.bleedHorizontal
 import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.LocalNeonRuleInsets
-import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonSectionRule
 import com.github.damontecres.wholphin.ui.theme.NeonType
+import com.github.damontecres.wholphin.ui.theme.neonGlowAccent
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 
@@ -57,23 +60,24 @@ fun <T> ItemRow(
         onLongClick: () -> Unit,
     ) -> Unit,
     modifier: Modifier = Modifier,
-    horizontalPadding: Dp = 16.dp,
+    horizontalPadding: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.CARD_SPACING_DP.dp else 16.dp,
     showViewMore: Boolean = false,
     titleAccent: Color = LocalNeonAccent.current,
     viewMoreCardContent: @Composable (Modifier) -> Unit = {},
     cardContentPadding: PaddingValues? = null,
-    dividerGap: Dp = 8.dp,
-    titleDividerGap: Dp = 4.dp,
+    dividerGap: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.DIVIDER_GAP_DP.dp else 8.dp,
+    titleDividerGap: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.TITLE_DIVIDER_GAP_DP.dp else 4.dp,
     onTitleHeightChanged: (Int) -> Unit = {},
-    dividerThickness: Dp = 1.dp,
-    dividerGlow: Dp = 12.dp,
-    dividerGlowStrength: Float = .35f,
-    titleSize: TextUnit = 22.sp,
-    titleLetterSpacing: TextUnit = 0.sp,
-    countSize: TextUnit = 12.sp,
+    dividerThickness: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.DIVIDER_THICKNESS_DP.dp else 1.dp,
+    dividerGlow: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.DIVIDER_GLOW_DP.dp else 12.dp,
+    dividerGlowStrength: Float = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.DIVIDER_GLOW_STRENGTH / 100f else .35f,
+    titleSize: TextUnit = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.TITLE_SIZE_SP.sp else 22.sp,
+    titleLetterSpacing: TextUnit = if (BuildConfig.FLAVOR == "weaselfin") (ApprovedHomeLayout.TITLE_TRACKING_TENTHS_SP / 10f).sp else .06.em,
+    countSize: TextUnit = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.COUNT_SIZE_SP.sp else 12.sp,
     countOpacity: Float = 1f,
-    countEndPadding: Dp = 8.dp,
-    titleStartPadding: Dp = 8.dp,
+    countEndPadding: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.COUNT_END_PADDING_DP.dp else 8.dp,
+    titleStartPadding: Dp? = null,
+    titleKicker: String? = null,
 ) {
     val state = rememberLazyListState()
     val firstFocus = remember { FocusRequester() }
@@ -87,7 +91,12 @@ fun <T> ItemRow(
     val layoutDirection = LocalLayoutDirection.current
     val cardPadding =
         cardContentPadding
-            ?: PaddingValues(horizontal = horizontalPadding, vertical = if (neon) 4.dp else 8.dp)
+            ?: PaddingValues(
+                start = if (neon) ApprovedHomeLayout.EDGE_PADDING_DP.dp else horizontalPadding,
+                end = if (neon) ApprovedHomeLayout.END_PADDING_DP.dp else horizontalPadding,
+                top = if (neon) (ApprovedHomeLayout.VERTICAL_PADDING_DP + ApprovedHomeLayout.EXTRA_VERTICAL_PADDING_DP).dp else 8.dp,
+                bottom = if (neon) (ApprovedHomeLayout.VERTICAL_PADDING_DP + ApprovedHomeLayout.EXTRA_VERTICAL_PADDING_DP).dp else 8.dp,
+            )
 
     Column(
         verticalArrangement = Arrangement.spacedBy(dividerGap),
@@ -100,6 +109,7 @@ fun <T> ItemRow(
     ) {
         ItemRowTitle(
             title,
+            kicker = titleKicker,
             count = items.size.takeIf { isWeaselTv() },
             accent = titleAccent,
             dividerGap = titleDividerGap,
@@ -112,7 +122,7 @@ fun <T> ItemRow(
             countSize = countSize,
             countOpacity = countOpacity,
             countEndPadding = countEndPadding,
-            titleStartPadding = titleStartPadding,
+            titleStartPadding = titleStartPadding ?: if (neon) cardPadding.calculateStartPadding(layoutDirection) else 8.dp,
         )
 
         LazyRow(
@@ -186,7 +196,7 @@ fun <T> ItemRow(
 }
 
 /**
- * A row's title. Neon Board (`02-components-tv.md` § T4): Barlow Condensed 800 22sp
+ * A row's title. Neon Board (`02-components-tv.md` § T4): Audiowide 400 22sp
  * uppercase, an optional count on the right, then a 1dp rule in the row accent with
  * 14dp to the cards. Stock title on every other theme.
  */
@@ -196,16 +206,17 @@ fun ItemRowTitle(
     modifier: Modifier = Modifier,
     count: Int? = null,
     accent: Color = LocalNeonAccent.current,
-    dividerGap: Dp = 4.dp,
-    dividerThickness: Dp = 1.dp,
-    dividerGlow: Dp = 12.dp,
-    dividerGlowStrength: Float = .35f,
-    titleSize: TextUnit = 22.sp,
-    titleLetterSpacing: TextUnit = 0.sp,
-    countSize: TextUnit = 12.sp,
+    dividerGap: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.TITLE_DIVIDER_GAP_DP.dp else 4.dp,
+    dividerThickness: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.DIVIDER_THICKNESS_DP.dp else 1.dp,
+    dividerGlow: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.DIVIDER_GLOW_DP.dp else 12.dp,
+    dividerGlowStrength: Float = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.DIVIDER_GLOW_STRENGTH / 100f else .35f,
+    titleSize: TextUnit = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.TITLE_SIZE_SP.sp else 22.sp,
+    titleLetterSpacing: TextUnit = if (BuildConfig.FLAVOR == "weaselfin") (ApprovedHomeLayout.TITLE_TRACKING_TENTHS_SP / 10f).sp else .06.em,
+    countSize: TextUnit = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.COUNT_SIZE_SP.sp else 12.sp,
     countOpacity: Float = 1f,
-    countEndPadding: Dp = 8.dp,
+    countEndPadding: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.COUNT_END_PADDING_DP.dp else 8.dp,
     titleStartPadding: Dp = 8.dp,
+    kicker: String? = null,
 ) {
     if (!isWeaselTv()) {
         Text(
@@ -223,18 +234,29 @@ fun ItemRowTitle(
             verticalAlignment = Alignment.Bottom,
             modifier = Modifier.fillMaxWidth().padding(start = titleStartPadding.coerceAtLeast(0.dp), end = countEndPadding),
         ) {
-            Text(
-                text = title.uppercase(),
-                style = NeonType.sectionTitle().copy(fontSize = titleSize, lineHeight = titleSize * .95f, letterSpacing = titleLetterSpacing),
-                color = NeonBoard.Text,
-                maxLines = 1,
+            Column(
                 modifier = Modifier.weight(1f).offset(x = titleStartPadding.coerceAtMost(0.dp)),
-            )
+            ) {
+                if (!kicker.isNullOrBlank()) {
+                    Text(
+                        text = kicker.uppercase(),
+                        style = NeonType.homeKicker(titleSize),
+                        color = neonGlowAccent(accent),
+                        maxLines = 1,
+                    )
+                }
+                Text(
+                    text = title.uppercase(),
+                    style = NeonType.sectionTitle().copy(fontSize = titleSize, lineHeight = titleSize * 1.2f, letterSpacing = titleLetterSpacing),
+                    color = Color.White,
+                    maxLines = 1,
+                )
+            }
             if (count != null && count > 0) {
                 Text(
                     text = count.toString(),
-                    style = NeonType.count().copy(fontSize = countSize, lineHeight = countSize * 1.2f),
-                    color = NeonBoard.Mid.copy(alpha = countOpacity.coerceIn(0f, 1f)),
+                    style = NeonType.numeral(countSize).copy(fontSize = countSize, lineHeight = countSize * 1.2f),
+                    color = Color(0xFF787E8C).copy(alpha = countOpacity.coerceIn(0f, 1f)),
                     modifier = Modifier.padding(bottom = 3.dp),
                 )
             }

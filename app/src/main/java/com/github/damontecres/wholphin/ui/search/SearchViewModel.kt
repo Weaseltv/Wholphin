@@ -5,6 +5,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.datastore.core.DataStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.DiscoverItem
@@ -111,6 +112,8 @@ class SearchViewModel
                         .flatMap { it.collectionType.baseItemKinds }
                         .toSet()
 
+                val defaultExcludes = if (BuildConfig.FLAVOR == "weaselfin") listOf(BaseItemKind.BOX_SET) else emptyList()
+                val defaultDiscover = BuildConfig.FLAVOR != "weaselfin"
                 val excludedSearchableTypes =
                     serverRepository.currentUser?.id?.let { userId ->
                         try {
@@ -118,13 +121,13 @@ class SearchViewModel
                                 .get<List<BaseItemKind>>(
                                     userId,
                                     EXCLUDED_SEARCHABLE_TYPES_KEY,
-                                    emptyList(),
+                                    defaultExcludes,
                                 ).firstOrNull()
                         } catch (ex: Exception) {
                             Timber.e(ex, "Error occurred fetching excluded search types")
-                            emptyList()
+                            defaultExcludes
                         }
-                    } ?: emptyList()
+                    } ?: defaultExcludes
                 val discoverEnabled =
                     serverRepository.currentUser?.id?.let { userId ->
                         try {
@@ -132,13 +135,13 @@ class SearchViewModel
                                 .get(
                                     userId,
                                     INCLUDE_DISCOVER_KEY,
-                                    true,
+                                    defaultDiscover,
                                 ).firstOrNull()
                         } catch (ex: Exception) {
                             Timber.e(ex, "Error occurred fetching excluded search types")
-                            true
+                            defaultDiscover
                         }
-                    } ?: true
+                    } ?: defaultDiscover
                 val searchableTypes = determineSearchableTypes(excludedSearchableTypes)
                 val possibleSearchableTypes = determineSearchableTypes(emptyList())
                 _state.update {

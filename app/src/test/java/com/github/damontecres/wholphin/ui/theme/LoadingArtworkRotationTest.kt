@@ -17,7 +17,7 @@ import org.robolectric.annotation.Config
 class LoadingArtworkRotationTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val preferences = context.getSharedPreferences("weaselplex_loading_artwork", Context.MODE_PRIVATE)
-    private val artworks = (101..112).toList()
+    private val artworks = (101..132).toList()
 
     @Before
     fun reset() {
@@ -34,10 +34,10 @@ class LoadingArtworkRotationTest {
 
     @Test
     fun `saved position is resumed and the next appearance is persisted`() {
-        preferences.edit().putInt("next_index", 10).commit()
-        assertEquals(111, LoadingArtworkRotation.next(context, artworks))
-        assertEquals(11, preferences.getInt("next_index", -1))
-        assertEquals(112, LoadingArtworkRotation.next(context, artworks))
+        preferences.edit().putInt("next_index", 30).commit()
+        assertEquals(131, LoadingArtworkRotation.next(context, artworks))
+        assertEquals(31, preferences.getInt("next_index", -1))
+        assertEquals(132, LoadingArtworkRotation.next(context, artworks))
         assertEquals(0, preferences.getInt("next_index", -1))
     }
 

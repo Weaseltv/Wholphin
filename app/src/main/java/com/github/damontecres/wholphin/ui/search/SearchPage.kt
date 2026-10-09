@@ -345,6 +345,15 @@ fun SearchPage(
                 )
             }
         }
+        if (isWeaselTv() && showHeader) {
+            SearchTypeToggleRow(
+                searchableTypes = state.possibleSearchableTypes,
+                excludedSearchableTypes = state.excludedSearchableTypes,
+                onClick = viewModel::onClickExcludeSearchableType,
+                // Balance the page's 24 dp rail-side gutter against its 8 dp right gutter.
+                modifier = Modifier.padding(end = 16.dp),
+            )
+        }
         AnimatedVisibility(
             visible = showTabs,
             enter = expandVertically(),
@@ -494,7 +503,7 @@ fun SearchPage(
     if (showFilterTypeDialog) {
         SearchTypeOptionsDialog(
             onDismissRequest = { showFilterTypeDialog = false },
-            searchableTypes = state.possibleSearchableTypes,
+            searchableTypes = if (isWeaselTv()) state.possibleSearchableTypes.filterNot { it in PrimarySearchTypes } else state.possibleSearchableTypes,
             excludedSearchableTypes = state.excludedSearchableTypes,
             discoverAvailable = seerrActive,
             discoverEnabled = state.discoverEnabled,
@@ -651,7 +660,7 @@ private fun <T : CardGridItem> SearchGrid(
         verticalArrangement = Arrangement.spacedBy(0.dp),
         modifier = modifier,
     ) {
-        ItemRowTitle(stringResource(R.string.results))
+        ItemRowTitle(stringResource(R.string.results), titleStartPadding = if (isWeaselTv()) 0.dp else 8.dp)
 
         CardGrid(
             pager = items,

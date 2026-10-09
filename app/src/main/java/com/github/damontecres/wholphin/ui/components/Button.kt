@@ -113,7 +113,7 @@ fun Button(
         border = border,
         interactionSource = interactionSource,
     ) {
-        // Button labels: Barlow 16 / 700 on the WeaselTV theme, the stock label elsewhere.
+        // Button labels: Exo 2 16 / 700 on the WeaselTV theme, the stock label elsewhere.
         ProvideTextStyle(value = if (isWeaselTv()) NeonType.button() else MaterialTheme.typography.labelLarge) {
             Row(
                 modifier =

@@ -223,7 +223,7 @@ fun StarRating(
                         if (focused) {
                             MaterialTheme.colorScheme.border
                         } else {
-                            Color.Unspecified
+                            Color.Transparent
                         }
                     Box(
                         modifier =

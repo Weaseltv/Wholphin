@@ -1,0 +1,15 @@
+{
+  "uniqueId": "com.google.fonts.exo2",
+  "developers": [
+    {
+      "name": "Natanael Gama"
+    }
+  ],
+  "artifactVersion": "Version 2.010",
+  "description": "Exo 2, bundled WeaselPlex typography.",
+  "name": "Exo 2",
+  "licenses": [
+    "ofl-exo2"
+  ],
+  "website": "https://fonts.google.com/specimen/Exo+2"
+}
