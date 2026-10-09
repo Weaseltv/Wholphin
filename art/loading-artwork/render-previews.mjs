@@ -14,7 +14,7 @@ const gallery = (await readFile(`${directory}preview.html`, 'utf8'))
   .replace('const artworks = [', `const embeddedArt = ${JSON.stringify(embeddedArt)};\n    const artworks = [`)
   .replace('../../app/src/weaselfin/res/drawable-nodpi/weaselplex_loading_${name}.webp', '${embeddedArt[name]}');
 await writeFile(`${directory}previews/gallery.html`, gallery);
-console.log('Saved gallery.html with all twelve artworks embedded');
+console.log('Saved gallery.html with all 32 artworks embedded');
 if (process.argv.includes('--gallery-only')) process.exit(0);
 const tabs = await (await fetch('http://127.0.0.1:9876/json')).json();
 const tab = tabs.find(tab => tab.type === 'page');

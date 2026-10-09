@@ -18,7 +18,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -35,7 +34,7 @@ class LoadingArtworkLayoutTest {
     val compose = createComposeRule()
 
     @Test
-    fun `entire illustration fits with a fifteen percent margin in every loading shape`() {
+    fun `entire illustration fits the full area in every loading shape`() {
         val dimensions = mutableStateOf(DpSize(320.dp, 180.dp))
         val edgePainter =
             object : Painter() {
@@ -76,15 +75,12 @@ class LoadingArtworkLayoutTest {
                     }
                 }
             }
-            val width = min(pixels.width * .7f, pixels.height * .7f * 16f / 9f)
+            val width = min(pixels.width.toFloat(), pixels.height * 16f / 9f)
             val height = width * 9f / 16f
             assertEquals("artwork width in $size", width, (maxX - minX + 1).toFloat(), 2f)
             assertEquals("artwork height in $size", height, (maxY - minY + 1).toFloat(), 2f)
             assertEquals("centered horizontally in $size", pixels.width / 2f, (minX + maxX + 1) / 2f, 1f)
             assertEquals("centered vertically in $size", pixels.height / 2f, (minY + maxY + 1) / 2f, 1f)
-            assertTrue("left edge margin in $size", minX >= pixels.width * .15f - 1)
-            assertTrue("top edge margin in $size", minY >= pixels.height * .15f - 1)
-            assertEquals(Color.Black, pixels[0, 0])
         }
     }
 }

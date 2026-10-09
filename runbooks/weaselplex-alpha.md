@@ -576,3 +576,16 @@ Recommended pages too, including Home's focused-title scroll clearance. Their
 detail-header logos are capped at 40 dp to leave room for episode metadata under
 the taller row headings. Home and other page heading styles remain as configured.
 Delivery remains arm64 Alpha; owner performs visual verification.
+
+## Owner-supplied 32 loading illustrations (2026-10-09)
+
+Replace the previous 12 loading assets with all 32 original WebPs supplied in
+`weaselplex-loading-mascot-v6.zip`. The assets are bundled offline without
+resizing or recompression. The same persisted rotation advances once per loading
+appearance and now cycles through all 32 scenes.
+
+The shared loading illustration uses 100% of its available layout area instead
+of 70%, preserving proportions with `ContentScale.Fit` and no cropping. This
+changes artwork sizing, not opacity. The source manifest and local preview match
+the new collection and sizing. Arm64 Alpha built successfully and installed in
+place on Shield directly from the assigned VPS; owner visual verification follows.
