@@ -88,6 +88,7 @@ import com.github.damontecres.wholphin.ui.theme.LocalNeonSectionAccent
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonGlowAccent
 import com.github.damontecres.wholphin.ui.tryRequestFocus
+import com.github.damontecres.wholphin.ui.util.KeepVisibleBringIntoViewSpec
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import kotlin.math.ceil
@@ -336,7 +337,9 @@ fun <T : CardGridItem> CardGrid(
             Box(
                 modifier = Modifier.weight(1f),
             ) {
-                CompositionLocalProvider(LocalBringIntoViewSpec provides bringIntoViewSpec) {
+                CompositionLocalProvider(
+                    LocalBringIntoViewSpec provides if (isWeaselTv()) KeepVisibleBringIntoViewSpec else bringIntoViewSpec,
+                ) {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(columns),
                         horizontalArrangement = Arrangement.spacedBy(cardSpacing),

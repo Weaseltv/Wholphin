@@ -1,6 +1,8 @@
 package com.github.damontecres.wholphin.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.FlingBehavior
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -38,6 +40,7 @@ import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import com.github.damontecres.wholphin.ui.theme.LocalHomeCardAppearance
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.util.KeepVisibleBringIntoViewSpec
 import kotlin.math.ceil
 
 /** Measured first-row budget, shared by item, cast, chapter and discovery rows. */
@@ -64,10 +67,16 @@ val LocalCompactDetailHeader = staticCompositionLocalOf { false }
 val LocalDetailViewport = staticCompositionLocalOf<DetailViewportState?> { null }
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 fun DetailPageViewport(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     BoxWithConstraints(modifier) {
         val state = remember(maxHeight) { DetailViewportState(maxHeight) }
-        CompositionLocalProvider(LocalDetailViewport provides if (isWeaselTv()) state else null) {
+        val neon = isWeaselTv()
+        val inheritedScrollSpec = LocalBringIntoViewSpec.current
+        CompositionLocalProvider(
+            LocalDetailViewport provides if (neon) state else null,
+            LocalBringIntoViewSpec provides if (neon) KeepVisibleBringIntoViewSpec else inheritedScrollSpec,
+        ) {
             content()
         }
     }
@@ -165,16 +174,15 @@ fun FocusSafeLazyRow(
         top = top,
         bottom = bottom,
     )
-    val requester = remember { BringIntoViewRequester() }
-    var focused by remember { mutableStateOf(false) }
-    LaunchedEffect(focused, contentHeight) {
-        if (neon && focused) requester.bringIntoView()
-    }
     LazyRow(
         modifier = modifier
-            .bringIntoViewRequester(requester)
-            .onFocusChanged { focused = it.hasFocus }
-            .onSizeChanged { contentHeight = with(density) { it.height.toDp() - top - bottom } },
+            .onSizeChanged {
+                // Subtract the same rounded pixel padding used by LazyRow. Subtracting
+                // fractional dp from rounded sizes feeds rounding error back into padding.
+                contentHeight = with(density) {
+                    (it.height - top.roundToPx() - bottom.roundToPx()).coerceAtLeast(0).toDp()
+                }
+            },
         state = state,
         contentPadding = padding,
         reverseLayout = reverseLayout,
