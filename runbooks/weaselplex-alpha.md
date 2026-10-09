@@ -600,3 +600,17 @@ instead of using a fixed-height box that can cut through text. The measured
 next-heading clearance and all later row headers retain their existing layout.
 Routine delivery remains arm64 Alpha installed directly from VPS to Shield;
 owner performs visual verification.
+
+## Streaming row Collections palette and white descriptions (2026-10-09)
+
+Home's COLLECTIONS / STREAMING SERVICES heading uses the Collections palette:
+Lemon Glow #FFFF33 kicker and Taxi Neon #FFD300 horizontal rule, matching the
+Collections page. The provider detail header's COLLECTION label uses Lemon Glow
+instead of inheriting Home green. Provider-specific logo colors and poster focus
+recipes retain their identities. Continue Watching and other Home row colors
+keep their existing palettes.
+
+Shared Home/Recommended detail descriptions, including the compact first-row
+header and streaming-provider descriptions, now render white #FFFFFF for
+readability over backdrops. Description fitting and ellipsis retain their
+existing behavior. Routine delivery remains arm64 Alpha; owner verifies visuals.

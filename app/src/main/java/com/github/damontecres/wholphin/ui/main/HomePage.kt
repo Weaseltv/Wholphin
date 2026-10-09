@@ -711,6 +711,9 @@ private fun homeRowAccent(
     row: HomeRowConfig?,
     libraries: List<Library>,
 ): Color {
+    if (row?.let(StreamingCollections::isStreamingRow) == true) {
+        return NeonSectionPalette.Collections.border
+    }
     val parentId =
         when (row) {
             is HomeRowConfig.RecentlyAdded -> row.parentId
@@ -835,7 +838,7 @@ fun HomePageHeader(
                 Text(
                     text = overview,
                     style = NeonType.body(),
-                    color = NeonBoard.Mid,
+                    color = Color.White,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.fillMaxWidth(.92f).weight(1f, fill = false),
@@ -878,7 +881,7 @@ fun HomePageHeader(
                 Text(
                     text = overview,
                     style = if (isWeaselTv()) NeonType.body() else MaterialTheme.typography.bodyMedium,
-                    color = if (isWeaselTv()) NeonBoard.Mid else MaterialTheme.colorScheme.onSurface,
+                    color = if (isWeaselTv()) Color.White else MaterialTheme.colorScheme.onSurface,
                     maxLines = if (overviewTwoLines) 2 else 3,
                     overflow = TextOverflow.Ellipsis,
                     modifier = overviewModifier,

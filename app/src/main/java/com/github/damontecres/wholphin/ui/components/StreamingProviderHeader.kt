@@ -23,7 +23,7 @@ import coil3.svg.SvgDecoder
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
-import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.NeonSectionPalette
 import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.streamingProviderAccent
@@ -62,13 +62,13 @@ fun StreamingProviderHeader(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth(.42f),
         ) {
-            NeonEyebrow(text = stringResource(R.string.collection), accent = LocalNeonAccent.current)
+            NeonEyebrow(text = stringResource(R.string.collection), accent = NeonSectionPalette.Collections.glow)
             TitleOrLogo(title = item.title, logoImageUrl = null, showLogo = false)
             QuickDetails(item.ui.quickDetails, item.timeRemainingOrRuntime, endsAt = item.data.endDate)
             Text(
                 text = stringResource(R.string.streaming_provider_description, item.name.orEmpty()),
                 style = NeonType.body(),
-                color = NeonBoard.Mid,
+                color = Color.White,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
