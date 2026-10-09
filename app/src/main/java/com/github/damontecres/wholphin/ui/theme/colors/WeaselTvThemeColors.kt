@@ -3,6 +3,7 @@ package com.github.damontecres.wholphin.ui.theme.colors
 import androidx.compose.ui.graphics.Color
 import androidx.tv.material3.darkColorScheme
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.NeonSectionPalette
 import com.github.damontecres.wholphin.ui.theme.ThemeColors
 
 /**
@@ -42,7 +43,7 @@ val WeaselTvThemeColors =
                 onSecondary = onAccent,
                 secondaryContainer = card2,
                 onSecondaryContainer = text,
-                tertiary = NeonBoard.Orange,
+                tertiary = NeonSectionPalette.Movies.border,
                 onTertiary = onAccent,
                 tertiaryContainer = card2,
                 onTertiaryContainer = text,
@@ -74,7 +75,7 @@ val WeaselTvThemeColors =
                 onSecondary = onAccent,
                 secondaryContainer = card2,
                 onSecondaryContainer = text,
-                tertiary = NeonBoard.Orange,
+                tertiary = NeonSectionPalette.Movies.border,
                 onTertiary = onAccent,
                 tertiaryContainer = card2,
                 onTertiaryContainer = text,

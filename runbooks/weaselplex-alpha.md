@@ -465,3 +465,16 @@ Recently Released kickers remain unchanged.
 Green section-title rules use Home’s Matrix Green #00E04B, matching the green
 kicker text. The shared section-rule helper retains configured thickness, glow
 and opacity and leaves the other section palettes unchanged.
+
+## Watchlist / Movies palette swap (2026-10-09)
+
+Watchlist now uses Molten #FF5200 borders/solid accents and Safety Orange #FF7900
+glow. Movies now uses Deep Cyan #00B8D9 borders/solid accents and Electric Cyan
+#00E1FF glow. This supersedes their earlier palette assignments above.
+Shared rail, page, library/type, media card, button, badge, divider and playback
+helpers consume the swapped section palettes. Direct movie references to the
+literal Orange token now resolve Movies instead; the theme's movie tertiary and
+preview follow Movies too. Watchlist movie cards and its Movies filter follow
+Movies cyan, while native Watchlist chrome is orange. Other media/provider/pick
+palettes and configured appearance dimensions remain. These packaged colors
+apply to existing/new users without a preference reset; routine delivery is Alpha.

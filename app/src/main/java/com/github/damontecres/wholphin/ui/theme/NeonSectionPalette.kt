@@ -7,11 +7,11 @@ object NeonSectionPalette {
     data class Colors(val border: Color, val glow: Color)
 
     val Search = Colors(Color(0xFF0A2CFF), Color(0xFF00A3FF))
-    val Watchlist = Colors(Color(0xFF00B8D9), Color(0xFF00E1FF))
+    val Watchlist = Colors(NeonBoard.Orange, NeonBoard.OrangeGlow)
     val Requests = Colors(Color(0xFF009A93), Color(0xFF00F2D6))
     val Home = Colors(Color(0xFF0B8A42), Color(0xFF00E04B))
     val Collections = Colors(Color(0xFFFFD300), Color(0xFFFFFF33))
-    val Movies = Colors(NeonBoard.Orange, NeonBoard.OrangeGlow)
+    val Movies = Colors(Color(0xFF00B8D9), Color(0xFF00E1FF))
     val TvShows = Colors(Color(0xFFE8112D), Color(0xFFFF1A1A))
     val StandUpComedy = Colors(Color(0xFF5A00FF), Color(0xFF9B30FF))
     val Sports = Colors(Color(0xFFFF0099), Color(0xFFFF85D0))

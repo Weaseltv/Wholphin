@@ -83,7 +83,7 @@ object NeonBoard {
     val Volt = Color(0xFFC6FF00)
     val Green = Color(0xFF3DFF6E)
     val Cyan = Color(0xFF00E5FF)
-    // Movies: owner-approved Molten borders/accents with Safety Orange glow.
+    // Literal orange option; Watchlist uses this Molten / Safety Orange pair.
     val Orange = Color(0xFFFF5200)
     val OrangeGlow = Color(0xFFFF7900)
     val Yellow = Color(0xFFFFE600)
@@ -224,7 +224,7 @@ private val RAIL_ACCENT_BY_ID =
 private val RAIL_ACCENT_BY_NAME =
     mapOf(
         "collections" to NeonSectionPalette.Collections.border,
-        "movies" to NeonBoard.Orange,
+        "movies" to NeonSectionPalette.Movies.border,
         "tv shows" to NeonSectionPalette.TvShows.border,
         "sports" to NeonSectionPalette.Sports.border,
         "stand up comedy" to NeonSectionPalette.StandUpComedy.border,
@@ -353,7 +353,7 @@ private fun mediaAccent(kind: BaseItemKind?, section: Color?): Color =
 /** Section accent for a library by its Jellyfin collection type. */
 fun collectionAccent(type: CollectionType?): Color =
     when (type) {
-        CollectionType.MOVIES -> NeonBoard.Orange
+        CollectionType.MOVIES -> NeonSectionPalette.Movies.border
         CollectionType.TVSHOWS -> NeonSectionPalette.TvShows.border
         CollectionType.LIVETV -> NeonBoard.Green
         CollectionType.BOXSETS -> NeonSectionPalette.Collections.border
@@ -363,7 +363,7 @@ fun collectionAccent(type: CollectionType?): Color =
 /** Type accent for an item: what its card, Play button, progress and chapters wear. */
 fun typeAccent(kind: BaseItemKind?): Color =
     when (kind) {
-        BaseItemKind.MOVIE -> NeonBoard.Orange
+        BaseItemKind.MOVIE -> NeonSectionPalette.Movies.border
 
         BaseItemKind.SERIES,
         BaseItemKind.SEASON,
