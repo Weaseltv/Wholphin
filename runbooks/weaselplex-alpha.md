@@ -614,3 +614,20 @@ Shared Home/Recommended detail descriptions, including the compact first-row
 header and streaming-provider descriptions, now render white #FFFFFF for
 readability over backdrops. Description fitting and ellipsis retain their
 existing behavior. Routine delivery remains arm64 Alpha; owner verifies visuals.
+
+## Stable promotion and tuner retirement (2026-10-09)
+
+The owner authorized promotion of the approved Alpha source to stable v1.2.28.
+The live layout/overlay tuner, its Settings entry and mutation callback are
+removed from all build variants. Normal Home row/content customization remains.
+Layout revision 13 reapplies the final approved presentation once to every older
+saved local/imported/server layout, including revision 12 experiments. New
+users/rows use the same compiled defaults. This retains row identity, queries,
+content/image choices and collection badge selection; normal subsequent saved
+choices are not reset at every startup. Shared presentation, typography, palette,
+loading artwork and overlays apply across the app.
+
+Release policy: merge PR #51 to weaselfin, tag that merge commit v1.2.28, build
+the signed stable package from the tag on this VPS and publish the universal
+plus three ABI APKs as Latest with user-facing release notes. Alpha and stable
+remain distinct packages; an Alpha APK is never renamed into a stable release.

@@ -5,7 +5,7 @@ import com.github.damontecres.wholphin.ui.AspectRatio
 
 /** Owner-approved presentation captured from all eight Alpha rows on 2026-10-09. */
 object ApprovedHomeLayout {
-    const val REVISION = 12
+    const val REVISION = 13
     const val CARD_SPACING_DP = 10
     const val CARD_HEIGHT_DP = 170
     const val VERTICAL_PADDING_DP = 4
@@ -106,9 +106,12 @@ object ApprovedHomeLayout {
         // Owner approved this recipe globally for existing and new users, once per saved layout.
         val presentation = if (revision < 11) applyPresentation(audiowide) else audiowide
         // Revision 12 changes only focus thickness; retain all other saved tuning.
-        return if (revision < 12) presentation.copy(
+        val thinBorder = if (revision < 12) presentation.copy(
             cardAppearance = presentation.cardAppearance.copy(borderWidthDp = CARD_APPEARANCE.borderWidthDp),
         ) else presentation
+        // Stable promotion retires the tuner and resets saved experimental presentation
+        // once, including layouts already on revision 12. Content choices stay intact.
+        return if (revision < 13) applyPresentation(thinBorder) else thinBorder
     }
 
     /** Replace untouched legacy defaults; retain values a user has already tuned. */

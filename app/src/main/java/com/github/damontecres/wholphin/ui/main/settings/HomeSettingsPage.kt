@@ -29,7 +29,6 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.surfaceColorAtElevation
-import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
@@ -69,21 +68,6 @@ fun HomeSettingsPage(
     var showRemovedNextUpDialog by remember { mutableStateOf(false) }
 
     val state by viewModel.state.collectAsState()
-    var showLayoutTuner by remember { mutableStateOf(false) }
-    if (BuildConfig.BUILD_TYPE == "alpha" && showLayoutTuner) {
-        AlphaHomeLayoutTuner(
-            state = state,
-            preferences = preferences,
-            onChange = viewModel::updateLayoutOptions,
-            onUpdateBackdrop = viewModel::updateBackdrop,
-            onClose = {
-                viewModel.saveToLocal()
-                showLayoutTuner = false
-            },
-            modifier = modifier,
-        )
-        return
-    }
     var position by rememberPosition(0, 0)
     // TODO discover rows
     val discoverEnabled = false // by viewModel.discoverEnabled.collectAsState(false)
@@ -138,7 +122,6 @@ fun HomeSettingsPage(
                                     onClickAdd = { backStack.add(HomeSettingsDestination.AddRow) },
                                     onClickSettings = { backStack.add(HomeSettingsDestination.GlobalSettings) },
                                     onClickPresets = { backStack.add(HomeSettingsDestination.Presets) },
-                                    onClickLayoutTuner = if (BuildConfig.BUILD_TYPE == "alpha") ({ showLayoutTuner = true }) else null,
                                     onClickMove = viewModel::moveRow,
                                     onClickDelete = viewModel::deleteRow,
                                     onClick = { index, row ->

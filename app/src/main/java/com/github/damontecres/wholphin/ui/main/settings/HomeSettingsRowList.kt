@@ -60,13 +60,12 @@ fun HomeSettingsRowList(
     onClickMove: (MoveDirection, Int) -> Unit,
     onClickDelete: (Int) -> Unit,
     modifier: Modifier,
-    onClickLayoutTuner: (() -> Unit)? = null,
 ) {
     val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
-    val itemsBeforeRows = if (onClickLayoutTuner != null) 5 else 4
+    val itemsBeforeRows = 4
     val focusRequesters =
         remember(state.rows.size) { List(itemsBeforeRows + state.rows.size) { FocusRequester() } }
 
@@ -143,20 +142,6 @@ fun HomeSettingsRowList(
             item {
                 TitleText(stringResource(R.string.home_rows) + " (${state.rows.size})")
                 HorizontalDivider(Modifier.bleedHorizontal(16.dp))
-            }
-            if (onClickLayoutTuner != null) {
-                item {
-                    HomeSettingsListItem(
-                        selected = false,
-                        headlineText = "Live layout tuner (Alpha)",
-                        supportingContent = { Text("Adjust text, card spacing and hover styling live") },
-                        onClick = {
-                            position = 4
-                            onClickLayoutTuner()
-                        },
-                        modifier = Modifier.focusRequester(focusRequesters[4]),
-                    )
-                }
             }
             itemsIndexed(state.rows, key = { _, row -> row.id }) { index, row ->
                 HomeRowConfigContent(

@@ -479,34 +479,6 @@ class HomeSettingsViewModel
             }
         }
 
-        /** Numeric layout tuning is immediate and does not need new server data. */
-        fun updateLayoutOptions(
-            rowId: Int?,
-            update: (HomeRowViewOptions) -> HomeRowViewOptions,
-        ) {
-            updateState { state ->
-                val rows =
-                    state.rows.map { row ->
-                        if (rowId == null || row.id == rowId) {
-                            row.copy(config = row.config.updateViewOptions(update(row.config.viewOptions)))
-                        } else {
-                            row
-                        }
-                    }
-                state.copy(
-                    rows = rows,
-                    rowData =
-                        state.rowData.mapIndexed { index, data ->
-                            if (data is HomeRowLoadingState.Success) {
-                                data.copy(viewOptions = rows[index].config.viewOptions, rowType = rows[index].config)
-                            } else {
-                                data
-                            }
-                        },
-                )
-            }
-        }
-
         fun updateViewOptionsForAll(viewOptions: HomeRowViewOptions) {
             viewModelScope.launchIO {
                 updateState {
