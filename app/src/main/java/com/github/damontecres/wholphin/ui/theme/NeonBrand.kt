@@ -29,7 +29,7 @@ import androidx.tv.material3.Text
 
 /**
  * The in-app brand: the Media Dial mascot beside the text wordmark, `WEASEL` in `text` and
- * `PLEX` in volt, Orbitron 800 uppercase (handoff README § Brand). The mascot
+ * `PLEX` in volt, Audiowide 400 uppercase (handoff README § Brand). The mascot
  * drawable ships only in the `weaselfin` flavor and is resolved by name; on any other
  * flavor only the wordmark renders.
  */

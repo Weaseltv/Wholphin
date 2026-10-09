@@ -235,7 +235,7 @@ data class HomeRowViewOptions(
     val endPaddingDp: Int? = if (BuildConfig.FLAVOR == "weaselfin") 16 else null,
     val titleDividerGapDp: Int = if (BuildConfig.FLAVOR == "weaselfin") 3 else 4,
     val titleSizeSp: Int = if (BuildConfig.FLAVOR == "weaselfin") 30 else 22,
-    val titleLetterSpacingTenthsSp: Int = if (BuildConfig.FLAVOR == "weaselfin") 24 else 0,
+    val titleLetterSpacingTenthsSp: Int = if (BuildConfig.FLAVOR == "weaselfin") 18 else 0,
     val countSizeSp: Int = if (BuildConfig.FLAVOR == "weaselfin") 14 else 12,
     val countOpacityPercent: Int = 100,
     val countEndPaddingDp: Int = if (BuildConfig.FLAVOR == "weaselfin") 15 else 8,

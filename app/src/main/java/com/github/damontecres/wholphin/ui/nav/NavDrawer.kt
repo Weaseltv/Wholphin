@@ -694,6 +694,7 @@ fun NavigationDrawerScope.ProfileIcon(
             Text(
                 text = serverName,
                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Normal),
+                color = if (isWeaselTv()) Color(0xFF828A9B) else Color.Unspecified,
                 maxLines = 1,
             )
         },
@@ -703,6 +704,7 @@ fun NavigationDrawerScope.ProfileIcon(
             modifier = Modifier,
             text = user.name ?: user.id.toString(),
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = if (isWeaselTv()) Color(0xFFF0F2F8) else Color.Unspecified,
             maxLines = 1,
         )
     }
@@ -895,7 +897,7 @@ private fun railLabelStyle(accent: Color, selected: Boolean, focused: Boolean): 
     return if (selected && !focused) {
         style.copy(color = accent)
     } else {
-        style
+        style.copy(color = if (focused) NeonBoard.Text else Color(0xFFE1E4EC))
     }
 }
 

@@ -38,9 +38,9 @@ import com.github.damontecres.wholphin.ui.bleedHorizontal
 import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.LocalNeonRuleInsets
-import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonSectionRule
 import com.github.damontecres.wholphin.ui.theme.NeonType
+import com.github.damontecres.wholphin.ui.theme.neonGlowAccent
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 
@@ -70,11 +70,12 @@ fun <T> ItemRow(
     dividerGlow: Dp = 12.dp,
     dividerGlowStrength: Float = .35f,
     titleSize: TextUnit = 22.sp,
-    titleLetterSpacing: TextUnit = .08.em,
+    titleLetterSpacing: TextUnit = .06.em,
     countSize: TextUnit = 12.sp,
     countOpacity: Float = 1f,
     countEndPadding: Dp = 8.dp,
     titleStartPadding: Dp? = null,
+    titleKicker: String? = null,
 ) {
     val state = rememberLazyListState()
     val firstFocus = remember { FocusRequester() }
@@ -101,6 +102,7 @@ fun <T> ItemRow(
     ) {
         ItemRowTitle(
             title,
+            kicker = titleKicker,
             count = items.size.takeIf { isWeaselTv() },
             accent = titleAccent,
             dividerGap = titleDividerGap,
@@ -187,7 +189,7 @@ fun <T> ItemRow(
 }
 
 /**
- * A row's title. Neon Board (`02-components-tv.md` § T4): Orbitron 800 22sp
+ * A row's title. Neon Board (`02-components-tv.md` § T4): Audiowide 400 22sp
  * uppercase, an optional count on the right, then a 1dp rule in the row accent with
  * 14dp to the cards. Stock title on every other theme.
  */
@@ -202,11 +204,12 @@ fun ItemRowTitle(
     dividerGlow: Dp = 12.dp,
     dividerGlowStrength: Float = .35f,
     titleSize: TextUnit = 22.sp,
-    titleLetterSpacing: TextUnit = .08.em,
+    titleLetterSpacing: TextUnit = .06.em,
     countSize: TextUnit = 12.sp,
     countOpacity: Float = 1f,
     countEndPadding: Dp = 8.dp,
     titleStartPadding: Dp = 8.dp,
+    kicker: String? = null,
 ) {
     if (!isWeaselTv()) {
         Text(
@@ -224,18 +227,29 @@ fun ItemRowTitle(
             verticalAlignment = Alignment.Bottom,
             modifier = Modifier.fillMaxWidth().padding(start = titleStartPadding.coerceAtLeast(0.dp), end = countEndPadding),
         ) {
-            Text(
-                text = title.uppercase(),
-                style = NeonType.sectionTitle().copy(fontSize = titleSize, lineHeight = titleSize * 1.2f, letterSpacing = titleLetterSpacing),
-                color = NeonBoard.Text,
-                maxLines = 1,
+            Column(
                 modifier = Modifier.weight(1f).offset(x = titleStartPadding.coerceAtMost(0.dp)),
-            )
+            ) {
+                if (!kicker.isNullOrBlank()) {
+                    Text(
+                        text = kicker.uppercase(),
+                        style = NeonType.homeKicker(titleSize),
+                        color = neonGlowAccent(accent),
+                        maxLines = 1,
+                    )
+                }
+                Text(
+                    text = title.uppercase(),
+                    style = NeonType.sectionTitle().copy(fontSize = titleSize, lineHeight = titleSize * 1.2f, letterSpacing = titleLetterSpacing),
+                    color = Color.White,
+                    maxLines = 1,
+                )
+            }
             if (count != null && count > 0) {
                 Text(
                     text = count.toString(),
-                    style = NeonType.count().copy(fontSize = countSize, lineHeight = countSize * 1.2f),
-                    color = NeonBoard.Mid.copy(alpha = countOpacity.coerceIn(0f, 1f)),
+                    style = NeonType.numeral(countSize).copy(fontSize = countSize, lineHeight = countSize * 1.2f),
+                    color = Color(0xFF787E8C).copy(alpha = countOpacity.coerceIn(0f, 1f)),
                     modifier = Modifier.padding(bottom = 3.dp),
                 )
             }

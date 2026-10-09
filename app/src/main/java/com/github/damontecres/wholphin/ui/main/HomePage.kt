@@ -243,6 +243,7 @@ fun HomePage(
             HomePageContent(
                 homeRows = homeRows,
                 libraries = libraries,
+                splitHomeTitles = true,
                 position = position,
                 onFocusPosition = onFocusPosition,
                 onClickItem = onClickItem,
@@ -327,6 +328,7 @@ fun HomePageContent(
         )
     },
     libraries: List<Library> = emptyList(),
+    splitHomeTitles: Boolean = false,
     onClickViewMore: (RowColumn, HomeRowLoadingState.Success) -> Unit = { _, _ -> },
 ) {
     val focusedItem =
@@ -455,8 +457,14 @@ fun HomePageContent(
                                         val curated =
                                             BuildConfig.FLAVOR == "weaselfin" &&
                                                 row.rowType?.let(CuratedCollections::isCuratedRow) == true
+                                        val heading = if (splitHomeTitles && isWeaselTv()) {
+                                            homeRowHeading(row.rowType, libraries, row.title.getString())
+                                        } else {
+                                            row.title.getString() to null
+                                        }
                                         ItemRow(
-                                            title = row.title.getString(),
+                                            title = heading.first,
+                                            titleKicker = heading.second,
                                             onTitleHeightChanged = { rowTitleHeights[rowIndex] = it },
                                             titleAccent = homeRowAccent(row.rowType, libraries),
                                             items = row.items,
@@ -643,6 +651,31 @@ fun HomePageContent(
         }
     }
 }
+
+/** Split Home headings from row semantics rather than parsing a translated title. */
+@Composable
+private fun homeRowHeading(
+    row: HomeRowConfig?,
+    libraries: List<Library>,
+    fallback: String,
+): Pair<String, String?> =
+    when {
+        row is HomeRowConfig.ContinueWatchingCombined ->
+            stringResource(R.string.continue_watching) to "${stringResource(R.string.next_up)} &"
+        row?.let(StreamingCollections::isStreamingRow) == true ->
+            StreamingCollections.NAME to stringResource(R.string.collections)
+        row?.let(CuratedCollections::isCuratedRow) == true ->
+            CuratedCollections.NAME to stringResource(R.string.collections)
+        row is HomeRowConfig.RecentlyAdded ->
+            libraries.firstOrNull { it.itemId == row.parentId }?.name?.let {
+                it to stringResource(R.string.recently_added)
+            } ?: (fallback to null)
+        row is HomeRowConfig.RecentlyReleased ->
+            libraries.firstOrNull { it.itemId == row.parentId }?.name?.let {
+                it to stringResource(R.string.recently_released)
+            } ?: (fallback to null)
+        else -> fallback to null
+    }
 
 /** Resolve the source library, so named sections such as Boxing keep their rail colour. */
 @Composable

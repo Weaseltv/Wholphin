@@ -5,7 +5,7 @@ import com.github.damontecres.wholphin.ui.AspectRatio
 
 /** Owner-approved values captured from all eight Alpha rows on 2026-10-07. */
 object ApprovedHomeLayout {
-    const val REVISION = 9
+    const val REVISION = 10
     const val CARD_SPACING_DP = 14
     val CARD_APPEARANCE = HomeCardAppearance(
         borderWidthDp = 2,
@@ -34,7 +34,7 @@ object ApprovedHomeLayout {
             endPaddingDp = 16,
             titleDividerGapDp = 3,
             titleSizeSp = 30,
-            titleLetterSpacingTenthsSp = 24,
+            titleLetterSpacingTenthsSp = 18,
             countSizeSp = 14,
             countOpacityPercent = 100,
             countEndPaddingDp = 15,
@@ -75,9 +75,13 @@ object ApprovedHomeLayout {
             badgeVerticalPaddingDp = CARD_APPEARANCE.badgeVerticalPaddingDp,
         )) else opaque
         // Orbitron section headers use approximately 0.08 em tracking at their saved size.
-        return if (revision < 9) badges.copy(
+        val orbitron = if (revision < 9) badges.copy(
             titleLetterSpacingTenthsSp = (badges.titleSizeSp * 0.8f).toInt(),
         ) else badges
+        // Audiowide uses 0.06 em tracking once; subsequent owner tuning remains available.
+        return if (revision < 10) orbitron.copy(
+            titleLetterSpacingTenthsSp = (orbitron.titleSizeSp * 0.6f).toInt(),
+        ) else orbitron
     }
 
     /** Replace untouched legacy defaults; retain values a user has already tuned. */

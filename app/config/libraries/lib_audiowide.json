@@ -1,0 +1,14 @@
+{
+  "uniqueId": "com.google.fonts.audiowide",
+  "developers": [
+    {
+      "name": "Brian J. Bonislawsky (Astigmatic)"
+    }
+  ],
+  "description": "Audiowide, bundled WeaselPlex display typography.",
+  "name": "Audiowide",
+  "licenses": [
+    "ofl-audiowide"
+  ],
+  "website": "https://fonts.google.com/specimen/Audiowide"
+}

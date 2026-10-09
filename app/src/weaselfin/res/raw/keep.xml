@@ -9,7 +9,7 @@
      never as R.drawable.*, so R8 cannot see the reference and shrank all twelve out
      of the release APK - debug builds were fine because shrinking is off there.
 
-     The Exo 2 and Orbitron fonts (@font/exo2*, @font/orbitron*) are resolved the same way by NeonFonts, so they
+     The Exo 2 and Audiowide fonts (@font/exo2*, @font/audiowide*) are resolved the same way by NeonFonts, so they
      need the same rule or the release build silently falls back to the system font. -->
 <resources xmlns:tools="http://schemas.android.com/tools"
-    tools:keep="@raw/aboutlibraries,@drawable/ic_nav_*,@font/exo2*,@font/orbitron*,@drawable/weaselplex_*" />
+    tools:keep="@raw/aboutlibraries,@drawable/ic_nav_*,@font/exo2*,@font/audiowide*,@drawable/weaselplex_*" />

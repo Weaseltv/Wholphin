@@ -16,7 +16,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Typography
 
 /**
- * Exo 2 / Orbitron for the WeaselTV theme (`01-tokens-tv.md` § Type).
+ * Exo 2 / Audiowide for the WeaselTV theme (`01-tokens-tv.md` § Type).
  *
  * The font files live ONLY in the `weaselfin` flavor's `res/font`, so main code cannot
  * name `R.font.exo2_regular` without breaking every upstream flavor's build. They are
@@ -28,7 +28,7 @@ object NeonFonts {
     @Volatile
     private var cache: Pair<FontFamily, FontFamily>? = null
 
-    /** Exo 2 (copy) and Orbitron (display), or the defaults when not shipped. */
+    /** Exo 2 (copy) and Audiowide (display), or the defaults when not shipped. */
     fun families(context: Context): Pair<FontFamily, FontFamily> {
         cache?.let { return it }
         val res = context.resources
@@ -50,14 +50,14 @@ object NeonFonts {
             )
         val display =
             family(
-                "orbitron_extrabold" to FontWeight.ExtraBold,
+                "audiowide_regular" to FontWeight.Normal,
             )
         return (body to display).also { cache = it }
     }
 }
 
 /**
- * The tv-material3 [Typography] slots on Exo 2 / Orbitron. Sizes stay close to the M3 defaults so
+ * The tv-material3 [Typography] slots on Exo 2 / Audiowide. Sizes stay close to the M3 defaults so
  * upstream layouts that read a slot keep their proportions; the Neon-specific roles
  * (hero, page title, eyebrow, badge, timecode…) are explicit styles in [NeonType].
  */
@@ -71,8 +71,8 @@ fun rememberNeonTypography(): Typography {
         fun d(
             base: TextStyle,
             size: TextUnit,
-            weight: FontWeight = FontWeight.ExtraBold,
-        ) = base.copy(fontFamily = display, fontWeight = weight, fontSize = size, lineHeight = size * 1.2f, letterSpacing = .08.em)
+            weight: FontWeight = FontWeight.Normal,
+        ) = base.copy(fontFamily = display, fontWeight = weight, fontSize = size, lineHeight = size * 1.2f, letterSpacing = .06.em)
 
         fun b(
             base: TextStyle,
@@ -120,11 +120,11 @@ object NeonType {
     @ReadOnlyComposable
     private fun header(
         size: TextUnit,
-        weight: FontWeight = FontWeight.ExtraBold,
+        weight: FontWeight = FontWeight.Normal,
         fallback: TextStyle,
     ): TextStyle =
         if (isWeaselTv()) {
-            display().copy(fontSize = size, fontWeight = weight, lineHeight = size * 1.2f, letterSpacing = .08.em)
+            display().copy(fontSize = size, fontWeight = weight, lineHeight = size * 1.2f, letterSpacing = .06.em)
         } else {
             fallback
         }
@@ -164,7 +164,7 @@ object NeonType {
     @ReadOnlyComposable
     fun playerTitle(): TextStyle = header(28.sp, fallback = MaterialTheme.typography.headlineSmall)
 
-    /** Any other Orbitron 800 uppercase title (e.g. the 30sp state title). */
+    /** Any other Audiowide 400 uppercase title (e.g. the 30sp state title). */
     @Composable
     @ReadOnlyComposable
     fun condensedTitle(size: TextUnit): TextStyle = header(size, fallback = MaterialTheme.typography.headlineSmall)
@@ -190,6 +190,12 @@ object NeonType {
     @Composable
     @ReadOnlyComposable
     fun eyebrow(): TextStyle = exo(12.sp, FontWeight.Bold, 1.2f, .16.em, MaterialTheme.typography.labelSmall)
+
+    /** Home kicker: Exo 2 SemiBold, half the main heading size, 0.18 em tracking. */
+    @Composable
+    @ReadOnlyComposable
+    fun homeKicker(titleSize: TextUnit): TextStyle =
+        exo(titleSize * .5f, FontWeight.SemiBold, 1.2f, .18.em, MaterialTheme.typography.labelSmall)
 
     /** Count / right label: 12 / 700 / upper / tracking 0.12em. */
     @Composable

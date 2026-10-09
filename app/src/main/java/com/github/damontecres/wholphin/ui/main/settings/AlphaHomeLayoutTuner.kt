@@ -101,6 +101,7 @@ fun AlphaHomeLayoutTuner(
                 loadingState = state.loading,
                 homeRows = state.rowData,
                 libraries = state.libraries,
+                splitHomeTitles = true,
                 position = position,
                 onFocusPosition = { position = it },
                 onClickItem = { _, _ -> },

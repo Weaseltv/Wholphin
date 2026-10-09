@@ -68,7 +68,7 @@ no user IDs, library IDs, queries or login data are included.
 | Base / extra vertical padding | 4 dp / 12 dp |
 | Divider-to-padding / after-row gap | 12 dp / 8 dp |
 | Title-to-divider gap | 3 dp |
-| Row title size / letter spacing | 30 sp / 0 sp |
+| Row title size / letter spacing | 30 sp / 1.8 sp (0.06 em) |
 | Row count size / opacity / right padding | 14 sp / 100% / 15 dp |
 | Divider thickness / glow spread / strength | 5 dp / 10 dp / 70% |
 | Card shape / captions | Portrait 2:3 / off |
@@ -435,3 +435,25 @@ Favorite/watchlist hearts sit at the bottom right of shared poster and banner ca
 Replace Barlow with bundled official Google Fonts static Orbitron ExtraBold 800 for display/page/section headers, with approximately 0.08 em tracking, and Exo 2 400/500/600/700 for all other app text. Both TV Material and standard Material typography use these families throughout WeaselPlex, including other color themes, cards, forms, dialogs, settings and playback UI. Sidebar labels use Medium 500; profile name uses Semibold 600 and its subtitle Regular 400. Compact clocks/numerals use Exo 2. Layout revision 9 updates existing local/server Home heading tracking once at each saved heading size and supplies 2.4 sp tracking for new 30 sp headings. Header line height accommodates Orbitron rather than the old condensed metrics. Preserve font resource-shrinker keep rules for release builds and bundle each family's OFL attribution in About libraries; retire Barlow assets.
 
 Create a coordinated 24 dp rounded bold-outline vector set for Search, Home, Watchlist, Requests, Collections, Movies, TV Shows, Stand Up Comedy (microphone), Sports (trophy), and Settings. Collections/movie/TV library fallbacks also resolve the new vectors. Sidebar icon ink uses each section's supplied glow color even when inactive; selected icon halos retain existing glow behavior. Settings uses Frost White #EAF2FF. Keep existing section border/glow palettes and sidebar order. This is Alpha only; existing and new users receive the packaged fonts/icons with the next owner-authorized stable release. Owner performs visual verification.
+
+## Audiowide display headings and split Home rows (2026-10-09)
+
+Audiowide Regular 400 replaces Orbitron for shared display typography throughout
+WeaselPlex. Display tracking is 0.06 em; existing heading sizes stay the same.
+Exo 2 remains the body/sidebar font. Both fonts ship offline with OFL attribution.
+Approved layout revision 10 changes saved Home title tracking to 0.06 em once;
+subsequent live tuning remains available in Alpha.
+
+Home (including its Settings and tuner previews) splits semantic row headings:
+combined playback uses NEXT UP & above CONTINUE WATCHING, Streaming Services and
+The Weasel’s Picks use COLLECTIONS, and Recently Added/Released rows show that
+label above the source library name. Custom/unresolved rows retain their title.
+Recommended and collection-detail rows keep their existing heading structure.
+Kickers use Exo 2 SemiBold 600 at half the title size, all caps, 0.18 em tracking,
+and the row glow color. Main titles are white Audiowide; row counts are Exo 2
+SemiBold in #787E8C. Divider thickness/glow and card layout values are preserved.
+The existing measured title-height scroll clearance includes the kicker.
+
+Sidebar labels stay Exo 2 Medium 500 at normal tracking with #E1E4EC inactive
+text; the active-page section color and focused appearance remain. Profile name
+uses #F0F2F8 and the server subtitle #828A9B. Sidebar icons remain unchanged.
