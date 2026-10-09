@@ -82,6 +82,7 @@ fun FocusableItemRow(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier =
             modifier
+                .keepTitledRowVisible()
                 .then(if (neon) Modifier.fillMaxWidth() else Modifier.padding(start = 8.dp))
                 .focusable(interactionSource = interactionSource)
                 .background(background, shape = shape)

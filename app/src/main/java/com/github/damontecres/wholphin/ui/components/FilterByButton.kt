@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -99,7 +98,7 @@ fun FilterByButton(
             modifier = Modifier,
         )
 
-        DropdownMenu(
+        AppDropdownMenu(
             expanded = dropDown,
             containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
             onDismissRequest = {
@@ -163,7 +162,7 @@ fun FilterByButton(
                 }
         }
 
-        DropdownMenu(
+        AppDropdownMenu(
             expanded = nestedDropDown != null,
             containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(5.dp),
             offset = DpOffset(80.dp, 16.dp),
@@ -463,7 +462,7 @@ fun DiscoverFilterByButton(
             modifier = Modifier,
         )
 
-        DropdownMenu(
+        AppDropdownMenu(
             expanded = dropDown,
             containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
             onDismissRequest = {
@@ -527,7 +526,7 @@ fun DiscoverFilterByButton(
                 }
         }
 
-        DropdownMenu(
+        AppDropdownMenu(
             expanded = nestedDropDown != null,
             containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(5.dp),
             offset = DpOffset(80.dp, 16.dp),

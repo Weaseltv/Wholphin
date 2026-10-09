@@ -49,6 +49,7 @@ import com.github.damontecres.wholphin.ui.main.HomePageHeader
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberPosition
 import com.github.damontecres.wholphin.ui.theme.InsetNeonSectionRules
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.EmptyStringProvider
 import com.github.damontecres.wholphin.ui.util.ResProviderStringProvider
@@ -460,7 +461,7 @@ fun SeerrDiscoverPage(
         val spaceAbovePx =
             with(density) {
                 // The size of the row titles & spacing
-                50.dp.toPx()
+                (if (isWeaselTv()) 4.dp else 50.dp).toPx()
             }
         val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
 

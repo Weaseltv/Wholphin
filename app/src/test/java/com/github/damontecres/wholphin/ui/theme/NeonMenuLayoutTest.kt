@@ -89,8 +89,12 @@ class NeonMenuLayoutTest {
             assertTrue("rule starts at the panel's left edge, was ${rule.min()}", rule.min() <= 4)
             assertTrue("rule ends at the panel's right edge, was ${rule.max()}", rule.max() >= panelWidth - 5)
 
-            val (topY, top) = wide[1]
-            val (bottomY, bottom) = wide.last()
+            // A rule can be several pixels thick. Compare the separate border
+            // strokes, rather than treating its second scanline as a focus border.
+            val strokes = wide.filterIndexed { index, row -> index == 0 || row.index > wide[index - 1].index + 1 }
+            assertTrue("rule and two distinct focus border strokes", strokes.size >= 3)
+            val (topY, top) = strokes[1]
+            val (bottomY, bottom) = strokes.last()
             assertTrue("focused $label row has height", bottomY - topY > 30)
             assertEquals("top and bottom border are the same width", top.size.toFloat(), bottom.size.toFloat(), 4f)
         }
@@ -126,6 +130,6 @@ class NeonMenuLayoutTest {
     fun `progress wears the title's type colour`() {
         fun item(kind: BaseItemKind) = BaseItem(BaseItemDto(id = UUID.randomUUID(), type = kind))
         assertEquals(NeonSectionPalette.Movies.border, itemAccent(item(BaseItemKind.MOVIE)))
-        assertEquals(NeonBoard.Yellow, itemAccent(item(BaseItemKind.EPISODE)))
+        assertEquals(NeonSectionPalette.TvShows.border, itemAccent(item(BaseItemKind.EPISODE)))
     }
 }

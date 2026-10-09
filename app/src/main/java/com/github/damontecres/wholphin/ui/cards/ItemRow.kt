@@ -26,6 +26,7 @@ import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -37,6 +38,7 @@ import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.ui.bleedHorizontal
 import com.github.damontecres.wholphin.ui.components.FocusSafeLazyRow
+import com.github.damontecres.wholphin.ui.components.keepTitledRowVisible
 import com.github.damontecres.wholphin.ui.components.reportDetailRowHeight
 import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
@@ -73,7 +75,14 @@ fun <T> ItemRow(
     dividerGlow: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.DIVIDER_GLOW_DP.dp else 12.dp,
     dividerGlowStrength: Float = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.DIVIDER_GLOW_STRENGTH / 100f else .35f,
     titleSize: TextUnit = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.TITLE_SIZE_SP.sp else 22.sp,
-    titleLetterSpacing: TextUnit = if (BuildConfig.FLAVOR == "weaselfin") (ApprovedHomeLayout.TITLE_TRACKING_TENTHS_SP / 10f).sp else .06.em,
+    titleLetterSpacing: TextUnit =
+        if (BuildConfig.FLAVOR ==
+            "weaselfin"
+        ) {
+            (ApprovedHomeLayout.TITLE_TRACKING_TENTHS_SP / 10f).sp
+        } else {
+            .06.em
+        },
     countSize: TextUnit = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.COUNT_SIZE_SP.sp else 12.sp,
     countOpacity: Float = 1f,
     countEndPadding: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.COUNT_END_PADDING_DP.dp else 8.dp,
@@ -102,7 +111,7 @@ fun <T> ItemRow(
     Column(
         verticalArrangement = Arrangement.spacedBy(dividerGap),
         modifier =
-            modifier.reportDetailRowHeight().focusProperties {
+            modifier.reportDetailRowHeight().keepTitledRowVisible().focusProperties {
                 onEnter = {
                     focusRequester.tryRequestFocus()
                 }
@@ -212,7 +221,14 @@ fun ItemRowTitle(
     dividerGlow: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.DIVIDER_GLOW_DP.dp else 12.dp,
     dividerGlowStrength: Float = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.DIVIDER_GLOW_STRENGTH / 100f else .35f,
     titleSize: TextUnit = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.TITLE_SIZE_SP.sp else 22.sp,
-    titleLetterSpacing: TextUnit = if (BuildConfig.FLAVOR == "weaselfin") (ApprovedHomeLayout.TITLE_TRACKING_TENTHS_SP / 10f).sp else .06.em,
+    titleLetterSpacing: TextUnit =
+        if (BuildConfig.FLAVOR ==
+            "weaselfin"
+        ) {
+            (ApprovedHomeLayout.TITLE_TRACKING_TENTHS_SP / 10f).sp
+        } else {
+            .06.em
+        },
     countSize: TextUnit = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.COUNT_SIZE_SP.sp else 12.sp,
     countOpacity: Float = 1f,
     countEndPadding: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.COUNT_END_PADDING_DP.dp else 8.dp,
@@ -244,13 +260,20 @@ fun ItemRowTitle(
                         style = NeonType.homeKicker(titleSize),
                         color = neonGlowAccent(accent),
                         maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
                 Text(
                     text = title.uppercase(),
-                    style = NeonType.sectionTitle().copy(fontSize = titleSize, lineHeight = titleSize * 1.2f, letterSpacing = titleLetterSpacing),
+                    style =
+                        NeonType.sectionTitle().copy(
+                            fontSize = titleSize,
+                            lineHeight = titleSize * 1.2f,
+                            letterSpacing = titleLetterSpacing,
+                        ),
                     color = Color.White,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
             if (count != null && count > 0) {

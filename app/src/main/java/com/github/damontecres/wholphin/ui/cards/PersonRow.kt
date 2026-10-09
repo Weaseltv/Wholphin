@@ -27,6 +27,7 @@ import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.DiscoverItem
 import com.github.damontecres.wholphin.data.model.Person
 import com.github.damontecres.wholphin.ui.components.FocusSafeLazyRow
+import com.github.damontecres.wholphin.ui.components.keepTitledRowVisible
 import com.github.damontecres.wholphin.ui.components.reportDetailRowHeight
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.rememberInt
@@ -43,12 +44,21 @@ fun PersonRow(
     var position by rememberInt()
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier.reportDetailRowHeight(),
+        modifier = modifier.reportDetailRowHeight().keepTitledRowVisible(),
     ) {
         ItemRowTitle(stringResource(title))
         FocusSafeLazyRow(
             state = rememberLazyListState(),
-            horizontalArrangement = Arrangement.spacedBy(if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.CARD_SPACING_DP.dp else 16.dp),
+            horizontalArrangement =
+                Arrangement.spacedBy(
+                    if (BuildConfig.FLAVOR ==
+                        "weaselfin"
+                    ) {
+                        ApprovedHomeLayout.CARD_SPACING_DP.dp
+                    } else {
+                        16.dp
+                    },
+                ),
             contentPadding = PaddingValues(8.dp),
             modifier =
                 Modifier
@@ -88,7 +98,7 @@ fun DiscoverPersonRow(
     val firstFocus = remember { FocusRequester() }
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier.reportDetailRowHeight(),
+        modifier = modifier.reportDetailRowHeight().keepTitledRowVisible(),
     ) {
         Text(
             text = stringResource(title),
@@ -97,7 +107,16 @@ fun DiscoverPersonRow(
         )
         FocusSafeLazyRow(
             state = rememberLazyListState(),
-            horizontalArrangement = Arrangement.spacedBy(if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.CARD_SPACING_DP.dp else 16.dp),
+            horizontalArrangement =
+                Arrangement.spacedBy(
+                    if (BuildConfig.FLAVOR ==
+                        "weaselfin"
+                    ) {
+                        ApprovedHomeLayout.CARD_SPACING_DP.dp
+                    } else {
+                        16.dp
+                    },
+                ),
             contentPadding = PaddingValues(8.dp),
             modifier =
                 Modifier

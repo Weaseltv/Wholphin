@@ -19,6 +19,7 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.Chapter
 import com.github.damontecres.wholphin.ui.components.FocusSafeLazyRow
+import com.github.damontecres.wholphin.ui.components.keepTitledRowVisible
 import com.github.damontecres.wholphin.ui.components.reportDetailRowHeight
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 
@@ -31,12 +32,21 @@ fun ChapterRow(
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier.reportDetailRowHeight(),
+        modifier = modifier.reportDetailRowHeight().keepTitledRowVisible(),
     ) {
         ItemRowTitle(stringResource(R.string.chapters), titleStartPadding = if (isWeaselTv()) 16.dp else 8.dp)
         FocusSafeLazyRow(
             state = rememberLazyListState(),
-            horizontalArrangement = Arrangement.spacedBy(if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.CARD_SPACING_DP.dp else 16.dp),
+            horizontalArrangement =
+                Arrangement.spacedBy(
+                    if (BuildConfig.FLAVOR ==
+                        "weaselfin"
+                    ) {
+                        ApprovedHomeLayout.CARD_SPACING_DP.dp
+                    } else {
+                        16.dp
+                    },
+                ),
             contentPadding = PaddingValues(vertical = 8.dp, horizontal = 16.dp),
             modifier =
                 Modifier

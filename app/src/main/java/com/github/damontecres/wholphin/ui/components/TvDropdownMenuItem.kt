@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.PaddingValues
@@ -16,6 +17,10 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.surfaceColorAtElevation
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.LocalNeonSectionAccent
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 
 @Composable
 fun TvDropdownMenuItem(
@@ -30,14 +35,18 @@ fun TvDropdownMenuItem(
     elevation: Dp = 3.dp,
 ) {
     val focused by interactionSource.collectIsFocusedAsState()
+    val neon = isWeaselTv()
+    val accent = LocalNeonSectionAccent.current ?: LocalNeonAccent.current
     val backgroundColor =
-        if (focused) {
+        if (neon) {
+            if (focused) NeonBoard.chipOn(accent) else NeonBoard.Card
+        } else if (focused) {
             MaterialTheme.colorScheme.inverseSurface
         } else {
             MaterialTheme.colorScheme.surfaceColorAtElevation(elevation)
         }
     val contentColor =
-        if (focused) MaterialTheme.colorScheme.inverseOnSurface else MaterialTheme.colorScheme.onSurface
+        if (focused && !neon) MaterialTheme.colorScheme.inverseOnSurface else MaterialTheme.colorScheme.onSurface
     CompositionLocalProvider(LocalContentColor provides contentColor) {
         DropdownMenuItem(
             enabled = enabled,
@@ -54,7 +63,9 @@ fun TvDropdownMenuItem(
             interactionSource = interactionSource,
             contentPadding = contentPadding,
             modifier =
-                modifier.background(backgroundColor),
+                modifier.background(backgroundColor).then(
+                    if (neon && focused) Modifier.border(1.dp, accent) else Modifier,
+                ),
         )
     }
 }

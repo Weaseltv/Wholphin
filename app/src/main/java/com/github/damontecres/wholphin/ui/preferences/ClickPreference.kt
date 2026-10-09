@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.tv.material3.ListItem
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
 import com.github.damontecres.wholphin.ui.theme.neonListItemColors
 import com.github.damontecres.wholphin.ui.theme.neonListItemGlow
@@ -34,6 +35,6 @@ fun ClickPreference(
             PreferenceSummary(summary)
         },
         interactionSource = interactionSource,
-        modifier = modifier,
+        modifier = modifier.keepFocusedItemVisible(),
     )
 }

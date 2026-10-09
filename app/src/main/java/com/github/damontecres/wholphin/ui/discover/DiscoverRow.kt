@@ -30,6 +30,7 @@ import com.github.damontecres.wholphin.ui.cards.ItemRowTitle
 import com.github.damontecres.wholphin.ui.cards.ViewMoreCard
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.FocusSafeLazyRow
+import com.github.damontecres.wholphin.ui.components.keepTitledRowVisible
 import com.github.damontecres.wholphin.ui.components.reportDetailRowHeight
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.rememberInt
@@ -112,7 +113,7 @@ fun DiscoverItemRow(
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier =
-            modifier.reportDetailRowHeight().focusProperties {
+            modifier.reportDetailRowHeight().keepTitledRowVisible().focusProperties {
                 onEnter = {
                     focusRequester.tryRequestFocus()
                 }

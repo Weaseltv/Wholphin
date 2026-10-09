@@ -27,9 +27,10 @@ import androidx.tv.material3.contentColorFor
 import com.github.damontecres.wholphin.preferences.AppSliderPreference
 import com.github.damontecres.wholphin.ui.components.SliderBar
 import com.github.damontecres.wholphin.ui.components.SliderColors
-import com.github.damontecres.wholphin.ui.theme.isWeaselTv
-import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 
 @Composable
 fun SliderPreference(
@@ -59,6 +60,7 @@ fun SliderPreference(
         verticalArrangement = Arrangement.SpaceEvenly,
         modifier =
             modifier
+                .keepFocusedItemVisible()
                 .defaultMinSize(minHeight = 72.dp)
                 .fillMaxWidth()
                 .background(background, shape = if (neon) RectangleShape else RoundedCornerShape(8.dp))
@@ -86,7 +88,17 @@ fun SliderPreference(
                 onChange = onChange,
                 enableWrapAround = false,
                 outlineColor = if (neon) NeonBoard.IceWhite else null,
-                colors = if (neon) SliderColors(NeonBoard.IceWhite, NeonBoard.IceWhite, Color.Black, Color.Black) else SliderColors.default(),
+                colors =
+                    if (neon) {
+                        SliderColors(
+                            NeonBoard.IceWhite,
+                            NeonBoard.IceWhite,
+                            Color.Black,
+                            Color.Black,
+                        )
+                    } else {
+                        SliderColors.default()
+                    },
                 interactionSource = interactionSource,
                 modifier = Modifier.weight(1f),
             )

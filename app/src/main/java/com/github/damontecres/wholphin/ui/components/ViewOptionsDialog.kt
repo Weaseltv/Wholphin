@@ -39,6 +39,8 @@ import com.github.damontecres.wholphin.preferences.AppSwitchPreference
 import com.github.damontecres.wholphin.preferences.PrefContentScale
 import com.github.damontecres.wholphin.ui.AspectRatio
 import com.github.damontecres.wholphin.ui.preferences.ComposablePreference
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import kotlinx.serialization.Serializable
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -86,7 +88,7 @@ fun ViewOptionsDialog(
                     .width(256.dp)
                     .heightIn(max = 380.dp)
                     .background(
-                        MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp),
+                        if (isWeaselTv()) NeonBoard.Card else MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp),
                         shape = RoundedCornerShape(8.dp),
                     ),
         ) {

@@ -29,11 +29,12 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
+import com.github.damontecres.wholphin.ui.components.FittedCardLabel
 import com.github.damontecres.wholphin.ui.components.Genre
 import com.github.damontecres.wholphin.ui.setup.rememberIdColor
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
-import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonCardBorder
 import com.github.damontecres.wholphin.ui.theme.neonCardGlow
 import com.github.damontecres.wholphin.ui.theme.neonCardScale
@@ -116,17 +117,7 @@ fun GenreCard(
                         .fillMaxSize()
                         .background(background),
             ) {
-                Text(
-                    text = name ?: "",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    modifier =
-                        Modifier
-                            .padding(16.dp)
-                            .align(Alignment.Center),
-                )
+                FittedCardLabel(name ?: "")
             }
         }
     }
