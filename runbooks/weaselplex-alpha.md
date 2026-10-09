@@ -521,3 +521,15 @@ Streaming Services, Movies, TV Shows, Stand Up Comedy and Sports. The same layou
 calculation is used in the Home previews. It preserves saved tuning and ordering;
 Recommended pages retain their own header layout. Delivery is arm64 Alpha via
 direct VPS ADB; visual verification belongs to the owner.
+
+## Sharp streaming-provider posters (2026-10-09)
+
+Recognized provider collection cards use the shared native
+`StreamingProviderPoster` renderer on Home, Collections and other card surfaces.
+It replaces server posters with centered bundled logos over brand-color gradient
+backgrounds drawn at the current card resolution. SVG logos decode at twice the
+displayed size to retain detail during focus scaling; AMC+ retains its high
+resolution transparent logo source. All 15 current providers are covered,
+including existing naming aliases. Focus borders/glow and saved presentation
+settings are untouched. Source/attribution notes remain in
+`runbooks/provider-wordmark-sources.md`. Routine delivery remains Alpha.

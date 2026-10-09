@@ -76,7 +76,7 @@ fun StreamingProviderHeader(
     }
 }
 
-private fun providerWordmark(name: String?): String? = when (name?.trim()?.lowercase(Locale.ROOT)) {
+internal fun providerWordmark(name: String?): String? = when (name?.trim()?.lowercase(Locale.ROOT)) {
     "netflix" -> "netflix.svg"
     "disney+", "disney plus" -> "disney.svg"
     "hulu" -> "hulu.svg"
