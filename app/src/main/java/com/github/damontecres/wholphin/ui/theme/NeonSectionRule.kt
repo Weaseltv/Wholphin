@@ -43,7 +43,7 @@ fun NeonSectionRule(
     val insets = LocalNeonRuleInsets.current
     NeonRule(
         modifier = modifier.bleedHorizontal(insets.start, insets.end),
-        accent = accent,
+        accent = if (accent.copy(alpha = 1f) == NeonSectionPalette.Home.border) neonGlowAccent(accent) else accent,
         thickness = thickness,
         glowHeight = glowHeight,
         glowStrength = glowStrength,

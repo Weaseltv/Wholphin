@@ -458,6 +458,10 @@ Sidebar labels stay Exo 2 Medium 500 at normal tracking with #E1E4EC inactive
 text; the active-page section color and focused appearance remain. Profile name
 uses #F0F2F8 and the server subtitle #828A9B. Sidebar icons remain unchanged.
 
-Movies, TV Shows, Stand Up Comedy and Sports Recently Added Home rows use the
-shorter **NEW IN** kicker (including library aliases resolved by their section
-palette). Recently Released kickers remain unchanged.
+Recently Added Home rows use **NEW IN** directly, including Movies, TV Shows,
+Stand Up Comedy and Sports, without depending on their palette classification.
+Recently Released kickers remain unchanged.
+
+Green section-title rules use Home’s Matrix Green #00E04B, matching the green
+kicker text. The shared section-rule helper retains configured thickness, glow
+and opacity and leaves the other section palettes unchanged.

@@ -668,12 +668,7 @@ private fun homeRowHeading(
             CuratedCollections.NAME to stringResource(R.string.collections)
         row is HomeRowConfig.RecentlyAdded ->
             libraries.firstOrNull { it.itemId == row.parentId }?.let { library ->
-                val accent = libraryAccent(library.name, library.collectionType)
-                val useNewIn = accent == NeonSectionPalette.Movies.border ||
-                    accent == NeonSectionPalette.TvShows.border ||
-                    accent == NeonSectionPalette.StandUpComedy.border ||
-                    accent == NeonSectionPalette.Sports.border
-                library.name to stringResource(if (useNewIn) R.string.home_new_in else R.string.recently_added)
+                library.name to stringResource(R.string.home_new_in)
             } ?: (fallback to null)
         row is HomeRowConfig.RecentlyReleased ->
             libraries.firstOrNull { it.itemId == row.parentId }?.name?.let {
