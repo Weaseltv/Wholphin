@@ -295,8 +295,7 @@ fun SearchPage(
                             start = 16.dp,
                             end = if (isWeaselTv()) clockHeaderEndPadding() else 16.dp,
                             top = 16.dp,
-                        )
-                        .focusGroup()
+                        ).focusGroup()
                         .focusRestorer(textFieldFocusRequester)
                         .focusRequester(focusRequesters[SEARCH_ROW]),
             ) {
@@ -509,7 +508,14 @@ fun SearchPage(
     if (showFilterTypeDialog) {
         SearchTypeOptionsDialog(
             onDismissRequest = { showFilterTypeDialog = false },
-            searchableTypes = if (isWeaselTv()) state.possibleSearchableTypes.filterNot { it in PrimarySearchTypes } else state.possibleSearchableTypes,
+            searchableTypes =
+                if (isWeaselTv()) {
+                    state.possibleSearchableTypes.filterNot {
+                        it in PrimarySearchTypes
+                    }
+                } else {
+                    state.possibleSearchableTypes
+                },
             excludedSearchableTypes = state.excludedSearchableTypes,
             discoverAvailable = seerrActive,
             discoverEnabled = state.discoverEnabled,
