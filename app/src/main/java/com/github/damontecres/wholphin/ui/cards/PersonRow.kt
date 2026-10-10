@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -19,14 +18,13 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.DiscoverItem
 import com.github.damontecres.wholphin.data.model.Person
 import com.github.damontecres.wholphin.ui.components.FocusSafeLazyRow
+import com.github.damontecres.wholphin.ui.components.keepTitledRowVisible
 import com.github.damontecres.wholphin.ui.components.reportDetailRowHeight
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.rememberInt
@@ -43,12 +41,21 @@ fun PersonRow(
     var position by rememberInt()
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier.reportDetailRowHeight(),
+        modifier = modifier.reportDetailRowHeight().keepTitledRowVisible(),
     ) {
         ItemRowTitle(stringResource(title))
         FocusSafeLazyRow(
             state = rememberLazyListState(),
-            horizontalArrangement = Arrangement.spacedBy(if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.CARD_SPACING_DP.dp else 16.dp),
+            horizontalArrangement =
+                Arrangement.spacedBy(
+                    if (BuildConfig.FLAVOR ==
+                        "weaselfin"
+                    ) {
+                        ApprovedHomeLayout.CARD_SPACING_DP.dp
+                    } else {
+                        16.dp
+                    },
+                ),
             contentPadding = PaddingValues(8.dp),
             modifier =
                 Modifier
@@ -88,20 +95,24 @@ fun DiscoverPersonRow(
     val firstFocus = remember { FocusRequester() }
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier.reportDetailRowHeight(),
+        modifier = modifier.reportDetailRowHeight().keepTitledRowVisible(),
     ) {
-        Text(
-            text = stringResource(title),
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
+        ItemRowTitle(stringResource(title))
         FocusSafeLazyRow(
             state = rememberLazyListState(),
-            horizontalArrangement = Arrangement.spacedBy(if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.CARD_SPACING_DP.dp else 16.dp),
+            horizontalArrangement =
+                Arrangement.spacedBy(
+                    if (BuildConfig.FLAVOR ==
+                        "weaselfin"
+                    ) {
+                        ApprovedHomeLayout.CARD_SPACING_DP.dp
+                    } else {
+                        16.dp
+                    },
+                ),
             contentPadding = PaddingValues(8.dp),
             modifier =
                 Modifier
-                    .padding(start = 16.dp)
                     .fillMaxWidth()
                     .focusRestorer(firstFocus),
         ) {

@@ -46,8 +46,11 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -107,11 +110,6 @@ class SearchViewModel
 
         private fun init() {
             viewModelScope.launchDefault {
-                userLibraryTypes =
-                    navDrawerService.state.value.allLibraries
-                        .flatMap { it.collectionType.baseItemKinds }
-                        .toSet()
-
                 val defaultExcludes = if (BuildConfig.FLAVOR == "weaselfin") listOf(BaseItemKind.BOX_SET) else emptyList()
                 val defaultDiscover = BuildConfig.FLAVOR != "weaselfin"
                 val excludedSearchableTypes =
@@ -142,20 +140,34 @@ class SearchViewModel
                             defaultDiscover
                         }
                     } ?: defaultDiscover
-                val searchableTypes = determineSearchableTypes(excludedSearchableTypes)
-                val possibleSearchableTypes = determineSearchableTypes(emptyList())
                 _state.update {
-                    it.copy(
-                        discoverEnabled = discoverEnabled,
-                        includedSearchableTypes = searchableTypes,
-                        possibleSearchableTypes = possibleSearchableTypes,
-                        excludedSearchableTypes = excludedSearchableTypes,
-                        results =
-                            SnapshotStateMap<BaseItemKind, SearchResult>().apply {
-                                searchableTypes.forEach { put(it, SearchResult.NoQuery) }
-                            },
-                    )
+                    it.copy(discoverEnabled = discoverEnabled, excludedSearchableTypes = excludedSearchableTypes)
                 }
+                // A SEARCH intent can arrive before the navigation libraries load.
+                // Observe their types so the initial empty snapshot cannot permanently
+                // hide Movie, Series and Episode search. Preserve exclusions on refresh.
+                navDrawerService.state
+                    .map { nav -> nav.allLibraries.flatMap { it.collectionType.baseItemKinds }.toSet() }
+                    .distinctUntilChanged()
+                    .collectLatest { libraryTypes ->
+                        userLibraryTypes = libraryTypes
+                        val previousTypes = state.value.includedSearchableTypes
+                        val searchableTypes = determineSearchableTypes(state.value.excludedSearchableTypes)
+                        val possibleSearchableTypes = determineSearchableTypes(emptyList())
+                        _state.update {
+                            it.copy(
+                                includedSearchableTypes = searchableTypes,
+                                possibleSearchableTypes = possibleSearchableTypes,
+                                results =
+                                    SnapshotStateMap<BaseItemKind, SearchResult>().apply {
+                                        searchableTypes.forEach { type -> put(type, it.results[type] ?: SearchResult.NoQuery) }
+                                    },
+                            )
+                        }
+                        if (previousTypes != searchableTypes && currentQuery.isNotNullOrBlank()) {
+                            search(currentQuery, combinedMode, force = true)
+                        }
+                    }
             }
         }
 

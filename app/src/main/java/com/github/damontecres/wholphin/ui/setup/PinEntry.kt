@@ -36,6 +36,7 @@ import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.components.BasicDialog
 import com.github.damontecres.wholphin.ui.components.TextButton
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.playback.isEnterKey
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonType
@@ -65,9 +66,11 @@ fun PinEntry(
 
         TextButton(
             onClick = onClickServerAuth,
+            contentHeight = 48.dp,
             modifier =
                 Modifier
                     .align(Alignment.CenterHorizontally)
+                    .keepFocusedItemVisible()
                     .onKeyEvent {
                         if (it.type == KeyEventType.KeyUp) {
                             var str = input
@@ -158,8 +161,8 @@ fun PinEntryCreate(
                 }.focusable(),
     ) {
         Text(
-            text = stringResource(title),
-            style = MaterialTheme.typography.headlineLarge,
+            text = stringResource(title).neonUpper(),
+            style = if (isWeaselTv()) NeonType.dialogTitle() else MaterialTheme.typography.headlineLarge,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.align(Alignment.CenterHorizontally),
         )

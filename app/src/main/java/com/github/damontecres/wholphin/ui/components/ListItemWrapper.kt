@@ -14,6 +14,10 @@ import androidx.tv.material3.ListItemDefaults
 import androidx.tv.material3.ListItemGlow
 import androidx.tv.material3.ListItemScale
 import androidx.tv.material3.ListItemShape
+import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
+import com.github.damontecres.wholphin.ui.theme.neonListItemColors
+import com.github.damontecres.wholphin.ui.theme.neonListItemGlow
+import com.github.damontecres.wholphin.ui.theme.neonListItemShape
 
 /**
  * Displays either a [ListItem] or [DenseListItem] based on the dense parameter
@@ -44,7 +48,7 @@ fun ListItemWrapper(
         selected = selected,
         onClick = onClick,
         headlineContent = headlineContent,
-        modifier = modifier,
+        modifier = modifier.keepFocusedItemVisible(),
         enabled = enabled,
         onLongClick = onLongClick,
         overlineContent = overlineContent,
@@ -52,11 +56,11 @@ fun ListItemWrapper(
         leadingContent = leadingContent,
         trailingContent = trailingContent,
         tonalElevation = tonalElevation,
-        shape = shape,
-        colors = colors,
+        shape = neonListItemShape(shape),
+        colors = neonListItemColors(fallback = colors),
         scale = scale,
-        border = border,
-        glow = glow,
+        border = neonListItemBorder(fallback = border),
+        glow = neonListItemGlow(fallback = glow),
         interactionSource = interactionSource,
     )
 } else {
@@ -64,7 +68,7 @@ fun ListItemWrapper(
         selected = selected,
         onClick = onClick,
         headlineContent = headlineContent,
-        modifier = modifier,
+        modifier = modifier.keepFocusedItemVisible(),
         enabled = enabled,
         onLongClick = onLongClick,
         overlineContent = overlineContent,
@@ -72,11 +76,11 @@ fun ListItemWrapper(
         leadingContent = leadingContent,
         trailingContent = trailingContent,
         tonalElevation = tonalElevation,
-        shape = shape,
-        colors = colors,
+        shape = neonListItemShape(shape),
+        colors = neonListItemColors(fallback = colors),
         scale = scale,
-        border = border,
-        glow = glow,
+        border = neonListItemBorder(fallback = border),
+        glow = neonListItemGlow(fallback = glow),
         interactionSource = interactionSource,
     )
 }

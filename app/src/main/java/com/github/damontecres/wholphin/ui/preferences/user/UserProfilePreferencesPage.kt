@@ -54,6 +54,7 @@ import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.preferences.ChoicePreference
 import com.github.damontecres.wholphin.ui.preferences.ClickPreference
 import com.github.damontecres.wholphin.ui.preferences.ComposablePreference
+import com.github.damontecres.wholphin.ui.preferences.PreferencePanelHeader
 import com.github.damontecres.wholphin.ui.preferences.PreferenceValidation
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import org.jellyfin.sdk.model.api.SubtitlePlaybackMode
@@ -113,16 +114,7 @@ fun UserProfilePreferencesContent(
         Column(
             modifier = Modifier.background(MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)),
         ) {
-            Text(
-                text = stringResource(R.string.profile_specific_settings),
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-            )
+            PreferencePanelHeader(stringResource(R.string.profile_specific_settings))
             LazyColumn(
                 state = state,
                 horizontalAlignment = Alignment.Start,

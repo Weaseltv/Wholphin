@@ -34,6 +34,7 @@ import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.letNotEmpty
 import com.github.damontecres.wholphin.ui.listToDotString
 import com.github.damontecres.wholphin.ui.roundMinutes
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.ImageType
@@ -59,6 +60,7 @@ fun DiscoverMovieDetailsHeader(
         }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val neon = isWeaselTv()
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = modifier,
@@ -137,7 +139,7 @@ fun DiscoverMovieDetailsHeader(
                     textBoxHeight = Dp.Unspecified,
                     modifier =
                         Modifier.onFocusChanged {
-                            if (it.isFocused) {
+                            if (it.isFocused && !neon) {
                                 scope.launch(ExceptionHandler()) {
                                     bringIntoViewRequester.bringIntoView()
                                 }

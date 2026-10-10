@@ -32,7 +32,13 @@ import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.ui.components.DialogListEdge
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.ifElse
+import com.github.damontecres.wholphin.ui.theme.neonOutlineColors
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceBorder
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceGlow
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceShape
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.rememberDelayedNestedScroll
 import org.jellyfin.sdk.model.api.LyricDto
@@ -72,7 +78,7 @@ fun LyricsContent(
     ) {
         LazyColumn(
             state = listState,
-            contentPadding = PaddingValues(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = DialogListEdge),
             verticalArrangement = Arrangement.spacedBy(4.dp),
             modifier =
                 Modifier
@@ -109,11 +115,16 @@ fun LyricsContent(
                         onClick = { onClick.invoke(lyric) },
                         interactionSource = interactionSource,
                         colors =
-                            ClickableSurfaceDefaults.colors(
-                                containerColor = Color.Transparent,
-                                focusedContainerColor = MaterialTheme.colorScheme.border.copy(alpha = .33f),
+                            neonOutlineColors(
+                                fallback =
+                                    ClickableSurfaceDefaults.colors(
+                                        containerColor = Color.Transparent,
+                                        focusedContainerColor = MaterialTheme.colorScheme.border.copy(alpha = .33f),
+                                    ),
                             ),
-                        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
+                        shape = neonSurfaceShape(ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp))),
+                        border = neonSurfaceBorder(),
+                        glow = neonSurfaceGlow(),
                         scale =
                             ClickableSurfaceDefaults.scale(
                                 focusedScale = 1f,
@@ -121,6 +132,7 @@ fun LyricsContent(
                             ),
                         modifier =
                             Modifier
+                                .keepFocusedItemVisible()
                                 .focusRequester(focusRequesters[index])
                                 .onFocusChanged {
                                     if (it.isFocused) onFocusLyrics.invoke(true)

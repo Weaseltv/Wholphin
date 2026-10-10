@@ -44,10 +44,10 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.font.FontWeight
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -244,29 +244,7 @@ fun PreferencesContent(
                         }
                     },
         ) {
-            if (neon) {
-                // Keep the title inset while the rule spans the full panel width.
-                Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-                    Text(
-                        text = stringResource(screenTitle).uppercase(),
-                        style = NeonType.pageTitle(),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(horizontal = 32.dp),
-                    )
-                    NeonRule(modifier = Modifier.padding(top = 6.dp))
-                }
-            } else {
-                Text(
-                    text = stringResource(screenTitle),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                )
-            }
+            PreferencePanelHeader(stringResource(screenTitle))
             LazyColumn(
                 state = state,
                 horizontalAlignment = Alignment.Start,
@@ -303,7 +281,16 @@ fun PreferencesContent(
                     item {
                         Text(
                             text = stringResource(group.title),
-                            style = if (neon) MaterialTheme.typography.titleMedium.copy(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold) else MaterialTheme.typography.titleMedium,
+                            style =
+                                if (neon) {
+                                    MaterialTheme.typography.titleMedium.copy(
+                                        fontSize = 22.sp,
+                                        lineHeight = 28.sp,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                } else {
+                                    MaterialTheme.typography.titleMedium
+                                },
                             color = MaterialTheme.colorScheme.onSurface,
                             textAlign = TextAlign.Start,
                             modifier =

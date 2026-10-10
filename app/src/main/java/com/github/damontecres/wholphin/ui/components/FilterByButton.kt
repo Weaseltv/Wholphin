@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,7 +28,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Icon
@@ -87,6 +85,7 @@ fun FilterByButton(
 ) {
     var dropDown by remember { mutableStateOf(false) }
     var nestedDropDown by remember { mutableStateOf<ItemFilterBy<*>?>(null) }
+    var lastOpenedFilter by remember { mutableStateOf<ItemFilterBy<*>?>(null) }
     val filterCount = remember(current, filterOptions) { current.countFilters(filterOptions) }
 
     Box(modifier = modifier) {
@@ -99,8 +98,8 @@ fun FilterByButton(
             modifier = Modifier,
         )
 
-        DropdownMenu(
-            expanded = dropDown,
+        AppDropdownMenu(
+            expanded = dropDown && nestedDropDown == null,
             containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
             onDismissRequest = {
                 onShow?.invoke(false)
@@ -135,9 +134,9 @@ fun FilterByButton(
                 HorizontalDivider()
             }
             filterOptions
-                .forEachIndexed { index, filterOption ->
+                .forEach { filterOption ->
                     val focusRequester = remember { FocusRequester() }
-                    if (index == 0) {
+                    if (filterOption == (lastOpenedFilter?.takeIf { it in filterOptions } ?: filterOptions.firstOrNull())) {
                         LaunchedEffect(Unit) { focusRequester.tryRequestFocus() }
                     }
                     val currentValue = remember(current) { filterOption.get(current) }
@@ -156,6 +155,7 @@ fun FilterByButton(
                             )
                         },
                         onClick = {
+                            lastOpenedFilter = filterOption
                             nestedDropDown = filterOption
                         },
                         modifier = Modifier.focusRequester(focusRequester),
@@ -163,16 +163,22 @@ fun FilterByButton(
                 }
         }
 
-        DropdownMenu(
+        AppDropdownMenu(
             expanded = nestedDropDown != null,
             containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(5.dp),
-            offset = DpOffset(80.dp, 16.dp),
             onDismissRequest = {
                 nestedDropDown = null
             },
         ) {
             nestedDropDown?.let { filterOption ->
                 filterOption as ItemFilterBy<Any>
+                Text(
+                    text = stringResource(filterOption.stringRes),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+                HorizontalDivider()
                 val currentValue = remember(current) { filterOption.get(current) }
 
                 var possibleValues by remember { mutableStateOf<List<FilterValueOption>?>(null) }
@@ -451,6 +457,7 @@ fun DiscoverFilterByButton(
 ) {
     var dropDown by remember { mutableStateOf(false) }
     var nestedDropDown by remember { mutableStateOf<DiscoverFilterBy<*>?>(null) }
+    var lastOpenedFilter by remember { mutableStateOf<DiscoverFilterBy<*>?>(null) }
     val filterCount = remember(current, filterOptions) { current.countFilters(filterOptions) }
 
     Box(modifier = modifier) {
@@ -463,8 +470,8 @@ fun DiscoverFilterByButton(
             modifier = Modifier,
         )
 
-        DropdownMenu(
-            expanded = dropDown,
+        AppDropdownMenu(
+            expanded = dropDown && nestedDropDown == null,
             containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
             onDismissRequest = {
                 onShow?.invoke(false)
@@ -499,9 +506,9 @@ fun DiscoverFilterByButton(
                 HorizontalDivider()
             }
             filterOptions
-                .forEachIndexed { index, filterOption ->
+                .forEach { filterOption ->
                     val focusRequester = remember { FocusRequester() }
-                    if (index == 0) {
+                    if (filterOption == (lastOpenedFilter?.takeIf { it in filterOptions } ?: filterOptions.firstOrNull())) {
                         LaunchedEffect(Unit) { focusRequester.tryRequestFocus() }
                     }
                     val currentValue = remember(current) { filterOption.get(current) }
@@ -520,6 +527,7 @@ fun DiscoverFilterByButton(
                             )
                         },
                         onClick = {
+                            lastOpenedFilter = filterOption
                             nestedDropDown = filterOption
                         },
                         modifier = Modifier.focusRequester(focusRequester),
@@ -527,16 +535,22 @@ fun DiscoverFilterByButton(
                 }
         }
 
-        DropdownMenu(
+        AppDropdownMenu(
             expanded = nestedDropDown != null,
             containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(5.dp),
-            offset = DpOffset(80.dp, 16.dp),
             onDismissRequest = {
                 nestedDropDown = null
             },
         ) {
             nestedDropDown?.let { filterOption ->
                 filterOption as DiscoverFilterBy<Any>
+                Text(
+                    text = stringResource(filterOption.stringRes),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+                HorizontalDivider()
                 val currentValue = remember(current) { filterOption.get(current) }
 
                 var possibleValues by remember { mutableStateOf<List<FilterValueOption>?>(null) }

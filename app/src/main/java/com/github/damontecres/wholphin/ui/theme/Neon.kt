@@ -1,12 +1,12 @@
 package com.github.damontecres.wholphin.ui.theme
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
@@ -45,12 +45,12 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.NavigationDrawerItemColors
 import androidx.tv.material3.NavigationDrawerItemDefaults
 import androidx.tv.material3.Text
-import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
+import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomeCardAppearance
-import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.preferences.AppThemeColors
+import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.nav.NavDrawerItem
 import com.github.damontecres.wholphin.ui.nav.ServerNavDrawerItem
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -85,6 +85,7 @@ object NeonBoard {
     val Volt = Color(0xFFC6FF00)
     val Green = Color(0xFF3DFF6E)
     val Cyan = Color(0xFF00E5FF)
+
     // Literal orange option; Watchlist uses this Molten / Safety Orange pair.
     val Orange = Color(0xFFFF5200)
     val OrangeGlow = Color(0xFFFF7900)
@@ -184,20 +185,31 @@ fun ProvideNeonAccent(
 ) {
     CompositionLocalProvider(LocalNeonAccent provides accent) {
         if (isWeaselTv()) {
-            val tvColors = MaterialTheme.colorScheme.copy(
-                primary = accent, onPrimary = NeonBoard.OnAccent,
-                primaryContainer = NeonBoard.chipOn(accent), onPrimaryContainer = NeonBoard.Text,
-                secondary = accent, onSecondary = NeonBoard.OnAccent,
-                tertiary = accent, onTertiary = NeonBoard.OnAccent,
-                border = accent, inversePrimary = accent,
-            )
-            val materialColors = androidx.compose.material3.MaterialTheme.colorScheme.copy(
-                primary = accent, onPrimary = NeonBoard.OnAccent,
-                primaryContainer = NeonBoard.chipOn(accent), onPrimaryContainer = NeonBoard.Text,
-                secondary = accent, onSecondary = NeonBoard.OnAccent,
-                tertiary = accent, onTertiary = NeonBoard.OnAccent,
-                inversePrimary = accent,
-            )
+            val tvColors =
+                MaterialTheme.colorScheme.copy(
+                    primary = accent,
+                    onPrimary = NeonBoard.OnAccent,
+                    primaryContainer = NeonBoard.chipOn(accent),
+                    onPrimaryContainer = NeonBoard.Text,
+                    secondary = accent,
+                    onSecondary = NeonBoard.OnAccent,
+                    tertiary = accent,
+                    onTertiary = NeonBoard.OnAccent,
+                    border = accent,
+                    inversePrimary = accent,
+                )
+            val materialColors =
+                androidx.compose.material3.MaterialTheme.colorScheme.copy(
+                    primary = accent,
+                    onPrimary = NeonBoard.OnAccent,
+                    primaryContainer = NeonBoard.chipOn(accent),
+                    onPrimaryContainer = NeonBoard.Text,
+                    secondary = accent,
+                    onSecondary = NeonBoard.OnAccent,
+                    tertiary = accent,
+                    onTertiary = NeonBoard.OnAccent,
+                    inversePrimary = accent,
+                )
             androidx.compose.material3.MaterialTheme(colorScheme = materialColors) {
                 MaterialTheme(colorScheme = tvColors, content = content)
             }
@@ -210,7 +222,10 @@ fun ProvideNeonAccent(
 val LocalNeonSectionAccent = compositionLocalOf<Color?> { null }
 
 @Composable
-fun ProvideNeonSectionAccent(accent: Color, content: @Composable () -> Unit) {
+fun ProvideNeonSectionAccent(
+    accent: Color,
+    content: @Composable () -> Unit,
+) {
     CompositionLocalProvider(LocalNeonSectionAccent provides accent) {
         ProvideNeonAccent(accent, content)
     }
@@ -245,26 +260,56 @@ object RailAccents {
 }
 
 /** Inherit the most recent sidebar section through nested details, dialogs and playback. */
-fun navigationSectionAccent(backStack: List<Destination>, items: List<NavDrawerItem>): Color {
+fun navigationSectionAccent(
+    backStack: List<Destination>,
+    items: List<NavDrawerItem>,
+): Color {
     var accent = RailAccents.Home
     backStack.forEach { destination ->
-        accent = when (destination) {
-            is Destination.Home -> RailAccents.Home
-            is Destination.Search -> RailAccents.Search
-            Destination.Favorites -> NeonSectionPalette.Watchlist.border
-            Destination.Discover -> NeonSectionPalette.Requests.border
-            is Destination.Settings, Destination.HomeSettings, is Destination.SubtitleSettings,
-            is Destination.UpdateApp, Destination.License, Destination.Debug -> RailAccents.Settings
-            Destination.UserAppPreferences -> RailAccents.User
-            Destination.NowPlaying -> RailAccents.NowPlaying
-            else -> items.filterIsInstance<ServerNavDrawerItem>()
-                .firstOrNull { it.destination == destination }
-                ?.let(::sectionAccent) ?: when (destination) {
-                    is Destination.MediaItem -> mediaAccent(destination.type, accent)
-                    is Destination.DiscoveredItem -> mediaAccent(destination.item.type.baseItemKind, accent)
-                    else -> accent
+        accent =
+            when (destination) {
+                is Destination.Home -> {
+                    RailAccents.Home
                 }
-        }
+
+                is Destination.Search -> {
+                    RailAccents.Search
+                }
+
+                Destination.Favorites -> {
+                    NeonSectionPalette.Watchlist.border
+                }
+
+                Destination.Discover -> {
+                    NeonSectionPalette.Requests.border
+                }
+
+                is Destination.Settings, Destination.HomeSettings, is Destination.SubtitleSettings,
+                is Destination.UpdateApp, Destination.License, Destination.Debug,
+                -> {
+                    RailAccents.Settings
+                }
+
+                Destination.UserAppPreferences -> {
+                    RailAccents.User
+                }
+
+                Destination.NowPlaying -> {
+                    RailAccents.NowPlaying
+                }
+
+                else -> {
+                    items
+                        .filterIsInstance<ServerNavDrawerItem>()
+                        .firstOrNull { it.destination == destination }
+                        ?.let(::sectionAccent) ?: when (destination) {
+                        is Destination.MediaItem -> mediaAccent(destination.type, accent)
+                        is Destination.SeriesOverview -> mediaAccent(destination.type, accent)
+                        is Destination.DiscoveredItem -> mediaAccent(destination.item.type.baseItemKind, accent)
+                        else -> accent
+                    }
+                }
+            }
     }
     return accent
 }
@@ -318,7 +363,13 @@ fun streamingProviderBorderAccent(name: String?): Color? =
 
 /** Owner-supplied Picks poster theme colors, shared by their focus border and glow. */
 fun curatedPickAccent(name: String?): Color? =
-    when (name?.trim()?.lowercase(java.util.Locale.ROOT)?.replace("’", "")?.replace("'", "")) {
+    when (
+        name
+            ?.trim()
+            ?.lowercase(java.util.Locale.ROOT)
+            ?.replace("’", "")
+            ?.replace("'", "")
+    ) {
         "blockbuster friday" -> Color(0xFF2567F6)
         "clear your evening" -> Color(0xFFFFA91E)
         "cozy season" -> Color(0xFF40C7FF)
@@ -341,15 +392,27 @@ fun curatedPickAccent(name: String?): Color? =
     }
 
 /** Resolve glow separately from solid ink/strokes throughout the shared Neon components. */
-fun neonGlowAccent(accent: Color): Color =
-    NeonSectionPalette.glowAccent(accent)
+fun neonGlowAccent(accent: Color): Color = NeonSectionPalette.glowAccent(accent)
 
 /** Mixed pages use media colors; Stand Up Comedy and Sports retain their library identity. */
-private fun mediaAccent(kind: BaseItemKind?, section: Color?): Color =
+private fun mediaAccent(
+    kind: BaseItemKind?,
+    section: Color?,
+): Color =
     when {
-        section == NeonSectionPalette.StandUpComedy.border || section == NeonSectionPalette.Sports.border -> section
-        kind == BaseItemKind.MOVIE || kind == BaseItemKind.SERIES || kind == BaseItemKind.SEASON || kind == BaseItemKind.EPISODE -> typeAccent(kind)
-        else -> section ?: typeAccent(kind)
+        section == NeonSectionPalette.StandUpComedy.border || section == NeonSectionPalette.Sports.border -> {
+            section
+        }
+
+        kind == BaseItemKind.MOVIE || kind == BaseItemKind.SERIES || kind == BaseItemKind.SEASON || kind == BaseItemKind.EPISODE -> {
+            typeAccent(
+                kind,
+            )
+        }
+
+        else -> {
+            section ?: typeAccent(kind)
+        }
     }
 
 /** Section accent for a library by its Jellyfin collection type. */
@@ -407,7 +470,9 @@ fun itemAccent(item: BaseItem?): Color {
 fun neonAccentFor(item: BaseItem?): Color =
     LocalHomeRowAccent.current ?: if (item == null) {
         LocalNeonSectionAccent.current ?: LocalNeonAccent.current
-    } else if (item.type == BaseItemKind.MOVIE || item.type == BaseItemKind.SERIES || item.type == BaseItemKind.SEASON || item.type == BaseItemKind.EPISODE) {
+    } else if (item.type == BaseItemKind.MOVIE || item.type == BaseItemKind.SERIES || item.type == BaseItemKind.SEASON ||
+        item.type == BaseItemKind.EPISODE
+    ) {
         mediaAccent(item.type, LocalNeonSectionAccent.current)
     } else {
         LocalNeonSectionAccent.current ?: itemAccent(item)
@@ -429,9 +494,22 @@ fun neonCardBorder(
     if (!isWeaselTv()) return fallback ?: CardDefaults.border()
     val appearance = LocalHomeCardAppearance.current
     val resolvedShape = if (shape == RectangleShape) RoundedCornerShape(appearance.cornerRadiusDp.dp) else shape
-    val focused = if (appearance.borderWidthDp > 0 && appearance.borderOpacityPercent > 0) {
-        Border(border = BorderStroke(appearance.borderWidthDp.dp, (LocalHomeCardBorderAccent.current ?: homeCardAccent(accent)).copy(alpha = appearance.borderOpacityPercent / 100f)), shape = resolvedShape)
-    } else Border.None
+    val focused =
+        if (appearance.borderWidthDp > 0 && appearance.borderOpacityPercent > 0) {
+            Border(
+                border =
+                    BorderStroke(
+                        appearance.borderWidthDp.dp,
+                        (LocalHomeCardBorderAccent.current ?: homeCardAccent(accent)).copy(
+                            alpha =
+                                appearance.borderOpacityPercent / 100f,
+                        ),
+                    ),
+                shape = resolvedShape,
+            )
+        } else {
+            Border.None
+        }
     return CardDefaults.border(
         border = if (restWidth > 0.dp) Border(BorderStroke(restWidth, restColor), shape = resolvedShape) else Border.None,
         focusedBorder = focused,
@@ -469,9 +547,10 @@ fun neonCardShape(fallback: CardShape? = null): CardShape {
     return CardDefaults.shape(RoundedCornerShape(LocalHomeCardAppearance.current.cornerRadiusDp.dp))
 }
 
-val LocalHomeCardAppearance = compositionLocalOf {
-    if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.CARD_APPEARANCE else HomeCardAppearance()
-}
+val LocalHomeCardAppearance =
+    compositionLocalOf {
+        if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.CARD_APPEARANCE else HomeCardAppearance()
+    }
 val LocalHomeRowAccent = compositionLocalOf<Color?> { null }
 val LocalHomeCardBorderAccent = compositionLocalOf<Color?> { null }
 
@@ -508,7 +587,18 @@ fun neonSurfaceBorder(
         } else {
             Border.None
         }
-    val focused = Border(border = BorderStroke(ApprovedHomeLayout.CARD_APPEARANCE.borderWidthDp.dp, accent.copy(alpha = ApprovedHomeLayout.CARD_APPEARANCE.borderOpacityPercent / 100f)), shape = RectangleShape)
+    val focused =
+        Border(
+            border =
+                BorderStroke(
+                    ApprovedHomeLayout.CARD_APPEARANCE.borderWidthDp.dp,
+                    accent.copy(
+                        alpha =
+                            ApprovedHomeLayout.CARD_APPEARANCE.borderOpacityPercent / 100f,
+                    ),
+                ),
+            shape = RectangleShape,
+        )
     val disabled =
         if (restWidth > 0.dp) {
             Border(
@@ -692,7 +782,10 @@ fun neonListItemGlow(
 }
 
 @Composable
-fun neonListItemShape(fallback: ListItemShape? = null, shape: Shape = RectangleShape): ListItemShape {
+fun neonListItemShape(
+    fallback: ListItemShape? = null,
+    shape: Shape = RectangleShape,
+): ListItemShape {
     if (!isWeaselTv()) return fallback ?: ListItemDefaults.shape()
     return ListItemDefaults.shape(shape)
 }
@@ -964,11 +1057,12 @@ fun NeonBadge(
         Text(
             text = text.uppercase(),
             color = ink,
-            style = textStyle.copy(
-                fontSize = textSize,
-                lineHeight = textSize * (textStyle.lineHeight.value / textStyle.fontSize.value),
-                letterSpacing = 0.sp,
-            ),
+            style =
+                textStyle.copy(
+                    fontSize = textSize,
+                    lineHeight = textSize * (textStyle.lineHeight.value / textStyle.fontSize.value),
+                    letterSpacing = 0.sp,
+                ),
             maxLines = 1,
         )
     }

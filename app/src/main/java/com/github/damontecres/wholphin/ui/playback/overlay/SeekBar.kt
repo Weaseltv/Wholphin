@@ -53,8 +53,8 @@ import com.github.damontecres.wholphin.ui.playback.isDpadLeft
 import com.github.damontecres.wholphin.ui.playback.isDpadRight
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
-import com.github.damontecres.wholphin.ui.theme.neonGlowAccent
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.neonGlowAccent
 import kotlinx.coroutines.FlowPreview
 import timber.log.Timber
 import kotlin.time.Duration

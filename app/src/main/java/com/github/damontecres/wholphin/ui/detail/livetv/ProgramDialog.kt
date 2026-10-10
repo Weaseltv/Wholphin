@@ -1,16 +1,18 @@
 package com.github.damontecres.wholphin.ui.detail.livetv
 
 import android.text.format.DateUtils
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
@@ -27,19 +29,22 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
-import androidx.tv.material3.surfaceColorAtElevation
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
+import com.github.damontecres.wholphin.ui.components.BasicDialog
 import com.github.damontecres.wholphin.ui.components.CircularProgress
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
+import com.github.damontecres.wholphin.ui.components.FocusSafeLazyRow
 import com.github.damontecres.wholphin.ui.components.TextButton
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.seasonEpisode
+import com.github.damontecres.wholphin.ui.theme.NeonType
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.DataLoadingState
 import java.time.LocalDateTime
@@ -55,23 +60,23 @@ fun ProgramDialog(
     onCancelRecord: (BaseItem, series: Boolean) -> Unit,
 ) {
     val context = LocalContext.current
-    Dialog(
+    BasicDialog(
         onDismissRequest = onDismissRequest,
     ) {
         val focusRequester = remember { FocusRequester() }
         Box(
             modifier =
                 Modifier
-                    .background(
-                        MaterialTheme.colorScheme.surfaceColorAtElevation(5.dp),
-                        shape = RoundedCornerShape(16.dp),
-                    ).focusRequester(focusRequester),
+                    .width(600.dp)
+                    .heightIn(max = 440.dp)
+                    .focusRequester(focusRequester),
         ) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier =
                     Modifier
-                        .padding(16.dp),
+                        .verticalScroll(rememberScrollState())
+                        .padding(24.dp),
             ) {
                 when (val st = state) {
                     is DataLoadingState.Error -> {
@@ -98,7 +103,9 @@ fun ProgramDialog(
                         Text(
                             text = item.name ?: "",
                             color = MaterialTheme.colorScheme.onSurface,
-                            style = MaterialTheme.typography.titleLarge,
+                            style = if (isWeaselTv()) NeonType.dialogTitle() else MaterialTheme.typography.titleLarge,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
                         )
                         if (dto.isSeries ?: false) {
                             listOfNotNull(dto.seasonEpisode, dto.episodeTitle)
@@ -112,24 +119,32 @@ fun ProgramDialog(
                                     )
                                 }
                         }
+                        val start = dto.startDate
+                        val end = dto.endDate
                         val time =
-                            DateUtils.formatDateRange(
-                                context,
-                                dto.startDate!!
-                                    .atZone(ZoneId.systemDefault())
-                                    .toInstant()
-                                    .epochSecond * 1000,
-                                dto.endDate!!
-                                    .atZone(ZoneId.systemDefault())
-                                    .toInstant()
-                                    .epochSecond * 1000,
-                                DateUtils.FORMAT_SHOW_TIME,
+                            if (start != null && end != null) {
+                                DateUtils.formatDateRange(
+                                    context,
+                                    start
+                                        .atZone(ZoneId.systemDefault())
+                                        .toInstant()
+                                        .epochSecond * 1000,
+                                    end
+                                        .atZone(ZoneId.systemDefault())
+                                        .toInstant()
+                                        .epochSecond * 1000,
+                                    DateUtils.FORMAT_SHOW_TIME,
+                                )
+                            } else {
+                                ""
+                            }
+                        if (time.isNotBlank()) {
+                            Text(
+                                text = time,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                style = MaterialTheme.typography.titleSmall,
                             )
-                        Text(
-                            text = time,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            style = MaterialTheme.typography.titleSmall,
-                        )
+                        }
                         dto.overview?.let { overview ->
                             Text(
                                 text = overview,
@@ -147,10 +162,10 @@ fun ProgramDialog(
                                     .padding(top = 8.dp)
                                     .fillMaxWidth(),
                         ) {
-                            if (now.isAfter(dto.startDate!!) && now.isBefore(dto.endDate!!)) {
+                            if (start != null && end != null && now.isAfter(start) && now.isBefore(end)) {
                                 TextButton(
                                     onClick = { onWatch.invoke(item) },
-                                    modifier = Modifier,
+                                    modifier = Modifier.keepFocusedItemVisible(),
                                 ) {
                                     Row(
                                         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -158,7 +173,7 @@ fun ProgramDialog(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.PlayArrow,
-                                            contentDescription = stringResource(R.string.delete),
+                                            contentDescription = null,
                                         )
                                         Text(
                                             text = stringResource(R.string.watch_live),
@@ -168,7 +183,8 @@ fun ProgramDialog(
                             }
                             if (canRecord) {
                                 val recordFocusRequester = remember { FocusRequester() }
-                                LazyRow(
+                                FocusSafeLazyRow(
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
                                     horizontalArrangement =
                                         Arrangement.spacedBy(
                                             16.dp,
@@ -190,7 +206,7 @@ fun ProgramDialog(
                                                     }
                                                 },
                                                 modifier =
-                                                    Modifier.focusRequester(recordFocusRequester),
+                                                    Modifier.keepFocusedItemVisible().focusRequester(recordFocusRequester),
                                             ) {
                                                 Row(
                                                     horizontalArrangement =
@@ -232,7 +248,7 @@ fun ProgramDialog(
                                                     }
                                                 },
                                                 modifier =
-                                                    Modifier.ifElse(
+                                                    Modifier.keepFocusedItemVisible().ifElse(
                                                         !(dto.isSeries ?: false),
                                                         Modifier.focusRequester(
                                                             recordFocusRequester,

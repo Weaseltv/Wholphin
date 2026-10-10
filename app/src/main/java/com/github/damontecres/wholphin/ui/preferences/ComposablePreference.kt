@@ -221,6 +221,8 @@ fun <T> ComposablePreference(
                 onValueChange = {
                     onValueChange.invoke(it.toList() as T)
                 },
+                modifier = modifier,
+                interactionSource = interactionSource,
                 valueDisplay = { index, _ ->
                     Text(values[index])
                 },

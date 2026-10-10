@@ -59,8 +59,8 @@ import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import com.github.damontecres.wholphin.util.LoadingState
-import java.util.UUID
 import timber.log.Timber
+import java.util.UUID
 
 @Composable
 fun CollectionDetails(
@@ -392,7 +392,15 @@ fun CollectionDetailsContent(
                                             .padding(
                                                 top = if (state.isStreaming) 27.dp else HeaderUtils.detailTopPadding(),
                                                 bottom = if (state.isStreaming) 12.dp else HeaderUtils.bottomPadding,
-                                            ).then(if (isWeaselTv()) Modifier else Modifier.height(if (state.isStreaming) 150.dp else HeaderUtils.height)),
+                                            ).then(
+                                                if (isWeaselTv()) {
+                                                    Modifier
+                                                } else {
+                                                    Modifier.height(
+                                                        if (state.isStreaming) 150.dp else HeaderUtils.height,
+                                                    )
+                                                },
+                                            ),
                                 )
                             }
                             CollectionButtons(
@@ -436,7 +444,7 @@ fun CollectionDetailsContent(
                         onClickPlay = onClickPlay,
                         modifier = Modifier.fillMaxSize(),
                         onFocusPosition = { position ->
-    //                        Timber.v("onFocusPosition=%s", position)
+                            //                        Timber.v("onFocusPosition=%s", position)
                             focusedItem =
                                 position.let {
                                     val key =

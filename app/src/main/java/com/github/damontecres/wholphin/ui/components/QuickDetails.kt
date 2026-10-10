@@ -1,6 +1,6 @@
 package com.github.damontecres.wholphin.ui.components
 
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.material.icons.Icons
@@ -19,6 +19,7 @@ import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -42,7 +43,7 @@ fun QuickDetails(
 ) {
     val enabled = LocalInterfaceCustomization.current.enabledDisplayToggles
     val inlineContentMap = rememberQuickDetailsContentMap(textStyle)
-    Row(modifier = modifier) {
+    FlowRow(modifier = modifier) {
         if (details != null) {
             QuickDetailsText(details.basic, Modifier, textStyle, inlineContentMap)
             if (DisplayToggle.OFFICIAL_RATING in enabled) {
@@ -76,7 +77,8 @@ fun QuickDetailsText(
         color = MaterialTheme.colorScheme.onSurface,
         style = textStyle,
         inlineContent = inlineContentMap,
-        maxLines = 1,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
         modifier = modifier,
     )
 }
@@ -166,7 +168,8 @@ fun EndsAt(
     Text(
         text = remainingStr,
         style = textStyle,
-        maxLines = 1,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
         modifier = modifier,
     )
 }

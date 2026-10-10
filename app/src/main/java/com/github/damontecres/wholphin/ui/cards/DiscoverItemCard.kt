@@ -24,8 +24,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -44,15 +47,19 @@ import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
+import com.github.damontecres.wholphin.ui.components.itemKindLabel
 import com.github.damontecres.wholphin.ui.enableMarquee
+import com.github.damontecres.wholphin.ui.theme.LocalHidePosterTypeBadge
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
-import com.github.damontecres.wholphin.ui.theme.typeAccent
-import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.LocalPosterCountAppearance
+import com.github.damontecres.wholphin.ui.theme.NeonBadge
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonCardBorder
 import com.github.damontecres.wholphin.ui.theme.neonCardGlow
 import com.github.damontecres.wholphin.ui.theme.neonCardScale
 import com.github.damontecres.wholphin.ui.theme.neonCardShape
+import com.github.damontecres.wholphin.ui.theme.typeAccent
 import kotlinx.coroutines.delay
 
 @Composable
@@ -64,7 +71,14 @@ fun DiscoverItemCard(
     showOverlay: Boolean = true,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     width: Dp = Cards.height2x3 * AspectRatios.TALL,
-    accent: Color = if (isWeaselTv() && item?.type in listOf(SeerrItemType.MOVIE, SeerrItemType.TV)) typeAccent(item?.type?.baseItemKind) else LocalNeonAccent.current,
+    accent: Color =
+        if (isWeaselTv() &&
+            item?.type in listOf(SeerrItemType.MOVIE, SeerrItemType.TV)
+        ) {
+            typeAccent(item?.type?.baseItemKind)
+        } else {
+            LocalNeonAccent.current
+        },
 ) {
     val focused by interactionSource.collectIsFocusedAsState()
     var focusedAfterDelay by remember { mutableStateOf(false) }
@@ -91,7 +105,8 @@ fun DiscoverItemCard(
             modifier =
                 Modifier
                     .size(width, Dp.Unspecified)
-                    .aspectRatio(AspectRatios.TALL),
+                    .aspectRatio(AspectRatios.TALL)
+                    .semantics { item?.title?.let { contentDescription = it } },
             onClick = onClick,
             onLongClick = onLongClick,
             interactionSource = interactionSource,
@@ -151,7 +166,22 @@ fun DiscoverItemCard(
                     -> {
                     }
                 }
-                if (showOverlay) {
+                if (showOverlay && isWeaselTv()) {
+                    if (!LocalHidePosterTypeBadge.current) {
+                        item?.type?.baseItemKind?.let { kind ->
+                            val appearance = LocalPosterCountAppearance.current
+                            NeonBadge(
+                                text = itemKindLabel(LocalContext.current, kind) ?: pluralStringResource(R.plurals.people, 1),
+                                accent = typeAccent(kind),
+                                modifier =
+                                    Modifier.align(Alignment.TopStart).padding(
+                                        horizontal = (appearance?.badgeHorizontalInsetDp ?: 4).dp,
+                                        vertical = (appearance?.badgeVerticalInsetDp ?: 4).dp,
+                                    ),
+                            )
+                        }
+                    }
+                } else if (showOverlay) {
                     val color =
                         remember(item?.type) {
                             when (item?.type) {

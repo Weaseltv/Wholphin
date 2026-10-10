@@ -173,9 +173,10 @@ object NeonType {
     /** Row titles and section rules: 22. */
     @Composable
     @ReadOnlyComposable
-    fun sectionTitle(): TextStyle = header(ApprovedHomeLayout.TITLE_SIZE_SP.sp, fallback = MaterialTheme.typography.titleLarge).let {
-        if (isWeaselTv()) it.copy(letterSpacing = (ApprovedHomeLayout.TITLE_TRACKING_TENTHS_SP / 10f).sp) else it
-    }
+    fun sectionTitle(): TextStyle =
+        header(ApprovedHomeLayout.TITLE_SIZE_SP.sp, fallback = MaterialTheme.typography.titleLarge).let {
+            if (isWeaselTv()) it.copy(letterSpacing = (ApprovedHomeLayout.TITLE_TRACKING_TENTHS_SP / 10f).sp) else it
+        }
 
     /** Clocks, timecodes and count labels use Exo 2 for compact, readable numerals. */
     @Composable
@@ -228,8 +229,7 @@ object NeonType {
     /** Sidebar labels use Exo 2 Medium at 15 sp, including the active page. */
     @Composable
     @ReadOnlyComposable
-    fun railLabel(selected: Boolean): TextStyle =
-        exo(15.sp, FontWeight.Medium, 1.2f, 0.sp, MaterialTheme.typography.labelMedium)
+    fun railLabel(selected: Boolean): TextStyle = exo(15.sp, FontWeight.Medium, 1.2f, 0.sp, MaterialTheme.typography.labelMedium)
 
     /** Row title / episode title: 17 / 600. */
     @Composable

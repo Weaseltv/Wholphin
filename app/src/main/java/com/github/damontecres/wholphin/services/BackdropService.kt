@@ -14,8 +14,8 @@ import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
 import coil3.request.bitmapConfig
-import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.BuildConfig
+import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.DiscoverItem
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.BackdropStyle
@@ -26,6 +26,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ImageType
@@ -51,6 +53,8 @@ class BackdropService
 
         private val _backdropFlow = MutableStateFlow<BackdropResult>(BackdropResult.NONE)
         val backdropFlow = _backdropFlow
+        private val requestMutex = Mutex()
+        private var requestVersion = 0L
 
         /**
          * Update the backdrop to use the specified item
@@ -87,29 +91,44 @@ class BackdropService
             itemId: String,
             imageUrl: String?,
         ) = withContext(WholphinDispatchers.IO) {
-            if (backdropFlow.firstOrNull()?.imageUrl != imageUrl) {
-                _backdropFlow.update {
-                    it.copy(
-                        itemId = itemId,
-                        imageUrl = null,
-                    )
+            val request =
+                requestMutex.withLock {
+                    val version = ++requestVersion
+                    when {
+                        imageUrl.isNullOrBlank() -> {
+                            // Invalidate a pending load even if its visible URL is still null.
+                            _backdropFlow.value = BackdropResult.NONE.copy(itemId = itemId)
+                            null
+                        }
+
+                        _backdropFlow.value.imageUrl == imageUrl -> {
+                            _backdropFlow.update { it.copy(itemId = itemId) }
+                            null
+                        }
+
+                        else -> {
+                            _backdropFlow.value = BackdropResult.NONE.copy(itemId = itemId)
+                            version
+                        }
+                    }
                 }
-                extractColors(itemId, imageUrl)
-            }
+            if (request != null) extractColors(itemId, imageUrl, request)
         }
 
         /**
          * Remove the backdrop, such as when switching pages
          */
         suspend fun clearBackdrop() {
-            _backdropFlow.update {
-                BackdropResult.NONE
+            requestMutex.withLock {
+                ++requestVersion
+                _backdropFlow.value = BackdropResult.NONE
             }
         }
 
         private suspend fun extractColors(
             itemId: String,
             imageUrl: String?,
+            request: Long,
         ) {
             delay(500)
             val backdropStyle =
@@ -126,17 +145,19 @@ class BackdropService
                 } else {
                     ExtractedColors.DEFAULT
                 }
-            _backdropFlow.update {
-                if (it.itemId == itemId) {
-                    BackdropResult(
-                        itemId = itemId,
-                        imageUrl = imageUrl,
-                        primaryColor = primaryColor,
-                        secondaryColor = secondaryColor,
-                        tertiaryColor = tertiaryColor,
-                    )
-                } else {
-                    it
+            requestMutex.withLock {
+                _backdropFlow.update {
+                    if (requestVersion == request) {
+                        BackdropResult(
+                            itemId = itemId,
+                            imageUrl = imageUrl,
+                            primaryColor = primaryColor,
+                            secondaryColor = secondaryColor,
+                            tertiaryColor = tertiaryColor,
+                        )
+                    } else {
+                        it
+                    }
                 }
             }
         }

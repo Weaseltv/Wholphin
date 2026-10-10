@@ -4,12 +4,15 @@ import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,8 +37,12 @@ import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.components.Button
 import com.github.damontecres.wholphin.ui.components.EditTextBox
 import com.github.damontecres.wholphin.ui.components.TextButton
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
+import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.neonUpper
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.LoadingState
 
@@ -50,8 +57,10 @@ fun AddSeerrServerApiKey(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier =
             modifier
+                .heightIn(max = 440.dp)
+                .verticalScroll(rememberScrollState())
                 .focusGroup()
-                .padding(16.dp)
+                .padding(24.dp)
                 .wrapContentSize(),
     ) {
         var url by remember { mutableStateOf("") }
@@ -61,8 +70,8 @@ fun AddSeerrServerApiKey(
         val passwordFocusRequester = remember { FocusRequester() }
         LaunchedEffect(Unit) { focusRequester.tryRequestFocus() }
         Text(
-            text = stringResource(R.string.enter_url_api_key),
-            style = MaterialTheme.typography.titleMedium,
+            text = stringResource(R.string.enter_url_api_key).neonUpper(),
+            style = if (isWeaselTv()) NeonType.dialogTitle() else MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
             modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -99,7 +108,7 @@ fun AddSeerrServerApiKey(
                         },
                     ),
                 isInputValid = { true },
-                modifier = Modifier.focusRequester(focusRequester),
+                modifier = Modifier.keepFocusedItemVisible().focusRequester(focusRequester),
             )
         }
         Row(
@@ -131,7 +140,7 @@ fun AddSeerrServerApiKey(
                         onGo = { onSubmit.invoke(url, apiKey) },
                     ),
                 isInputValid = { true },
-                modifier = Modifier.focusRequester(passwordFocusRequester),
+                modifier = Modifier.keepFocusedItemVisible().focusRequester(passwordFocusRequester),
             )
         }
         error?.let {
@@ -162,8 +171,10 @@ fun AddSeerrServerUsername(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier =
             modifier
+                .heightIn(max = 440.dp)
+                .verticalScroll(rememberScrollState())
                 .focusGroup()
-                .padding(16.dp)
+                .padding(24.dp)
                 .wrapContentSize(),
     ) {
         var url by remember { mutableStateOf("") }
@@ -175,8 +186,8 @@ fun AddSeerrServerUsername(
         val passwordFocusRequester = remember { FocusRequester() }
         LaunchedEffect(Unit) { focusRequester.tryRequestFocus() }
         Text(
-            text = stringResource(R.string.username_or_password),
-            style = MaterialTheme.typography.titleMedium,
+            text = stringResource(R.string.username_or_password).neonUpper(),
+            style = if (isWeaselTv()) NeonType.dialogTitle() else MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
             modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -214,7 +225,7 @@ fun AddSeerrServerUsername(
                         },
                     ),
                 isInputValid = { true },
-                modifier = Modifier.focusRequester(focusRequester),
+                modifier = Modifier.keepFocusedItemVisible().focusRequester(focusRequester),
             )
         }
         Row(
@@ -249,7 +260,7 @@ fun AddSeerrServerUsername(
                         },
                     ),
                 isInputValid = { true },
-                modifier = Modifier.focusRequester(usernameFocusRequester),
+                modifier = Modifier.keepFocusedItemVisible().focusRequester(usernameFocusRequester),
             )
         }
         Row(
@@ -282,7 +293,7 @@ fun AddSeerrServerUsername(
                         onGo = { onSubmit.invoke(url, username, password) },
                     ),
                 isInputValid = { true },
-                modifier = Modifier.focusRequester(passwordFocusRequester),
+                modifier = Modifier.keepFocusedItemVisible().focusRequester(passwordFocusRequester),
             )
         }
         error?.let {
@@ -297,7 +308,7 @@ fun AddSeerrServerUsername(
             enabled =
                 error.isNullOrBlank() && url.isNotNullOrBlank() && username.isNotNullOrBlank() &&
                     status != LoadingState.Loading,
-            modifier = Modifier.align(Alignment.CenterHorizontally),
+            modifier = Modifier.keepFocusedItemVisible().align(Alignment.CenterHorizontally),
         ) {
             if (status != LoadingState.Loading) {
                 Text(text = stringResource(R.string.submit))

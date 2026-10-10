@@ -11,6 +11,9 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,25 +21,36 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSizeIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -54,7 +68,11 @@ import androidx.tv.material3.Text
 import androidx.tv.material3.surfaceColorAtElevation
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.ui.FontAwesome
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private const val ERROR_AUTO_DISMISS_DELAY_MS = 3000L
 private const val SOUND_LEVEL_SCALE_FACTOR = 0.15f
@@ -235,7 +253,7 @@ private fun getStatusText(
 }
 
 @Composable
-private fun VoiceSearchOverlay(
+internal fun VoiceSearchOverlay(
     soundLevel: Float,
     partialResult: String,
     isStarting: Boolean,
@@ -245,7 +263,10 @@ private fun VoiceSearchOverlay(
     onRetry: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val primaryColor = MaterialTheme.colorScheme.primary
+    val neon = isWeaselTv()
+    val primaryColor = if (neon) LocalNeonAccent.current else MaterialTheme.colorScheme.primary
+    val statusScroll = rememberScrollState()
+    val scope = rememberCoroutineScope()
     val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
     val errorColor = MaterialTheme.colorScheme.error
 
@@ -294,10 +315,6 @@ private fun VoiceSearchOverlay(
     val bubbleScale = basePulse + (animatedSoundLevel * SOUND_LEVEL_SCALE_FACTOR)
 
     val statusFocusRequester = remember { FocusRequester() }
-    LaunchedEffect(Unit) {
-        statusFocusRequester.requestFocus()
-    }
-
     Dialog(
         onDismissRequest = onDismiss,
         properties =
@@ -307,20 +324,25 @@ private fun VoiceSearchOverlay(
                 usePlatformDefaultWidth = false,
             ),
     ) {
+        LaunchedEffect(Unit) {
+            withFrameNanos { }
+            statusFocusRequester.requestFocus()
+        }
         Box(
             modifier =
                 Modifier
                     .fillMaxWidth(0.85f)
+                    .heightIn(max = 480.dp)
                     .wrapContentHeight()
-                    .padding(vertical = 48.dp)
-                    .clip(MaterialTheme.shapes.large)
-                    .background(MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)),
+                    .clip(if (neon) RectangleShape else MaterialTheme.shapes.large)
+                    .background(if (neon) NeonBoard.Card else MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp))
+                    .then(if (neon) Modifier.border(1.dp, NeonBoard.Line2) else Modifier),
             contentAlignment = Alignment.Center,
         ) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(CONTENT_SPACING),
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = HORIZONTAL_PADDING),
+                modifier = Modifier.padding(start = HORIZONTAL_PADDING, end = HORIZONTAL_PADDING, top = 32.dp, bottom = 64.dp),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     val rippleAlpha = if (shouldAnimateRipples) 1f else 0f
@@ -371,30 +393,45 @@ private fun VoiceSearchOverlay(
                     )
 
                 Column(
-                    modifier = Modifier.weight(1f).focusRequester(statusFocusRequester),
+                    modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Text(
                         text = statusText,
                         style = MaterialTheme.typography.headlineMedium,
                         color = if (errorMessage != null) errorColor else Color.White,
-                        modifier = Modifier.semantics { contentDescription = accessibilityDescription },
+                        modifier =
+                            Modifier
+                                .weight(1f, fill = false)
+                                .heightIn(max = 240.dp)
+                                .verticalScroll(statusScroll)
+                                .focusRequester(statusFocusRequester)
+                                .focusable()
+                                .onKeyEvent { event ->
+                                    if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                                    val amount =
+                                        when {
+                                            event.key == Key.DirectionDown && statusScroll.canScrollForward -> 100f
+                                            event.key == Key.DirectionUp && statusScroll.canScrollBackward -> -100f
+                                            else -> return@onKeyEvent false
+                                        }
+                                    scope.launch { statusScroll.scrollBy(amount) }
+                                    true
+                                }.semantics { contentDescription = accessibilityDescription },
                     )
 
                     if (errorMessage != null && isRetryable) {
-                        OutlinedButton(
-                            onClick = onRetry,
-                            modifier = Modifier.padding(top = 16.dp),
-                            shape = ButtonDefaults.shape(RoundedCornerShape(50)),
-                            colors =
-                                OutlinedButtonDefaults.colors(
-                                    contentColor = MaterialTheme.colorScheme.onSurface,
-                                ),
-                        ) {
-                            Text(
-                                text = stringResource(R.string.retry),
-                                style = MaterialTheme.typography.labelLarge,
-                            )
+                        if (neon) {
+                            TextButton(R.string.retry, onRetry)
+                        } else {
+                            OutlinedButton(
+                                onClick = onRetry,
+                                modifier = Modifier.padding(top = 16.dp),
+                                shape = ButtonDefaults.shape(RoundedCornerShape(50)),
+                                colors = OutlinedButtonDefaults.colors(contentColor = MaterialTheme.colorScheme.onSurface),
+                            ) {
+                                Text(text = stringResource(R.string.retry), style = MaterialTheme.typography.labelLarge)
+                            }
                         }
                     }
                 }

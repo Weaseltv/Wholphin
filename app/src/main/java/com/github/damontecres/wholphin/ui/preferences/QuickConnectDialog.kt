@@ -1,13 +1,11 @@
 package com.github.damontecres.wholphin.ui.preferences
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
@@ -22,12 +20,11 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
-import androidx.tv.material3.surfaceColorAtElevation
 import com.github.damontecres.wholphin.R
+import com.github.damontecres.wholphin.ui.components.BasicDialog
 import com.github.damontecres.wholphin.ui.components.EditTextBox
 import com.github.damontecres.wholphin.ui.components.TextButton
 
@@ -54,23 +51,20 @@ fun QuickConnectDialog(
         }
     }
 
-    Dialog(
+    BasicDialog(
         properties =
             DialogProperties(
                 usePlatformDefaultWidth = false,
             ),
         onDismissRequest = onDismissRequest,
+        elevation = elevation,
     ) {
         Box(
             contentAlignment = Alignment.Center,
             modifier =
                 Modifier
                     .padding(16.dp)
-                    .width(360.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.surfaceColorAtElevation(elevation),
-                        shape = RoundedCornerShape(8.dp),
-                    ),
+                    .width(360.dp),
         ) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),

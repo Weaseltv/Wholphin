@@ -3,7 +3,6 @@ package com.github.damontecres.wholphin.ui.detail.music
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
@@ -21,6 +20,7 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.ui.components.DeleteButton
 import com.github.damontecres.wholphin.ui.components.ExpandableFaButton
 import com.github.damontecres.wholphin.ui.components.ExpandablePlayButton
+import com.github.damontecres.wholphin.ui.components.FocusSafeLazyRow
 import kotlin.time.Duration
 
 @Composable
@@ -34,9 +34,9 @@ fun MusicExpandableButtons(
     showShuffle: Boolean = true,
 ) {
     val firstFocus = remember { FocusRequester() }
-    LazyRow(
+    FocusSafeLazyRow(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(8.dp),
+        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
         modifier =
             modifier
                 .focusGroup()

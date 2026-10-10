@@ -90,16 +90,17 @@ import com.github.damontecres.wholphin.ui.letNotEmpty
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.ui.theme.ProvideNeonAccent
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonAccentFor
 import com.github.damontecres.wholphin.ui.util.ResStringProvider
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.DiscoverRequestType
 import com.github.damontecres.wholphin.util.ExceptionHandler
-import java.util.UUID
-import kotlin.time.Duration
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.serializer.toUUID
+import java.util.UUID
+import kotlin.time.Duration
 
 @Composable
 fun SeriesDetails(
@@ -534,7 +535,8 @@ fun SeriesDetailsContent(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .reportDetailRowHeight(SEASONS_ROW).focusRequester(focusRequesters[SEASONS_ROW]),
+                                .reportDetailRowHeight(SEASONS_ROW)
+                                .focusRequester(focusRequesters[SEASONS_ROW]),
                         cardContent = @Composable { index, item, mod, onClick, onLongClick ->
                             SeasonCard(
                                 item = item,
@@ -573,7 +575,8 @@ fun SeriesDetailsContent(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .reportDetailRowHeight(PEOPLE_ROW).focusRequester(focusRequesters[PEOPLE_ROW]),
+                                    .reportDetailRowHeight(PEOPLE_ROW)
+                                    .focusRequester(focusRequesters[PEOPLE_ROW]),
                         )
                     }
                 }
@@ -589,7 +592,8 @@ fun SeriesDetailsContent(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .reportDetailRowHeight(EXTRAS_ROW).focusRequester(focusRequesters[EXTRAS_ROW]),
+                                    .reportDetailRowHeight(EXTRAS_ROW)
+                                    .focusRequester(focusRequesters[EXTRAS_ROW]),
                         )
                     }
                 }
@@ -632,7 +636,8 @@ fun SeriesDetailsContent(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .reportDetailRowHeight(SIMILAR_ROW).focusRequester(focusRequesters[SIMILAR_ROW]),
+                                    .reportDetailRowHeight(SIMILAR_ROW)
+                                    .focusRequester(focusRequesters[SIMILAR_ROW]),
                         )
                     }
                 }
@@ -669,6 +674,7 @@ fun SeriesDetailsHeader(
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
+    val neon = isWeaselTv()
     val dto = series.data
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -717,7 +723,7 @@ fun SeriesDetailsHeader(
                     textBoxHeight = Dp.Unspecified,
                     modifier =
                         Modifier.onFocusChanged {
-                            if (it.isFocused) {
+                            if (it.isFocused && !neon) {
                                 scope.launch(ExceptionHandler()) {
                                     bringIntoViewRequester.bringIntoView()
                                 }

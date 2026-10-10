@@ -1,7 +1,6 @@
 package com.github.damontecres.wholphin.ui.components
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,7 +50,7 @@ fun SortByButton(
             )
         }
 
-        DropdownMenu(
+        AppDropdownMenu(
             expanded = sortByDropDown,
             onDismissRequest = { sortByDropDown = false },
         ) {
@@ -142,7 +141,7 @@ fun DiscoverSortByButton(
             )
         }
 
-        DropdownMenu(
+        AppDropdownMenu(
             expanded = sortByDropDown,
             onDismissRequest = { sortByDropDown = false },
         ) {

@@ -3,7 +3,6 @@ package com.github.damontecres.wholphin.ui.detail.discover
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.runtime.Composable
@@ -20,6 +19,7 @@ import com.github.damontecres.wholphin.data.model.SeerrAvailability
 import com.github.damontecres.wholphin.data.model.Trailer
 import com.github.damontecres.wholphin.ui.components.ExpandableFaButton
 import com.github.damontecres.wholphin.ui.components.ExpandablePlayButton
+import com.github.damontecres.wholphin.ui.components.FocusSafeLazyRow
 import com.github.damontecres.wholphin.ui.components.TrailerButton
 import com.github.damontecres.wholphin.ui.components.reportDetailActionHeight
 import com.github.damontecres.wholphin.ui.tryRequestFocus
@@ -41,11 +41,13 @@ fun ExpandableDiscoverButtons(
     pendingOnClick: () -> Unit = {},
 ) {
     val firstFocus = remember { FocusRequester() }
-    LazyRow(
+    FocusSafeLazyRow(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(8.dp),
+        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
         modifier =
-            Modifier.reportDetailActionHeight().then(modifier)
+            Modifier
+                .reportDetailActionHeight()
+                .then(modifier)
                 .focusGroup()
                 .focusRestorer(firstFocus),
     ) {

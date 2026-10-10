@@ -20,7 +20,6 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
-import java.util.UUID
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -35,6 +34,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.util.UUID
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class WatchlistViewModelTest {
@@ -53,6 +53,7 @@ class WatchlistViewModelTest {
     fun setup() {
         WholphinDispatchers.configure(dispatcher)
         every { repository.currentUser } returns user
+        every { repository.currentUserDto } returns null
         every { displayInfo.getItem(user, WatchlistViewModel.DISPLAY_ID) } answers { saved }
         every { displayInfo.saveItem(any()) } answers {
             saved = firstArg()

@@ -70,13 +70,13 @@ import com.github.damontecres.wholphin.ui.util.ResStringProvider
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.DiscoverRequestType
 import com.github.damontecres.wholphin.util.ExceptionHandler
-import java.util.UUID
-import kotlin.time.Duration
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.MediaSourceInfo
 import org.jellyfin.sdk.model.extensions.ticks
 import org.jellyfin.sdk.model.serializer.toUUID
+import java.util.UUID
+import kotlin.time.Duration
 
 @Composable
 fun MovieDetails(
@@ -411,7 +411,8 @@ fun MovieDetailsContent(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .reportDetailRowHeight(PEOPLE_ROW).focusRequester(focusRequesters[PEOPLE_ROW]),
+                                .reportDetailRowHeight(PEOPLE_ROW)
+                                .focusRequester(focusRequesters[PEOPLE_ROW]),
                     )
                 }
             }
@@ -427,7 +428,8 @@ fun MovieDetailsContent(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .reportDetailRowHeight(CHAPTER_ROW).focusRequester(focusRequesters[CHAPTER_ROW]),
+                                .reportDetailRowHeight(CHAPTER_ROW)
+                                .focusRequester(focusRequesters[CHAPTER_ROW]),
                     )
                 }
             }
@@ -443,7 +445,8 @@ fun MovieDetailsContent(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .reportDetailRowHeight(EXTRAS_ROW).focusRequester(focusRequesters[EXTRAS_ROW]),
+                                .reportDetailRowHeight(EXTRAS_ROW)
+                                .focusRequester(focusRequesters[EXTRAS_ROW]),
                     )
                 }
             }
@@ -482,7 +485,8 @@ fun MovieDetailsContent(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .reportDetailRowHeight(SIMILAR_ROW).focusRequester(focusRequesters[SIMILAR_ROW]),
+                                .reportDetailRowHeight(SIMILAR_ROW)
+                                .focusRequester(focusRequesters[SIMILAR_ROW]),
                     )
                 }
             }

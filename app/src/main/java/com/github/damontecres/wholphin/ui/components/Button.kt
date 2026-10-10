@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
@@ -100,6 +101,7 @@ fun Button(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
+    val neon = isWeaselTv()
     Surface(
         modifier = modifier.semantics { role = Role.Button },
         onClick = onClick,
@@ -119,7 +121,7 @@ fun Button(
                 modifier =
                     Modifier
                         .padding(contentPadding)
-                        .height(contentHeight),
+                        .then(if (neon) Modifier.heightIn(min = contentHeight) else Modifier.height(contentHeight)),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
                 content = content,

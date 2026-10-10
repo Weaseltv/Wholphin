@@ -32,6 +32,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
+import com.github.damontecres.wholphin.ui.components.FittedCardLabel
 import com.github.damontecres.wholphin.ui.components.Studio
 import com.github.damontecres.wholphin.ui.setup.rememberIdColor
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
@@ -121,17 +122,7 @@ fun StudioCard(
                             .fillMaxSize()
                             .background(background),
                 ) {
-                    Text(
-                        text = name ?: "",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        modifier =
-                            Modifier
-                                .padding(16.dp)
-                                .align(Alignment.Center),
-                    )
+                    FittedCardLabel(name ?: "")
                 }
             }
         }

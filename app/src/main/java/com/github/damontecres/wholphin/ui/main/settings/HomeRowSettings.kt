@@ -49,6 +49,10 @@ import com.github.damontecres.wholphin.ui.preferences.ClickPreference
 import com.github.damontecres.wholphin.ui.preferences.ComposablePreference
 import com.github.damontecres.wholphin.ui.preferences.PreferenceGroup
 import com.github.damontecres.wholphin.ui.preferences.PreferenceTitle
+import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
+import com.github.damontecres.wholphin.ui.theme.neonListItemColors
+import com.github.damontecres.wholphin.ui.theme.neonListItemGlow
+import com.github.damontecres.wholphin.ui.theme.neonListItemShape
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
@@ -170,6 +174,10 @@ private fun LazyListScope.addAdditionalConfig(
                     }
                 var showDialog by remember { mutableStateOf(false) }
                 ListItem(
+                    shape = neonListItemShape(),
+                    colors = neonListItemColors(),
+                    border = neonListItemBorder(),
+                    glow = neonListItemGlow(),
                     selected = false,
                     onClick = { showDialog = true },
                     headlineContent = {
@@ -228,6 +236,10 @@ fun ByParentSortDialogContent(
     ) {
         items(BoxSetSortOptions) { sort ->
             ListItem(
+                shape = neonListItemShape(),
+                colors = neonListItemColors(),
+                border = neonListItemBorder(),
+                glow = neonListItemGlow(),
                 selected = sort == current.sort,
                 onClick = { onClick.invoke(sort) },
                 leadingContent = {

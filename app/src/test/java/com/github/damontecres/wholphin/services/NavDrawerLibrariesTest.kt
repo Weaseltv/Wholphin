@@ -1,5 +1,7 @@
 package com.github.damontecres.wholphin.services
 
+import android.content.Context
+import android.content.SharedPreferences
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.ServerPreferencesDao
 import com.github.damontecres.wholphin.data.ServerRepository
@@ -34,7 +36,7 @@ import java.util.UUID
 @OptIn(ExperimentalCoroutinesApi::class)
 class NavDrawerLibrariesTest {
     @Test
-    fun `UserViews stays member scoped and Collections remains first in libraries and after Requests in menu`() =
+    fun `UserViews stays member scoped while the menu uses the approved library order`() =
         runTest {
             assumeTrue(BuildConfig.FLAVOR == "weaselfin")
             WholphinDispatchers.configure(StandardTestDispatcher(testScheduler))
@@ -69,8 +71,12 @@ class NavDrawerLibrariesTest {
                 every { music.state } returns MutableStateFlow(MusicServiceState.EMPTY)
                 val management = mockk<MediaManagementService>()
                 every { management.deletedItemFlow } returns MutableSharedFlow()
+                val context = mockk<Context>(relaxed = true)
+                val migrations = mockk<SharedPreferences>()
+                every { context.getSharedPreferences("sidebar_palette_migrations", Context.MODE_PRIVATE) } returns migrations
+                every { migrations.getBoolean(any(), false) } returns true
                 val service =
-                    NavDrawerService(mockk(relaxed = true), backgroundScope, api, repository, preferences, seerr, music, management)
+                    NavDrawerService(context, backgroundScope, api, repository, preferences, seerr, music, management)
                 val libraries = service.getAllUserLibraries(user.id, false)
                 assertEquals(views.map { it.name }, libraries.map { it.name })
                 service.updateNavDrawer(
@@ -80,7 +86,10 @@ class NavDrawerLibrariesTest {
                 )
                 val menu = service.state.value.items
                 assertEquals(listOf("a_favorites", "a_discover"), menu.take(2).map { it.id })
-                assertEquals(views.map { it.name }, menu.drop(2).map { (it as ServerNavDrawerItem).name })
+                assertEquals(
+                    listOf("Collections", "Movies", "TV Shows", "Stand Up Comedy", "Sports"),
+                    menu.drop(2).map { (it as ServerNavDrawerItem).name },
+                )
                 val collections = menu[2] as ServerNavDrawerItem
                 assertEquals(CollectionType.BOXSETS, collections.type)
                 assertEquals(

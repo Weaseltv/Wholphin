@@ -29,6 +29,7 @@ import com.github.damontecres.wholphin.ui.bleedHorizontal
 import com.github.damontecres.wholphin.ui.components.DialogListEdge
 import com.github.damontecres.wholphin.ui.components.SearchEditTextBox
 import com.github.damontecres.wholphin.ui.components.SelectedLeadingContent
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
 import com.github.damontecres.wholphin.ui.theme.neonListItemColors
@@ -53,8 +54,8 @@ fun FilterableLanguagePreference(
 ) {
     var query by remember { mutableStateOf("") }
 
-    var filteredOptions by remember { mutableStateOf(options) }
-    LaunchedEffect(query) {
+    var filteredOptions by remember(options) { mutableStateOf(options) }
+    LaunchedEffect(query, options) {
         delay(500.milliseconds)
         if (query.isNotNullOrBlank()) {
             withContext(WholphinDispatchers.Default) {
@@ -87,15 +88,15 @@ fun FilterableLanguagePreference(
             color = MaterialTheme.colorScheme.onSurface,
         )
         val listState = rememberLazyListState()
-        val focusRequesters = remember { List(filteredOptions.size) { FocusRequester() } }
-        LaunchedEffect(Unit) {
+        val focusRequesters = remember(filteredOptions.size) { List(filteredOptions.size) { FocusRequester() } }
+        LaunchedEffect(options) {
             focusRequesters.firstOrNull()?.tryRequestFocus()
         }
         LazyColumn(
             state = listState,
             // Room for the last row's focus border and glow
-            contentPadding = PaddingValues(bottom = DialogListEdge),
-            modifier = Modifier,
+            contentPadding = PaddingValues(top = 4.dp, bottom = DialogListEdge),
+            modifier = Modifier.weight(1f),
         ) {
             item {
                 SearchEditTextBox(
@@ -150,7 +151,7 @@ fun FilterableLanguagePreference(
                                     }
                                 }
                             },
-                        modifier = Modifier.focusRequester(focusRequesters[index]),
+                        modifier = Modifier.keepFocusedItemVisible().focusRequester(focusRequesters[index]),
                     )
                 }
             }

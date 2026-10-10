@@ -25,8 +25,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Border
@@ -39,6 +42,7 @@ import com.github.damontecres.wholphin.data.model.Person
 import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.enableMarquee
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
@@ -102,10 +106,10 @@ fun PersonCard(
 
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp), // Fixed base spacing
-        modifier = modifier,
+        modifier = modifier.keepFocusedItemVisible(),
     ) {
         Card(
-            modifier = Modifier,
+            modifier = Modifier.semantics { name?.let { contentDescription = it } },
             onClick = onClick,
             onLongClick = onLongClick,
             interactionSource = interactionSource,
@@ -181,6 +185,7 @@ fun PersonCard(
             Text(
                 text = name ?: "",
                 maxLines = 1,
+                overflow = if (focusedAfterDelay) TextOverflow.Clip else TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
@@ -194,6 +199,7 @@ fun PersonCard(
                 Text(
                     text = role,
                     maxLines = 1,
+                    overflow = if (focusedAfterDelay) TextOverflow.Clip else TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Normal,

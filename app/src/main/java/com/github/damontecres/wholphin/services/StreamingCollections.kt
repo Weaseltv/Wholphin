@@ -1,7 +1,7 @@
 package com.github.damontecres.wholphin.services
 
-import com.github.damontecres.wholphin.data.model.HomeRowConfig
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
+import com.github.damontecres.wholphin.data.model.HomeRowConfig
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
 import com.github.damontecres.wholphin.util.GetItemsRequestHandler
@@ -41,13 +41,14 @@ object StreamingCollections {
 
     /** Shared by Home and the Collections page, including server naming aliases. */
     fun serviceIndex(name: String?): Int? {
-        val normalized = when (val value = name.orEmpty().trim().lowercase(Locale.ROOT)) {
-            "hbo max", "max (hbo)", "hbo" -> "max"
-            "apple tv" -> "apple tv+"
-            "hallmark+" -> "hallmark"
-            "angel studios" -> "angel"
-            else -> value
-        }
+        val normalized =
+            when (val value = name.orEmpty().trim().lowercase(Locale.ROOT)) {
+                "hbo max", "max (hbo)", "hbo" -> "max"
+                "apple tv" -> "apple tv+"
+                "hallmark+" -> "hallmark"
+                "angel studios" -> "angel"
+                else -> value
+            }
         return serviceOrder.indexOf(normalized).takeIf { it >= 0 }
     }
 

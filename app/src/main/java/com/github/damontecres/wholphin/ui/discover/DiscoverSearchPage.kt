@@ -41,7 +41,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.tv.material3.Button
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.DiscoverItem
@@ -49,13 +48,16 @@ import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.SeerrService
 import com.github.damontecres.wholphin.services.UserPreferencesService
+import com.github.damontecres.wholphin.ui.components.Button
 import com.github.damontecres.wholphin.ui.components.SearchEditTextBox
 import com.github.damontecres.wholphin.ui.components.VoiceInputManager
 import com.github.damontecres.wholphin.ui.components.VoiceSearchButton
+import com.github.damontecres.wholphin.ui.components.clockHeaderEndPadding
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.ui.search.SearchCombinedResults
 import com.github.damontecres.wholphin.ui.search.SearchResult
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -208,7 +210,7 @@ fun DiscoverSearchPage(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier =
                     Modifier
-                        .padding(start = 16.dp, end = 16.dp)
+                        .padding(start = 16.dp, end = if (isWeaselTv()) clockHeaderEndPadding() else 16.dp)
                         .focusGroup()
                         .focusRestorer()
                         .focusRequester(textFieldFocusRequester),
@@ -238,6 +240,7 @@ fun DiscoverSearchPage(
                     readOnly = !isSearchActive,
                     modifier =
                         Modifier
+                            .weight(1f)
                             .onFocusChanged { state ->
                                 isTextFieldFocused = state.isFocused
                                 if (!state.isFocused) isSearchActive = false

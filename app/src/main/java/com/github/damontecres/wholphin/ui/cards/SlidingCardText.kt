@@ -34,8 +34,9 @@ fun SlidingCardText(
         modifier =
             modifier
                 .layout { measurable, constraints ->
-                    val topPaddingPx = (spaceBetweenUnfocused - spaceBetween.value).roundToPx()
+                    val totalPaddingPx = spaceBetweenUnfocused.roundToPx()
                     val bottomPaddingPx = spaceBetween.value.roundToPx()
+                    val topPaddingPx = totalPaddingPx - bottomPaddingPx
                     val placeable = measurable.measure(constraints)
                     layout(placeable.width, placeable.height + bottomPaddingPx + topPaddingPx) {
                         placeable.placeRelative(0, topPaddingPx)

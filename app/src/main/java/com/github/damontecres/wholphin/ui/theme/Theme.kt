@@ -1,10 +1,10 @@
 package com.github.damontecres.wholphin.ui.theme
 
-import com.github.damontecres.wholphin.BuildConfig
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.tv.material3.MaterialTheme
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.ui.theme.colors.BlueThemeColors
 import com.github.damontecres.wholphin.ui.theme.colors.BoldBlueThemeColors
@@ -52,23 +52,28 @@ fun WholphinTheme(
     CompositionLocalProvider(LocalTheme provides appThemeColors) {
         androidx.compose.material3.MaterialTheme(
             colorScheme = if (darkTheme) themeColors.darkSchemeMaterial else themeColors.lightSchemeMaterial,
-            typography = if (useWeaselFonts) androidx.compose.material3.Typography(
-                displayLarge = typography.displayLarge,
-                displayMedium = typography.displayMedium,
-                displaySmall = typography.displaySmall,
-                headlineLarge = typography.headlineLarge,
-                headlineMedium = typography.headlineMedium,
-                headlineSmall = typography.headlineSmall,
-                titleLarge = typography.titleLarge,
-                titleMedium = typography.titleMedium,
-                titleSmall = typography.titleSmall,
-                bodyLarge = typography.bodyLarge,
-                bodyMedium = typography.bodyMedium,
-                bodySmall = typography.bodySmall,
-                labelLarge = typography.labelLarge,
-                labelMedium = typography.labelMedium,
-                labelSmall = typography.labelSmall,
-            ) else androidx.compose.material3.Typography(),
+            typography =
+                if (useWeaselFonts) {
+                    androidx.compose.material3.Typography(
+                        displayLarge = typography.displayLarge,
+                        displayMedium = typography.displayMedium,
+                        displaySmall = typography.displaySmall,
+                        headlineLarge = typography.headlineLarge,
+                        headlineMedium = typography.headlineMedium,
+                        headlineSmall = typography.headlineSmall,
+                        titleLarge = typography.titleLarge,
+                        titleMedium = typography.titleMedium,
+                        titleSmall = typography.titleSmall,
+                        bodyLarge = typography.bodyLarge,
+                        bodyMedium = typography.bodyMedium,
+                        bodySmall = typography.bodySmall,
+                        labelLarge = typography.labelLarge,
+                        labelMedium = typography.labelMedium,
+                        labelSmall = typography.labelSmall,
+                    )
+                } else {
+                    androidx.compose.material3.Typography()
+                },
         ) {
             MaterialTheme(
                 colorScheme = colorScheme,

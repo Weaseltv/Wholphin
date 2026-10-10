@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.DenseListItem
 import androidx.tv.material3.Icon
@@ -32,11 +33,16 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.components.Button
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.enableMarquee
 import com.github.damontecres.wholphin.ui.formatDuration
 import com.github.damontecres.wholphin.ui.letNotEmpty
 import com.github.damontecres.wholphin.ui.roundSeconds
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
+import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
+import com.github.damontecres.wholphin.ui.theme.neonListItemColors
+import com.github.damontecres.wholphin.ui.theme.neonListItemGlow
+import com.github.damontecres.wholphin.ui.theme.neonListItemShape
 import org.jellyfin.sdk.model.extensions.ticks
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
@@ -97,7 +103,7 @@ fun SongListItem(
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier,
+        modifier = modifier.keepFocusedItemVisible(),
     ) {
         val focused by interactionSource.collectIsFocusedAsState()
         val leadingContent: @Composable (BoxScope.() -> Unit) = {
@@ -117,6 +123,7 @@ fun SongListItem(
             Text(
                 text = title ?: "",
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.enableMarquee(focused),
             )
         }
@@ -131,6 +138,10 @@ fun SongListItem(
             onClick = onClick,
             onLongClick = onLongClick,
             interactionSource = interactionSource,
+            colors = neonListItemColors(),
+            shape = neonListItemShape(),
+            border = neonListItemBorder(),
+            glow = neonListItemGlow(),
             leadingContent = leadingContent,
             headlineContent = headlineContent,
             supportingContent =
@@ -138,6 +149,8 @@ fun SongListItem(
                     {
                         Text(
                             text = artist,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 } else {

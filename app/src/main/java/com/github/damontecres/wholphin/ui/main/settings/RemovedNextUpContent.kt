@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -26,7 +27,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.tv.material3.Icon
-import androidx.tv.material3.ListItem
 import androidx.tv.material3.ListItemDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -38,9 +38,12 @@ import com.github.damontecres.wholphin.services.ImageUrlService
 import com.github.damontecres.wholphin.services.LatestNextUpService
 import com.github.damontecres.wholphin.ui.components.Button
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
+import com.github.damontecres.wholphin.ui.components.ListItemWrapper
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.formatDateTime
 import com.github.damontecres.wholphin.ui.launchDefault
+import com.github.damontecres.wholphin.ui.preferences.PreferencePanelHeader
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.toBaseItems
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.DataLoadingState
@@ -158,13 +161,15 @@ fun RemovedNextUpContent(
     viewModel: RemovedNextUpContentViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val neon = isWeaselTv()
     Column(
-        modifier = modifier,
+        modifier = modifier.then(if (neon) Modifier.heightIn(max = 480.dp) else Modifier),
     ) {
-        Text(
-            text = "Removed from next up",
-            style = MaterialTheme.typography.displaySmall,
-        )
+        if (neon) {
+            PreferencePanelHeader("Removed from next up")
+        } else {
+            Text(text = "Removed from next up", style = MaterialTheme.typography.displaySmall)
+        }
         when (val s = state.loading) {
             DataLoadingState.Pending,
             DataLoadingState.Loading,
@@ -185,10 +190,11 @@ fun RemovedNextUpContent(
                     val focusRequester = remember { FocusRequester() }
                     LaunchedEffect(Unit) { focusRequester.tryRequestFocus() }
                     LazyColumn(
-                        contentPadding = PaddingValues(horizontal = 8.dp),
+                        contentPadding = if (neon) PaddingValues(16.dp) else PaddingValues(horizontal = 8.dp),
                         modifier =
                             Modifier
                                 .fillMaxWidth()
+                                .weight(1f, fill = false)
                                 .focusRequester(focusRequester),
                     ) {
                         items(s.data, key = { it.series.id }) { item ->
@@ -221,7 +227,8 @@ fun RemovedListItem(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier,
     ) {
-        ListItem(
+        ListItemWrapper(
+            dense = false,
             selected = false,
             onClick = {},
             leadingContent = {

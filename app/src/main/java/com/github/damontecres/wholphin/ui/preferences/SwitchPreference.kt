@@ -10,8 +10,9 @@ import androidx.tv.material3.Switch
 import androidx.tv.material3.SwitchColors
 import androidx.tv.material3.SwitchDefaults
 import com.github.damontecres.wholphin.preferences.AppThemeColors
-import com.github.damontecres.wholphin.ui.theme.LocalTheme
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.LocalTheme
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
 import com.github.damontecres.wholphin.ui.theme.neonListItemColors
@@ -70,7 +71,7 @@ fun SwitchPreference(
             )
         },
         interactionSource = interactionSource,
-        modifier = modifier,
+        modifier = modifier.keepFocusedItemVisible(),
     )
 }
 

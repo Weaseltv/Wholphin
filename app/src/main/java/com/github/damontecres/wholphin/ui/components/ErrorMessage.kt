@@ -1,16 +1,27 @@
 package com.github.damontecres.wholphin.ui.components
 
 import androidx.compose.foundation.border
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,6 +41,7 @@ import com.github.damontecres.wholphin.ui.theme.neonUpper
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.LoadingState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -52,11 +64,38 @@ fun ErrorMessage(
     exception: Throwable?,
     modifier: Modifier = Modifier,
     viewModel: ErrorViewModel = hiltViewModel(),
+) = ErrorMessageContent(message, exception, viewModel::sendLogs, modifier)
+
+/** Error details remain readable and scrollable even for a long server exception chain. */
+@Composable
+fun ErrorMessageContent(
+    message: String?,
+    exception: Throwable?,
+    onSendLogs: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val neon = isWeaselTv()
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = modifier.padding(16.dp),
+        modifier =
+            modifier
+                .heightIn(max = 480.dp)
+                .padding(16.dp)
+                .verticalScroll(scrollState)
+                .focusable()
+                .onKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                    val amount =
+                        when {
+                            event.key == Key.DirectionDown && scrollState.canScrollForward -> 100f
+                            event.key == Key.DirectionUp && scrollState.canScrollBackward -> -100f
+                            else -> return@onKeyEvent false
+                        }
+                    scope.launch { scrollState.scrollBy(amount) }
+                    true
+                },
     ) {
         if (neon) {
             // Neon Board (T12): an 80dp red outline icon box, Condensed 30 title, `mid` detail.
@@ -82,9 +121,7 @@ fun ErrorMessage(
         )
         TextButton(
             stringRes = R.string.send_app_logs,
-            onClick = {
-                viewModel.sendLogs()
-            },
+            onClick = onSendLogs,
         )
         message?.let {
             Text(

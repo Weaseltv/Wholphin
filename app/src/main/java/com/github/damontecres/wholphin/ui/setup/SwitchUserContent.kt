@@ -2,17 +2,23 @@ package com.github.damontecres.wholphin.ui.setup
 
 import android.widget.Toast
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -26,6 +32,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
@@ -51,6 +62,7 @@ import com.github.damontecres.wholphin.ui.components.EditTextBox
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.components.TextButton
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.dimAndBlur
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.nav.Destination
@@ -274,8 +286,10 @@ fun SwitchUserContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier =
                     Modifier
+                        .heightIn(max = 440.dp)
+                        .verticalScroll(rememberScrollState())
                         .focusGroup()
-                        .padding(16.dp)
+                        .padding(24.dp)
                         .fillMaxWidth(.4f),
             ) {
                 if (useQuickConnect) {
@@ -285,7 +299,7 @@ fun SwitchUserContent(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier =
                                 Modifier
-                                    .height(32.dp)
+                                    .heightIn(min = 32.dp)
                                     .align(Alignment.CenterHorizontally),
                         ) {
                             CircularProgress(Modifier.size(20.dp))
@@ -400,7 +414,7 @@ fun SwitchUserContent(
 //                                    passwordFocusRequester.tryRequestFocus()
 //                                },
                             isInputValid = { state.switchUserState !is LoadingState.Error },
-                            modifier = Modifier.focusRequester(focusRequester),
+                            modifier = Modifier.keepFocusedItemVisible().focusRequester(focusRequester),
                         )
                     }
                     Row(
@@ -429,7 +443,7 @@ fun SwitchUserContent(
                                     onGo = { onSubmit.invoke() },
                                 ),
                             isInputValid = { state.switchUserState !is LoadingState.Error },
-                            modifier = Modifier.focusRequester(passwordFocusRequester),
+                            modifier = Modifier.keepFocusedItemVisible().focusRequester(passwordFocusRequester),
                         )
                     }
                     TextButton(
@@ -484,6 +498,16 @@ private fun ConnectYourAccount(
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsState()
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    val errorFocus = remember { FocusRequester() }
+    val retryFocus = remember { FocusRequester() }
+    LaunchedEffect(state.switchUserState) {
+        if (state.switchUserState is LoadingState.Error) {
+            scrollState.scrollTo(0)
+            errorFocus.tryRequestFocus()
+        }
+    }
 
     fun newCode() {
         viewModel.clearSwitchUserState()
@@ -493,7 +517,44 @@ private fun ConnectYourAccount(
     LaunchedEffect(server) { newCode() }
     DisposableEffect(Unit) { onDispose { viewModel.cancelQuickConnect() } }
 
-    Box(modifier = modifier) {
+    BoxWithConstraints(modifier = modifier) {
+        val errorModifier =
+            if (state.switchUserState is LoadingState.Error) {
+                Modifier
+                    .heightIn(max = (maxHeight - 32.dp).coerceAtLeast(0.dp))
+                    .verticalScroll(scrollState)
+                    .focusRequester(errorFocus)
+                    .focusable()
+                    .onKeyEvent { event ->
+                        if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                        val amount =
+                            when {
+                                event.key == Key.DirectionDown && scrollState.canScrollForward -> {
+                                    100f
+                                }
+
+                                event.key == Key.DirectionUp && scrollState.canScrollBackward -> {
+                                    -100f
+                                }
+
+                                event.key == Key.DirectionDown -> {
+                                    retryFocus.tryRequestFocus()
+                                    return@onKeyEvent true
+                                }
+
+                                else -> {
+                                    return@onKeyEvent false
+                                }
+                            }
+                        scope.launch {
+                            errorFocus.tryRequestFocus()
+                            scrollState.scrollBy(amount)
+                        }
+                        true
+                    }
+            } else {
+                Modifier
+            }
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -501,7 +562,8 @@ private fun ConnectYourAccount(
                 Modifier
                     .align(Alignment.Center)
                     .fillMaxWidth(.6f)
-                    .focusGroup(),
+                    .focusGroup()
+                    .then(errorModifier),
         ) {
             if (isWeaselTv()) NeonBrandRow(mascotSize = 40.dp, wordmarkSize = 34.sp)
             Text(
@@ -518,12 +580,13 @@ private fun ConnectYourAccount(
                 TextButton(
                     stringRes = R.string.get_new_code,
                     onClick = { newCode() },
+                    modifier = Modifier.focusRequester(retryFocus),
                 )
             } else if (status == null || approveUrl == null) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.height(32.dp),
+                    modifier = Modifier.heightIn(min = 32.dp),
                 ) {
                     CircularProgress(Modifier.size(20.dp))
                     Text(

@@ -119,12 +119,12 @@ import com.github.damontecres.wholphin.ui.theme.typeAccent
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import com.github.damontecres.wholphin.util.LoadingState
-import java.util.UUID
-import kotlin.time.Duration
 import kotlinx.coroutines.delay
 import org.jellyfin.sdk.model.DateTime
 import org.jellyfin.sdk.model.api.BaseItemKind
 import timber.log.Timber
+import java.util.UUID
+import kotlin.time.Duration
 
 @Composable
 fun HomePage(
@@ -380,22 +380,24 @@ fun HomePageContent(
     BoxWithConstraints(modifier = modifier) {
         val density = LocalDensity.current
         val focusedRowIndex = position.row.coerceAtLeast(0)
-        val nextRowIndex = ((focusedRowIndex + 1) until homeRows.size).firstOrNull {
-            (homeRows[it] as? HomeRowLoadingState.Success)?.items?.isNotEmpty() == true
-        }
+        val nextRowIndex =
+            ((focusedRowIndex + 1) until homeRows.size).firstOrNull {
+                (homeRows[it] as? HomeRowLoadingState.Success)?.items?.isNotEmpty() == true
+            }
         val focusedRowHeight = rowHeights[focusedRowIndex]
         val focusedTitleHeight = rowTitleHeights[focusedRowIndex]
         val nextTitleHeight = nextRowIndex?.let { rowTitleHeights[it] ?: focusedTitleHeight }
         // Keep the next kicker, title and rule above the viewport edge. Use actual row
         // measurements so font, card, caption and spacing tuning all share this budget.
-        val headerMaxHeight = if (
-            isWeaselTv() && focusedRowHeight != null
-        ) {
-            with(density) { maxHeight - (focusedRowHeight + (nextTitleHeight ?: 0)).toDp() - 16.dp }
-                .coerceAtLeast(1.dp)
-        } else {
-            maxHeight
-        }
+        val headerMaxHeight =
+            if (
+                isWeaselTv() && focusedRowHeight != null
+            ) {
+                with(density) { maxHeight - (focusedRowHeight + (nextTitleHeight ?: 0)).toDp() - 16.dp }
+                    .coerceAtLeast(1.dp)
+            } else {
+                maxHeight
+            }
         Column(
             modifier =
                 Modifier
@@ -405,20 +407,21 @@ fun HomePageContent(
                         }
                     }.fillMaxSize(),
         ) {
-            FitHeaderToHeight(headerMaxHeight) {
+            FitHeaderToHeight(
+                headerMaxHeight,
+                // Reserve the measured budget for every title in this row. Shorter
+                // copy must not lift the cards, then move them down for a long title.
+                fillHeight = isWeaselTv() && focusedRowHeight != null,
+            ) {
                 headerComposable.invoke(focusedItem)
             }
 
-            val focusedRow = homeRows.getOrNull(position.row) as? HomeRowLoadingState.Success
             val spaceAbovePx =
                 with(density) {
-                    if (isWeaselTv() && focusedRow != null) {
-                        val options = focusedRow.viewOptions
-                        val curated = focusedRow.rowType?.let(CuratedCollections::isCuratedRow) == true
-                        val extra = options.extraVerticalPaddingDp ?: if (curated) CuratedCollections.EXTRA_VERTICAL_PADDING_DP else 0
-                        // Keep the complete title and the owner's chosen gaps above the focused card.
-                        (rowTitleHeights[position.row]?.toFloat() ?: 32.dp.toPx()) +
-                            (options.dividerGapDp + options.verticalPaddingDp + extra + 4).dp.toPx()
+                    if (isWeaselTv()) {
+                        // ItemRow forwards the complete measured row, starting at
+                        // its kicker. No estimate of the inner card's inset is needed.
+                        4.dp.toPx()
                     } else {
                         50.dp.toPx()
                     }
@@ -455,7 +458,16 @@ fun HomePageContent(
                             Modifier
                                 .animateItem(placementSpec = null)
                                 .onSizeChanged { rowHeights[rowIndex] = it.height }
-                                .padding(bottom = if (isWeaselTv() && row is HomeRowLoadingState.Success) row.viewOptions.rowGapDp.dp else 8.dp)
+                                .padding(
+                                    bottom =
+                                        if (isWeaselTv() &&
+                                            row is HomeRowLoadingState.Success
+                                        ) {
+                                            row.viewOptions.rowGapDp.dp
+                                        } else {
+                                            8.dp
+                                        },
+                                )
                         CompositionLocalProvider(
                             LocalBringIntoViewSpec provides defaultBringIntoViewSpec,
                         ) {
@@ -485,13 +497,14 @@ fun HomePageContent(
                                         val curated =
                                             BuildConfig.FLAVOR == "weaselfin" &&
                                                 row.rowType?.let(CuratedCollections::isCuratedRow) == true
-                                        val heading = if (rowHeading != null && isWeaselTv()) {
-                                            rowHeading(row)
-                                        } else if (splitHomeTitles && isWeaselTv()) {
-                                            homeRowHeading(row.rowType, libraries, row.title.getString())
-                                        } else {
-                                            row.title.getString() to null
-                                        }
+                                        val heading =
+                                            if (rowHeading != null && isWeaselTv()) {
+                                                rowHeading(row)
+                                            } else if (splitHomeTitles && isWeaselTv()) {
+                                                homeRowHeading(row.rowType, libraries, row.title.getString())
+                                            } else {
+                                                row.title.getString() to null
+                                            }
                                         ItemRow(
                                             title = heading.first,
                                             titleKicker = heading.second,
@@ -540,11 +553,16 @@ fun HomePageContent(
                                                     val verticalPadding =
                                                         (
                                                             viewOptions.verticalPaddingDp +
-                                                                (viewOptions.extraVerticalPaddingDp ?: if (curated) CuratedCollections.EXTRA_VERTICAL_PADDING_DP else 0)
+                                                                (
+                                                                    viewOptions.extraVerticalPaddingDp
+                                                                        ?: if (curated) CuratedCollections.EXTRA_VERTICAL_PADDING_DP else 0
+                                                                )
                                                         ).dp
                                                     PaddingValues(
                                                         start = (viewOptions.edgePaddingDp ?: viewOptions.spacing).dp,
-                                                        end = (viewOptions.endPaddingDp ?: viewOptions.edgePaddingDp ?: viewOptions.spacing).dp,
+                                                        end =
+                                                            (viewOptions.endPaddingDp ?: viewOptions.edgePaddingDp ?: viewOptions.spacing)
+                                                                .dp,
                                                         top = verticalPadding,
                                                         bottom = verticalPadding,
                                                     )
@@ -588,23 +606,46 @@ fun HomePageContent(
                                                     viewOptions = viewOptions,
                                                     rowAccent =
                                                         if (item != null && (
-                                                            row.rowType is HomeRowConfig.ContinueWatching ||
-                                                                row.rowType is HomeRowConfig.ContinueWatchingCombined
-                                                            )) {
+                                                                row.rowType is HomeRowConfig.ContinueWatching ||
+                                                                    row.rowType is HomeRowConfig.ContinueWatchingCombined
+                                                            )
+                                                        ) {
                                                             libraries.firstOrNull { it.itemId == item.libraryId }?.let {
                                                                 libraryAccent(it.name, it.collectionType)
                                                             } ?: typeAccent(item.type)
-                                                        } else if (item != null && row.rowType?.let(StreamingCollections::isStreamingRow) == true) {
+                                                        } else if (item != null &&
+                                                            row.rowType?.let(StreamingCollections::isStreamingRow) == true
+                                                        ) {
                                                             streamingProviderAccent(item.name) ?: homeRowAccent(row.rowType, libraries)
                                                         } else if (curated && item != null) {
                                                             curatedPickAccent(item.name) ?: homeRowAccent(row.rowType, libraries)
-                                                        } else if (item?.type in listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES, BaseItemKind.SEASON, BaseItemKind.EPISODE)) {
+                                                        } else if (item?.type in
+                                                            listOf(
+                                                                BaseItemKind.MOVIE,
+                                                                BaseItemKind.SERIES,
+                                                                BaseItemKind.SEASON,
+                                                                BaseItemKind.EPISODE,
+                                                            )
+                                                        ) {
                                                             val rowColor = homeRowAccent(row.rowType, libraries)
-                                                            if (rowColor == NeonSectionPalette.StandUpComedy.border || rowColor == NeonSectionPalette.Sports.border) rowColor else typeAccent(item?.type)
+                                                            if (rowColor == NeonSectionPalette.StandUpComedy.border ||
+                                                                rowColor == NeonSectionPalette.Sports.border
+                                                            ) {
+                                                                rowColor
+                                                            } else {
+                                                                typeAccent(item?.type)
+                                                            }
                                                         } else {
                                                             homeRowAccent(row.rowType, libraries)
                                                         },
-                                                    borderAccent = if (row.rowType?.let(StreamingCollections::isStreamingRow) == true) streamingProviderBorderAccent(item?.name) else null,
+                                                    borderAccent =
+                                                        if (row.rowType?.let(StreamingCollections::isStreamingRow) ==
+                                                            true
+                                                        ) {
+                                                            streamingProviderBorderAccent(item?.name)
+                                                        } else {
+                                                            null
+                                                        },
                                                     cornerTextScale = if (curated) CuratedCollections.CARD_SIZE_MULTIPLIER else 1f,
                                                     modifier =
                                                         cardModifier
@@ -690,26 +731,38 @@ private fun homeRowHeading(
     fallback: String,
 ): Pair<String, String?> =
     when {
-        row is HomeRowConfig.ContinueWatchingCombined ->
+        row is HomeRowConfig.ContinueWatchingCombined -> {
             stringResource(R.string.continue_watching) to "${stringResource(R.string.next_up)} &"
-        row?.let(StreamingCollections::isStreamingRow) == true ->
+        }
+
+        row?.let(StreamingCollections::isStreamingRow) == true -> {
             StreamingCollections.NAME to stringResource(R.string.collections)
-        row?.let(CuratedCollections::isCuratedRow) == true ->
+        }
+
+        row?.let(CuratedCollections::isCuratedRow) == true -> {
             CuratedCollections.NAME to stringResource(R.string.collections)
-        row is HomeRowConfig.RecentlyAdded ->
+        }
+
+        row is HomeRowConfig.RecentlyAdded -> {
             libraries.firstOrNull { it.itemId == row.parentId }?.let { library ->
                 library.name to stringResource(R.string.home_new_in)
             } ?: (fallback to null)
-        row is HomeRowConfig.RecentlyReleased ->
+        }
+
+        row is HomeRowConfig.RecentlyReleased -> {
             libraries.firstOrNull { it.itemId == row.parentId }?.name?.let {
                 it to stringResource(R.string.recently_released)
             } ?: (fallback to null)
-        else -> fallback to null
+        }
+
+        else -> {
+            fallback to null
+        }
     }
 
 /** Resolve the source library, so named sections such as Boxing keep their rail colour. */
 @Composable
-private fun homeRowAccent(
+internal fun homeRowAccent(
     row: HomeRowConfig?,
     libraries: List<Library>,
 ): Color {
@@ -860,9 +913,10 @@ fun HomePageHeader(
             title = title,
             logoImageUrl = logoImageUrl,
             showLogo = showLogo,
-            modifier = Modifier.fillMaxWidth(.75f).then(
-                if (compactLogo && showLogo && logoImageUrl != null) Modifier.heightIn(max = 40.dp) else Modifier,
-            ),
+            modifier =
+                Modifier.fillMaxWidth(.75f).then(
+                    if (compactLogo && showLogo && logoImageUrl != null) Modifier.heightIn(max = 40.dp) else Modifier,
+                ),
         )
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),

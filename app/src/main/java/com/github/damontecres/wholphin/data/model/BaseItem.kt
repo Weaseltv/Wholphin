@@ -113,7 +113,9 @@ data class BaseItem(
     private fun episodeBadge(episode: Int): String =
         if (BuildConfig.FLAVOR == "weaselfin" && type == BaseItemKind.EPISODE && data.parentIndexNumber != null) {
             "S${data.parentIndexNumber}E$episode"
-        } else formatEpisodeNumber(episode)
+        } else {
+            formatEpisodeNumber(episode)
+        }
 
     @Transient
     val ui =

@@ -4,7 +4,6 @@ import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
@@ -26,6 +25,7 @@ import com.github.damontecres.wholphin.ui.components.DeleteButton
 import com.github.damontecres.wholphin.ui.components.ExpandableFaButton
 import com.github.damontecres.wholphin.ui.components.ExpandablePlayButton
 import com.github.damontecres.wholphin.ui.components.FilterByButton
+import com.github.damontecres.wholphin.ui.components.FocusSafeLazyRow
 import com.github.damontecres.wholphin.ui.components.SortByButton
 import com.github.damontecres.wholphin.ui.components.StreamingTypeFilters
 import com.github.damontecres.wholphin.ui.components.TypeFilterButton
@@ -55,12 +55,13 @@ fun CollectionButtons(
         horizontalArrangement = Arrangement.SpaceBetween,
         modifier = Modifier.reportDetailActionHeight().then(modifier),
     ) {
-        LazyRow(
+        FocusSafeLazyRow(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            contentPadding = PaddingValues(8.dp),
+            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
             modifier =
                 Modifier
+                    .weight(1f)
                     .focusGroup()
                     .focusRestorer(firstFocus),
         ) {
@@ -134,10 +135,10 @@ fun CollectionButtons(
                 }
             }
         }
-        LazyRow(
+        FocusSafeLazyRow(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            contentPadding = PaddingValues(8.dp),
+            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
             modifier =
                 Modifier
                     .focusGroup(),

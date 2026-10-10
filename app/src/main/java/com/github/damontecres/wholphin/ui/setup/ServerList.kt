@@ -36,6 +36,7 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.components.CircularProgress
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
@@ -131,7 +132,7 @@ fun ServerIconCard(
         }
 
     Column(
-        modifier = modifier,
+        modifier = modifier.keepFocusedItemVisible(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
@@ -267,7 +268,7 @@ fun AddServerCard(
     val cardSize = if (neon) NeonBoard.Size.UserTile else Cards.height2x3 * 0.75f // ~120dp
 
     Column(
-        modifier = modifier,
+        modifier = modifier.keepFocusedItemVisible(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {

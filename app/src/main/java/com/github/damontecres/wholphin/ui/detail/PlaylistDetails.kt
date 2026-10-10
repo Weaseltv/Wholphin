@@ -42,12 +42,14 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -95,6 +97,7 @@ import com.github.damontecres.wholphin.ui.components.Optional
 import com.github.damontecres.wholphin.ui.components.OverviewText
 import com.github.damontecres.wholphin.ui.components.SortByButton
 import com.github.damontecres.wholphin.ui.components.TextButton
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.data.AddPlaylistViewModel
 import com.github.damontecres.wholphin.ui.data.BoxSetSortOptions
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
@@ -113,6 +116,11 @@ import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.roundMinutes
 import com.github.damontecres.wholphin.ui.roundSeconds
 import com.github.damontecres.wholphin.ui.showToast
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
+import com.github.damontecres.wholphin.ui.theme.neonListItemColors
+import com.github.damontecres.wholphin.ui.theme.neonListItemGlow
+import com.github.damontecres.wholphin.ui.theme.neonListItemShape
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.LocalClock
@@ -834,7 +842,7 @@ fun PlaylistItems(
         LoadingState.Success -> {
             if (items.isNotEmpty()) {
                 LazyColumn(
-                    contentPadding = PaddingValues(8.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = DialogListEdge),
                     modifier =
                         modifier
                             .padding(bottom = 32.dp)
@@ -843,7 +851,7 @@ fun PlaylistItems(
                                 MaterialTheme.colorScheme
                                     .surfaceColorAtElevation(1.dp)
                                     .copy(alpha = .75f),
-                                shape = RoundedCornerShape(16.dp),
+                                shape = if (isWeaselTv()) RectangleShape else RoundedCornerShape(16.dp),
                             ).focusGroup()
                             .focusRestorer(),
                 ) {
@@ -879,7 +887,7 @@ fun PlaylistItems(
                                     .animateItem()
                                     .ifElse(
                                         item?.type != BaseItemKind.AUDIO,
-                                        Modifier.height(80.dp),
+                                        Modifier.heightIn(min = 80.dp),
                                     ).onFocusChanged {
                                         if (it.hasFocus) {
                                             onFocusItem(index, item)
@@ -934,22 +942,31 @@ fun PlaylistItem(
         modifier =
             modifier
                 .fillMaxWidth()
-                .heightIn(min = 40.dp, max = 88.dp),
+                .keepFocusedItemVisible()
+                .heightIn(min = 40.dp),
     ) {
         ListItem(
             selected = false,
             onClick = onClick,
             onLongClick = onLongClick,
             interactionSource = interactionSource,
+            colors = neonListItemColors(),
+            shape = neonListItemShape(),
+            border = neonListItemBorder(),
+            glow = neonListItemGlow(),
             headlineContent = {
                 Text(
                     text = item?.title ?: "",
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.enableMarquee(focused),
                 )
             },
             supportingContent = {
                 Text(
                     text = item?.subtitle ?: "",
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.enableMarquee(focused),
                 )
             },
@@ -1027,7 +1044,7 @@ fun PlaylistItem(
                             unwatchedCount = item?.data?.userData?.unplayedItemCount ?: -1,
                             watchedPercent = 0.0,
                             numberOfVersions = item?.data?.mediaSourceCount ?: 0,
-                            modifier = Modifier.width(imageWidth),
+                            modifier = Modifier.width(imageWidth).height(72.dp),
                             useFallbackText = false,
                             fillWidth = imageWidthPx,
                         )

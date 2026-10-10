@@ -20,7 +20,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.tv.material3.Button
 import androidx.tv.material3.ListItem
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -28,14 +27,21 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.api.seerr.model.MovieDetails
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.components.BasicDialog
+import com.github.damontecres.wholphin.ui.components.Button
 import com.github.damontecres.wholphin.ui.components.DialogItem
+import com.github.damontecres.wholphin.ui.components.DialogListEdge
 import com.github.damontecres.wholphin.ui.components.DialogParams
 import com.github.damontecres.wholphin.ui.components.DialogPopup
 import com.github.damontecres.wholphin.ui.components.DialogPopupContent
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.components.SelectedLeadingContent
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
+import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
+import com.github.damontecres.wholphin.ui.theme.neonListItemColors
+import com.github.damontecres.wholphin.ui.theme.neonListItemGlow
+import com.github.damontecres.wholphin.ui.theme.neonListItemShape
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.LoadingState
 
@@ -175,7 +181,7 @@ private fun RequestMovieWithOptions(
             color = MaterialTheme.colorScheme.onSurface,
         )
         LazyColumn(
-            contentPadding = PaddingValues(vertical = 8.dp),
+            contentPadding = PaddingValues(vertical = DialogListEdge),
             modifier = Modifier,
         ) {
             item {
@@ -245,6 +251,10 @@ fun ChooseProfile(
     val qualityProfileStr = stringResource(R.string.quality_profile)
     var showProfileDialog by remember { mutableStateOf(false) }
     ListItem(
+        shape = neonListItemShape(),
+        colors = neonListItemColors(),
+        border = neonListItemBorder(),
+        glow = neonListItemGlow(),
         selected = false,
         headlineContent = {
             Text(qualityProfileStr)
@@ -257,7 +267,7 @@ fun ChooseProfile(
             Text(text)
         },
         onClick = { showProfileDialog = true },
-        modifier = modifier,
+        modifier = modifier.keepFocusedItemVisible(),
     )
     if (showProfileDialog) {
         val params =
@@ -305,6 +315,10 @@ fun ChooseFolder(
     val rootFolderStr = stringResource(R.string.root_folder)
     var showFolderDialog by remember { mutableStateOf(false) }
     ListItem(
+        shape = neonListItemShape(),
+        colors = neonListItemColors(),
+        border = neonListItemBorder(),
+        glow = neonListItemGlow(),
         selected = false,
         headlineContent = {
             Text(rootFolderStr)
@@ -320,7 +334,7 @@ fun ChooseFolder(
             Text(selectedFolder.freeSpace)
         },
         onClick = { showFolderDialog = true },
-        modifier = modifier,
+        modifier = modifier.keepFocusedItemVisible(),
     )
     if (showFolderDialog) {
         val params =

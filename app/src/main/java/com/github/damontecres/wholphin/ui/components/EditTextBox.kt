@@ -5,11 +5,14 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -35,8 +38,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -103,8 +113,9 @@ fun EditTextBox(
                 )
             }
         }
+    val neon = isWeaselTv()
     val decorator =
-        remember {
+        remember(colors, focused, enabled, maxLines, isInputValid, leadingIcon, neon) {
             TextFieldDecorator { innerTextField: @Composable () -> Unit ->
                 val containerColor =
                     when {
@@ -119,9 +130,33 @@ fun EditTextBox(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier =
                         Modifier
+                            .fillMaxWidth()
                             .background(
                                 containerColor,
-                                shape = if (maxLines > 1) RoundedCornerShape(8.dp) else CircleShape,
+                                shape =
+                                    if (neon) {
+                                        RectangleShape
+                                    } else if (maxLines > 1) {
+                                        RoundedCornerShape(8.dp)
+                                    } else {
+                                        CircleShape
+                                    },
+                            ).then(
+                                if (neon) {
+                                    Modifier.border(
+                                        1.dp,
+                                        if (!isInputValid(state.text.toString())) {
+                                            MaterialTheme.colorScheme.error
+                                        } else if (focused) {
+                                            LocalNeonAccent.current
+                                        } else {
+                                            NeonBoard.Line2
+                                        },
+                                        RectangleShape,
+                                    )
+                                } else {
+                                    Modifier
+                                },
                             ).padding(8.dp),
                 ) {
                     CompositionLocalProvider(
@@ -187,7 +222,7 @@ fun SearchEditTextBox(
     val focused by interactionSource.collectIsFocusedAsState()
     EditTextBox(
         state = state,
-        modifier = if (isWeaselTv()) modifier.border(1.dp, if (focused) LocalNeonAccent.current else NeonBoard.Line2) else modifier,
+        modifier = modifier.searchDpadNavigation(readOnly),
         keyboardOptions =
             KeyboardOptions(
                 autoCorrectEnabled = false,
@@ -240,26 +275,23 @@ fun EditTextBox(
             errorContainerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.75f),
             errorTextColor = MaterialTheme.colorScheme.onErrorContainer,
         )
+    val focused by interactionSource.collectIsFocusedAsState()
+    val neon = isWeaselTv()
+    val valid = isInputValid(value)
+    val shape = if (neon) RectangleShape else CircleShape
     CompositionLocalProvider(LocalTextSelectionColors provides colors.textSelectionColors) {
         BasicTextField(
             value = value,
-            modifier =
-                modifier
-                    .defaultMinSize(
-                        minWidth = TextFieldDefaults.MinWidth,
-                        minHeight = height,
-                    ).height(height),
+            modifier = modifier.defaultMinSize(minWidth = TextFieldDefaults.MinWidth, minHeight = height),
             onValueChange = onValueChange,
             enabled = enabled,
             readOnly = readOnly,
-            textStyle = MaterialTheme.typography.bodyLarge.merge(MaterialTheme.colorScheme.onPrimaryContainer),
+            textStyle = MaterialTheme.typography.bodyLarge.merge(MaterialTheme.colorScheme.onSurface),
             cursorBrush = SolidColor(colors.cursorColor),
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions,
             interactionSource = interactionSource,
             singleLine = true,
-            maxLines = 1,
-            minLines = 1,
             visualTransformation =
                 if (keyboardOptions.keyboardType == KeyboardType.Password ||
                     keyboardOptions.keyboardType == KeyboardType.NumberPassword
@@ -268,52 +300,53 @@ fun EditTextBox(
                 } else {
                     VisualTransformation.None
                 },
-            decorationBox =
-                @Composable { innerTextField ->
-                    // places leading icon, text field with label and placeholder, trailing icon
-                    TextFieldDefaults.DecorationBox(
-                        value = value,
-                        visualTransformation =
-                            if (keyboardOptions.keyboardType == KeyboardType.Password ||
-                                keyboardOptions.keyboardType == KeyboardType.NumberPassword
-                            ) {
-                                PasswordVisualTransformation()
-                            } else {
-                                VisualTransformation.None
-                            },
-                        innerTextField = innerTextField,
-                        placeholder = placeholder,
-                        label = null,
-                        leadingIcon = leadingIcon,
-                        trailingIcon = null,
-                        prefix = null,
-                        suffix = null,
-                        supportingText = supportingText,
-                        shape = if (isWeaselTv()) RectangleShape else CircleShape,
-                        singleLine = true,
-                        enabled = enabled,
-                        isError = false,
-                        interactionSource = interactionSource,
-                        colors = colors,
-                        contentPadding =
-                            PaddingValues(
-                                horizontal = 8.dp,
-                                vertical = 10.dp,
-                            ),
-                        container = {
-                            Container(
-                                enabled = enabled,
-                                isError = !isInputValid.invoke(value),
-                                interactionSource = interactionSource,
-                                modifier = Modifier,
-                                colors = colors,
-                                shape = if (isWeaselTv()) RectangleShape else CircleShape,
-                                focusedIndicatorLineThickness = if (isWeaselTv()) 1.dp else 4.dp,
-                                unfocusedIndicatorLineThickness = 0.dp,
-                            )
-                        },
-                    )
-                },
+            decorationBox = { innerTextField ->
+                Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = height)
+                                .background(
+                                    if (!valid) {
+                                        colors.errorContainerColor
+                                    } else if (!enabled) {
+                                        colors.disabledContainerColor
+                                    } else if (focused) {
+                                        colors.focusedContainerColor
+                                    } else {
+                                        colors.unfocusedContainerColor
+                                    },
+                                    shape,
+                                ).then(
+                                    if (neon) {
+                                        Modifier.border(
+                                            1.dp,
+                                            if (!valid) {
+                                                MaterialTheme.colorScheme.error
+                                            } else if (focused) {
+                                                LocalNeonAccent.current
+                                            } else {
+                                                NeonBoard.Line2
+                                            },
+                                            shape,
+                                        )
+                                    } else {
+                                        Modifier
+                                    },
+                                ).padding(horizontal = 8.dp, vertical = 8.dp),
+                    ) {
+                        leadingIcon?.invoke()
+                        Box(Modifier.weight(1f, fill = false)) {
+                            if (value.isEmpty()) placeholder?.invoke()
+                            innerTextField()
+                        }
+                    }
+                    supportingText?.invoke()
+                }
+            },
         )
     }
 }
@@ -337,7 +370,7 @@ fun SearchEditTextBox(
     EditTextBox(
         value,
         onValueChange,
-        if (isWeaselTv()) modifier.border(1.dp, if (focused) LocalNeonAccent.current else NeonBoard.Line2) else modifier,
+        modifier.searchDpadNavigation(readOnly),
         keyboardOptions =
             KeyboardOptions(
                 autoCorrectEnabled = false,
@@ -362,6 +395,25 @@ fun SearchEditTextBox(
         height = height,
         interactionSource = interactionSource,
     )
+}
+
+/** Search fields navigate to results vertically, and to adjacent controls horizontally when not editing. */
+@Composable
+private fun Modifier.searchDpadNavigation(readOnly: Boolean): Modifier {
+    val focusManager = LocalFocusManager.current
+    return onPreviewKeyEvent { event ->
+        if (event.type == KeyEventType.KeyDown) {
+            when (event.key) {
+                Key.DirectionDown -> focusManager.moveFocus(FocusDirection.Down)
+                Key.DirectionUp -> focusManager.moveFocus(FocusDirection.Up)
+                Key.DirectionLeft -> readOnly && focusManager.moveFocus(FocusDirection.Left)
+                Key.DirectionRight -> readOnly && focusManager.moveFocus(FocusDirection.Right)
+                else -> false
+            }
+        } else {
+            false
+        }
+    }
 }
 
 @PreviewTvSpec

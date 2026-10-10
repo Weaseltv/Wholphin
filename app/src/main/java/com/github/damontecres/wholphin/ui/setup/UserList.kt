@@ -37,6 +37,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -58,6 +60,7 @@ import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.components.DialogItem
 import com.github.damontecres.wholphin.ui.components.DialogPopup
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonType
@@ -102,7 +105,7 @@ fun UserList(
             }
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(24.dp), // Spacing to accommodate 20% scale
-                contentPadding = PaddingValues(horizontal = 48.dp, vertical = 16.dp), // Increased padding to accommodate 20% scale
+                contentPadding = PaddingValues(horizontal = 48.dp, vertical = 32.dp), // Increased padding to accommodate 20% scale
                 modifier =
                     Modifier
                         .wrapContentWidth()
@@ -215,7 +218,7 @@ private fun UserIconCard(
     val cardSize = if (neon) NeonBoard.Size.UserTile else Cards.serverUserCircle
 
     Column(
-        modifier = modifier,
+        modifier = modifier.keepFocusedItemVisible(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
@@ -224,7 +227,7 @@ private fun UserIconCard(
             onClick = onClick,
             onLongClick = onLongClick,
             interactionSource = interactionSource,
-            modifier = Modifier.size(cardSize),
+            modifier = Modifier.size(cardSize).semantics { contentDescription = user.user.name.orEmpty() },
             shape = ClickableSurfaceDefaults.shape(shape = tileShape),
             colors =
                 ClickableSurfaceDefaults.colors(
@@ -399,7 +402,7 @@ private fun AddUserCard(
     val cardSize = if (neon) NeonBoard.Size.UserTile else Cards.height2x3 * 0.75f // ~120dp
 
     Column(
-        modifier = modifier,
+        modifier = modifier.keepFocusedItemVisible(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(24.dp), // Increased to accommodate 20% scale
     ) {
