@@ -53,6 +53,7 @@ class WatchlistViewModelTest {
     fun setup() {
         WholphinDispatchers.configure(dispatcher)
         every { repository.currentUser } returns user
+        every { repository.currentUserDto } returns null
         every { displayInfo.getItem(user, WatchlistViewModel.DISPLAY_ID) } answers { saved }
         every { displayInfo.saveItem(any()) } answers {
             saved = firstArg()
