@@ -31,15 +31,19 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -55,6 +59,7 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onLayoutRectChanged
 import androidx.compose.ui.layout.onSizeChanged
@@ -94,6 +99,8 @@ import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.KeepVisibleBringIntoViewSpec
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import com.github.damontecres.wholphin.util.WholphinDispatchers
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -139,6 +146,7 @@ fun <T : CardGridItem> CardGrid(
     bringIntoViewSpec: BringIntoViewSpec = LocalBringIntoViewSpec.current,
     topContentPadding: Dp = if (isWeaselTv()) 32.dp else 16.dp,
 ) {
+    val weaselTv = isWeaselTv()
     val cardSpacing = if (isWeaselTv()) ApprovedHomeLayout.CARD_SPACING_DP.dp else spacing
     val startPosition =
         remember(initialPosition, pager.size) {
@@ -154,7 +162,8 @@ fun <T : CardGridItem> CardGrid(
             initialFirstVisibleItemIndex = focusedIndex,
         )
     val scope = rememberCoroutineScope()
-    val firstFocus = remember { FocusRequester() }
+    val cardFocusRequesters = remember { mutableStateMapOf<Int, FocusRequester>() }
+    var verticalFocusTarget by remember { mutableStateOf<Int?>(null) }
     val zeroFocus = remember { FocusRequester() }
     var previouslyFocusedIndex by rememberSaveable { mutableIntStateOf(0) }
 
@@ -163,29 +172,47 @@ fun <T : CardGridItem> CardGrid(
         remember {
             { index: Int ->
                 if (DEBUG) Timber.v("focusOn: focusedIndex=$currentFocusedIndex, index=$index")
-                if (index != currentFocusedIndex) {
-                    previouslyFocusedIndex = currentFocusedIndex
+                if (index != focusedIndex) {
+                    previouslyFocusedIndex = focusedIndex
                 }
                 focusedIndex = index
+                if (verticalFocusTarget == index) verticalFocusTarget = null
             }
         }
 
+    LaunchedEffect(verticalFocusTarget, pager.size) {
+        val target = verticalFocusTarget ?: return@LaunchedEffect
+        if (target !in pager.indices) {
+            verticalFocusTarget = null
+            return@LaunchedEffect
+        }
+        // Spatial focus search can choose the first composed card when the next
+        // row is outside the viewport. Materialize the exact same-column target
+        // before transferring focus; placeholders remain valid destinations.
+        gridState.scrollToItem(target)
+        val requester = snapshotFlow { cardFocusRequesters[target] }.filterNotNull().first()
+        withFrameNanos { }
+        requester.requestFocus()
+    }
+
     // Wait for a recomposition to focus
-    val alphabetFocusRequester = remember { FocusRequester() }
     val alphabetTarget = pager.getOrNull(currentFocusedIndex)
     LaunchedEffect(pager.size) {
         if (pager.isNotEmpty() && currentFocusedIndex >= pager.size) {
             focusedIndex = pager.lastIndex
-            gridState.scrollToItem(pager.lastIndex)
             alphabetFocus = true
+            gridState.scrollToItem(pager.lastIndex)
         }
     }
-    LaunchedEffect(alphabetFocus, alphabetTarget) {
+    LaunchedEffect(alphabetFocus, alphabetTarget, focusedIndex) {
         // A remote letter lookup can arrive before its page. Focus the loaded
         // card, whose caption and neighbours have been measured, rather than a
         // shorter placeholder that will grow below the viewport afterward.
         if (alphabetFocus && alphabetTarget != null) {
-            alphabetFocusRequester.tryRequestFocus()
+            val target = currentFocusedIndex
+            val requester = snapshotFlow { cardFocusRequesters[target] }.filterNotNull().first()
+            withFrameNanos { }
+            requester.requestFocus()
             alphabetFocus = false
         }
     }
@@ -228,10 +255,10 @@ fun <T : CardGridItem> CardGrid(
                         (gridState.firstVisibleItemIndex + jump).coerceIn(0..currentPager.lastIndex)
                     if (DEBUG) Timber.d("newPosition=$newPosition")
                     focusOn(newPosition)
-                    gridState.scrollToItem(newPosition, 0)
                     // Remote paging scrolls the old focus out of view. Reuse the
                     // loaded-card focus transfer used by alphabet navigation.
                     alphabetFocus = true
+                    gridState.scrollToItem(newPosition, 0)
                 }
             }
         }
@@ -263,9 +290,9 @@ fun <T : CardGridItem> CardGrid(
                     if (jumpPosition >= 0 && currentPager.isNotEmpty()) {
                         val target = jumpPosition.coerceAtMost(currentPager.lastIndex)
                         currentPager.getOrNull(target)
-                        gridState.scrollToItem(target)
                         focusOn(target)
                         alphabetFocus = true
+                        gridState.scrollToItem(target)
                     }
                 }
             }
@@ -299,9 +326,9 @@ fun <T : CardGridItem> CardGrid(
                             if (newPosition > 0) {
                                 scope.launch(ExceptionHandler()) {
                                     pager.getOrNull(newPosition)
-                                    gridState.scrollToItem(newPosition)
                                     focusOn(newPosition)
                                     alphabetFocus = true
+                                    gridState.scrollToItem(newPosition)
                                 }
                             }
                             return@onKeyEvent true
@@ -374,15 +401,40 @@ fun <T : CardGridItem> CardGrid(
                         modifier =
                             Modifier
                                 .fillMaxSize()
-                                .focusGroup()
-                                .focusRestorer(firstFocus)
+                                .onPreviewKeyEvent { event ->
+                                    if (!weaselTv || event.type != KeyEventType.KeyDown ||
+                                        (event.key != Key.DirectionDown && event.key != Key.DirectionUp)
+                                    ) {
+                                        return@onPreviewKeyEvent false
+                                    }
+                                    // Read the live state: several repeat events may arrive
+                                    // before rememberUpdatedState has been recomposed.
+                                    val from = verticalFocusTarget ?: focusedIndex
+                                    val row = from / columns
+                                    val nextRow = row + if (event.key == Key.DirectionDown) 1 else -1
+                                    if (nextRow < 0) return@onPreviewKeyEvent false // Leave for the toolbar.
+                                    if (nextRow * columns >= pager.size) return@onPreviewKeyEvent true
+                                    val target = (nextRow * columns + from % columns).coerceAtMost(pager.lastIndex)
+                                    verticalFocusTarget = target
+                                    // Preserve normal whole-card visibility scrolling when the
+                                    // destination is composed. Only scroll explicitly otherwise.
+                                    val requester = cardFocusRequesters[target]
+                                    if (requester != null && requester.requestFocus()) {
+                                        verticalFocusTarget = null
+                                    }
+                                    true
+                                }.focusRequester(gridFocusRequester)
                                 .focusProperties {
                                     onEnter = {
                                         if (focusedIndex < 0 && gridState.firstVisibleItemIndex <= startPosition) {
                                             focusedIndex = startPosition
                                         }
+                                        // Stable per-card requesters do not move between
+                                        // focus nodes as the current index changes.
+                                        cardFocusRequesters[verticalFocusTarget ?: focusedIndex]?.requestFocus()
                                     }
-                                }.onLayoutRectChanged(0, 0) {
+                                }.focusGroup()
+                                .onLayoutRectChanged(0, 0) {
                                     val width = it.width
                                     val spacingPx = with(density) { cardSpacing.toPx() }
                                     val cardWidth =
@@ -393,21 +445,13 @@ fun <T : CardGridItem> CardGrid(
                     ) {
                         items(pager.size) { index ->
                             val item = pager[index]
-                            // A letter jump changes the focus destination while visible cards
-                            // remain cached. Move the requesters with that destination.
-                            val isFocusTarget = index == currentFocusedIndex || (currentFocusedIndex < 0 && index == 0)
+                            val itemFocusRequester = remember { FocusRequester() }
+                            DisposableEffect(index, itemFocusRequester) {
+                                cardFocusRequesters[index] = itemFocusRequester
+                                onDispose { cardFocusRequesters.remove(index) }
+                            }
                             val details =
-                                remember(index, item, cardWidthPx, columns, isFocusTarget) {
-                                    val mod =
-                                        if (isFocusTarget) {
-                                            if (DEBUG) Timber.d("Adding firstFocus to focusedIndex $index")
-                                            Modifier
-                                                .focusRequester(firstFocus)
-                                                .focusRequester(gridFocusRequester)
-                                                .focusRequester(alphabetFocusRequester)
-                                        } else {
-                                            Modifier
-                                        }
+                                remember(index, item, cardWidthPx, columns, itemFocusRequester) {
                                     GridItemDetails(
                                         item = item,
                                         index = index,
@@ -424,7 +468,8 @@ fun <T : CardGridItem> CardGrid(
                                         },
                                         widthPx = cardWidthPx,
                                         mod =
-                                            mod
+                                            Modifier
+                                                .focusRequester(itemFocusRequester)
                                                 .ifElse(
                                                     index == 0,
                                                     Modifier.focusRequester(zeroFocus),
@@ -445,6 +490,15 @@ fun <T : CardGridItem> CardGrid(
                                                         )
                                                     }
                                                     if (focusState.isFocused) {
+                                                        // A scroll/filter can temporarily remove the
+                                                        // focused row. Do not let fallback focus replace
+                                                        // an explicit destination before it is attached.
+                                                        if (focusedIndex !in currentPager.indices ||
+                                                            (verticalFocusTarget != null && verticalFocusTarget != index) ||
+                                                            (alphabetFocus && focusedIndex != index)
+                                                        ) {
+                                                            return@onFocusChanged
+                                                        }
                                                         // Focused, so set that up
                                                         focusOn(index)
                                                         positionCallback?.invoke(columns, index)
