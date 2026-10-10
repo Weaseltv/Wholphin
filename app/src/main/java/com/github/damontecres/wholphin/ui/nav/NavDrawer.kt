@@ -43,15 +43,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -60,8 +60,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -99,11 +99,11 @@ import com.github.damontecres.wholphin.ui.preferences.PreferenceScreenOption
 import com.github.damontecres.wholphin.ui.setup.UserIconCardImage
 import com.github.damontecres.wholphin.ui.spacedByWithFooter
 import com.github.damontecres.wholphin.ui.theme.InsetNeonSectionRules
+import com.github.damontecres.wholphin.ui.theme.LocalNeonSectionAccent
 import com.github.damontecres.wholphin.ui.theme.LocalTheme
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.ProvideNeonAccent
-import com.github.damontecres.wholphin.ui.theme.LocalNeonSectionAccent
 import com.github.damontecres.wholphin.ui.theme.RailAccents
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonDrawerItemColors
@@ -653,10 +653,13 @@ private val RailFocusGlowOpacity = ApprovedHomeLayout.CARD_APPEARANCE.glowOpacit
 /** Rail rows don't grow when focused, so the room only has to cover their glow. */
 internal val RailGlowRoom = maxOf(NeonBoard.GlowSpec.RowFocus, RailFocusGlowSpread) + RailFocusBorderWidth / 2
 
-
 /** Keep the full stroke and side glow inside the rail without moving its content. */
 private object RailItemShape : Shape {
-    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+    override fun createOutline(
+        size: Size,
+        layoutDirection: LayoutDirection,
+        density: Density,
+    ): Outline {
         val inset = with(density) { RailGlowRoom.toPx() }.coerceAtMost(size.width / 4f)
         return Outline.Rectangle(Rect(inset, 0f, size.width - inset, size.height))
     }
@@ -892,7 +895,11 @@ fun NavigationDrawerScope.NavItem(
 
 /** The active page remains visible when focus moves to a different sidebar button. */
 @Composable
-private fun railLabelStyle(accent: Color, selected: Boolean, focused: Boolean): androidx.compose.ui.text.TextStyle {
+private fun railLabelStyle(
+    accent: Color,
+    selected: Boolean,
+    focused: Boolean,
+): androidx.compose.ui.text.TextStyle {
     if (!isWeaselTv()) return LocalTextStyle.current
     val style = NeonType.railLabel(selected)
     return if (selected && !focused) {
@@ -951,7 +958,8 @@ fun railGlyphColor(
     focused: Boolean,
 ): Color? {
     if (!isWeaselTv()) return null
-    return com.github.damontecres.wholphin.ui.theme.neonGlowAccent(accent)
+    return com.github.damontecres.wholphin.ui.theme
+        .neonGlowAccent(accent)
 }
 
 @Composable
@@ -1065,14 +1073,15 @@ internal object WeaselNavIcons {
         item: NavDrawerItem,
     ): Int? {
         val key = if (item is ServerNavDrawerItem) item.name.trim().lowercase() else item.id
-        val entry = map[key] ?: (item as? ServerNavDrawerItem)?.type?.let {
-            when (it) {
-                CollectionType.MOVIES -> "ic_nav_movies"
-                CollectionType.TVSHOWS -> "ic_nav_tvshows"
-                CollectionType.BOXSETS -> "ic_nav_collections"
-                else -> null
-            }
-        } ?: return null
+        val entry =
+            map[key] ?: (item as? ServerNavDrawerItem)?.type?.let {
+                when (it) {
+                    CollectionType.MOVIES -> "ic_nav_movies"
+                    CollectionType.TVSHOWS -> "ic_nav_tvshows"
+                    CollectionType.BOXSETS -> "ic_nav_collections"
+                    else -> null
+                }
+            } ?: return null
         return fixed(context, entry)
     }
 

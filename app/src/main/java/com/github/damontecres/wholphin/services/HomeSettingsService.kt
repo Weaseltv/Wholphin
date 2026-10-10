@@ -5,10 +5,10 @@ import androidx.annotation.StringRes
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomePageSettings
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
-import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.data.model.SUPPORTED_HOME_PAGE_SETTINGS_VERSION
 import com.github.damontecres.wholphin.data.model.createGenreDestination
@@ -60,8 +60,8 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.jellyfin.sdk.api.client.ApiClient
-import org.jellyfin.sdk.api.client.extensions.liveTvApi
 import org.jellyfin.sdk.api.client.extensions.libraryApi
+import org.jellyfin.sdk.api.client.extensions.liveTvApi
 import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.model.DateTime
@@ -129,9 +129,18 @@ class HomeSettingsService
             displayPreferencesId: String = DisplayPreferencesService.DEFAULT_DISPLAY_PREF_ID,
         ) {
             displayPreferencesService.updateDisplayPreferences(userId, displayPreferencesId) {
-                put(CUSTOM_PREF_ID, jsonParser.encodeToString(
-                    if (BuildConfig.FLAVOR == "weaselfin") settings.copy(layoutDefaultsRevision = ApprovedHomeLayout.REVISION) else settings,
-                ))
+                put(
+                    CUSTOM_PREF_ID,
+                    jsonParser.encodeToString(
+                        if (BuildConfig.FLAVOR ==
+                            "weaselfin"
+                        ) {
+                            settings.copy(layoutDefaultsRevision = ApprovedHomeLayout.REVISION)
+                        } else {
+                            settings
+                        },
+                    ),
+                )
             }
         }
 
@@ -173,7 +182,13 @@ class HomeSettingsService
             dir.mkdirs()
             File(dir, filename(userId)).outputStream().use {
                 jsonParser.encodeToStream(
-                    if (BuildConfig.FLAVOR == "weaselfin") settings.copy(layoutDefaultsRevision = ApprovedHomeLayout.REVISION) else settings,
+                    if (BuildConfig.FLAVOR ==
+                        "weaselfin"
+                    ) {
+                        settings.copy(layoutDefaultsRevision = ApprovedHomeLayout.REVISION)
+                    } else {
+                        settings
+                    },
                     it,
                 )
             }
@@ -268,7 +283,11 @@ class HomeSettingsService
 
             val homeSettings =
                 if (BuildConfig.FLAVOR == "weaselfin") {
-                    applyApprovedLayoutOnce(userId, settings?.layoutDefaultsRevision ?: 0, CuratedCollections.withCuratedRow(resolvedSettings))
+                    applyApprovedLayoutOnce(
+                        userId,
+                        settings?.layoutDefaultsRevision ?: 0,
+                        CuratedCollections.withCuratedRow(resolvedSettings),
+                    )
                 } else {
                     resolvedSettings
                 }
@@ -276,7 +295,6 @@ class HomeSettingsService
             if (BuildConfig.FLAVOR == "weaselfin") syncApprovedLayoutToServer(userId, homeSettings)
         }
 
-        /** Owner requested matching the remaining Alpha rows to the first two tuned rows. */
         /** Apply the owner-approved layout once; later user edits are retained. */
         private suspend fun applyApprovedLayoutOnce(
             userId: UUID,
@@ -284,13 +302,22 @@ class HomeSettingsService
             settings: HomePageResolvedSettings,
         ): HomePageResolvedSettings {
             if (revision >= ApprovedHomeLayout.REVISION) return settings
-            val matched = HomePageResolvedSettings(
-                settings.rows.map { row ->
-                    row.copy(config = row.config.updateViewOptions(
-                        ApprovedHomeLayout.upgrade(row.config.viewOptions, revision, StreamingCollections.isStreamingRow(row.config), CuratedCollections.isCuratedRow(row.config)),
-                    ))
-                },
-            )
+            val matched =
+                HomePageResolvedSettings(
+                    settings.rows.map { row ->
+                        row.copy(
+                            config =
+                                row.config.updateViewOptions(
+                                    ApprovedHomeLayout.upgrade(
+                                        row.config.viewOptions,
+                                        revision,
+                                        StreamingCollections.isStreamingRow(row.config),
+                                        CuratedCollections.isCuratedRow(row.config),
+                                    ),
+                                ),
+                        )
+                    },
+                )
             saveToLocal(userId, HomePageSettings(matched.rows.map { it.config }, SUPPORTED_HOME_PAGE_SETTINGS_VERSION))
             return matched
         }
@@ -309,16 +336,21 @@ class HomeSettingsService
                         val existing = get(CUSTOM_PREF_ID)?.let { decode(jsonParser.parseToJsonElement(it)) }
                         val base = existing ?: HomePageSettings(settings.rows.map { it.config }, SUPPORTED_HOME_PAGE_SETTINGS_VERSION)
                         if (base.layoutDefaultsRevision < ApprovedHomeLayout.REVISION) {
-                            val rows = base.rows.map { row ->
-                                val options = ApprovedHomeLayout.upgrade(
-                                    row.viewOptions,
-                                    if (existing == null) ApprovedHomeLayout.REVISION else base.layoutDefaultsRevision,
-                                    StreamingCollections.isStreamingRow(row),
-                                    CuratedCollections.isCuratedRow(row),
-                                )
-                                row.updateViewOptions(options)
-                            }
-                            put(CUSTOM_PREF_ID, jsonParser.encodeToString(base.copy(rows = rows, layoutDefaultsRevision = ApprovedHomeLayout.REVISION)))
+                            val rows =
+                                base.rows.map { row ->
+                                    val options =
+                                        ApprovedHomeLayout.upgrade(
+                                            row.viewOptions,
+                                            if (existing == null) ApprovedHomeLayout.REVISION else base.layoutDefaultsRevision,
+                                            StreamingCollections.isStreamingRow(row),
+                                            CuratedCollections.isCuratedRow(row),
+                                        )
+                                    row.updateViewOptions(options)
+                                }
+                            put(
+                                CUSTOM_PREF_ID,
+                                jsonParser.encodeToString(base.copy(rows = rows, layoutDefaultsRevision = ApprovedHomeLayout.REVISION)),
+                            )
                         }
                     }
                     migrations.edit().putBoolean(key, true).apply()
@@ -685,25 +717,30 @@ class HomeSettingsService
             if (BuildConfig.FLAVOR != "weaselfin") return items
             val libraryIds = libraries.map { it.itemId }.toSet()
             return coroutineScope {
-                items.map { item ->
-                    async {
-                        val ancestorId = item.data.seriesId ?: item.data.parentId ?: item.id
-                        val key = userId to ancestorId
-                        val direct = listOfNotNull(item.data.parentId, ancestorId).firstOrNull { it in libraryIds }
-                        val cached = mediaLibraries[key]?.takeIf { it in libraryIds }
-                        val libraryId = direct ?: cached ?: try {
-                            api.libraryApi.getAncestors(itemId = ancestorId, userId = userId)
-                                .content.firstOrNull { it.id in libraryIds }?.id
-                                ?.also { mediaLibraries[key] = it }
-                        } catch (ex: CancellationException) {
-                            throw ex
-                        } catch (ex: Exception) {
-                            Timber.w(ex, "Unable to resolve item library")
-                            null
+                items
+                    .map { item ->
+                        async {
+                            val ancestorId = item.data.seriesId ?: item.data.parentId ?: item.id
+                            val key = userId to ancestorId
+                            val direct = listOfNotNull(item.data.parentId, ancestorId).firstOrNull { it in libraryIds }
+                            val cached = mediaLibraries[key]?.takeIf { it in libraryIds }
+                            val libraryId =
+                                direct ?: cached ?: try {
+                                    api.libraryApi
+                                        .getAncestors(itemId = ancestorId, userId = userId)
+                                        .content
+                                        .firstOrNull { it.id in libraryIds }
+                                        ?.id
+                                        ?.also { mediaLibraries[key] = it }
+                                } catch (ex: CancellationException) {
+                                    throw ex
+                                } catch (ex: Exception) {
+                                    Timber.w(ex, "Unable to resolve item library")
+                                    null
+                                }
+                            item.copy(libraryId = libraryId)
                         }
-                        item.copy(libraryId = libraryId)
-                    }
-                }.awaitAll()
+                    }.awaitAll()
             }
         }
 

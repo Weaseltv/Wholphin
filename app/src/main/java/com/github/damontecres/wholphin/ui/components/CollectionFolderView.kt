@@ -9,10 +9,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.runtime.CompositionLocalProvider
-import com.github.damontecres.wholphin.ui.theme.LocalHidePosterTypeBadge
-import com.github.damontecres.wholphin.ui.main.settings.Library
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -39,30 +37,28 @@ import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.filter.DefaultFilterOptions
 import com.github.damontecres.wholphin.data.filter.FilterValueOption
 import com.github.damontecres.wholphin.data.filter.ItemFilterBy
-import com.github.damontecres.wholphin.data.model.BaseItem
-import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
-import com.github.damontecres.wholphin.services.HomeSettingsService
-import com.github.damontecres.wholphin.services.StreamingCollections
-import com.github.damontecres.wholphin.services.CollectionDisplayOrder
-import com.github.damontecres.wholphin.data.model.HomeCardAppearance
-import com.github.damontecres.wholphin.services.CuratedCollections
-import com.github.damontecres.wholphin.ui.theme.ApprovedCollectionCardAppearance
-import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.CollectionFolderFilter
 import com.github.damontecres.wholphin.data.model.GetItemsFilter
 import com.github.damontecres.wholphin.data.model.GetItemsFilterOverride
+import com.github.damontecres.wholphin.data.model.HomeCardAppearance
+import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.data.model.LibraryDisplayInfo
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.BackdropService
+import com.github.damontecres.wholphin.services.CollectionDisplayOrder
+import com.github.damontecres.wholphin.services.CuratedCollections
 import com.github.damontecres.wholphin.services.FavoriteWatchManager
 import com.github.damontecres.wholphin.services.FilterOptionCache
+import com.github.damontecres.wholphin.services.HomeSettingsService
 import com.github.damontecres.wholphin.services.MediaManagementService
 import com.github.damontecres.wholphin.services.MusicService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.ServerReportService
 import com.github.damontecres.wholphin.services.StreamChoiceService
+import com.github.damontecres.wholphin.services.StreamingCollections
 import com.github.damontecres.wholphin.services.ThemeSongPlayer
 import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.deleteItem
@@ -72,9 +68,13 @@ import com.github.damontecres.wholphin.ui.detail.music.addToQueue
 import com.github.damontecres.wholphin.ui.equalsNotNull
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
+import com.github.damontecres.wholphin.ui.main.settings.Library
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.ui.showToast
+import com.github.damontecres.wholphin.ui.theme.ApprovedCollectionCardAppearance
+import com.github.damontecres.wholphin.ui.theme.LocalHidePosterTypeBadge
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.ApiRequestPager
@@ -190,16 +190,26 @@ class CollectionFolderViewModel
                     }
 
                     val orderPreferences = context.getSharedPreferences("collections_display_order", Context.MODE_PRIVATE)
-                    val orderKey = "explicit_order_v2_${serverRepository.currentUser?.rowId}_${collectionFilter.libraryDisplayInfoIdOverride ?: itemId}"
-                    val useApprovedOrder = BuildConfig.FLAVOR == "weaselfin" &&
-                        (item?.data?.collectionType == CollectionType.BOXSETS || collectionFilter.filter.includeItemTypes == listOf(BaseItemKind.BOX_SET)) &&
-                        !orderPreferences.getBoolean(orderKey, false)
-                    val sortAndDirection = if (useApprovedOrder) SortAndDirection.DEFAULT else
-                        if (collectionFilter.useSavedLibraryDisplayInfo) {
-                            libraryDisplayInfo?.sortAndDirection
+                    val orderKey =
+                        "explicit_order_v2_${serverRepository.currentUser?.rowId}_" +
+                            "${collectionFilter.libraryDisplayInfoIdOverride ?: itemId}"
+                    val useApprovedOrder =
+                        BuildConfig.FLAVOR == "weaselfin" &&
+                            (
+                                item?.data?.collectionType == CollectionType.BOXSETS ||
+                                    collectionFilter.filter.includeItemTypes == listOf(BaseItemKind.BOX_SET)
+                            ) &&
+                            !orderPreferences.getBoolean(orderKey, false)
+                    val sortAndDirection =
+                        if (useApprovedOrder) {
+                            SortAndDirection.DEFAULT
                         } else {
-                            null
-                        } ?: initialSortAndDirection ?: SortAndDirection.DEFAULT
+                            if (collectionFilter.useSavedLibraryDisplayInfo) {
+                                libraryDisplayInfo?.sortAndDirection
+                            } else {
+                                null
+                            } ?: initialSortAndDirection ?: SortAndDirection.DEFAULT
+                        }
 
                     val filterToUse =
                         if (collectionFilter.useSavedLibraryDisplayInfo && libraryDisplayInfo?.filter != null) {
@@ -359,14 +369,16 @@ class CollectionFolderViewModel
             }
             try {
                 val request = createGetItemsRequest(sortAndDirection, recursive, filter)
-                val groupedCollections = BuildConfig.FLAVOR == "weaselfin" && filter.override == GetItemsFilterOverride.NONE &&
-                    request.includeItemTypes == listOf(BaseItemKind.BOX_SET) &&
-                    sortAndDirection.sort in listOf(ItemSortBy.SORT_NAME, ItemSortBy.DEFAULT)
-                val newPager: BlockingList<BaseItem?> = if (groupedCollections) {
-                    loadOrderedCollections(request, sortAndDirection.direction == SortOrder.DESCENDING)
-                } else {
-                    createPager(sortAndDirection, recursive, filter, useSeriesForPrimary).init()
-                }
+                val groupedCollections =
+                    BuildConfig.FLAVOR == "weaselfin" && filter.override == GetItemsFilterOverride.NONE &&
+                        request.includeItemTypes == listOf(BaseItemKind.BOX_SET) &&
+                        sortAndDirection.sort in listOf(ItemSortBy.SORT_NAME, ItemSortBy.DEFAULT)
+                val newPager: BlockingList<BaseItem?> =
+                    if (groupedCollections) {
+                        loadOrderedCollections(request, sortAndDirection.direction == SortOrder.DESCENDING)
+                    } else {
+                        createPager(sortAndDirection, recursive, filter, useSeriesForPrimary).init()
+                    }
                 if (newPager.isNotEmpty()) newPager.getBlocking(0)
                 _state.update {
                     it.copy(
@@ -391,16 +403,24 @@ class CollectionFolderViewModel
         }
 
         /** Fetch every member-scoped page before sorting, so group order spans page boundaries. */
-        private suspend fun loadOrderedCollections(request: GetItemsRequest, descending: Boolean): BlockingList<BaseItem?> {
+        private suspend fun loadOrderedCollections(
+            request: GetItemsRequest,
+            descending: Boolean,
+        ): BlockingList<BaseItem?> {
             val items = mutableListOf<BaseItem>()
             var start = 0
             while (true) {
-                val result = GetItemsRequestHandler.execute(api, request.copy(
-                    startIndex = start,
-                    limit = 200,
-                    enableTotalRecordCount = true,
-                    fields = (request.fields.orEmpty() + ItemFields.TAGS + ItemFields.CHILD_COUNT).distinct(),
-                )).content
+                val result =
+                    GetItemsRequestHandler
+                        .execute(
+                            api,
+                            request.copy(
+                                startIndex = start,
+                                limit = 200,
+                                enableTotalRecordCount = true,
+                                fields = (request.fields.orEmpty() + ItemFields.TAGS + ItemFields.CHILD_COUNT).distinct(),
+                            ),
+                        ).content
                 val page = result.items
                 items.addAll(page.map { BaseItem(it.copy(sortName = it.name), useSeriesForPrimary) })
                 start += page.size
@@ -409,7 +429,10 @@ class CollectionFolderViewModel
             return BlockingList.of(CollectionDisplayOrder.sort(items, descending))
         }
 
-        private suspend fun refreshItem(position: Int, itemId: UUID) {
+        private suspend fun refreshItem(
+            position: Int,
+            itemId: UUID,
+        ) {
             val items = state.value.items.successValue ?: return
             if (items is ApiRequestPager<*>) {
                 items.refreshItem(position, itemId)
@@ -417,9 +440,16 @@ class CollectionFolderViewModel
                 val updated = BaseItem(api.userLibraryApi.getItem(itemId).content, useSeriesForPrimary)
                 _state.update { current ->
                     val currentItems = current.items.successValue ?: return@update current
-                    current.copy(items = DataLoadingState.Success(BlockingList.of(currentItems.map {
-                        if (it?.id == itemId) updated else it
-                    })))
+                    current.copy(
+                        items =
+                            DataLoadingState.Success(
+                                BlockingList.of(
+                                    currentItems.map {
+                                        if (it?.id == itemId) updated else it
+                                    },
+                                ),
+                            ),
+                    )
                 }
             }
         }
@@ -548,8 +578,9 @@ class CollectionFolderViewModel
                     ),
                     // An unset UI type filter must not erase BOX_SET from the library query:
                     // ordering selection below relies on the effective query, not just the page title.
-                    overwriteIncludeTypes = BuildConfig.FLAVOR != "weaselfin" ||
-                        item?.data?.collectionType != CollectionType.BOXSETS || filter.includeItemTypes != null,
+                    overwriteIncludeTypes =
+                        BuildConfig.FLAVOR != "weaselfin" ||
+                            item?.data?.collectionType != CollectionType.BOXSETS || filter.includeItemTypes != null,
                 )
             return request
         }
@@ -569,9 +600,10 @@ class CollectionFolderViewModel
                 val filter = state.value.filter
                 val items = state.value.items.successValue
                 if (items != null && items !is ApiRequestPager<*>) {
-                    return@withContext items.indexOfFirst {
-                        it?.name?.trim()?.startsWith(letter.toString(), ignoreCase = true) == true
-                    }.takeIf { it >= 0 }
+                    return@withContext items
+                        .indexOfFirst {
+                            it?.name?.trim()?.startsWith(letter.toString(), ignoreCase = true) == true
+                        }.takeIf { it >= 0 }
                 }
                 when (filter.override) {
                     GetItemsFilterOverride.ARTIST -> {
@@ -812,10 +844,19 @@ fun CollectionFolderView(
 ) {
     val state by viewModel.state.collectAsState()
     val homeSettings by viewModel.homeSettingsService.currentSettings.collectAsState()
-    val collectionHomeOptions = homeSettings.rows.firstOrNull { CuratedCollections.isCuratedRow(it.config) }?.config?.viewOptions
-        ?: ApprovedHomeLayout.apply(HomeRowViewOptions(cardAppearance = ApprovedCollectionCardAppearance))
-    val streamingCardAppearance = homeSettings.rows.firstOrNull { StreamingCollections.isStreamingRow(it.config) }?.config?.viewOptions?.cardAppearance
-        ?: StreamingCollections.row.viewOptions.cardAppearance
+    val collectionHomeOptions =
+        homeSettings.rows
+            .firstOrNull { CuratedCollections.isCuratedRow(it.config) }
+            ?.config
+            ?.viewOptions
+            ?: ApprovedHomeLayout.apply(HomeRowViewOptions(cardAppearance = ApprovedCollectionCardAppearance))
+    val streamingCardAppearance =
+        homeSettings.rows
+            .firstOrNull { StreamingCollections.isStreamingRow(it.config) }
+            ?.config
+            ?.viewOptions
+            ?.cardAppearance
+            ?: StreamingCollections.row.viewOptions.cardAppearance
     LifecycleResumeEffect(itemId) {
         viewModel.onResumePage()
 
@@ -896,7 +937,10 @@ fun CollectionFolderViewContent(
     positionCallback: ((columns: Int, position: Int) -> Unit)? = null,
     filterOptions: List<ItemFilterBy<*>> = DefaultFilterOptions,
     focusRequesterOnEmpty: FocusRequester? = null,
-    collectionHomeOptions: HomeRowViewOptions = ApprovedHomeLayout.apply(HomeRowViewOptions(cardAppearance = ApprovedCollectionCardAppearance)),
+    collectionHomeOptions: HomeRowViewOptions =
+        ApprovedHomeLayout.apply(
+            HomeRowViewOptions(cardAppearance = ApprovedCollectionCardAppearance),
+        ),
     streamingCardAppearance: HomeCardAppearance = StreamingCollections.row.viewOptions.cardAppearance,
     watchlistLibraries: List<Library>? = null,
 ) {
@@ -992,8 +1036,11 @@ fun CollectionFolderViewContent(
                         ?: item?.name
                         ?: item?.data?.collectionType?.name
                         ?: stringResource(R.string.collection)
-                val collectionsLayout = isWeaselTv() && (item?.data?.collectionType == CollectionType.BOXSETS ||
-                    initialFilter.filter.includeItemTypes == listOf(BaseItemKind.BOX_SET))
+                val collectionsLayout =
+                    isWeaselTv() && (
+                        item?.data?.collectionType == CollectionType.BOXSETS ||
+                            initialFilter.filter.includeItemTypes == listOf(BaseItemKind.BOX_SET)
+                    )
                 Column(modifier = Modifier.fillMaxSize()) {
                     var showHeader by rememberSaveable { mutableStateOf(true) }
                     val gridFocusRequester = remember { FocusRequester() }
@@ -1066,30 +1113,43 @@ fun CollectionFolderViewContent(
                             }
                             Box(Modifier.fillMaxSize()) {
                                 if (state.viewOptions.type == ViewOptionsType.GRID) {
-                                    CompositionLocalProvider(LocalHidePosterTypeBadge provides (isWeaselTv() && item?.data?.collectionType in listOf(CollectionType.MOVIES, CollectionType.TVSHOWS))) {
-                                    CollectionFolderGrid(
-                                        preferences = preferences,
-                                        collectionType = item?.data?.collectionType,
-                                        initialPosition = savedPosition,
-                                        items = pager.data,
-                                        sortAndDirection = state.sortAndDirection,
-                                        modifier = Modifier.fillMaxSize(),
-                                        gridFocusRequester = gridFocusRequester,
-                                        onClickItem = gridActions.onClickItem,
-                                        onLongClickItem = gridActions.onLongClickItem!!,
-                                        positionCallback = { columns, pos ->
-                                            showHeader = pos < columns
-                                            position = pos
-                                            positionCallback?.invoke(columns, pos)
-                                        },
-                                        letterPosition = { viewActions.positionOfLetter(it) ?: -1 },
-                                        viewOptions = if (collectionsLayout) state.viewOptions.copy(showTitles = false) else state.viewOptions,
-                                        onClickPlay = gridActions.onClickPlayRemoteButton!!,
-                                        focusedItem = focusedItem,
-                                        collectionCardAppearance = collectionHomeOptions.cardAppearance,
-                                        streamingCardAppearance = streamingCardAppearance,
-                                        watchlistLibraries = watchlistLibraries,
-                                    )
+                                    CompositionLocalProvider(
+                                        LocalHidePosterTypeBadge provides
+                                            (
+                                                isWeaselTv() &&
+                                                    item?.data?.collectionType in listOf(CollectionType.MOVIES, CollectionType.TVSHOWS)
+                                            ),
+                                    ) {
+                                        CollectionFolderGrid(
+                                            preferences = preferences,
+                                            collectionType = item?.data?.collectionType,
+                                            initialPosition = savedPosition,
+                                            items = pager.data,
+                                            sortAndDirection = state.sortAndDirection,
+                                            modifier = Modifier.fillMaxSize(),
+                                            gridFocusRequester = gridFocusRequester,
+                                            onClickItem = gridActions.onClickItem,
+                                            onLongClickItem = gridActions.onLongClickItem!!,
+                                            positionCallback = { columns, pos ->
+                                                showHeader = pos < columns
+                                                position = pos
+                                                positionCallback?.invoke(columns, pos)
+                                            },
+                                            letterPosition = { viewActions.positionOfLetter(it) ?: -1 },
+                                            viewOptions =
+                                                if (collectionsLayout) {
+                                                    state.viewOptions.copy(
+                                                        showTitles = false,
+                                                    )
+                                                } else {
+                                                    state.viewOptions
+                                                },
+                                            onClickPlay = gridActions.onClickPlayRemoteButton!!,
+                                            focusedItem = focusedItem,
+                                            collectionCardAppearance = collectionHomeOptions.cardAppearance,
+                                            streamingCardAppearance = streamingCardAppearance,
+                                            watchlistLibraries = watchlistLibraries,
+                                        )
                                     }
                                 } else {
                                     CollectionFolderList(

@@ -23,8 +23,8 @@ import coil3.svg.SvgDecoder
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
-import com.github.damontecres.wholphin.ui.theme.NeonSectionPalette
 import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
+import com.github.damontecres.wholphin.ui.theme.NeonSectionPalette
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.streamingProviderAccent
 import java.util.Locale
@@ -40,22 +40,30 @@ fun StreamingProviderHeader(
     Box(modifier = modifier.fillMaxWidth()) {
         if (wordmark != null) {
             AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data("file:///android_asset/provider-wordmarks/$wordmark")
-                    .apply { if (wordmark.endsWith(".svg")) decoderFactory(SvgDecoder.Factory()) }
-                    .build(),
+                model =
+                    ImageRequest
+                        .Builder(LocalContext.current)
+                        .data("file:///android_asset/provider-wordmarks/$wordmark")
+                        .apply { if (wordmark.endsWith(".svg")) decoderFactory(SvgDecoder.Factory()) }
+                        .build(),
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
-                colorFilter = when (wordmark) {
-                    "peacock.svg" -> null
-                    "netflix.svg", "hulu.svg", "prime_video.svg", "amc.png", "mgm.svg",
-                    "britbox.svg", "crunchyroll.svg", "hallmark.svg" -> ColorFilter.tint(providerColor)
-                    else -> ColorFilter.tint(Color.White)
-                },
-                modifier = Modifier.align(Alignment.CenterEnd)
-                    .fillMaxWidth(.56f)
-                    .padding(end = 64.dp)
-                    .height(120.dp),
+                colorFilter =
+                    when (wordmark) {
+                        "peacock.svg" -> null
+
+                        "netflix.svg", "hulu.svg", "prime_video.svg", "amc.png", "mgm.svg",
+                        "britbox.svg", "crunchyroll.svg", "hallmark.svg",
+                        -> ColorFilter.tint(providerColor)
+
+                        else -> ColorFilter.tint(Color.White)
+                    },
+                modifier =
+                    Modifier
+                        .align(Alignment.CenterEnd)
+                        .fillMaxWidth(.56f)
+                        .padding(end = 64.dp)
+                        .height(120.dp),
             )
         }
         Column(
@@ -76,21 +84,22 @@ fun StreamingProviderHeader(
     }
 }
 
-internal fun providerWordmark(name: String?): String? = when (name?.trim()?.lowercase(Locale.ROOT)) {
-    "netflix" -> "netflix.svg"
-    "disney+", "disney plus" -> "disney.svg"
-    "hulu" -> "hulu.svg"
-    "max", "hbo", "hbo max", "max (hbo)" -> "max.svg"
-    "prime video", "amazon prime video" -> "prime_video.svg"
-    "paramount+", "paramount plus" -> "paramount.svg"
-    "peacock" -> "peacock.svg"
-    "apple tv", "apple tv+", "apple tv plus" -> "apple_tv.svg"
-    "amc+", "amc plus" -> "amc.png"
-    "mgm+", "mgm plus" -> "mgm.svg"
-    "starz" -> "starz.svg"
-    "britbox", "brit box" -> "britbox.svg"
-    "crunchyroll" -> "crunchyroll.svg"
-    "hallmark", "hallmark+", "hallmark plus" -> "hallmark.svg"
-    "angel", "angel studios" -> "angel.svg"
-    else -> null
-}
+internal fun providerWordmark(name: String?): String? =
+    when (name?.trim()?.lowercase(Locale.ROOT)) {
+        "netflix" -> "netflix.svg"
+        "disney+", "disney plus" -> "disney.svg"
+        "hulu" -> "hulu.svg"
+        "max", "hbo", "hbo max", "max (hbo)" -> "max.svg"
+        "prime video", "amazon prime video" -> "prime_video.svg"
+        "paramount+", "paramount plus" -> "paramount.svg"
+        "peacock" -> "peacock.svg"
+        "apple tv", "apple tv+", "apple tv plus" -> "apple_tv.svg"
+        "amc+", "amc plus" -> "amc.png"
+        "mgm+", "mgm plus" -> "mgm.svg"
+        "starz" -> "starz.svg"
+        "britbox", "brit box" -> "britbox.svg"
+        "crunchyroll" -> "crunchyroll.svg"
+        "hallmark", "hallmark+", "hallmark plus" -> "hallmark.svg"
+        "angel", "angel studios" -> "angel.svg"
+        else -> null
+    }

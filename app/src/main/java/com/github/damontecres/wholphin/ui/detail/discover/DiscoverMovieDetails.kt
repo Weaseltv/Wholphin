@@ -314,7 +314,8 @@ fun DiscoverMovieDetailsContent(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .reportDetailRowHeight(SIMILAR_ROW).focusRequester(focusRequesters[SIMILAR_ROW]),
+                                    .reportDetailRowHeight(SIMILAR_ROW)
+                                    .focusRequester(focusRequesters[SIMILAR_ROW]),
                         )
                     }
                 }
@@ -343,7 +344,8 @@ fun DiscoverMovieDetailsContent(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .reportDetailRowHeight(RECOMMENDED_ROW).focusRequester(focusRequesters[RECOMMENDED_ROW]),
+                                    .reportDetailRowHeight(RECOMMENDED_ROW)
+                                    .focusRequester(focusRequesters[RECOMMENDED_ROW]),
                         )
                     }
                 }

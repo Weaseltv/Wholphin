@@ -17,9 +17,9 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.compositeOver
@@ -112,25 +112,25 @@ fun SliderBar(
                         style = Stroke(stroke),
                     )
                 } else {
-                drawLine(
-                    color = if (isFocused) colors.inactiveFocused else colors.inactiveUnfocused,
-                    start = Offset(x = 0f, y = yOffset),
-                    end = Offset(x = size.width, y = yOffset),
-                    strokeWidth = size.height,
-                    cap = StrokeCap.Round,
-                )
-                drawLine(
-                    color = if (isFocused) colors.activeFocused else colors.activeUnfocused,
-                    start = Offset(x = 0f, y = yOffset),
-                    end =
-                        Offset(
+                    drawLine(
+                        color = if (isFocused) colors.inactiveFocused else colors.inactiveUnfocused,
+                        start = Offset(x = 0f, y = yOffset),
+                        end = Offset(x = size.width, y = yOffset),
+                        strokeWidth = size.height,
+                        cap = StrokeCap.Round,
+                    )
+                    drawLine(
+                        color = if (isFocused) colors.activeFocused else colors.activeUnfocused,
+                        start = Offset(x = 0f, y = yOffset),
+                        end =
+                            Offset(
 //                        x = size.width.times(if (isSelected) seekProgress else progress),
-                            x = size.width.times(percent),
-                            y = yOffset,
-                        ),
-                    strokeWidth = size.height,
-                    cap = StrokeCap.Round,
-                )
+                                x = size.width.times(percent),
+                                y = yOffset,
+                            ),
+                        strokeWidth = size.height,
+                        cap = StrokeCap.Round,
+                    )
                 }
                 drawCircle(
                     color = Color.White,

@@ -15,23 +15,34 @@ val LocalPosterCountAppearance = compositionLocalOf<HomeCardAppearance?> { null 
 val LocalHidePosterTypeBadge = compositionLocalOf { false }
 
 /** Library pages use the same saved focus treatment as their Recently Added Home row. */
-fun homeMediaAppearance(settings: HomePageResolvedSettings, libraryId: UUID? = null): HomeCardAppearance {
-    val matched = libraryId?.let { id -> settings.rows.firstOrNull {
-        when (val row = it.config) {
-            is HomeRowConfig.RecentlyAdded -> row.parentId == id
-            is HomeRowConfig.RecentlyReleased -> row.parentId == id
-            else -> false
+fun homeMediaAppearance(
+    settings: HomePageResolvedSettings,
+    libraryId: UUID? = null,
+): HomeCardAppearance {
+    val matched =
+        libraryId?.let { id ->
+            settings.rows.firstOrNull {
+                when (val row = it.config) {
+                    is HomeRowConfig.RecentlyAdded -> row.parentId == id
+                    is HomeRowConfig.RecentlyReleased -> row.parentId == id
+                    else -> false
+                }
+            }
         }
-    } }
-    val standard = settings.rows.firstOrNull {
-        it.config is HomeRowConfig.ContinueWatchingCombined || it.config is HomeRowConfig.ContinueWatching
-    } ?: settings.rows.firstOrNull { it.config is HomeRowConfig.RecentlyAdded }
+    val standard =
+        settings.rows.firstOrNull {
+            it.config is HomeRowConfig.ContinueWatchingCombined || it.config is HomeRowConfig.ContinueWatching
+        } ?: settings.rows.firstOrNull { it.config is HomeRowConfig.RecentlyAdded }
     return (matched ?: standard)?.config?.viewOptions?.cardAppearance
         ?: ApprovedCollectionCardAppearance
 }
 
 @Composable
-fun WatchlistCardStyle(item: BaseItem?, libraries: List<Library>, content: @Composable () -> Unit) {
+fun WatchlistCardStyle(
+    item: BaseItem?,
+    libraries: List<Library>,
+    content: @Composable () -> Unit,
+) {
     if (!isWeaselTv()) {
         content()
         return

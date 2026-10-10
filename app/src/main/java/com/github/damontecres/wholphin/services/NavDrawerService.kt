@@ -6,8 +6,8 @@ import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.ServerPreferencesDao
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinUser
-import com.github.damontecres.wholphin.data.model.NavPinType
 import com.github.damontecres.wholphin.data.model.NavDrawerPinnedItem
+import com.github.damontecres.wholphin.data.model.NavPinType
 import com.github.damontecres.wholphin.services.hilt.DefaultCoroutineScope
 import com.github.damontecres.wholphin.ui.collectLatestIn
 import com.github.damontecres.wholphin.ui.launchDefault
@@ -31,8 +31,8 @@ import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.client.extensions.liveTvApi
-import org.jellyfin.sdk.api.client.extensions.userViewsApi
 import org.jellyfin.sdk.api.client.extensions.userApi
+import org.jellyfin.sdk.api.client.extensions.userViewsApi
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
 import org.jellyfin.sdk.model.api.UserDto
@@ -215,20 +215,24 @@ class NavDrawerService
             val migrations = context.getSharedPreferences("sidebar_palette_migrations", Context.MODE_PRIVATE)
             val key = "palette_v5_server_order_${user.rowId}"
             if (migrations.getBoolean(key, false)) return libraries
-            val ordered = libraries.sortedBy {
-                defaultNavOrder(
-                    ServerNavDrawerItem(
-                        itemId = it.itemId,
-                        name = it.name,
-                        destination = Destination.MediaItem(it.itemId, it.type, it.collectionType),
-                        type = it.collectionType,
-                    ),
-                    context,
-                )
-            }
+            val ordered =
+                libraries.sortedBy {
+                    defaultNavOrder(
+                        ServerNavDrawerItem(
+                            itemId = it.itemId,
+                            name = it.name,
+                            destination = Destination.MediaItem(it.itemId, it.type, it.collectionType),
+                            type = it.collectionType,
+                        ),
+                        context,
+                    )
+                }
             try {
                 // Fetch immediately before writing so unrelated server preferences stay current.
-                val configuration = api.userApi.getUserById(user.id).content.configuration ?: return ordered
+                val configuration =
+                    api.userApi
+                        .getUserById(user.id)
+                        .content.configuration ?: return ordered
                 val ids = ordered.map { it.itemId }
                 val orderedViews = ids + configuration.orderedViews.orEmpty().filterNot { it in ids }
                 if (configuration.orderedViews != orderedViews) {
@@ -292,9 +296,10 @@ class NavDrawerService
                 val migrations = context.getSharedPreferences("sidebar_palette_migrations", Context.MODE_PRIVATE)
                 val key = "palette_v5_order_${user.rowId}"
                 if (!migrations.getBoolean(key, false) && libraries.isNotEmpty()) {
-                    val restored = allItems.sortedBy { defaultNavOrder(it, context) }.mapIndexed { index, item ->
-                        NavDrawerPinnedItem(user.rowId, item.id, navDrawerPins[item.id]?.type ?: NavPinType.PINNED, index)
-                    }
+                    val restored =
+                        allItems.sortedBy { defaultNavOrder(it, context) }.mapIndexed { index, item ->
+                            NavDrawerPinnedItem(user.rowId, item.id, navDrawerPins[item.id]?.type ?: NavPinType.PINNED, index)
+                        }
                     withContext(WholphinDispatchers.IO) {
                         serverPreferencesDao.saveNavDrawerPinnedItems(*restored.toTypedArray())
                     }
@@ -359,12 +364,13 @@ internal fun defaultNavOrder(
     if (item is ServerNavDrawerItem) {
         val byName = wanted.indexOfFirst { it.equals(item.name, ignoreCase = true) }
         if (byName >= 0) return byName
-        val byType = when (item.type) {
-            CollectionType.BOXSETS -> wanted.indexOf("Collections")
-            CollectionType.MOVIES -> wanted.indexOf("Movies")
-            CollectionType.TVSHOWS -> wanted.indexOf("TV Shows")
-            else -> -1
-        }
+        val byType =
+            when (item.type) {
+                CollectionType.BOXSETS -> wanted.indexOf("Collections")
+                CollectionType.MOVIES -> wanted.indexOf("Movies")
+                CollectionType.TVSHOWS -> wanted.indexOf("TV Shows")
+                else -> -1
+            }
         return when {
             byType >= 0 -> byType
             item.type == CollectionType.PLAYLISTS -> Int.MAX_VALUE

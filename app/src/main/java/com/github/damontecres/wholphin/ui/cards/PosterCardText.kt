@@ -17,7 +17,11 @@ import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 
 /** Bounded text keeps wrapping and ellipsis effective, including while the card is focused. */
 @Composable
-fun PosterCardTitle(title: String?, focused: Boolean, modifier: Modifier = Modifier) {
+fun PosterCardTitle(
+    title: String?,
+    focused: Boolean,
+    modifier: Modifier = Modifier,
+) {
     Text(
         text = title.orEmpty(),
         style = if (isWeaselTv()) NeonType.cardTitle() else MaterialTheme.typography.bodyMedium,
@@ -32,7 +36,10 @@ fun PosterCardTitle(title: String?, focused: Boolean, modifier: Modifier = Modif
 }
 
 @Composable
-fun PosterCardSubtitle(subtitle: String?, modifier: Modifier = Modifier) {
+fun PosterCardSubtitle(
+    subtitle: String?,
+    modifier: Modifier = Modifier,
+) {
     if (subtitle.isNullOrBlank()) return
 
     Text(

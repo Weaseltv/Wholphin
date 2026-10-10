@@ -245,9 +245,10 @@ internal fun NavigationDrawerScope.NavigationDrawerItem(
             ) { leadingContent() }
         },
         trailingContent = trailingContent,
-        supportingContent = supportingContent?.let { supporting ->
-            { Box(Modifier.padding(start = contentInset)) { supporting() } }
-        },
+        supportingContent =
+            supportingContent?.let { supporting ->
+                { Box(Modifier.padding(start = contentInset)) { supporting() } }
+            },
         modifier =
             modifier
                 .layout { measurable, constraints ->

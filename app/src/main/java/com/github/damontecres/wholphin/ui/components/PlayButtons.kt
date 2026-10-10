@@ -72,11 +72,11 @@ import com.github.damontecres.wholphin.ui.theme.neonPrimaryGlow
 import com.github.damontecres.wholphin.ui.theme.neonSurfaceBorder
 import com.github.damontecres.wholphin.ui.theme.neonSurfaceGlow
 import com.github.damontecres.wholphin.ui.tryRequestFocus
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Standard row of [ExpandablePlayButton] including Play (or Resume & Restart), Mark played, & More
@@ -116,7 +116,9 @@ fun ExpandablePlayButtons(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(8.dp),
         modifier =
-            Modifier.reportDetailActionHeight().then(modifier)
+            Modifier
+                .reportDetailActionHeight()
+                .then(modifier)
                 .focusGroup()
                 .focusRestorer(firstFocus),
     ) {
@@ -328,23 +330,27 @@ fun ExpandablePlayButton(
         contentPadding = DefaultButtonPadding,
         interactionSource = interactionSource,
         colors =
-            if (primaryAction) neonPrimaryColors(
-                accent = accent,
-                // Verbatim from Button.kt's own default, so nothing changes off-theme.
-                fallback =
-                    ClickableSurfaceDefaults.colors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
-                        contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                        focusedContainerColor = MaterialTheme.colorScheme.onSurface,
-                        focusedContentColor = MaterialTheme.colorScheme.inverseOnSurface,
-                        pressedContainerColor = MaterialTheme.colorScheme.onSurface,
-                        pressedContentColor = MaterialTheme.colorScheme.inverseOnSurface,
-                        disabledContainerColor =
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                        disabledContentColor =
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                    ),
-            ) else neonOutlineColors(accent),
+            if (primaryAction) {
+                neonPrimaryColors(
+                    accent = accent,
+                    // Verbatim from Button.kt's own default, so nothing changes off-theme.
+                    fallback =
+                        ClickableSurfaceDefaults.colors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
+                            contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                            focusedContainerColor = MaterialTheme.colorScheme.onSurface,
+                            focusedContentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                            pressedContainerColor = MaterialTheme.colorScheme.onSurface,
+                            pressedContentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                            disabledContainerColor =
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                            disabledContentColor =
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                        ),
+                )
+            } else {
+                neonOutlineColors(accent)
+            },
         border = if (primaryAction) neonPrimaryBorder() else neonSurfaceBorder(restWidth = 1.dp),
         glow = if (primaryAction) neonPrimaryGlow(accent) else neonSurfaceGlow(accent),
     ) {

@@ -4,7 +4,10 @@ import androidx.compose.ui.graphics.Color
 
 /** Owner-approved section border/glow pairs (2026-10-08), shared by all Neon components. */
 object NeonSectionPalette {
-    data class Colors(val border: Color, val glow: Color)
+    data class Colors(
+        val border: Color,
+        val glow: Color,
+    )
 
     val Search = Colors(Color(0xFF0A2CFF), Color(0xFF00A3FF))
     val Watchlist = Colors(NeonBoard.Orange, NeonBoard.OrangeGlow)
@@ -16,10 +19,18 @@ object NeonSectionPalette {
     val StandUpComedy = Colors(Color(0xFF5A00FF), Color(0xFF9B30FF))
     val Sports = Colors(Color(0xFFFF0099), Color(0xFFFF85D0))
 
-    private val glowByBorder = listOf(
-        Search, Watchlist, Requests, Home, Collections, Movies, TvShows, StandUpComedy, Sports,
-    ).associate { it.border to it.glow }
+    private val glowByBorder =
+        listOf(
+            Search,
+            Watchlist,
+            Requests,
+            Home,
+            Collections,
+            Movies,
+            TvShows,
+            StandUpComedy,
+            Sports,
+        ).associate { it.border to it.glow }
 
-    fun glowAccent(accent: Color): Color =
-        glowByBorder[accent.copy(alpha = 1f)]?.copy(alpha = accent.alpha) ?: accent
+    fun glowAccent(accent: Color): Color = glowByBorder[accent.copy(alpha = 1f)]?.copy(alpha = accent.alpha) ?: accent
 }

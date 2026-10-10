@@ -70,10 +70,10 @@ import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
 import com.github.damontecres.wholphin.ui.util.rememberDelayedNestedScroll
-import kotlin.time.Duration
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.MediaSourceInfo
 import org.jellyfin.sdk.model.api.PersonKind
+import kotlin.time.Duration
 
 @Composable
 fun SeriesOverviewContent(
@@ -208,7 +208,6 @@ fun SeriesOverviewContent(
                             },
                             modifier = Modifier.fillMaxWidth(.6f),
                         )
-
                     }
                 }
 

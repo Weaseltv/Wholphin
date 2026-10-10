@@ -31,39 +31,47 @@ fun StreamingProviderPoster(
     val context = LocalContext.current
     val density = LocalDensity.current
     BoxWithConstraints(
-        modifier = modifier.background(
-            Brush.verticalGradient(
-                0f to background,
-                .5f to Color(
-                    red = background.red * .72f + brand.red * .28f,
-                    green = background.green * .72f + brand.green * .28f,
-                    blue = background.blue * .72f + brand.blue * .28f,
+        modifier =
+            modifier.background(
+                Brush.verticalGradient(
+                    0f to background,
+                    .5f to
+                        Color(
+                            red = background.red * .72f + brand.red * .28f,
+                            green = background.green * .72f + brand.green * .28f,
+                            blue = background.blue * .72f + brand.blue * .28f,
+                        ),
+                    1f to background,
                 ),
-                1f to background,
             ),
-        ),
         contentAlignment = Alignment.Center,
     ) {
         // Decode above the displayed size so the existing focus scale remains crisp.
         val widthPx = with(density) { (maxWidth * .78f).roundToPx() * 2 }.coerceAtLeast(1)
         val heightPx = with(density) { (maxHeight * .38f).roundToPx() * 2 }.coerceAtLeast(1)
-        val request = remember(context, wordmark, widthPx, heightPx) {
-            ImageRequest.Builder(context)
-                .data("file:///android_asset/provider-wordmarks/$wordmark")
-                .size(widthPx, heightPx)
-                .apply { if (wordmark.endsWith(".svg")) decoderFactory(SvgDecoder.Factory()) }
-                .build()
-        }
+        val request =
+            remember(context, wordmark, widthPx, heightPx) {
+                ImageRequest
+                    .Builder(context)
+                    .data("file:///android_asset/provider-wordmarks/$wordmark")
+                    .size(widthPx, heightPx)
+                    .apply { if (wordmark.endsWith(".svg")) decoderFactory(SvgDecoder.Factory()) }
+                    .build()
+            }
         AsyncImage(
             model = request,
             contentDescription = name,
             contentScale = ContentScale.Fit,
-            colorFilter = when (wordmark) {
-                "peacock.svg" -> null
-                "netflix.svg", "hulu.svg", "prime_video.svg", "amc.png", "mgm.svg",
-                "britbox.svg", "crunchyroll.svg" -> ColorFilter.tint(brand)
-                else -> ColorFilter.tint(Color.White)
-            },
+            colorFilter =
+                when (wordmark) {
+                    "peacock.svg" -> null
+
+                    "netflix.svg", "hulu.svg", "prime_video.svg", "amc.png", "mgm.svg",
+                    "britbox.svg", "crunchyroll.svg",
+                    -> ColorFilter.tint(brand)
+
+                    else -> ColorFilter.tint(Color.White)
+                },
             modifier = Modifier.fillMaxWidth(.78f).height(maxHeight * .38f),
         )
     }

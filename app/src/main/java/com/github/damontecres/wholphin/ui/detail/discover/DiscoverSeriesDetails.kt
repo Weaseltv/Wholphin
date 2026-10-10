@@ -71,10 +71,10 @@ import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import com.github.damontecres.wholphin.util.successValue
-import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ImageType
+import kotlin.time.Duration.Companion.minutes
 
 @Composable
 fun DiscoverSeriesDetails(

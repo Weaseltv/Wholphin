@@ -41,19 +41,19 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.LocalContentColor
+import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
-import com.github.damontecres.wholphin.ui.bleedHorizontal
-import com.github.damontecres.wholphin.ui.theme.neonOutlineColors
-import com.github.damontecres.wholphin.ui.theme.neonSurfaceBorder
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
+import com.github.damontecres.wholphin.ui.bleedHorizontal
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.neonOutlineColors
 import com.github.damontecres.wholphin.ui.theme.neonOverline
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceBorder
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
 import timber.log.Timber
@@ -83,7 +83,17 @@ fun TabRow(
     LazyRow(
         state = state,
         horizontalArrangement = Arrangement.spacedBy(if (isWeaselTv()) 16.dp else 0.dp),
-        contentPadding = if (isWeaselTv()) PaddingValues(start = 20.dp, top = topContentPadding, end = 20.dp, bottom = bottomContentPadding) else PaddingValues(0.dp),
+        contentPadding =
+            if (isWeaselTv()) {
+                PaddingValues(
+                    start = 20.dp,
+                    top = topContentPadding,
+                    end = 20.dp,
+                    bottom = bottomContentPadding,
+                )
+            } else {
+                PaddingValues(0.dp)
+            },
         modifier =
             modifier
                 .then(if (isWeaselTv()) Modifier.bleedHorizontal(20.dp, 20.dp) else Modifier)
@@ -231,14 +241,23 @@ fun Tab(
     var tabWidth by remember { mutableStateOf(0.dp) }
     val density = LocalDensity.current
     val focused by interactionSource.collectIsFocusedAsState()
-    val contentColor = if (rowActive || selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = .5f)
+    val contentColor =
+        if (rowActive ||
+            selected
+        ) {
+            MaterialTheme.colorScheme.onSurface
+        } else {
+            MaterialTheme.colorScheme.onSurface.copy(alpha = .5f)
+        }
     Box(
-        modifier = modifier.clickable(
-            enabled = true,
-            interactionSource = interactionSource,
-            onClick = onClick,
-            indication = null,
-        ).onGloballyPositioned { tabWidth = with(density) { it.size.width.toDp() } },
+        modifier =
+            modifier
+                .clickable(
+                    enabled = true,
+                    interactionSource = interactionSource,
+                    onClick = onClick,
+                    indication = null,
+                ).onGloballyPositioned { tabWidth = with(density) { it.size.width.toDp() } },
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(title, fontSize = 16.sp, color = contentColor, modifier = Modifier.padding(horizontal = 16.dp))

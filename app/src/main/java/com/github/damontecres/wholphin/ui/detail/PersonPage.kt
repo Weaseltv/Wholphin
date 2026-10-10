@@ -88,8 +88,6 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.time.LocalDate
-import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -101,6 +99,8 @@ import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import timber.log.Timber
+import java.time.LocalDate
+import java.util.UUID
 
 @HiltViewModel(assistedFactory = PersonViewModel.Factory::class)
 class PersonViewModel
@@ -531,7 +531,12 @@ fun PersonHeader(
             Text(
                 text = name,
                 color = MaterialTheme.colorScheme.onSurface,
-                style = if (LocalCompactDetailHeader.current) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.displaySmall,
+                style =
+                    if (LocalCompactDetailHeader.current) {
+                        MaterialTheme.typography.headlineSmall
+                    } else {
+                        MaterialTheme.typography.displaySmall
+                    },
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(bottom = 8.dp),

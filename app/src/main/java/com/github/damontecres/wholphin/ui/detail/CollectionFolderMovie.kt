@@ -8,9 +8,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.CollectionFolderFilter
@@ -27,6 +26,7 @@ import com.github.damontecres.wholphin.ui.data.MovieSortOptions
 import com.github.damontecres.wholphin.ui.data.VideoSortOptions
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.preferences.PreferencesViewModel
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
 

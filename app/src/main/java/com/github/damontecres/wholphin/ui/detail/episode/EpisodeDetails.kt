@@ -51,12 +51,12 @@ import com.github.damontecres.wholphin.ui.theme.ProvideNeonAccent
 import com.github.damontecres.wholphin.ui.theme.neonAccentFor
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.ExceptionHandler
-import java.util.UUID
-import kotlin.time.Duration
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.MediaSourceInfo
 import org.jellyfin.sdk.model.extensions.ticks
 import org.jellyfin.sdk.model.serializer.toUUID
+import java.util.UUID
+import kotlin.time.Duration
 
 @Composable
 fun EpisodeDetails(
