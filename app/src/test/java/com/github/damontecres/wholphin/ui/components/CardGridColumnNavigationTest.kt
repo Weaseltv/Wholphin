@@ -145,6 +145,34 @@ class CardGridColumnNavigationTest {
     }
 
     @Test
+    fun `repeat keys interleaved with animation frames retain every requested row`() {
+        showGrid(count = 400)
+        focus(3)
+        compose.mainClock.autoAdvance = false
+        repeat(36) {
+            compose.onRoot().performKeyInput {
+                keyDown(Key.DirectionDown)
+                keyUp(Key.DirectionDown)
+            }
+            compose.mainClock.advanceTimeBy(48)
+        }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        assertFocus(219)
+        compose.mainClock.autoAdvance = false
+        repeat(36) {
+            compose.onRoot().performKeyInput {
+                keyDown(Key.DirectionUp)
+                keyUp(Key.DirectionUp)
+            }
+            compose.mainClock.advanceTimeBy(48)
+        }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        assertFocus(3)
+    }
+
+    @Test
     fun `navigation uses the configured column count and follows horizontal changes`() {
         showGrid(columns = 5)
         focus(4)
