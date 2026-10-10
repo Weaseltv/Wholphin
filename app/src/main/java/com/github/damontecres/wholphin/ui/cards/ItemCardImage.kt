@@ -42,14 +42,16 @@ import com.github.damontecres.wholphin.ui.AppColors
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
+import com.github.damontecres.wholphin.ui.components.StreamingProviderPoster
 import com.github.damontecres.wholphin.ui.components.itemKindLabel
+import com.github.damontecres.wholphin.ui.components.providerWordmark
 import com.github.damontecres.wholphin.ui.gt
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.logCoilError
+import com.github.damontecres.wholphin.ui.theme.LocalCollectionCardAppearance
+import com.github.damontecres.wholphin.ui.theme.LocalHidePosterTypeBadge
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.LocalPosterCountAppearance
-import com.github.damontecres.wholphin.ui.theme.LocalHidePosterTypeBadge
-import com.github.damontecres.wholphin.ui.theme.LocalCollectionCardAppearance
 import com.github.damontecres.wholphin.ui.theme.NeonBadge
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
@@ -127,6 +129,12 @@ fun ItemCardImage(
         typeBadge = typeBadge,
         typeBadgeFilled = badgeFilled,
         progressAccent = typeAccent(item?.type),
+        providerPoster =
+            if (isWeaselTv() && item?.type == BaseItemKind.BOX_SET && imageType == ImageType.PRIMARY) {
+                providerWordmark(item.name)
+            } else {
+                null
+            },
     )
 }
 
@@ -147,6 +155,7 @@ fun ItemCardImage(
     typeBadge: String? = null,
     typeBadgeFilled: Boolean = false,
     progressAccent: Color = accent,
+    providerPoster: String? = null,
     fallback: @Composable BoxScope.() -> Unit = {
         ItemCardImageFallback(
             name = name,
@@ -159,7 +168,9 @@ fun ItemCardImage(
     Box(
         modifier = modifier,
     ) {
-        if (!imageError && imageUrl.isNotNullOrBlank()) {
+        if (providerPoster != null) {
+            StreamingProviderPoster(name = name, wordmark = providerPoster, modifier = Modifier.fillMaxSize())
+        } else if (!imageError && imageUrl.isNotNullOrBlank()) {
             AsyncImage(
                 model = imageUrl,
                 contentDescription = name,
@@ -258,13 +269,14 @@ fun ItemCardImageOverlay(
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .fillMaxWidth()
-                .padding(
-                    horizontal = countAppearance?.badgeHorizontalInsetDp?.dp ?: 4.dp,
-                    vertical = countAppearance?.badgeVerticalInsetDp?.dp ?: 4.dp,
-                ),
+            modifier =
+                Modifier
+                    .align(Alignment.TopStart)
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = countAppearance?.badgeHorizontalInsetDp?.dp ?: 4.dp,
+                        vertical = countAppearance?.badgeVerticalInsetDp?.dp ?: 4.dp,
+                    ),
         ) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -288,17 +300,25 @@ fun ItemCardImageOverlay(
                     ) {
                         Text(
                             text = numberOfVersions.toString(),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = (countAppearance?.badgeTextOpacityPercent ?: 100) / 100f),
-                            style = if (countAppearance != null) {
-                                MaterialTheme.typography.bodySmall.let {
-                                    val size = countAppearance.badgeTextSizeSp?.sp ?: it.fontSize
-                                    it.copy(fontSize = size, lineHeight = size * (it.lineHeight.value / it.fontSize.value))
-                                }
-                            } else MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(
-                                horizontal = countAppearance?.badgeHorizontalPaddingDp?.dp ?: 4.dp,
-                                vertical = countAppearance?.badgeVerticalPaddingDp?.dp ?: 4.dp,
-                            ),
+                            color =
+                                MaterialTheme.colorScheme.onSurface.copy(
+                                    alpha =
+                                        (countAppearance?.badgeTextOpacityPercent ?: 100) / 100f,
+                                ),
+                            style =
+                                if (countAppearance != null) {
+                                    MaterialTheme.typography.bodySmall.let {
+                                        val size = countAppearance.badgeTextSizeSp?.sp ?: it.fontSize
+                                        it.copy(fontSize = size, lineHeight = size * (it.lineHeight.value / it.fontSize.value))
+                                    }
+                                } else {
+                                    MaterialTheme.typography.bodyMedium
+                                },
+                            modifier =
+                                Modifier.padding(
+                                    horizontal = countAppearance?.badgeHorizontalPaddingDp?.dp ?: 4.dp,
+                                    vertical = countAppearance?.badgeVerticalPaddingDp?.dp ?: 4.dp,
+                                ),
                         )
                     }
                 }
@@ -321,17 +341,25 @@ fun ItemCardImageOverlay(
                     ) {
                         Text(
                             text = unwatchedCount.toString(),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = (countAppearance?.badgeTextOpacityPercent ?: 100) / 100f),
-                            style = if (countAppearance != null) {
-                                MaterialTheme.typography.bodySmall.let {
-                                    val size = countAppearance.badgeTextSizeSp?.sp ?: it.fontSize
-                                    it.copy(fontSize = size, lineHeight = size * (it.lineHeight.value / it.fontSize.value))
-                                }
-                            } else MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(
-                                horizontal = countAppearance?.badgeHorizontalPaddingDp?.dp ?: 4.dp,
-                                vertical = countAppearance?.badgeVerticalPaddingDp?.dp ?: 4.dp,
-                            ),
+                            color =
+                                MaterialTheme.colorScheme.onSurface.copy(
+                                    alpha =
+                                        (countAppearance?.badgeTextOpacityPercent ?: 100) / 100f,
+                                ),
+                            style =
+                                if (countAppearance != null) {
+                                    MaterialTheme.typography.bodySmall.let {
+                                        val size = countAppearance.badgeTextSizeSp?.sp ?: it.fontSize
+                                        it.copy(fontSize = size, lineHeight = size * (it.lineHeight.value / it.fontSize.value))
+                                    }
+                                } else {
+                                    MaterialTheme.typography.bodyMedium
+                                },
+                            modifier =
+                                Modifier.padding(
+                                    horizontal = countAppearance?.badgeHorizontalPaddingDp?.dp ?: 4.dp,
+                                    vertical = countAppearance?.badgeVerticalPaddingDp?.dp ?: 4.dp,
+                                ),
                         )
                     }
                 }
@@ -340,12 +368,13 @@ fun ItemCardImageOverlay(
 
         if (favorite) {
             FavoriteIndicator(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(
-                        end = countAppearance?.badgeHorizontalInsetDp?.dp ?: 4.dp,
-                        bottom = countAppearance?.badgeVerticalInsetDp?.dp ?: 4.dp,
-                    ),
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(
+                            end = countAppearance?.badgeHorizontalInsetDp?.dp ?: 4.dp,
+                            bottom = countAppearance?.badgeVerticalInsetDp?.dp ?: 4.dp,
+                        ),
             )
         }
 

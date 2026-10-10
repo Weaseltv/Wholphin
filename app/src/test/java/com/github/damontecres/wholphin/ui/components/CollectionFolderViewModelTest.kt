@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.ui.components
 
 import androidx.lifecycle.SavedStateHandle
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.CollectionFolderFilter
 import com.github.damontecres.wholphin.data.model.GetItemsFilter
@@ -23,7 +24,6 @@ import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.slot
 import io.mockk.unmockkObject
-import java.util.UUID
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -43,6 +43,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.util.UUID
 
 /**
  * Each endpoint is stubbed with a distinct total, so a returned index identifies which endpoint
@@ -138,8 +139,12 @@ class CollectionFolderViewModelTest {
             advanceUntilIdle()
             assertEquals(user.id, itemsRequest.captured.userId)
             assertEquals(libraryId, itemsRequest.captured.parentId)
-            // Browse every child of the BoxSets library, without narrowing by tag or type.
-            assertEquals(null, itemsRequest.captured.includeItemTypes)
+            // WeaselPlex retains the library's BoxSet kind so the approved collection order
+            // operates on collections rather than recursively including their media children.
+            assertEquals(
+                if (BuildConfig.FLAVOR == "weaselfin") listOf(BaseItemKind.BOX_SET) else null,
+                itemsRequest.captured.includeItemTypes,
+            )
             assertEquals(null, itemsRequest.captured.tags)
             assertTrue(viewModel.state.value.items is com.github.damontecres.wholphin.util.DataLoadingState.Success)
         }

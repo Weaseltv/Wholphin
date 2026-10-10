@@ -72,6 +72,7 @@ import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.formatBitrate
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.playback.SimpleMediaStream
+import com.github.damontecres.wholphin.ui.preferences.FittedPanelTitle
 import com.github.damontecres.wholphin.ui.roundMinutes
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.LocalNeonRuleInsets
@@ -315,12 +316,20 @@ fun DialogPopupContent(
                 // and the title and rows carry the horizontal inset themselves.
                 .padding(top = DialogPadding, bottom = DialogPadding - DialogListEdge),
     ) {
-        Text(
-            text = if (neon) title.uppercase() else title,
-            style = if (neon) NeonType.dialogTitle() else MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(horizontal = DialogPadding),
-        )
+        if (neon) {
+            FittedPanelTitle(
+                title = title.uppercase(),
+                style = NeonType.dialogTitle(),
+                modifier = Modifier.padding(horizontal = DialogPadding),
+            )
+        } else {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(horizontal = DialogPadding),
+            )
+        }
         NeonRule(accent = accent, modifier = Modifier.padding(top = 8.dp))
         val scope = rememberCoroutineScope()
         val listState = rememberLazyListState()
@@ -417,7 +426,7 @@ fun ScrollableDialog(
             columnState.scrollBy(if (reverse) -scrollAmount else scrollAmount)
         }
     }
-    Dialog(
+    BasicDialog(
         onDismissRequest = onDismissRequest,
         properties =
             DialogProperties(
@@ -434,11 +443,7 @@ fun ScrollableDialog(
                     .width(width)
                     .heightIn(max = maxHeight)
                     .focusable()
-                    .shadow(elevation = 8.dp, shape = RoundedCornerShape(8.dp))
-                    .background(
-                        MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
-                        shape = RoundedCornerShape(8.dp),
-                    ).onKeyEvent {
+                    .onKeyEvent {
                         if (it.type == KeyEventType.KeyUp) {
                             return@onKeyEvent false
                         }

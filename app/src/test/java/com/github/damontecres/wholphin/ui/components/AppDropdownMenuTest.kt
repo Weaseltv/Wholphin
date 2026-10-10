@@ -16,10 +16,12 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
+import androidx.tv.material3.surfaceColorAtElevation
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.ProvideNeonAccent
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
+import com.github.damontecres.wholphin.ui.theme.colors.WeaselTvThemeColors
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -34,6 +36,15 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class AppDropdownMenuTest {
     @get:Rule val compose = createComposeRule()
+
+    @Test
+    fun `elevated panels remain neutral rather than using the yellow primary`() {
+        for (elevation in listOf(1, 3, 6, 16, 24)) {
+            val color = WeaselTvThemeColors.darkScheme.surfaceColorAtElevation(elevation.dp)
+            assertTrue("panel $elevation must not acquire a yellow cast", color.blue >= color.red && color.blue >= color.green)
+        }
+        assertEquals(NeonBoard.Card, WeaselTvThemeColors.darkSchemeMaterial.surfaceTint)
+    }
 
     @Test
     fun `dropdown uses dark panel and current page accent rather than theme primary`() {

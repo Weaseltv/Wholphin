@@ -11,7 +11,7 @@ import java.util.UUID
 
 /**
  * The Neon Board color rules (README § Colors on this app): one neon per section, items
- * carry their type color, Boxing and UFC are cyan by name, LIVE is green.
+ * carry their type color, named comedy and sports libraries retain their accents, LIVE is green.
  */
 class NeonAccentTest {
     private fun library(
@@ -33,9 +33,8 @@ class NeonAccentTest {
                 sectionAccent(library("Movies", CollectionType.MOVIES)),
                 sectionAccent(library("TV Shows", CollectionType.TVSHOWS)),
                 sectionAccent(library("Stand Up Comedy", CollectionType.MOVIES)),
-                sectionAccent(library("Boxing", CollectionType.MOVIES)),
-                sectionAccent(library("UFC", CollectionType.TVSHOWS)),
-                sectionAccent(library("Live TV", CollectionType.LIVETV)),
+                sectionAccent(library("Sports", CollectionType.MOVIES)),
+                sectionAccent(library("Collections", CollectionType.BOXSETS)),
                 RailAccents.Search,
                 RailAccents.Home,
                 RailAccents.Settings,
@@ -46,7 +45,7 @@ class NeonAccentTest {
     @Test
     fun `4K libraries share their regular counterpart's colour`() {
         assertEquals(NeonSectionPalette.Movies.border, sectionAccent(library("4K Movies (LAN)", CollectionType.MOVIES)))
-        assertEquals(NeonBoard.Yellow, sectionAccent(library("4K TV Shows (LAN)", CollectionType.TVSHOWS)))
+        assertEquals(NeonSectionPalette.TvShows.border, sectionAccent(library("4K TV Shows (LAN)", CollectionType.TVSHOWS)))
         assertEquals(NeonBoard.Green, sectionAccent(library("Live TV", CollectionType.LIVETV)))
         assertEquals(NeonBoard.Volt, sectionAccent(library("Music", CollectionType.MUSIC)))
         assertEquals(sectionAccent(library("ufc", CollectionType.MOVIES)), sectionAccent(library("  UFC ", CollectionType.TVSHOWS)))
@@ -55,9 +54,9 @@ class NeonAccentTest {
     @Test
     fun `items carry their type color`() {
         assertEquals(NeonSectionPalette.Movies.border, typeAccent(BaseItemKind.MOVIE))
-        assertEquals(NeonBoard.Yellow, typeAccent(BaseItemKind.SERIES))
-        assertEquals(NeonBoard.Yellow, typeAccent(BaseItemKind.SEASON))
-        assertEquals(NeonBoard.Yellow, typeAccent(BaseItemKind.EPISODE))
+        assertEquals(NeonSectionPalette.TvShows.border, typeAccent(BaseItemKind.SERIES))
+        assertEquals(NeonSectionPalette.TvShows.border, typeAccent(BaseItemKind.SEASON))
+        assertEquals(NeonSectionPalette.TvShows.border, typeAccent(BaseItemKind.EPISODE))
         assertEquals(NeonBoard.Green, typeAccent(BaseItemKind.TV_CHANNEL))
         assertEquals(NeonBoard.Green, typeAccent(BaseItemKind.RECORDING))
         assertEquals(NeonBoard.Cyan, typeAccent(BaseItemKind.TV_PROGRAM))

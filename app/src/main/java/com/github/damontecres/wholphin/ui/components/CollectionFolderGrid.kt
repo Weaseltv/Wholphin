@@ -36,13 +36,9 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.filter.FilterValueOption
 import com.github.damontecres.wholphin.data.filter.ItemFilterBy
 import com.github.damontecres.wholphin.data.model.BaseItem
+import com.github.damontecres.wholphin.data.model.GetItemsFilter
 import com.github.damontecres.wholphin.data.model.HomeCardAppearance
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
-import com.github.damontecres.wholphin.ui.theme.ApprovedCollectionCardAppearance
-import com.github.damontecres.wholphin.ui.theme.WatchlistCardStyle
-import com.github.damontecres.wholphin.ui.main.settings.Library
-import com.github.damontecres.wholphin.ui.theme.CollectionCardStyle
-import com.github.damontecres.wholphin.data.model.GetItemsFilter
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.cards.GridCard
@@ -51,11 +47,16 @@ import com.github.damontecres.wholphin.ui.detail.CardGrid
 import com.github.damontecres.wholphin.ui.detail.GridItemDetails
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.main.HomePageHeader
+import com.github.damontecres.wholphin.ui.main.settings.Library
 import com.github.damontecres.wholphin.ui.playback.scale
+import com.github.damontecres.wholphin.ui.preferences.FittedPanelTitle
+import com.github.damontecres.wholphin.ui.theme.ApprovedCollectionCardAppearance
+import com.github.damontecres.wholphin.ui.theme.CollectionCardStyle
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
 import com.github.damontecres.wholphin.ui.theme.NeonSectionRule
 import com.github.damontecres.wholphin.ui.theme.NeonType
+import com.github.damontecres.wholphin.ui.theme.WatchlistCardStyle
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.util.ScrollToTopBringIntoViewSpec
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -84,7 +85,7 @@ fun CollectionFolderGrid(
     streamingCardAppearance: HomeCardAppearance = collectionCardAppearance,
     watchlistLibraries: List<Library>? = null,
 ) {
-    Box(modifier = modifier) {
+    DetailPageViewport(modifier = modifier) {
         Column(
             verticalArrangement = Arrangement.spacedBy(0.dp),
             modifier = Modifier.fillMaxSize(),
@@ -92,15 +93,18 @@ fun CollectionFolderGrid(
             val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
             val density = LocalDensity.current
             AnimatedVisibility(viewOptions.showDetails) {
-                HomePageHeader(
-                    item = focusedItem,
-                    showLogo = preferences.appPreferences.interfacePreferences.showLogos,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(200.dp)
-                            .padding(HeaderUtils.padding),
-                )
+                FittedDetailHeader(reservedHeight = 0.dp) {
+                    HomePageHeader(
+                        item = focusedItem,
+                        showLogo = preferences.appPreferences.interfacePreferences.showLogos,
+                        compactLogo = true,
+                        compactDetails = isWeaselTv(),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(HeaderUtils.padding),
+                    )
+                }
             }
             CardGrid(
                 pager = items,
@@ -116,19 +120,19 @@ fun CollectionFolderGrid(
                 positionCallback = positionCallback,
                 cardContent = { (item, index, onClick, onLongClick, widthPx, mod) ->
                     val card: @Composable () -> Unit = {
-                    CollectionCardStyle(item, collectionCardAppearance, streamingCardAppearance) {
-                    GridCard(
-                        item = item,
-                        onClick = onClick,
-                        onLongClick = onLongClick,
-                        imageContentScale = viewOptions.contentScale.scale,
-                        imageAspectRatio = viewOptions.aspectRatio.ratio,
-                        imageType = viewOptions.imageType,
-                        showTitle = viewOptions.showTitles,
-                        fillWidth = widthPx,
-                        modifier = mod,
-                    )
-                    }
+                        CollectionCardStyle(item, collectionCardAppearance, streamingCardAppearance) {
+                            GridCard(
+                                item = item,
+                                onClick = onClick,
+                                onLongClick = onLongClick,
+                                imageContentScale = viewOptions.contentScale.scale,
+                                imageAspectRatio = viewOptions.aspectRatio.ratio,
+                                imageType = viewOptions.imageType,
+                                showTitle = viewOptions.showTitles,
+                                fillWidth = widthPx,
+                                modifier = mod,
+                            )
+                        }
                     }
                     if (watchlistLibraries != null) WatchlistCardStyle(item, watchlistLibraries, card) else card()
                 },
@@ -310,13 +314,10 @@ fun GridTitle(
     val titleInset = if (collectionsOptions != null) 0.dp else 16.dp
     Column(modifier = modifier.fillMaxWidth().padding(top = if (collectionsOptions != null) 27.dp else 0.dp)) {
         NeonEyebrow(text = eyebrow ?: stringResource(R.string.library), modifier = Modifier.padding(horizontal = titleInset))
-        Text(
-            text = title.uppercase(),
+        FittedPanelTitle(
+            title = title.uppercase(),
             style = NeonType.pageTitle(),
-            color = NeonBoard.Text,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth().padding(start = titleInset, end = 16.dp, top = 2.dp),
+            modifier = Modifier.padding(start = titleInset, end = clockHeaderEndPadding(), top = 2.dp),
         )
         NeonSectionRule(
             modifier = Modifier.padding(top = 6.dp),
@@ -380,8 +381,19 @@ fun CollectionFolderHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier =
                     Modifier
-                        .padding(start = if (isWeaselTv()) 0.dp else 16.dp, end = endPadding, top = if (collectionsOptions != null) 4.dp else 0.dp, bottom = if (isWeaselTv()) 8.dp else 0.dp)
-                        .fillMaxWidth(),
+                        .padding(
+                            start = if (isWeaselTv()) 0.dp else 16.dp,
+                            end = endPadding,
+                            top =
+                                if (collectionsOptions !=
+                                    null
+                                ) {
+                                    4.dp
+                                } else {
+                                    0.dp
+                                },
+                            bottom = if (isWeaselTv()) 8.dp else 0.dp,
+                        ).fillMaxWidth(),
             ) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(buttonSpacing),

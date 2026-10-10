@@ -19,10 +19,16 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.times
 import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.ui.playOnClickSound
 import com.github.damontecres.wholphin.ui.playSoundOnFocus
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.neonOutlineColors
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceBorder
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceGlow
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceScale
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceShape
 
 /**
  * Show a clickable overview. WeaselPlex measures complete text lines naturally.
@@ -48,20 +54,7 @@ fun OverviewText(
         } else {
             Color.Transparent
         }
-    Box(
-        modifier =
-            modifier
-                .background(bgColor, shape = RoundedCornerShape(8.dp))
-                .playSoundOnFocus(true)
-                .clickable(
-                    enabled = enabled,
-                    interactionSource = interactionSource,
-                    indication = LocalIndication.current,
-                ) {
-                    playOnClickSound(context)
-                    onClick.invoke()
-                },
-    ) {
+    val textContent: @Composable () -> Unit = {
         Text(
             text = overview,
             style = MaterialTheme.typography.bodyMedium,
@@ -73,5 +66,36 @@ fun OverviewText(
                     .padding(8.dp)
                     .height(visibleHeight),
         )
+    }
+    if (isWeaselTv()) {
+        Surface(
+            onClick = {
+                playOnClickSound(context)
+                onClick()
+            },
+            enabled = enabled,
+            interactionSource = interactionSource,
+            shape = neonSurfaceShape(),
+            border = neonSurfaceBorder(),
+            glow = neonSurfaceGlow(),
+            scale = neonSurfaceScale(),
+            colors = neonOutlineColors(),
+            modifier = modifier.keepFocusedItemVisible().playSoundOnFocus(true),
+        ) { textContent() }
+    } else {
+        Box(
+            modifier =
+                modifier
+                    .background(bgColor, shape = RoundedCornerShape(8.dp))
+                    .playSoundOnFocus(true)
+                    .clickable(
+                        enabled = enabled,
+                        interactionSource = interactionSource,
+                        indication = LocalIndication.current,
+                    ) {
+                        playOnClickSound(context)
+                        onClick()
+                    },
+        ) { textContent() }
     }
 }

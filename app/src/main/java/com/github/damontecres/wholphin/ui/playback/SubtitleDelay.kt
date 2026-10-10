@@ -23,6 +23,8 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.components.Button
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceShape
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -85,15 +87,16 @@ fun SubtitleDelayButton(
 ) {
     Button(
         onClick = onClick,
-        modifier = modifier.width(64.dp),
+        modifier = modifier.width(if (isWeaselTv()) 80.dp else 64.dp),
         shape =
-            ClickableSurfaceDefaults.shape(
-                shape = RoundedCornerShape(33),
+            neonSurfaceShape(
+                fallback = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(33)),
             ),
     ) {
         Text(
             text = text,
             textAlign = TextAlign.Center,
+            maxLines = 1,
             modifier = Modifier.fillMaxWidth(),
         )
     }

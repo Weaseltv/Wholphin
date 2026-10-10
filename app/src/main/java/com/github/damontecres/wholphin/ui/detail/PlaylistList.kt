@@ -8,12 +8,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -29,13 +29,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -45,22 +43,26 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.tv.material3.Icon
 import androidx.tv.material3.ListItem
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
-import androidx.tv.material3.surfaceColorAtElevation
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.PlaylistInfo
 import com.github.damontecres.wholphin.ui.components.BasicDialog
 import com.github.damontecres.wholphin.ui.components.Button
+import com.github.damontecres.wholphin.ui.components.DialogListEdge
 import com.github.damontecres.wholphin.ui.components.EditTextBox
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.SearchEditTextBox
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
+import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
+import com.github.damontecres.wholphin.ui.theme.neonListItemColors
+import com.github.damontecres.wholphin.ui.theme.neonListItemGlow
+import com.github.damontecres.wholphin.ui.theme.neonListItemShape
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import kotlinx.coroutines.delay
 import org.jellyfin.sdk.model.api.MediaType
@@ -78,7 +80,7 @@ fun PlaylistList(
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         // A focused row grows a little; keep the first and last inside the list's clip
-        contentPadding = PaddingValues(vertical = 8.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = DialogListEdge),
         modifier = modifier,
     ) {
         items(playlists) { playlist ->
@@ -116,7 +118,11 @@ fun PlaylistList(
                 onClick = {
                     onClick.invoke(playlist)
                 },
-                modifier = Modifier,
+                modifier = Modifier.keepFocusedItemVisible(),
+                shape = neonListItemShape(),
+                border = neonListItemBorder(),
+                glow = neonListItemGlow(),
+                colors = neonListItemColors(),
             )
         }
         if (createEnabled) {
@@ -138,7 +144,11 @@ fun PlaylistList(
                     onClick = {
                         showCreateDialog = true
                     },
-                    modifier = Modifier,
+                    modifier = Modifier.keepFocusedItemVisible(),
+                    shape = neonListItemShape(),
+                    border = neonListItemBorder(),
+                    glow = neonListItemGlow(),
+                    colors = neonListItemColors(),
                 )
             }
         }
@@ -218,9 +228,6 @@ fun PlaylistDialog(
     onCreatePlaylist: (String) -> Unit,
     elevation: Dp = 3.dp,
 ) {
-    val elevatedContainerColor =
-        MaterialTheme.colorScheme.surfaceColorAtElevation(elevation)
-
     val placeholderFocusRequester = remember { FocusRequester() }
     val focusRequester = remember { FocusRequester() }
     val searchFocusRequester = remember { FocusRequester() }
@@ -239,8 +246,10 @@ fun PlaylistDialog(
         }
     }
 
-    Dialog(
+    BasicDialog(
         onDismissRequest = onDismissRequest,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        elevation = elevation,
     ) {
         val dialogWindowProvider = LocalView.current.parent as? DialogWindowProvider
         dialogWindowProvider?.window?.setGravity(Gravity.TOP)
@@ -249,10 +258,8 @@ fun PlaylistDialog(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier =
                 Modifier
-                    .graphicsLayer {
-                        this.clip = true
-                        this.shape = RoundedCornerShape(24.0.dp)
-                    }.drawBehind { drawRect(color = elevatedContainerColor) }
+                    .width(600.dp)
+                    .heightIn(max = 480.dp)
                     .padding(PaddingValues(16.dp)),
         ) {
             Text(
@@ -347,7 +354,7 @@ fun PlaylistDialog(
                     ErrorMessage(
                         message = s.message,
                         exception = s.exception,
-                        modifier = resultsModifier,
+                        modifier = resultsModifier.weight(1f, fill = false),
                     )
                 }
 
@@ -361,7 +368,7 @@ fun PlaylistDialog(
                         onClick = onClick,
                         createEnabled = createEnabled,
                         onCreatePlaylist = onCreatePlaylist,
-                        modifier = resultsModifier,
+                        modifier = resultsModifier.weight(1f, fill = false),
                     )
                 }
             }

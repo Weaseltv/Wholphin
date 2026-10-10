@@ -2,10 +2,12 @@ package com.github.damontecres.wholphin.ui.playback
 
 import android.view.Gravity
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentSize
@@ -24,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
@@ -43,11 +46,19 @@ import androidx.tv.material3.surfaceColorAtElevation
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.TrackIndex
 import com.github.damontecres.wholphin.ui.AppColors
+import com.github.damontecres.wholphin.ui.components.DialogListEdge
 import com.github.damontecres.wholphin.ui.components.SelectedLeadingContent
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.indexOfFirstOrNull
 import com.github.damontecres.wholphin.ui.playback.overlay.BottomDialog
 import com.github.damontecres.wholphin.ui.playback.overlay.BottomDialogItem
 import com.github.damontecres.wholphin.ui.playback.overlay.PlaybackAction
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
+import com.github.damontecres.wholphin.ui.theme.neonListItemColors
+import com.github.damontecres.wholphin.ui.theme.neonListItemGlow
+import com.github.damontecres.wholphin.ui.theme.neonListItemShape
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import kotlinx.coroutines.launch
 import kotlin.time.Duration
@@ -259,14 +270,14 @@ fun PlaybackDialog(
                         Modifier
                             .wrapContentSize()
                             .background(
-                                AppColors.TransparentBlack50,
-                                shape = RoundedCornerShape(16.dp),
+                                if (isWeaselTv()) NeonBoard.Card else AppColors.TransparentBlack50,
+                                shape = if (isWeaselTv()) RectangleShape else RoundedCornerShape(16.dp),
                             ),
                 ) {
                     SubtitleDelay(
                         delay = settings.subtitleDelay,
                         onChangeDelay = onChangeSubtitleDelay,
-                        modifier = Modifier.padding(8.dp),
+                        modifier = Modifier.padding(if (isWeaselTv()) 20.dp else 8.dp),
                     )
                 }
             }
@@ -319,11 +330,12 @@ fun SubtitleChoiceBottomDialog(
                     .wrapContentSize()
                     .padding(8.dp)
                     .background(
-                        MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
-                        shape = RoundedCornerShape(8.dp),
-                    ),
+                        if (isWeaselTv()) NeonBoard.Card else MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
+                        shape = if (isWeaselTv()) RectangleShape else RoundedCornerShape(8.dp),
+                    ).then(if (isWeaselTv()) Modifier.border(1.dp, NeonBoard.Line2) else Modifier),
         ) {
             LazyColumn(
+                contentPadding = if (isWeaselTv()) PaddingValues(horizontal = 16.dp, vertical = DialogListEdge) else PaddingValues(),
                 state = listState,
                 modifier =
                     Modifier
@@ -337,6 +349,10 @@ fun SubtitleChoiceBottomDialog(
                     val interactionSource = remember { MutableInteractionSource() }
                     val focused by interactionSource.collectIsFocusedAsState()
                     ListItem(
+                        shape = neonListItemShape(),
+                        colors = neonListItemColors(),
+                        border = neonListItemBorder(),
+                        glow = neonListItemGlow(),
                         selected = currentChoice == TrackIndex.DISABLED,
                         interactionSource = interactionSource,
                         onClick = {
@@ -353,6 +369,7 @@ fun SubtitleChoiceBottomDialog(
                         supportingContent = {},
                         modifier =
                             Modifier
+                                .keepFocusedItemVisible()
                                 .focusRequester(firstFocusRequester)
                                 .onKeyEvent {
                                     if (focused && isUp(it) && it.type == KeyEventType.KeyDown) {
@@ -368,6 +385,10 @@ fun SubtitleChoiceBottomDialog(
                 }
                 item {
                     ListItem(
+                        shape = neonListItemShape(),
+                        colors = neonListItemColors(),
+                        border = neonListItemBorder(),
+                        glow = neonListItemGlow(),
                         selected = currentChoice == TrackIndex.ONLY_FORCED,
                         onClick = {
                             onSelectChoice(TrackIndex.ONLY_FORCED)
@@ -389,6 +410,10 @@ fun SubtitleChoiceBottomDialog(
                 itemsIndexed(choices) { index, choice ->
                     val interactionSource = remember { MutableInteractionSource() }
                     ListItem(
+                        shape = neonListItemShape(),
+                        colors = neonListItemColors(),
+                        border = neonListItemBorder(),
+                        glow = neonListItemGlow(),
                         selected = choice.index == currentChoice,
                         onClick = {
                             onSelectChoice(choice.index)
@@ -405,7 +430,7 @@ fun SubtitleChoiceBottomDialog(
                             if (choice.streamTitle != null) Text(choice.displayTitle)
                         },
                         interactionSource = interactionSource,
-                        modifier = Modifier.focusRequester(choiceFocusRequesters[index]),
+                        modifier = Modifier.keepFocusedItemVisible().focusRequester(choiceFocusRequesters[index]),
                     )
                 }
                 item {
@@ -413,6 +438,10 @@ fun SubtitleChoiceBottomDialog(
                     val interactionSource = remember { MutableInteractionSource() }
                     val focused by interactionSource.collectIsFocusedAsState()
                     ListItem(
+                        shape = neonListItemShape(),
+                        colors = neonListItemColors(),
+                        border = neonListItemBorder(),
+                        glow = neonListItemGlow(),
                         selected = false,
                         enabled = hasDownloadPermission,
                         onClick = onSelectSearch,
@@ -426,6 +455,7 @@ fun SubtitleChoiceBottomDialog(
                         interactionSource = interactionSource,
                         modifier =
                             Modifier
+                                .keepFocusedItemVisible()
                                 .focusRequester(lastFocusRequester)
                                 .onKeyEvent {
                                     if (focused && isDown(it) && it.type == KeyEventType.KeyDown) {
@@ -477,11 +507,12 @@ fun StreamChoiceBottomDialog(
                     .wrapContentSize()
                     .padding(8.dp)
                     .background(
-                        MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
-                        shape = RoundedCornerShape(8.dp),
-                    ),
+                        if (isWeaselTv()) NeonBoard.Card else MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
+                        shape = if (isWeaselTv()) RectangleShape else RoundedCornerShape(8.dp),
+                    ).then(if (isWeaselTv()) Modifier.border(1.dp, NeonBoard.Line2) else Modifier),
         ) {
             LazyColumn(
+                contentPadding = if (isWeaselTv()) PaddingValues(horizontal = 16.dp, vertical = DialogListEdge) else PaddingValues(),
                 modifier =
                     Modifier
                         .fillMaxWidth()
@@ -493,6 +524,10 @@ fun StreamChoiceBottomDialog(
                 itemsIndexed(choices) { index, choice ->
                     val interactionSource = remember { MutableInteractionSource() }
                     ListItem(
+                        shape = neonListItemShape(),
+                        colors = neonListItemColors(),
+                        border = neonListItemBorder(),
+                        glow = neonListItemGlow(),
                         selected = choice.index == currentChoice,
                         onClick = {
                             onDismissRequest()
@@ -510,7 +545,7 @@ fun StreamChoiceBottomDialog(
                             if (choice.streamTitle != null) Text(choice.displayTitle)
                         },
                         interactionSource = interactionSource,
-                        modifier = Modifier.focusRequester(focusRequesters[index]),
+                        modifier = Modifier.keepFocusedItemVisible().focusRequester(focusRequesters[index]),
                     )
                 }
             }

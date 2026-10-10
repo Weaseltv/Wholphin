@@ -6,9 +6,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
@@ -25,13 +28,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
-import androidx.tv.material3.Button
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.VideoFilter
+import com.github.damontecres.wholphin.ui.components.BasicDialog
+import com.github.damontecres.wholphin.ui.components.Button
+import com.github.damontecres.wholphin.ui.components.DialogListEdge
 import com.github.damontecres.wholphin.ui.components.SliderBar
 import com.github.damontecres.wholphin.ui.components.SliderColors
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 
 const val DRAG_THROTTLE_DELAY = 50L
@@ -48,7 +54,7 @@ fun ImageFilterSliders(
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
-        contentPadding = PaddingValues(8.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = DialogListEdge),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier,
     ) {
@@ -162,9 +168,10 @@ fun ImageFilterSliders(
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.Center,
             ) {
-                Row(
+                FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.keepFocusedItemVisible(),
                 ) {
                     if (showSaveButton) {
                         Button(
@@ -204,34 +211,35 @@ fun SliderBarRow(
     interval: Int = 1,
     colors: SliderColors = SliderColors.default(),
 ) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier,
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier.keepFocusedItemVisible(),
     ) {
         Text(
             text = stringResource(title),
             color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.width(96.dp),
         )
-        SliderBar(
-            value = value.toLong(),
-            min = min.toLong(),
-            max = max.toLong(),
-            interval = interval,
-            onChange = {
-                onChange.invoke(it.toInt())
-            },
-            colors = colors,
-            interactionSource = interactionSource,
-            enableWrapAround = true,
-            modifier = Modifier.weight(1f),
-        )
-        Text(
-            text = valueFormater(value),
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.width(48.dp),
-        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SliderBar(
+                value = value.toLong(),
+                min = min.toLong(),
+                max = max.toLong(),
+                interval = interval,
+                onChange = { onChange.invoke(it.toInt()) },
+                colors = colors,
+                interactionSource = interactionSource,
+                enableWrapAround = true,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = valueFormater(value),
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.width(48.dp),
+            )
+        }
     }
 }
 
@@ -246,7 +254,7 @@ fun ImageFilterDialog(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Dialog(
+    BasicDialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
@@ -259,6 +267,7 @@ fun ImageFilterDialog(
         Box(
             modifier =
                 modifier
+                    .heightIn(max = 480.dp)
                     .wrapContentSize()
                     .padding(8.dp)
                     .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = .4f))

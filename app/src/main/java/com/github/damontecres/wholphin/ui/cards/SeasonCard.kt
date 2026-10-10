@@ -1,6 +1,5 @@
 package com.github.damontecres.wholphin.ui.cards
 
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -9,7 +8,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,25 +16,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
-import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
-import com.github.damontecres.wholphin.ui.enableMarquee
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
-import com.github.damontecres.wholphin.ui.theme.NeonBoard
-import com.github.damontecres.wholphin.ui.theme.NeonType
-import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonAccentFor
 import com.github.damontecres.wholphin.ui.theme.neonCardBorder
 import com.github.damontecres.wholphin.ui.theme.neonCardGlow
@@ -122,9 +114,6 @@ fun rememberImageUrl(
     }
 }
 
-private val spaceBetweenFocused = 4.dp
-private val spaceBetweenUnfocused = 12.dp
-
 /**
  * A Card for a TV Show Season, but can generically show most items
  */
@@ -150,27 +139,20 @@ fun SeasonCard(
     aspectRatio: Float = AspectRatios.TALL,
 ) {
     val focused by interactionSource.collectIsFocusedAsState()
-    // Do not use `by` here, this way we are Defer reads and recompositions to only when modifier calculates
-    val spaceBetween =
-        animateDpAsState(
-            if (focused) spaceBetweenFocused else spaceBetweenUnfocused,
-            label = "spaceBetween",
-        )
-
-    val focusedAfterDelay by rememberFocusedAfterDelay(interactionSource)
     val aspectRationToUse = aspectRatio.coerceAtLeast(AspectRatios.MIN)
     val width = imageHeight * aspectRationToUse
     val height = imageWidth * (1f / aspectRationToUse)
 
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp), // Fixed base spacing
-        modifier = modifier.size(width, height),
+        modifier = modifier.size(width, height).keepFocusedItemVisible(),
     ) {
         Card(
             modifier =
                 Modifier
                     .size(imageWidth, imageHeight)
-                    .aspectRatio(aspectRationToUse),
+                    .aspectRatio(aspectRationToUse)
+                    .semantics { title?.let { contentDescription = it } },
             onClick = onClick,
             onLongClick = onLongClick,
             interactionSource = interactionSource,
@@ -205,19 +187,7 @@ fun SeasonCard(
                 )
             }
         }
-        Column(
-            verticalArrangement = Arrangement.spacedBy(0.dp),
-            modifier =
-                Modifier
-                    .layout { measurable, constraints ->
-                        val topPaddingPx = (spaceBetweenUnfocused - spaceBetween.value).roundToPx()
-                        val bottomPaddingPx = spaceBetween.value.roundToPx()
-                        val placeable = measurable.measure(constraints)
-                        layout(placeable.width, placeable.height + bottomPaddingPx + topPaddingPx) {
-                            placeable.placeRelative(0, topPaddingPx)
-                        }
-                    }.fillMaxWidth(),
-        ) {
+        SlidingCardText(focused) {
             PosterCardTitle(title, focused)
             PosterCardSubtitle(subtitle)
         }

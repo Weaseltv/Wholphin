@@ -29,6 +29,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -42,16 +44,17 @@ import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
-import com.github.damontecres.wholphin.ui.components.StreamingProviderPoster
-import com.github.damontecres.wholphin.ui.components.providerWordmark
 import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
+import com.github.damontecres.wholphin.ui.components.StreamingProviderPoster
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
+import com.github.damontecres.wholphin.ui.components.providerWordmark
 import com.github.damontecres.wholphin.ui.enableMarquee
-import com.github.damontecres.wholphin.ui.theme.LocalPosterCountAppearance
 import com.github.damontecres.wholphin.ui.theme.LocalHomeCardAppearance
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.LocalPosterCountAppearance
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonAccentFor
@@ -143,7 +146,17 @@ fun BannerCard(
     val currentOnLongClick by rememberUpdatedState(onLongClick)
 
     Card(
-        modifier = modifier.size(cardHeight * aspectRatio, cardHeight),
+        modifier =
+            modifier.size(cardHeight * aspectRatio, cardHeight).semantics {
+                (name ?: item?.title)?.let {
+                    contentDescription =
+                        if (item?.type == BaseItemKind.EPISODE) {
+                            listOfNotNull(it, item.subtitle).joinToString(", ")
+                        } else {
+                            it
+                        }
+                }
+            },
         onClick = { currentOnClick() },
         onLongClick = { currentOnLongClick() },
         interactionSource = interactionSource,
@@ -281,7 +294,7 @@ fun BannerCardWithTitle(
     val width = cardHeight * aspectRationToUse
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = modifier.width(width),
+        modifier = modifier.width(width).keepFocusedItemVisible(),
     ) {
         BannerCard(
             name = null,

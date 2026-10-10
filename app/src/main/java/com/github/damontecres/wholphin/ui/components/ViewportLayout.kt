@@ -21,13 +21,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusEventModifierNode
+import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.node.LayoutAwareModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.requireLayoutCoordinates
 import androidx.compose.ui.platform.InspectorInfo
@@ -37,12 +41,15 @@ import androidx.compose.ui.relocation.BringIntoViewModifierNode
 import androidx.compose.ui.relocation.bringIntoView
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import com.github.damontecres.wholphin.ui.theme.LocalHomeCardAppearance
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.util.KeepVisibleBringIntoViewSpec
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlin.math.ceil
 
 /** Measured first-row budget, shared by item, cast, chapter and discovery rows. */
@@ -125,7 +132,7 @@ fun FittedDetailHeader(
                 1.dp,
             )
         CompositionLocalProvider(LocalCompactDetailHeader provides (budget < 230.dp)) {
-            FitHeaderToHeight(budget, content)
+            FitHeaderToHeight(budget, content = content)
         }
     }
 }
@@ -138,6 +145,7 @@ fun FittedDetailHeader(
 @Composable
 fun FitHeaderToHeight(
     maxHeight: Dp,
+    fillHeight: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     CompositionLocalProvider(LocalHeaderHeightBudget provides maxHeight) {
@@ -147,7 +155,7 @@ fun FitHeaderToHeight(
             val limit = maxHeight.roundToPx().coerceAtLeast(1)
             val scale = if (naturalHeight > limit) limit.toFloat() / naturalHeight else 1f
             val width = constraints.constrainWidth(children.maxOfOrNull { it.width } ?: 0)
-            val height = constraints.constrainHeight(ceil(naturalHeight * scale).toInt())
+            val height = constraints.constrainHeight(if (fillHeight) limit else ceil(naturalHeight * scale).toInt())
             layout(width, height) {
                 children.forEach { child ->
                     child.placeWithLayer(0, 0) {
@@ -257,7 +265,40 @@ private class CompleteFocusBoundsNode(
     var clearance: Float,
     var scaleClearance: Float,
 ) : Modifier.Node(),
-    BringIntoViewModifierNode {
+    BringIntoViewModifierNode,
+    FocusEventModifierNode,
+    LayoutAwareModifierNode {
+    private var hasFocus = false
+    private var previousSize: IntSize? = null
+    private var resizeRequest: Job? = null
+
+    override fun onFocusEvent(focusState: FocusState) {
+        hasFocus = focusState.hasFocus
+        if (!hasFocus) resizeRequest?.cancel()
+    }
+
+    override fun onRemeasured(size: IntSize) {
+        val changed = previousSize != null && previousSize != size
+        previousSize = size
+        if (hasFocus && changed) {
+            // Paging can add a caption after the original focus scroll ended.
+            // Recheck only a resized focused component, after its new placement.
+            // Ordinary left/right focus changes still use one automatic request.
+            resizeRequest?.cancel()
+            resizeRequest =
+                coroutineScope.launch {
+                    withFrameNanos { }
+                    if (isAttached && hasFocus) bringIntoView { completeBounds() }
+                }
+        }
+    }
+
+    private fun completeBounds(): Rect {
+        val size = requireLayoutCoordinates().size
+        val extra = clearance + size.height * scaleClearance
+        return Rect(0f, -extra, size.width.toFloat(), size.height + extra)
+    }
+
     override suspend fun bringIntoView(
         childCoordinates: LayoutCoordinates,
         boundsProvider: () -> Rect?,
@@ -268,9 +309,7 @@ private class CompleteFocusBoundsNode(
             if (!isAttached || !childCoordinates.isAttached || boundsProvider() == null) {
                 null
             } else {
-                val size = requireLayoutCoordinates().size
-                val extra = clearance + size.height * scaleClearance
-                Rect(0f, -extra, size.width.toFloat(), size.height + extra)
+                completeBounds()
             }
         }
     }

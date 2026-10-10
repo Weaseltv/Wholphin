@@ -29,6 +29,7 @@ import com.github.damontecres.wholphin.ui.components.TitleOrLogo
 import com.github.damontecres.wholphin.ui.components.VideoStreamDetails
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.letNotEmpty
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.PersonKind
@@ -45,6 +46,7 @@ fun MovieDetailsHeader(
     val dto = movie.data
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val neon = isWeaselTv()
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = modifier,
@@ -101,7 +103,7 @@ fun MovieDetailsHeader(
                     textBoxHeight = Dp.Unspecified,
                     modifier =
                         Modifier.onFocusChanged {
-                            if (it.isFocused) {
+                            if (it.isFocused && !neon) {
                                 scope.launch(ExceptionHandler()) {
                                     bringIntoViewRequester.bringIntoView()
                                 }

@@ -18,6 +18,10 @@ import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.services.SuggestionsWorker
 import com.github.damontecres.wholphin.ui.ifElse
+import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
+import com.github.damontecres.wholphin.ui.theme.neonListItemColors
+import com.github.damontecres.wholphin.ui.theme.neonListItemGlow
+import com.github.damontecres.wholphin.ui.theme.neonListItemShape
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import org.jellyfin.sdk.model.api.CollectionType
 
@@ -40,6 +44,10 @@ fun HomeLibraryRowTypeList(
         ) {
             itemsIndexed(items) { index, rowType ->
                 ListItem(
+                    shape = neonListItemShape(),
+                    colors = neonListItemColors(),
+                    border = neonListItemBorder(),
+                    glow = neonListItemGlow(),
                     selected = false,
                     headlineContent = {
                         Text(

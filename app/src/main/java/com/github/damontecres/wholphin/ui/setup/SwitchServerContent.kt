@@ -67,6 +67,7 @@ import com.github.damontecres.wholphin.ui.components.EditTextBox
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.components.TextButton
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.dimAndBlur
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
@@ -77,6 +78,10 @@ import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
 import com.github.damontecres.wholphin.ui.theme.NeonRule
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
+import com.github.damontecres.wholphin.ui.theme.neonListItemColors
+import com.github.damontecres.wholphin.ui.theme.neonListItemGlow
+import com.github.damontecres.wholphin.ui.theme.neonListItemShape
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.LoadingState
 import timber.log.Timber
@@ -171,7 +176,7 @@ private fun SwitchServerContentInternal(
                 }
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(24.dp),
-                    contentPadding = PaddingValues(horizontal = 48.dp, vertical = 16.dp),
+                    contentPadding = PaddingValues(horizontal = 48.dp, vertical = 32.dp),
                     modifier =
                         Modifier
                             .wrapContentWidth()
@@ -406,6 +411,10 @@ private fun AddServerDialog(
                                 }
 
                             ListItem(
+                                colors = neonListItemColors(),
+                                shape = neonListItemShape(),
+                                border = neonListItemBorder(),
+                                glow = neonListItemGlow(),
                                 enabled = true,
                                 selected = false,
                                 headlineContent = {
@@ -425,7 +434,7 @@ private fun AddServerDialog(
                                 onClick = {
                                     viewModel.addServer(server.url, showToast = true)
                                 },
-                                modifier = Modifier.focusRequester(focusRequester),
+                                modifier = Modifier.keepFocusedItemVisible().padding(vertical = 8.dp).focusRequester(focusRequester),
                             )
                         }
                     }

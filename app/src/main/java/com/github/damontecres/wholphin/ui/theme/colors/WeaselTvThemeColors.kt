@@ -54,6 +54,8 @@ val WeaselTvThemeColors =
                 background = stage,
                 onBackground = text,
                 surface = stage,
+                // Keep elevated panels neutral; their focus accents come from the page.
+                surfaceTint = card,
                 onSurface = text,
                 surfaceVariant = card,
                 onSurfaceVariant = mid,
@@ -86,6 +88,8 @@ val WeaselTvThemeColors =
                 background = stage,
                 onBackground = text,
                 surface = stage,
+                // Keep elevated panels neutral; their focus accents come from the page.
+                surfaceTint = card,
                 onSurface = text,
                 surfaceVariant = card,
                 onSurfaceVariant = mid,

@@ -62,6 +62,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -91,10 +94,10 @@ import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.KeepVisibleBringIntoViewSpec
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import com.github.damontecres.wholphin.util.WholphinDispatchers
-import kotlin.math.ceil
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
+import kotlin.math.ceil
 
 private const val DEBUG = false
 
@@ -144,6 +147,7 @@ fun <T : CardGridItem> CardGrid(
 
     var focusedIndex by rememberSaveable { mutableIntStateOf(startPosition) }
     val currentFocusedIndex by rememberUpdatedState(focusedIndex)
+    val currentPager by rememberUpdatedState(pager)
     val gridState =
         rememberLazyGridState(
             cacheWindow = LazyLayoutCacheWindow(aheadFraction = 2f, behindFraction = 0.5f),
@@ -168,11 +172,22 @@ fun <T : CardGridItem> CardGrid(
 
     // Wait for a recomposition to focus
     val alphabetFocusRequester = remember { FocusRequester() }
-    LaunchedEffect(alphabetFocus) {
-        if (alphabetFocus) {
-            alphabetFocusRequester.tryRequestFocus()
+    val alphabetTarget = pager.getOrNull(currentFocusedIndex)
+    LaunchedEffect(pager.size) {
+        if (pager.isNotEmpty() && currentFocusedIndex >= pager.size) {
+            focusedIndex = pager.lastIndex
+            gridState.scrollToItem(pager.lastIndex)
+            alphabetFocus = true
         }
-        alphabetFocus = false
+    }
+    LaunchedEffect(alphabetFocus, alphabetTarget) {
+        // A remote letter lookup can arrive before its page. Focus the loaded
+        // card, whose caption and neighbours have been measured, rather than a
+        // shorter placeholder that will grow below the viewport afterward.
+        if (alphabetFocus && alphabetTarget != null) {
+            alphabetFocusRequester.tryRequestFocus()
+            alphabetFocus = false
+        }
     }
 
     val useBackToJump = true // uiConfig.preferences.interfacePreferences.scrollTopOnBack
@@ -180,7 +195,7 @@ fun <T : CardGridItem> CardGrid(
     val bottomContentPadding = if (isWeaselTv()) maxOf(topContentPadding, 32.dp) + 16.dp else 16.dp
     val useJumpRemoteButtons = true // uiConfig.preferences.interfacePreferences.pageWithRemoteButtons
     val jump2 =
-        remember {
+        remember(pager.size, columns) {
             if (pager.size >= 25_000) {
                 columns * 2000
             } else if (pager.size >= 7_000) {
@@ -192,7 +207,7 @@ fun <T : CardGridItem> CardGrid(
             }
         }
     val jump1 =
-        remember {
+        remember(pager.size, columns) {
             if (pager.size >= 25_000) {
                 columns * 500
             } else if (pager.size >= 7_000) {
@@ -208,11 +223,15 @@ fun <T : CardGridItem> CardGrid(
         remember {
             { jump: Int ->
                 scope.launch(ExceptionHandler()) {
+                    if (currentPager.isEmpty()) return@launch
                     val newPosition =
-                        (gridState.firstVisibleItemIndex + jump).coerceIn(0..<pager.size)
+                        (gridState.firstVisibleItemIndex + jump).coerceIn(0..currentPager.lastIndex)
                     if (DEBUG) Timber.d("newPosition=$newPosition")
                     focusOn(newPosition)
                     gridState.scrollToItem(newPosition, 0)
+                    // Remote paging scrolls the old focus out of view. Reuse the
+                    // loaded-card focus transfer used by alphabet navigation.
+                    alphabetFocus = true
                 }
             }
         }
@@ -238,13 +257,14 @@ fun <T : CardGridItem> CardGrid(
                 scope.launch(ExceptionHandler()) {
                     val jumpPosition =
                         withContext(WholphinDispatchers.IO) {
-                            letterPosition.invoke(letter)
+                            letterPosition.invoke(letter.uppercaseChar())
                         }
                     Timber.d("Alphabet jump to $jumpPosition")
-                    if (jumpPosition >= 0) {
-                        pager.getOrNull(jumpPosition)
-                        gridState.scrollToItem(jumpPosition)
-                        focusOn(jumpPosition)
+                    if (jumpPosition >= 0 && currentPager.isNotEmpty()) {
+                        val target = jumpPosition.coerceAtMost(currentPager.lastIndex)
+                        currentPager.getOrNull(target)
+                        gridState.scrollToItem(target)
+                        focusOn(target)
                         alphabetFocus = true
                     }
                 }
@@ -346,10 +366,11 @@ fun <T : CardGridItem> CardGrid(
                         verticalArrangement = Arrangement.spacedBy(cardSpacing),
                         state = gridState,
                         // Keep the first row's enlarged focus border/glow inside the viewport.
-                        contentPadding = PaddingValues(
-                            top = topContentPadding,
-                            bottom = bottomContentPadding,
-                        ),
+                        contentPadding =
+                            PaddingValues(
+                                top = topContentPadding,
+                                bottom = bottomContentPadding,
+                            ),
                         modifier =
                             Modifier
                                 .fillMaxSize()
@@ -372,10 +393,13 @@ fun <T : CardGridItem> CardGrid(
                     ) {
                         items(pager.size) { index ->
                             val item = pager[index]
+                            // A letter jump changes the focus destination while visible cards
+                            // remain cached. Move the requesters with that destination.
+                            val isFocusTarget = index == currentFocusedIndex || (currentFocusedIndex < 0 && index == 0)
                             val details =
-                                remember(index, item, cardWidthPx, columns) {
+                                remember(index, item, cardWidthPx, columns, isFocusTarget) {
                                     val mod =
-                                        if ((index == currentFocusedIndex) or (currentFocusedIndex < 0 && index == 0)) {
+                                        if (isFocusTarget) {
                                             if (DEBUG) Timber.d("Adding firstFocus to focusedIndex $index")
                                             Modifier
                                                 .focusRequester(firstFocus)
@@ -405,7 +429,15 @@ fun <T : CardGridItem> CardGrid(
                                                     index == 0,
                                                     Modifier.focusRequester(zeroFocus),
                                                 ).onSizeChanged { size ->
-                                                    if (index == 0) detailViewport?.reportRow(detailRowKey, with(density) { size.height.toDp() } + topContentPadding + bottomContentPadding, priority = 0)
+                                                    if (index ==
+                                                        0
+                                                    ) {
+                                                        detailViewport?.reportRow(
+                                                            detailRowKey,
+                                                            with(density) { size.height.toDp() } + topContentPadding + bottomContentPadding,
+                                                            priority = 0,
+                                                        )
+                                                    }
                                                 }.onFocusChanged { focusState ->
                                                     if (DEBUG) {
                                                         Timber.v(
@@ -490,7 +522,7 @@ fun <T : CardGridItem> CardGrid(
                 Spacer(
                     Modifier
                         .padding(start = 16.dp)
-                        .width(letterHorizontalPadding * 2 + letterButtonSize),
+                        .width(letterHorizontalPadding * 2 + alphabetCellSize()),
                 )
             }
         }
@@ -499,6 +531,21 @@ fun <T : CardGridItem> CardGrid(
 
 private val letterHorizontalPadding = 2.dp
 private val letterButtonSize = 14.dp
+
+/** Keep scaled glyphs inside their hit targets and reserve the same width without the picker. */
+@Composable
+private fun alphabetCellSize(): Dp {
+    if (!isWeaselTv()) return letterButtonSize
+    val density = LocalDensity.current
+    val measurer = rememberTextMeasurer()
+    val style = MaterialTheme.typography.bodySmall.copy(lineHeight = 14.sp)
+    return remember(density, measurer, style) {
+        val glyph = measurer.measure("W", style, maxLines = 1)
+        with(density) {
+            maxOf(letterButtonSize, glyph.size.width.toDp(), glyph.size.height.toDp())
+        }
+    }
+}
 
 @Composable
 fun JumpButtons(
@@ -545,6 +592,7 @@ fun AlphabetButtons(
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val neon = isWeaselTv()
+    val cellSize = alphabetCellSize()
     val pageAccent = LocalNeonSectionAccent.current ?: LocalNeonAccent.current
     val glowAccent = neonGlowAccent(pageAccent)
     val glowRadius = with(LocalDensity.current) { 6.dp.toPx() }
@@ -597,28 +645,31 @@ fun AlphabetButtons(
                 val active = isCurrentLetter || focused || hovered
                 Box(
                     contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(letterButtonSize)
-                        .focusRequester(focusRequesters[index])
-                        .playSoundOnFocus(true)
-                        .clickable(
-                            interactionSource = interactionSource,
-                            indication = null,
-                            role = Role.Button,
-                        ) {
-                            playOnClickSound(context)
-                            letterClicked(letters[index])
-                        },
+                    modifier =
+                        Modifier
+                            .size(cellSize)
+                            .semantics { contentDescription = letters[index].toString() }
+                            .focusRequester(focusRequesters[index])
+                            .playSoundOnFocus(true)
+                            .clickable(
+                                interactionSource = interactionSource,
+                                indication = null,
+                                role = Role.Button,
+                            ) {
+                                playOnClickSound(context)
+                                letterClicked(letters[index])
+                            },
                 ) {
                     Text(
                         text = letters[index].toString(),
                         color = if (active) pageAccent else Color.White,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth(),
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            lineHeight = 14.sp,
-                            shadow = if (active) Shadow(color = glowAccent, blurRadius = glowRadius) else null,
-                        ),
+                        style =
+                            MaterialTheme.typography.bodySmall.copy(
+                                lineHeight = 14.sp,
+                                shadow = if (active) Shadow(color = glowAccent, blurRadius = glowRadius) else null,
+                            ),
                     )
                 }
             } else {

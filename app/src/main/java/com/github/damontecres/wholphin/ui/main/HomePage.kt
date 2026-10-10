@@ -407,7 +407,12 @@ fun HomePageContent(
                         }
                     }.fillMaxSize(),
         ) {
-            FitHeaderToHeight(headerMaxHeight) {
+            FitHeaderToHeight(
+                headerMaxHeight,
+                // Reserve the measured budget for every title in this row. Shorter
+                // copy must not lift the cards, then move them down for a long title.
+                fillHeight = isWeaselTv() && focusedRowHeight != null,
+            ) {
                 headerComposable.invoke(focusedItem)
             }
 
@@ -757,7 +762,7 @@ private fun homeRowHeading(
 
 /** Resolve the source library, so named sections such as Boxing keep their rail colour. */
 @Composable
-private fun homeRowAccent(
+internal fun homeRowAccent(
     row: HomeRowConfig?,
     libraries: List<Library>,
 ): Color {

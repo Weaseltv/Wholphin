@@ -53,6 +53,10 @@ import com.github.damontecres.wholphin.ui.dot
 import com.github.damontecres.wholphin.ui.formatDuration
 import com.github.damontecres.wholphin.ui.formatTime
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
+import com.github.damontecres.wholphin.ui.theme.neonCardBorder
+import com.github.damontecres.wholphin.ui.theme.neonCardGlow
+import com.github.damontecres.wholphin.ui.theme.neonCardScale
+import com.github.damontecres.wholphin.ui.theme.neonCardShape
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.Clock
 import com.github.damontecres.wholphin.ui.util.LocalClock
@@ -98,7 +102,7 @@ fun NextUpEpisode(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(32.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(8.dp),
+                modifier = Modifier.weight(1f).padding(8.dp),
             ) {
                 NextUpCard(
                     imageUrl = imageUrl,
@@ -124,7 +128,7 @@ fun NextUpEpisode(
                         text = title ?: "",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier,
                     )
@@ -134,7 +138,7 @@ fun NextUpEpisode(
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 4,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier,
+                        modifier = Modifier.weight(1f, fill = false),
                     )
                     runtime?.let {
                         val context = LocalContext.current
@@ -180,6 +184,10 @@ fun NextUpCard(
         modifier = modifier,
         onClick = onClick,
         interactionSource = interactionSource,
+        border = neonCardBorder(),
+        glow = neonCardGlow(),
+        scale = neonCardScale(),
+        shape = neonCardShape(),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             AsyncImage(

@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.ui.components
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.widthIn
@@ -13,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -37,7 +39,14 @@ fun TitleOrLogo(
 ) {
     var imageError by remember(logoImageUrl) { mutableStateOf(false) }
     val detailCompact = LocalCompactDetailHeader.current
-    val logoHeight = if (compact) 28.dp else if (detailCompact) 44.dp else HeaderUtils.logoHeight
+    val logoHeight =
+        if (compact) {
+            28.dp
+        } else if (detailCompact) {
+            44.dp
+        } else {
+            HeaderUtils.logoHeight
+        }
     Box(
         modifier = modifier,
     ) {
@@ -69,15 +78,46 @@ private fun Title(
 ) {
     // Use the bundled display face for text when the server has no usable logo.
     val neon = isWeaselTv()
-    Text(
-        text = (title ?: "").let { if (neon) it.uppercase() else it },
-        color = MaterialTheme.colorScheme.onSurface,
-        style = if (neon) NeonType.hero(if (compact) 20.sp else if (LocalCompactDetailHeader.current) 32.sp else 48.sp) else MaterialTheme.typography.headlineMedium,
-        fontWeight = if (neon) null else FontWeight.SemiBold,
-        maxLines = if (compact) 1 else 2,
-        overflow = TextOverflow.Ellipsis,
-        modifier = modifier,
-    )
+    val heading = (title ?: "").let { if (neon) it.uppercase() else it }
+    val style =
+        if (neon) {
+            NeonType.hero(
+                if (compact) {
+                    20.sp
+                } else if (LocalCompactDetailHeader.current) {
+                    32.sp
+                } else {
+                    48.sp
+                },
+            )
+        } else {
+            MaterialTheme.typography.headlineMedium
+        }
+    val maxLines = if (compact) 1 else 2
+    val measurer = rememberTextMeasurer()
+    BoxWithConstraints(modifier) {
+        val fitted =
+            remember(heading, style, maxLines, constraints, measurer, neon) {
+                if (!neon) {
+                    style
+                } else {
+                    (style.fontSize.value.toInt() downTo 18)
+                        .map { style.copy(fontSize = it.sp, lineHeight = (it * 1.25f).sp) }
+                        .firstOrNull {
+                            val layout = measurer.measure(heading, it, maxLines = maxLines, constraints = constraints)
+                            !layout.hasVisualOverflow && layout.multiParagraph.minIntrinsicWidth <= constraints.maxWidth
+                        } ?: style.copy(fontSize = 18.sp, lineHeight = 22.5.sp)
+                }
+            }
+        Text(
+            text = heading,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = fitted,
+            fontWeight = if (neon) null else FontWeight.SemiBold,
+            maxLines = maxLines,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
 }
 
 @Composable

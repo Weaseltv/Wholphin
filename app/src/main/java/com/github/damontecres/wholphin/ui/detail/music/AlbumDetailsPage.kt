@@ -80,6 +80,7 @@ import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.letNotEmpty
 import com.github.damontecres.wholphin.ui.rememberPosition
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.toBaseItems
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.ApiRequestPager
@@ -667,6 +668,7 @@ fun AlbumHeader(
     modifier: Modifier,
 ) {
     val scope = rememberCoroutineScope()
+    val neon = isWeaselTv()
     Row(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         modifier = modifier.padding(top = 32.dp),
@@ -731,7 +733,7 @@ fun AlbumHeader(
                         textBoxHeight = Dp.Unspecified,
                         modifier =
                             Modifier.onFocusChanged {
-                                if (it.isFocused) {
+                                if (it.isFocused && !neon) {
                                     scope.launch(ExceptionHandler()) {
                                         bringIntoViewRequester.bringIntoView()
                                     }

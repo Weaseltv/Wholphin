@@ -21,7 +21,12 @@ import androidx.tv.material3.ListItemGlow
 import androidx.tv.material3.ListItemScale
 import androidx.tv.material3.ListItemShape
 import com.github.damontecres.wholphin.ui.components.DialogListEdge
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.preferences.PreferenceTitle
+import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
+import com.github.damontecres.wholphin.ui.theme.neonListItemColors
+import com.github.damontecres.wholphin.ui.theme.neonListItemGlow
+import com.github.damontecres.wholphin.ui.theme.neonListItemShape
 
 @Composable
 @NonRestartableComposable
@@ -37,11 +42,11 @@ fun HomeSettingsListItem(
     leadingContent: (@Composable BoxScope.() -> Unit)? = null,
     trailingContent: (@Composable () -> Unit)? = null,
     tonalElevation: Dp = 3.dp,
-    shape: ListItemShape = ListItemDefaults.shape(),
-    colors: ListItemColors = ListItemDefaults.colors(),
+    shape: ListItemShape = neonListItemShape(),
+    colors: ListItemColors = neonListItemColors(),
     scale: ListItemScale = ListItemDefaults.scale(),
-    border: ListItemBorder = ListItemDefaults.border(),
-    glow: ListItemGlow = ListItemDefaults.glow(),
+    border: ListItemBorder = neonListItemBorder(),
+    glow: ListItemGlow = neonListItemGlow(),
     interactionSource: MutableInteractionSource? = null,
 ) = ListItem(
     selected = selected,
@@ -49,7 +54,7 @@ fun HomeSettingsListItem(
     headlineContent = {
         PreferenceTitle(headlineText)
     },
-    modifier = modifier,
+    modifier = modifier.keepFocusedItemVisible(),
     enabled = enabled,
     onLongClick = onLongClick,
     overlineContent = overlineContent,

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,7 +30,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.tv.material3.Button
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.ListItem
 import androidx.tv.material3.MaterialTheme
@@ -46,11 +46,22 @@ import com.github.damontecres.wholphin.ui.cards.AvailableIndicator
 import com.github.damontecres.wholphin.ui.cards.PartiallyAvailableIndicator
 import com.github.damontecres.wholphin.ui.cards.PendingIndicator
 import com.github.damontecres.wholphin.ui.components.BasicDialog
+import com.github.damontecres.wholphin.ui.components.Button
 import com.github.damontecres.wholphin.ui.components.DialogListEdge
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.LoadingPage
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.formatSeasonNumber
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
+import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
+import com.github.damontecres.wholphin.ui.theme.neonListItemColors
+import com.github.damontecres.wholphin.ui.theme.neonListItemGlow
+import com.github.damontecres.wholphin.ui.theme.neonListItemShape
+import com.github.damontecres.wholphin.ui.theme.neonOutlineColors
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceBorder
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceGlow
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceScale
+import com.github.damontecres.wholphin.ui.theme.neonSurfaceShape
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.LoadingState
 
@@ -278,6 +289,10 @@ fun SeasonListItem(
     modifier: Modifier = Modifier,
 ) {
     ListItem(
+        shape = neonListItemShape(),
+        colors = neonListItemColors(),
+        border = neonListItemBorder(),
+        glow = neonListItemGlow(),
         enabled = season.editable,
         selected = false,
         headlineContent = {
@@ -345,18 +360,25 @@ private fun ClickSurface(
     content: @Composable BoxScope.() -> Unit,
 ) {
     Surface(
+        shape = neonSurfaceShape(),
+        border = neonSurfaceBorder(restWidth = 1.dp),
+        glow = neonSurfaceGlow(),
+        scale = neonSurfaceScale(),
         colors =
-            ClickableSurfaceDefaults.colors(
-                containerColor = Color.Transparent,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                focusedContainerColor = MaterialTheme.colorScheme.inverseSurface,
-                focusedContentColor = contentColorFor(MaterialTheme.colorScheme.inverseSurface),
-                pressedContainerColor = MaterialTheme.colorScheme.inverseSurface,
-                pressedContentColor = contentColorFor(MaterialTheme.colorScheme.inverseSurface),
+            neonOutlineColors(
+                fallback =
+                    ClickableSurfaceDefaults.colors(
+                        containerColor = Color.Transparent,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        focusedContainerColor = MaterialTheme.colorScheme.inverseSurface,
+                        focusedContentColor = contentColorFor(MaterialTheme.colorScheme.inverseSurface),
+                        pressedContainerColor = MaterialTheme.colorScheme.inverseSurface,
+                        pressedContentColor = contentColorFor(MaterialTheme.colorScheme.inverseSurface),
+                    ),
             ),
         onClick = onClick,
         content = content,
-        modifier = modifier,
+        modifier = modifier.keepFocusedItemVisible(),
     )
 }
 
@@ -375,7 +397,7 @@ fun ClickSwitch(
             modifier =
                 Modifier
                     .padding(horizontal = 8.dp)
-                    .height(54.dp),
+                    .heightIn(min = 54.dp),
         ) {
             Switch(
                 checked = checked,

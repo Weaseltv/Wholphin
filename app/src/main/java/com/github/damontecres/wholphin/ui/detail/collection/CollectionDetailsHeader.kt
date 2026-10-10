@@ -22,6 +22,7 @@ import com.github.damontecres.wholphin.ui.components.OverviewText
 import com.github.damontecres.wholphin.ui.components.QuickDetails
 import com.github.damontecres.wholphin.ui.components.TitleOrLogo
 import com.github.damontecres.wholphin.ui.letNotEmpty
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import kotlinx.coroutines.launch
 
@@ -38,6 +39,7 @@ fun CollectionDetailsHeader(
     val dto = collection.data
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val neon = isWeaselTv()
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = modifier,
@@ -83,7 +85,7 @@ fun CollectionDetailsHeader(
                     textBoxHeight = Dp.Unspecified,
                     modifier =
                         Modifier.onFocusChanged {
-                            if (it.isFocused) {
+                            if (it.isFocused && !neon) {
                                 scope.launch(ExceptionHandler()) {
                                     bringIntoViewRequester.bringIntoView()
                                 }

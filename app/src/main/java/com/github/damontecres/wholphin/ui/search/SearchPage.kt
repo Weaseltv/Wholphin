@@ -65,6 +65,7 @@ import com.github.damontecres.wholphin.ui.components.SearchEditTextBox
 import com.github.damontecres.wholphin.ui.components.TabDetails
 import com.github.damontecres.wholphin.ui.components.TabRow
 import com.github.damontecres.wholphin.ui.components.VoiceSearchButton
+import com.github.damontecres.wholphin.ui.components.clockHeaderEndPadding
 import com.github.damontecres.wholphin.ui.components.rememberContextMenu
 import com.github.damontecres.wholphin.ui.data.RowColumn
 import com.github.damontecres.wholphin.ui.detail.CardGrid
@@ -290,7 +291,11 @@ fun SearchPage(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier =
                     Modifier
-                        .padding(start = 16.dp, end = 16.dp, top = 16.dp)
+                        .padding(
+                            start = 16.dp,
+                            end = if (isWeaselTv()) clockHeaderEndPadding() else 16.dp,
+                            top = 16.dp,
+                        )
                         .focusGroup()
                         .focusRestorer(textFieldFocusRequester)
                         .focusRequester(focusRequesters[SEARCH_ROW]),
@@ -320,6 +325,7 @@ fun SearchPage(
                     readOnly = !isSearchActive,
                     modifier =
                         Modifier
+                            .weight(1f)
                             .focusRequester(textFieldFocusRequester)
                             .onFocusChanged { state ->
                                 isTextFieldFocused = state.isFocused

@@ -2,7 +2,9 @@ package com.github.damontecres.wholphin.ui.playback
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -24,6 +26,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.ListItem
@@ -35,7 +38,15 @@ import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.abbreviateNumber
 import com.github.damontecres.wholphin.ui.components.EditTextBox
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
+import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
+import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
+import com.github.damontecres.wholphin.ui.theme.neonListItemColors
+import com.github.damontecres.wholphin.ui.theme.neonListItemGlow
+import com.github.damontecres.wholphin.ui.theme.neonListItemShape
+import com.github.damontecres.wholphin.ui.theme.neonUpper
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import org.jellyfin.sdk.model.api.RemoteSubtitleInfo
 
@@ -82,8 +93,8 @@ fun DownloadSubtitlesContent(
                 modifier = modifier,
             ) {
                 Text(
-                    text = stringResource(R.string.search_and_download_subtitles),
-                    style = MaterialTheme.typography.titleLarge,
+                    text = stringResource(R.string.search_and_download_subtitles).neonUpper(),
+                    style = if (isWeaselTv()) NeonType.dialogTitle() else MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
 //                val lang = rememberTextFieldState(language)
@@ -125,7 +136,8 @@ fun DownloadSubtitlesContent(
                         focusRequesters.firstOrNull()?.tryRequestFocus()
                     }
                     LazyColumn(
-                        modifier = Modifier,
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 20.dp),
+                        modifier = Modifier.weight(1f, fill = false),
                     ) {
                         itemsIndexed(s.options) { index, item ->
                             SubtitleInfo(
@@ -150,11 +162,17 @@ fun SubtitleInfo(
     modifier: Modifier = Modifier,
 ) {
     ListItem(
+        colors = neonListItemColors(),
+        shape = neonListItemShape(),
+        border = neonListItemBorder(),
+        glow = neonListItemGlow(),
         selected = false,
         onClick = { onClick.invoke(subtitle) },
         headlineContent = {
             Text(
                 text = subtitle.name ?: "",
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
             )
         },
         overlineContent =
@@ -209,7 +227,7 @@ fun SubtitleInfo(
                 }
             }
         },
-        modifier = modifier,
+        modifier = modifier.keepFocusedItemVisible().padding(vertical = 8.dp),
     )
 }
 

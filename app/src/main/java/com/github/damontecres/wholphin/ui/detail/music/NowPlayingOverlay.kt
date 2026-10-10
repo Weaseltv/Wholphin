@@ -52,6 +52,7 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.AudioItem
 import com.github.damontecres.wholphin.services.rememberQueue
 import com.github.damontecres.wholphin.ui.components.Button
+import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.main.settings.MoveDirection
 import com.github.damontecres.wholphin.ui.playback.ControllerViewState
@@ -186,6 +187,7 @@ fun NowPlayingOverlay(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
+                                .keepFocusedItemVisible()
                                 .background(
                                     color = MaterialTheme.colorScheme.surface.copy(alpha = .5f),
                                     shape = RoundedCornerShape(8.dp),

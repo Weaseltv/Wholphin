@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -19,8 +18,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
@@ -100,11 +97,7 @@ fun DiscoverPersonRow(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier.reportDetailRowHeight().keepTitledRowVisible(),
     ) {
-        Text(
-            text = stringResource(title),
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
+        ItemRowTitle(stringResource(title))
         FocusSafeLazyRow(
             state = rememberLazyListState(),
             horizontalArrangement =
@@ -120,7 +113,6 @@ fun DiscoverPersonRow(
             contentPadding = PaddingValues(8.dp),
             modifier =
                 Modifier
-                    .padding(start = 16.dp)
                     .fillMaxWidth()
                     .focusRestorer(firstFocus),
         ) {
