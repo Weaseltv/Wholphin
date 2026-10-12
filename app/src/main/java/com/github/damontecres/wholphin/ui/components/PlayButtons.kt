@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
@@ -386,6 +387,10 @@ fun ExpandableFaButton(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     iconColor: Color = Color.Unspecified,
     enabled: Boolean = true,
+    /** Colours the label, and the icon unless [iconColor] is set. */
+    contentColor: Color = Color.Unspecified,
+    /** Show only the icon until focused, with an uppercase label in the button font. */
+    collapsed: Boolean = false,
 ) {
     val isFocused = interactionSource.collectIsFocusedAsState().value
     Button(
@@ -393,11 +398,12 @@ fun ExpandableFaButton(
         enabled = enabled,
         modifier =
             modifier.requiredSizeIn(
-                minWidth = MinButtonSize,
-                minHeight = MinButtonSize,
-                maxHeight = MinButtonSize,
+                minWidth = if (collapsed) COMPACT_BUTTON_SIZE else MinButtonSize,
+                minHeight = if (collapsed) COMPACT_BUTTON_SIZE else MinButtonSize,
+                maxHeight = if (collapsed) COMPACT_BUTTON_SIZE else MinButtonSize,
             ),
-        contentPadding = DefaultButtonPadding,
+        contentPadding = if (collapsed) PaddingValues(0.dp) else DefaultButtonPadding,
+        contentHeight = if (collapsed) COMPACT_BUTTON_SIZE else MinButtonSize,
         interactionSource = interactionSource,
     ) {
         Box(
@@ -408,19 +414,31 @@ fun ExpandableFaButton(
             Text(
                 text = stringResource(iconStringRes),
                 style = MaterialTheme.typography.titleSmall,
-                color = iconColor,
+                color = iconColor.takeOrElse { contentColor },
                 fontSize = 16.sp,
                 fontFamily = FontAwesome,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.align(Alignment.Center),
             )
         }
-        AnimatedVisibility(isWeaselTv() || isFocused) {
-            Text(
-                text = stringResource(title),
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(end = 4.dp),
-            )
+        if (collapsed) {
+            AnimatedVisibility(isFocused) {
+                Text(
+                    text = stringResource(title).uppercase(),
+                    color = contentColor,
+                    fontSize = COMPACT_FONT_SIZE,
+                    modifier = Modifier.padding(start = 2.dp, end = 6.dp),
+                )
+            }
+        } else {
+            AnimatedVisibility(isWeaselTv() || isFocused) {
+                Text(
+                    text = stringResource(title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = contentColor,
+                    modifier = Modifier.padding(end = 4.dp),
+                )
+            }
         }
     }
 }

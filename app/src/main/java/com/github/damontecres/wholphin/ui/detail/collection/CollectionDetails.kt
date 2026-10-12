@@ -2,10 +2,14 @@ package com.github.damontecres.wholphin.ui.detail.collection
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,6 +41,7 @@ import com.github.damontecres.wholphin.data.filter.ItemFilterBy
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.GetItemsFilter
 import com.github.damontecres.wholphin.preferences.UserPreferences
+import com.github.damontecres.wholphin.services.StreamingQuickList
 import com.github.damontecres.wholphin.ui.components.ContextMenu
 import com.github.damontecres.wholphin.ui.components.ContextMenuActions
 import com.github.damontecres.wholphin.ui.components.ContextMenuDialog
@@ -46,6 +51,7 @@ import com.github.damontecres.wholphin.ui.components.FittedDetailHeader
 import com.github.damontecres.wholphin.ui.components.HeaderUtils
 import com.github.damontecres.wholphin.ui.components.HiddenFocusBox
 import com.github.damontecres.wholphin.ui.components.LoadingPage
+import com.github.damontecres.wholphin.ui.components.LocalDetailViewport
 import com.github.damontecres.wholphin.ui.components.Optional
 import com.github.damontecres.wholphin.ui.data.AddPlaylistViewModel
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialog
@@ -53,6 +59,7 @@ import com.github.damontecres.wholphin.ui.data.ItemDetailsDialogInfo
 import com.github.damontecres.wholphin.ui.data.RowColumn
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
 import com.github.damontecres.wholphin.ui.detail.PlaylistDialog
+import com.github.damontecres.wholphin.ui.detail.cardGridRowHeight
 import com.github.damontecres.wholphin.ui.main.HomePageHeader
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
@@ -143,21 +150,6 @@ fun CollectionDetails(
     val onClickPlay = { _: RowColumn, item: BaseItem ->
         viewModel.navigateTo(Destination.Playback(item = item))
     }
-    val onClickPlayAll =
-        remember {
-            { shuffle: Boolean ->
-                val dest =
-                    Destination.PlaybackList(
-                        itemId = itemId,
-                        startIndex = 0,
-                        shuffle = shuffle,
-                        recursive = true,
-                        sortAndDirection = state.sortAndDirection,
-                        filter = state.itemFilter,
-                    )
-                viewModel.navigateTo(dest)
-            }
-        }
     val onClickViewOptions = remember { { showViewOptionsDialog = true } }
 
     val loadingState = state.loadingState
@@ -175,7 +167,8 @@ fun CollectionDetails(
                 onLongClickItem = onLongClickItem,
                 onSortChange = onSortChange,
                 onClickPlay = onClickPlay,
-                onClickPlayAll = onClickPlayAll,
+                onClickRandom = viewModel::onClickRandom,
+                onQuickListChange = viewModel::changeQuickList,
                 onChangeBackdrop = viewModel::updateBackdrop,
                 onFilterChange = onFilterChange,
                 getPossibleFilterValues = viewModel::getPossibleFilterValues,
@@ -289,7 +282,8 @@ fun CollectionDetailsContent(
     onLongClickItem: (RowColumn, BaseItem) -> Unit,
     onSortChange: (SortAndDirection) -> Unit,
     onClickPlay: (RowColumn, BaseItem) -> Unit,
-    onClickPlayAll: (Boolean) -> Unit,
+    onClickRandom: () -> Unit,
+    onQuickListChange: (StreamingQuickList) -> Unit,
     onChangeBackdrop: (BaseItem) -> Unit,
     onFilterChange: (GetItemsFilter) -> Unit,
     getPossibleFilterValues: suspend (ItemFilterBy<*>) -> List<FilterValueOption>,
@@ -313,14 +307,37 @@ fun CollectionDetailsContent(
     }
 
     DetailPageViewport(modifier = modifier) {
+        // Size the header for the grid's first row up front, so it doesn't shrink once items load
+        val viewport = LocalDetailViewport.current
+        val cardViewOptions = state.viewOptions.cardViewOptions
+        val gridRowHeight =
+            if (viewport != null && !state.viewOptions.separateTypes) {
+                cardGridRowHeight(
+                    gridWidth = viewport.width,
+                    columns = cardViewOptions.columns,
+                    spacing = cardViewOptions.spacing.dp,
+                    imageAspectRatio = cardViewOptions.aspectRatio.ratio,
+                    showTitle = cardViewOptions.showTitles,
+                    topContentPadding = collectionGridTopPadding(),
+                )
+            } else {
+                null
+            }
         Column(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(0.dp),
             modifier = Modifier,
         ) {
             SharedTransitionLayout {
                 AnimatedContent(
                     targetState = itemsContentHasFocus,
                     label = "header_transition",
+                    // The default transition, but unclipped so the button row's focus glow can
+                    // extend past the page's start edge
+                    transitionSpec = {
+                        (fadeIn(tween(220, delayMillis = 90)) + scaleIn(tween(220, delayMillis = 90), initialScale = 0.92f))
+                            .togetherWith(fadeOut(tween(90)))
+                            .using(SizeTransform(clip = false))
+                    },
                 ) { targetState ->
                     if (targetState) {
                         // Show item header
@@ -341,7 +358,7 @@ fun CollectionDetailsContent(
                                 itemsContentHasFocus = false
                             }
                             if (state.viewOptions.cardViewOptions.showDetails) {
-                                FittedDetailHeader {
+                                FittedDetailHeader(firstRowHeight = gridRowHeight) {
                                     HomePageHeader(
                                         item = focusedItem,
                                         showLogo = preferences.appPreferences.interfacePreferences.showLogos,
@@ -371,15 +388,14 @@ fun CollectionDetailsContent(
                                         animatedVisibilityScope = this@AnimatedContent,
                                         enter = slideInVertically { -it / 2 } + fadeIn(),
                                         exit = slideOutVertically { -it / 2 } + fadeOut(),
-                                    ).padding(bottom = if (state.isStreaming) 8.dp else 16.dp)
-                                    .fillMaxWidth()
+                                    ).fillMaxWidth()
                                     .onFocusChanged {
                                         if (it.hasFocus) {
                                             onChangeBackdrop.invoke(state.collection!!)
                                         }
                                     },
                         ) {
-                            FittedDetailHeader {
+                            FittedDetailHeader(firstRowHeight = gridRowHeight) {
                                 CollectionDetailsHeader(
                                     collection = state.collection!!,
                                     streaming = state.isStreaming,
@@ -406,7 +422,8 @@ fun CollectionDetailsContent(
                             CollectionButtons(
                                 state = state,
                                 onSortChange = onSortChange,
-                                onClickPlayAll = onClickPlayAll,
+                                onClickRandom = onClickRandom,
+                                onQuickListChange = onQuickListChange,
                                 onFilterChange = onFilterChange,
                                 getPossibleFilterValues = getPossibleFilterValues,
                                 onClickViewOptions = onClickViewOptions,

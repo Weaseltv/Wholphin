@@ -5,6 +5,7 @@ import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.damontecres.wholphin.BuildConfig
+import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.LibraryDisplayInfoDao
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.filter.FilterValueOption
@@ -24,6 +25,8 @@ import com.github.damontecres.wholphin.services.MusicService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.ServerReportService
 import com.github.damontecres.wholphin.services.StreamingCollections
+import com.github.damontecres.wholphin.services.StreamingQuickList
+import com.github.damontecres.wholphin.services.StreamingQuickListService
 import com.github.damontecres.wholphin.services.ThemeSongPlayer
 import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.deleteItem
@@ -37,6 +40,7 @@ import com.github.damontecres.wholphin.ui.formatTypeName
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.nav.Destination
+import com.github.damontecres.wholphin.ui.showToast
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.ui.util.ResStringProvider
 import com.github.damontecres.wholphin.util.ApiRequestPager
@@ -53,6 +57,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -70,6 +76,7 @@ import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ImageType
+import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
@@ -96,6 +103,7 @@ class CollectionViewModel
         private val musicService: MusicService,
         val serverReportService: ServerReportService,
         private val filterOptionCache: FilterOptionCache,
+        private val quickListService: StreamingQuickListService,
         @Assisted private val itemId: UUID,
     ) : ViewModel() {
         @AssistedFactory
@@ -180,7 +188,11 @@ class CollectionViewModel
                                 } else {
                                     it.sortAndDirection
                                 },
+                            quickList = if (streaming) StreamingQuickList.NEW else null,
                         )
+                    }
+                    if (state.value.isStreaming) {
+                        quickListService.prefetch(StreamingCollections.justWatchPackages(collection.name))
                     }
                     listenForStateUpdates()
                     themeSongPlayer.playThemeFor(itemId)
@@ -204,15 +216,16 @@ class CollectionViewModel
             viewModelScope.launchDefault {
                 state
                     .map {
-                        Triple(
+                        DataKey(
                             it.sortAndDirection,
                             it.itemFilter,
                             it.viewOptions.separateTypes,
+                            it.quickList,
                         )
                     }.distinctUntilChanged()
-                    .collectLatest { (sort, filter, separateTypes) ->
+                    .collectLatest { (sort, filter, separateTypes, quickList) ->
                         try {
-                            updateData(sort, filter, separateTypes)
+                            updateData(sort, filter, separateTypes, quickList)
                         } catch (ex: CancellationException) {
                             throw ex
                         } catch (ex: Exception) {
@@ -230,13 +243,70 @@ class CollectionViewModel
             sort: SortAndDirection,
             filter: GetItemsFilter,
             separateTypes: Boolean,
+            quickList: StreamingQuickList?,
         ) {
             Timber.d("Begin updateData for %s", itemId)
+            // NEW with filters beyond the type buttons uses the server's sorted list instead
+            val useQuickList =
+                quickList != null &&
+                    state.value.isStreaming &&
+                    (quickList != StreamingQuickList.NEW || quickListService.canFilterLocally(filter))
+            val userId = serverRepository.currentUser?.id
+            if (useQuickList && quickList == StreamingQuickList.NEW && userId != null) {
+                // Show the newest titles as each page arrives instead of waiting for all of them
+                var shown = false
+                _state.update { it.copy(quickListLoading = quickList) }
+                quickListService.newest(userId, itemId).collect { progress ->
+                    if (progress.items.isEmpty() && !progress.complete) return@collect
+                    val types = filter.includeItemTypes
+                    val items = if (types.isNullOrEmpty()) progress.items else progress.items.filter { it.type in types }
+                    _state.update {
+                        if (it.quickList == quickList && it.itemFilter == filter) {
+                            shown = shown || progress.items.isNotEmpty()
+                            it.copy(
+                                items = items,
+                                loadingState = LoadingState.Success,
+                                quickListLoading = if (progress.complete) null else it.quickListLoading,
+                            )
+                        } else {
+                            it
+                        }
+                    }
+                }
+                _state.update { it.copy(quickListLoading = null) }
+                // If nothing could be loaded this way, use the server's sorted list below
+                if (shown) return
+            } else if (useQuickList && quickList != null) {
+                // Keep the current posters while the list loads; the button shows it's loading
+                _state.update { it.copy(quickListLoading = quickList) }
+                val result =
+                    try {
+                        fetchQuickList(quickList, filter)
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: Exception) {
+                        // Fall back to the normal collection rather than an error page
+                        Timber.e(ex, "Error fetching %s for collection %s", quickList, itemId)
+                        showToast(context, context.getString(R.string.quick_list_error, context.getString(quickList.title)))
+                        _state.update { it.copy(quickList = null, quickListLoading = null) }
+                        return
+                    }
+                // Only show a list that's still the one selected
+                _state.update {
+                    if (it.quickList == quickList && it.itemFilter == filter) {
+                        it.copy(items = result, loadingState = LoadingState.Success, quickListLoading = null)
+                    } else {
+                        it
+                    }
+                }
+                return
+            }
             _state.update {
                 it.copy(
                     loadingState = LoadingState.Loading,
                     items = emptyList(),
                     separateItems = emptyMap(),
+                    quickListLoading = null,
                 )
             }
             if (!separateTypes) {
@@ -288,6 +358,38 @@ class CollectionViewModel
             }
             _state.update { it.copy(loadingState = LoadingState.Success) }
             Timber.d("End updateData for %s", itemId)
+        }
+
+        /** The collection's members in [quickList] order, honoring [filter]. */
+        private suspend fun fetchQuickList(
+            quickList: StreamingQuickList,
+            filter: GetItemsFilter,
+        ): List<BaseItem?> {
+            val userId = serverRepository.currentUser?.id ?: return emptyList()
+            val packages = StreamingCollections.justWatchPackages(state.value.collection?.name)
+            if (quickListService.canFilterLocally(filter)) {
+                return quickListService.items(userId, itemId, packages, quickList, filter)
+            }
+            // Other filters need the server: rank the members, then fetch them with the filter
+            val ranked = quickListService.items(userId, itemId, packages, quickList, GetItemsFilter())
+            val ids = ranked.map { it.id }
+            val byId =
+                coroutineScope {
+                    ids
+                        .chunked(QUICK_LIST_CHUNK)
+                        .map { chunk ->
+                            async(WholphinDispatchers.IO) {
+                                val request =
+                                    createGetItemsRequest(null, filter, StreamingCollections.types)
+                                        .copy(parentId = null, ids = chunk, enableTotalRecordCount = false)
+                                GetItemsRequestHandler.execute(api, request).content.items
+                            }
+                        }.awaitAll()
+                        .flatten()
+                        .associateBy { it.id }
+                }
+            val items = ids.mapNotNull { id -> byId[id]?.let { BaseItem(it, true) } }
+            return if (quickList == StreamingQuickList.TOP_10) items.take(10) else items
         }
 
         private suspend fun fetchItems(
@@ -353,7 +455,15 @@ class CollectionViewModel
             return request
         }
 
+        /** Show the [quickList] ranking, or the normal sorted collection when null or tapped again. */
+        fun changeQuickList(quickList: StreamingQuickList?) {
+            // Pressing the selected list again goes back to NEW, the default
+            _state.update { it.copy(quickList = if (quickList == it.quickList) StreamingQuickList.NEW else quickList) }
+        }
+
         fun changeSort(sortAndDirection: SortAndDirection) {
+            // Choosing a sort leaves any quick list
+            _state.update { it.copy(quickList = null) }
             viewModelScope.launchIO {
                 val user = serverRepository.currentUser
                 val state = _state.value
@@ -436,6 +546,41 @@ class CollectionViewModel
         fun navigateTo(destination: Destination) {
             release()
             navigationManager.navigateTo(destination)
+        }
+
+        /**
+         * Navigate to a random item in this collection, honoring the current filter
+         */
+        fun onClickRandom() {
+            viewModelScope.launchIO {
+                try {
+                    val types =
+                        when {
+                            state.value.isCurated -> CuratedCollections.types
+                            state.value.isStreaming -> StreamingCollections.types
+                            else -> typesInCollection
+                        }
+                    val request =
+                        createGetItemsRequest(
+                            sort = SortAndDirection(ItemSortBy.RANDOM, SortOrder.ASCENDING),
+                            filter = state.value.itemFilter,
+                            types = types,
+                        ).copy(limit = 1)
+                    val random =
+                        GetItemsRequestHandler
+                            .execute(api, request)
+                            .content.items
+                            .firstOrNull()
+                            ?.let { BaseItem(it, false) }
+                    Timber.d("Got random item: %s", random?.id)
+                    random?.let { navigateTo(it.destination()) }
+                } catch (ex: CancellationException) {
+                    throw ex
+                } catch (ex: Exception) {
+                    Timber.e(ex, "Error getting random")
+                    showToast(context, "Error: ${ex.localizedMessage}")
+                }
+            }
         }
 
         fun setWatched(
@@ -567,6 +712,9 @@ data class CollectionState(
     val items: List<BaseItem?> = emptyList(),
     val separateItems: Map<BaseItemKind, HomeRowLoadingState> = emptyMap(),
     val logoImageUrl: String? = null,
+    val quickList: StreamingQuickList? = null,
+    /** The quick list being loaded, while the previous posters stay on screen. */
+    val quickListLoading: StreamingQuickList? = null,
 ) {
     val isCurated: Boolean
         get() = BuildConfig.FLAVOR == "weaselfin" && collection?.data?.let(CuratedCollections::isCuratedCollection) == true
@@ -574,6 +722,15 @@ data class CollectionState(
     val isStreaming: Boolean
         get() = BuildConfig.FLAVOR == "weaselfin" && collection?.data?.let(StreamingCollections::isStreamingCollection) == true
 }
+
+private const val QUICK_LIST_CHUNK = 100
+
+private data class DataKey(
+    val sort: SortAndDirection,
+    val filter: GetItemsFilter,
+    val separateTypes: Boolean,
+    val quickList: StreamingQuickList?,
+)
 
 private val StreamingDefaultSort = SortAndDirection(ItemSortBy.PREMIERE_DATE, SortOrder.DESCENDING)
 

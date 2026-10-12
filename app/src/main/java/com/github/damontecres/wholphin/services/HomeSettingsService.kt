@@ -104,6 +104,7 @@ class HomeSettingsService
         private val imageUrlService: ImageUrlService,
         private val suggestionService: SuggestionService,
         private val displayPreferencesService: DisplayPreferencesService,
+        private val streamingOrderService: StreamingOrderService,
     ) {
         @OptIn(ExperimentalSerializationApi::class)
         val jsonParser =
@@ -1110,7 +1111,7 @@ class HomeSettingsService
                         }
                     val items =
                         if (streaming) {
-                            StreamingCollections.fetch(api, userDto.id).map {
+                            streamingOrderService.sort(userDto.id, StreamingCollections.fetch(api, userDto.id)).map {
                                 // Collection unwatched counts include episodes; these tiles represent services.
                                 BaseItem(
                                     it.copy(

@@ -132,6 +132,7 @@ class TestHomeRowSamples {
                 imageUrlService = mockk(),
                 suggestionService = mockk(),
                 displayPreferencesService = mockk(),
+                streamingOrderService = mockk(),
             )
 
         val str = """{

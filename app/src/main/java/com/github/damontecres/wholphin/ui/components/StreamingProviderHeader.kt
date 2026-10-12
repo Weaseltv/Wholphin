@@ -35,37 +35,16 @@ fun StreamingProviderHeader(
     item: BaseItem,
     modifier: Modifier = Modifier,
 ) {
-    val wordmark = providerWordmark(item.name)
-    val providerColor = streamingProviderAccent(item.name) ?: LocalNeonAccent.current
     Box(modifier = modifier.fillMaxWidth()) {
-        if (wordmark != null) {
-            AsyncImage(
-                model =
-                    ImageRequest
-                        .Builder(LocalContext.current)
-                        .data("file:///android_asset/provider-wordmarks/$wordmark")
-                        .apply { if (wordmark.endsWith(".svg")) decoderFactory(SvgDecoder.Factory()) }
-                        .build(),
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                colorFilter =
-                    when (wordmark) {
-                        "peacock.svg" -> null
-
-                        "netflix.svg", "hulu.svg", "prime_video.svg", "amc.png", "mgm.svg",
-                        "britbox.svg", "crunchyroll.svg", "hallmark.svg",
-                        -> ColorFilter.tint(providerColor)
-
-                        else -> ColorFilter.tint(Color.White)
-                    },
-                modifier =
-                    Modifier
-                        .align(Alignment.CenterEnd)
-                        .fillMaxWidth(.56f)
-                        .padding(end = 64.dp)
-                        .height(120.dp),
-            )
-        }
+        StreamingProviderWordmark(
+            name = item.name,
+            modifier =
+                Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxWidth(.56f)
+                    .padding(end = 64.dp)
+                    .height(120.dp),
+        )
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth(.42f),
@@ -82,6 +61,37 @@ fun StreamingProviderHeader(
             )
         }
     }
+}
+
+/** A streaming service's bundled wordmark, tinted like its Home row and collection cards. */
+@Composable
+fun StreamingProviderWordmark(
+    name: String?,
+    modifier: Modifier = Modifier,
+) {
+    val wordmark = providerWordmark(name) ?: return
+    val providerColor = streamingProviderAccent(name) ?: LocalNeonAccent.current
+    AsyncImage(
+        model =
+            ImageRequest
+                .Builder(LocalContext.current)
+                .data("file:///android_asset/provider-wordmarks/$wordmark")
+                .apply { if (wordmark.endsWith(".svg")) decoderFactory(SvgDecoder.Factory()) }
+                .build(),
+        contentDescription = null,
+        contentScale = ContentScale.Fit,
+        colorFilter =
+            when (wordmark) {
+                "peacock.svg" -> null
+
+                "netflix.svg", "hulu.svg", "prime_video.svg", "amc.png", "mgm.svg",
+                "britbox.svg", "crunchyroll.svg", "hallmark.svg",
+                -> ColorFilter.tint(providerColor)
+
+                else -> ColorFilter.tint(Color.White)
+            },
+        modifier = modifier,
+    )
 }
 
 internal fun providerWordmark(name: String?): String? =

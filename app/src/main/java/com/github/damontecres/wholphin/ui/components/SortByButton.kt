@@ -1,16 +1,31 @@
 package com.github.damontecres.wholphin.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSizeIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.filter.DiscoverSort
@@ -33,21 +48,34 @@ fun SortByButton(
     current: SortAndDirection,
     onSortChange: (SortAndDirection) -> Unit,
     modifier: Modifier = Modifier,
+    collapsed: Boolean = false,
+    contentColor: Color = Color.Unspecified,
+    compact: Boolean = false,
 ) {
     val currentSort = current.sort
     val currentDirection = current.direction
     var sortByDropDown by remember { mutableStateOf(false) }
 
     Box(modifier = modifier) {
-        TextButton(
-            onClick = { sortByDropDown = true },
-            onLongClick = {
-                onSortChange.invoke(current.flip())
-            },
-        ) {
-            Text(
-                text = current.toAnnotatedString(),
+        if (collapsed) {
+            ExpandableSortButton(
+                current = current,
+                onClick = { sortByDropDown = true },
+                onLongClick = { onSortChange.invoke(current.flip()) },
+                contentColor = contentColor,
+                compact = compact,
             )
+        } else {
+            TextButton(
+                onClick = { sortByDropDown = true },
+                onLongClick = {
+                    onSortChange.invoke(current.flip())
+                },
+            ) {
+                Text(
+                    text = current.toAnnotatedString(),
+                )
+            }
         }
 
         AppDropdownMenu(
@@ -207,3 +235,66 @@ fun DiscoverSortAndDirection.toAnnotatedString() =
         append(" ")
         append(stringResource(sort.stringRes))
     }
+
+/** A sort icon that shows the current sort while focused, like [ExpandableFilterButton]. */
+@Composable
+fun ExpandableSortButton(
+    current: SortAndDirection,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    compact: Boolean = false,
+    contentColor: Color = Color.Unspecified,
+) {
+    val isFocused = interactionSource.collectIsFocusedAsState().value
+    val size = if (compact) COMPACT_BUTTON_SIZE else MinButtonSize
+    Button(
+        onClick = onClick,
+        onLongClick = onLongClick,
+        modifier =
+            modifier.requiredSizeIn(
+                minWidth = size,
+                minHeight = size,
+                maxHeight = size,
+            ),
+        contentHeight = size,
+        contentPadding = PaddingValues(0.dp),
+        interactionSource = interactionSource,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxHeight()
+                    .widthIn(min = if (isFocused) (size - 12.dp) else size),
+        ) {
+            Text(
+                text =
+                    stringResource(
+                        if (current.direction ==
+                            SortOrder.ASCENDING
+                        ) {
+                            R.string.fa_arrow_up_wide_short
+                        } else {
+                            R.string.fa_arrow_down_wide_short
+                        },
+                    ),
+                style = MaterialTheme.typography.titleSmall,
+                color = contentColor,
+                fontSize = 16.sp,
+                fontFamily = FontAwesome,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.align(Alignment.Center),
+            )
+        }
+        AnimatedVisibility(isFocused) {
+            Text(
+                text = stringResource(getStringRes(current.sort)),
+                style = MaterialTheme.typography.titleSmall,
+                color = contentColor,
+                fontSize = if (compact) COMPACT_FONT_SIZE else TextUnit.Unspecified,
+                modifier = Modifier.padding(start = 4.dp, end = if (compact) 6.dp else 8.dp),
+            )
+        }
+    }
+}

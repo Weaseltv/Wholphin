@@ -178,6 +178,9 @@ fun isWeaselTv(): Boolean = LocalTheme.current == AppThemeColors.WEASELTV
  */
 val LocalNeonAccent = compositionLocalOf { NeonBoard.Volt }
 
+/** Rest outline colour for outline [com.github.damontecres.wholphin.ui.components.Button]s; null keeps `line2`. */
+val LocalNeonOutlineRest = compositionLocalOf<Color?> { null }
+
 @Composable
 fun ProvideNeonAccent(
     accent: Color,

@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.remember
@@ -45,6 +43,7 @@ import com.github.damontecres.wholphin.ui.cards.GridCard
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
 import com.github.damontecres.wholphin.ui.detail.CardGrid
 import com.github.damontecres.wholphin.ui.detail.GridItemDetails
+import com.github.damontecres.wholphin.ui.detail.cardGridRowHeight
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.main.HomePageHeader
 import com.github.damontecres.wholphin.ui.main.settings.Library
@@ -62,7 +61,6 @@ import com.github.damontecres.wholphin.ui.util.ScrollToTopBringIntoViewSpec
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
 import org.jellyfin.sdk.model.api.ItemSortBy
-import kotlin.time.Duration
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -92,8 +90,21 @@ fun CollectionFolderGrid(
         ) {
             val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
             val density = LocalDensity.current
+            val topContentPadding = if (isWeaselTv()) 24.dp else 16.dp
+            // Size the header for the grid's first row up front, so it doesn't change once items load
+            val gridRowHeight =
+                LocalDetailViewport.current?.let { viewport ->
+                    cardGridRowHeight(
+                        gridWidth = viewport.width,
+                        columns = viewOptions.columns,
+                        spacing = viewOptions.spacing.dp,
+                        imageAspectRatio = viewOptions.aspectRatio.ratio,
+                        showTitle = viewOptions.showTitles,
+                        topContentPadding = topContentPadding,
+                    )
+                }
             AnimatedVisibility(viewOptions.showDetails) {
-                FittedDetailHeader(reservedHeight = 0.dp) {
+                FittedDetailHeader(reservedHeight = 0.dp, firstRowHeight = gridRowHeight) {
                     HomePageHeader(
                         item = focusedItem,
                         showLogo = preferences.appPreferences.interfacePreferences.showLogos,
@@ -138,7 +149,7 @@ fun CollectionFolderGrid(
                 },
                 columns = viewOptions.columns,
                 spacing = viewOptions.spacing.dp,
-                topContentPadding = if (isWeaselTv()) 24.dp else 16.dp,
+                topContentPadding = topContentPadding,
                 bringIntoViewSpec =
                     remember(viewOptions, density) {
                         val spacingPx = with(density) { viewOptions.spacing.dp.toPx() }
@@ -340,14 +351,12 @@ fun CollectionFolderHeader(
     listIsNotEmpty: Boolean,
     showHeader: Boolean,
     showTitle: Boolean,
-    playEnabled: Boolean,
     title: String,
     sortAndDirection: SortAndDirection,
     onSortChange: (SortAndDirection) -> Unit,
     sortOptions: List<ItemSortBy>,
     getPossibleFilterValues: suspend (ItemFilterBy<*>) -> List<FilterValueOption>,
     onClickShowViewOptions: () -> Unit,
-    onClickPlayAll: (Boolean) -> Unit,
     onClickRandom: () -> Unit,
     modifier: Modifier = Modifier,
     currentFilter: GetItemsFilter = GetItemsFilter(),
@@ -450,22 +459,6 @@ fun CollectionFolderHeader(
                         modifier = Modifier.focusRequester(randomButtonFocusRequester),
                         enabled = listIsNotEmpty,
                     )
-
-                    if (playEnabled) {
-                        ExpandablePlayButton(
-                            title = R.string.play,
-                            resume = Duration.ZERO,
-                            icon = Icons.Default.PlayArrow,
-                            onClick = { onClickPlayAll.invoke(false) },
-                            enabled = listIsNotEmpty,
-                        )
-                        ExpandableFaButton(
-                            title = R.string.shuffle,
-                            iconStringRes = R.string.fa_shuffle,
-                            onClick = { onClickPlayAll.invoke(true) },
-                            enabled = listIsNotEmpty,
-                        )
-                    }
                 }
             }
         }

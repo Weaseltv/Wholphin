@@ -19,11 +19,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
@@ -128,4 +132,43 @@ fun GridCard(
             }
         }
     }
+}
+
+/**
+ * The height of a [GridCard] at [width] with a [titleLines]-line title and a subtitle. Known
+ * before any items load and independent of their titles.
+ */
+@Composable
+fun gridCardHeight(
+    width: Dp,
+    imageAspectRatio: Float,
+    showTitle: Boolean,
+    titleLines: Int = 2,
+): Dp {
+    val imageHeight = width / imageAspectRatio.coerceAtLeast(AspectRatios.MIN)
+    if (!showTitle) return imageHeight
+    val density = LocalDensity.current
+    val measurer = rememberTextMeasurer()
+    val titleStyle =
+        (if (isWeaselTv()) NeonType.cardTitle() else MaterialTheme.typography.bodyMedium)
+            .copy(fontWeight = FontWeight.SemiBold)
+    val subtitleStyle = if (isWeaselTv()) NeonType.cardSubtitle() else MaterialTheme.typography.bodySmall
+    val captionHeight =
+        remember(density, measurer, titleStyle, subtitleStyle, width, titleLines) {
+            with(density) {
+                // Matches PosterCardTitle/PosterCardSubtitle's horizontal padding
+                val constraints = Constraints(maxWidth = (width - 8.dp).roundToPx().coerceAtLeast(0))
+                val title =
+                    measurer.measure(
+                        List(titleLines) { "A" }.joinToString("\n"),
+                        titleStyle,
+                        maxLines = titleLines,
+                        constraints = constraints,
+                    )
+                val subtitle = measurer.measure("A", subtitleStyle, maxLines = 1, constraints = constraints)
+                (title.size.height + subtitle.size.height).toDp()
+            }
+        }
+    // Column spacing (4dp) + SlidingCardText's total padding (12dp)
+    return imageHeight + 4.dp + 12.dp + captionHeight
 }

@@ -5,7 +5,9 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
@@ -39,6 +42,7 @@ import com.github.damontecres.wholphin.services.tvAccess
 import com.github.damontecres.wholphin.ui.cards.GridCard
 import com.github.damontecres.wholphin.ui.components.ContextMenuProvider
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
+import com.github.damontecres.wholphin.ui.components.ExpandableFaButton
 import com.github.damontecres.wholphin.ui.components.GenreCardGrid
 import com.github.damontecres.wholphin.ui.components.GridTitle
 import com.github.damontecres.wholphin.ui.components.LoadingPage
@@ -49,11 +53,13 @@ import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.main.homeRowAccent
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.playback.scale
+import com.github.damontecres.wholphin.ui.showToast
 import com.github.damontecres.wholphin.ui.theme.ProvideNeonSectionAccent
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.StringProvider
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
 import com.github.damontecres.wholphin.util.ApiRequestPager
+import com.github.damontecres.wholphin.util.BlockingList
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import com.github.damontecres.wholphin.util.WholphinDispatchers
@@ -62,6 +68,7 @@ import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -199,6 +206,29 @@ class HomeRowGridViewModel
             }
         }
 
+        /**
+         * Navigate to a random item from this row
+         */
+        fun onClickRandom() {
+            viewModelScope.launchIO {
+                try {
+                    val items = (state.value.loading as? HomeRowLoadingState.Success)?.items ?: return@launchIO
+
+                    @Suppress("UNCHECKED_CAST")
+                    val random =
+                        (items as? BlockingList<BaseItem?>)?.randomBlocking()
+                            ?: items.filterNotNull().randomOrNull()
+                    Timber.d("Got random item: %s", random?.id)
+                    random?.let { navigateTo(it.destination()) }
+                } catch (ex: CancellationException) {
+                    throw ex
+                } catch (ex: Exception) {
+                    Timber.e(ex, "Error getting random")
+                    showToast(context, "Error: ${ex.localizedMessage}")
+                }
+            }
+        }
+
         override fun isAdministrator(): Boolean = serverRepository.currentUserDto?.policy?.isAdministrator == true
 
         override fun navigateTo(destination: Destination) {
@@ -290,6 +320,17 @@ fun HomeRowGrid(
                                     }
                                 }
                             LaunchedEffect(Unit) { gridFocusRequester.tryRequestFocus() }
+                            Row(
+                                horizontalArrangement = Arrangement.End,
+                                modifier = Modifier.fillMaxWidth().padding(end = 16.dp),
+                            ) {
+                                ExpandableFaButton(
+                                    title = R.string.sort_by_random,
+                                    iconStringRes = R.string.fa_dice,
+                                    onClick = viewModel::onClickRandom,
+                                    enabled = st.items.isNotEmpty(),
+                                )
+                            }
                             CardGrid(
                                 pager = st.items,
                                 onClickItem = onClickItem,

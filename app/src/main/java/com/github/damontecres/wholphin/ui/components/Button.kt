@@ -36,6 +36,8 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.ProvideTextStyle
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.ui.theme.LocalNeonOutlineRest
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonOutlineColors
@@ -77,8 +79,9 @@ fun Button(
     tonalElevation: Dp = 0.dp,
     border: ClickableSurfaceBorder =
         neonSurfaceBorder(
-            // The outline button: 1dp `line2` at rest, the accent when focused.
+            // The outline button: 1dp `line2` (or LocalNeonOutlineRest) at rest, the accent when focused.
             restWidth = 1.dp,
+            restColor = LocalNeonOutlineRest.current ?: NeonBoard.Line2,
             fallback =
                 ClickableSurfaceDefaults.border(
                     border = Border.None,

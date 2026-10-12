@@ -17,6 +17,9 @@ import com.github.damontecres.wholphin.services.MediaManagementService
 import com.github.damontecres.wholphin.services.NavDrawerService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.ServerReportService
+import com.github.damontecres.wholphin.services.StreamingCollections
+import com.github.damontecres.wholphin.services.StreamingOrderService
+import com.github.damontecres.wholphin.services.StreamingQuickListService
 import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.deleteItem
 import com.github.damontecres.wholphin.services.tvAccess
@@ -65,6 +68,8 @@ class HomeViewModel
         private val userPreferencesService: UserPreferencesService,
         private val mediaManagementService: MediaManagementService,
         private val latestNextUpService: LatestNextUpService,
+        private val streamingOrderService: StreamingOrderService,
+        private val quickListService: StreamingQuickListService,
     ) : ViewModel() {
         private val _state = MutableStateFlow(HomeState.EMPTY)
         val state: StateFlow<HomeState> = _state
@@ -204,6 +209,7 @@ class HomeViewModel
                             }
                         }
                         Timber.d("Home page load complete")
+                        prefetchStreamingCollections(userDto.id)
                     }
                 } catch (ex: Exception) {
                     Timber.e(ex, "Exception during home page loading")
@@ -267,6 +273,57 @@ class HomeViewModel
                         }
                     }
                 }
+            }
+        }
+
+        /** Move a card within its row, e.g. while reordering Streaming Services. */
+        fun moveRowItem(
+            rowIndex: Int,
+            from: Int,
+            to: Int,
+        ) {
+            _state.update { state ->
+                val row = state.homeRows.getOrNull(rowIndex) as? HomeRowLoadingState.Success ?: return@update state
+                if (from !in row.items.indices || to !in row.items.indices) return@update state
+                val items = row.items.toMutableList().apply { add(to, removeAt(from)) }
+                state.copy(homeRows = state.homeRows.toMutableList().apply { set(rowIndex, row.copy(items = items)) })
+            }
+        }
+
+        /** Put a row's cards back, e.g. when a reorder is cancelled. */
+        fun setRowItems(
+            rowIndex: Int,
+            items: List<BaseItem?>,
+        ) {
+            _state.update { state ->
+                val row = state.homeRows.getOrNull(rowIndex) as? HomeRowLoadingState.Success ?: return@update state
+                state.copy(homeRows = state.homeRows.toMutableList().apply { set(rowIndex, row.copy(items = items)) })
+            }
+        }
+
+        /** Put the Streaming Services row back in the default order and forget the member's order. */
+        fun resetStreamingOrder(rowIndex: Int) {
+            val row = state.value.homeRows.getOrNull(rowIndex) as? HomeRowLoadingState.Success ?: return
+            setRowItems(rowIndex, StreamingCollections.defaultOrder(row.items))
+            viewModelScope.launchIO {
+                serverRepository.currentUser?.id?.let { streamingOrderService.reset(it) }
+            }
+        }
+
+        /** Save each streaming collection's titles in the background so opening one is instant. */
+        private fun prefetchStreamingCollections(userId: UUID) {
+            val current = state.value
+            val index = current.settings.rows.indexOfFirst { StreamingCollections.isStreamingRow(it.config) }
+            val row = current.homeRows.getOrNull(index) as? HomeRowLoadingState.Success ?: return
+            quickListService.prefetchAll(userId, row.items.mapNotNull { it?.id })
+        }
+
+        /** Save the row's current order as the member's Streaming Services order. */
+        fun saveStreamingOrder(rowIndex: Int) {
+            val row = state.value.homeRows.getOrNull(rowIndex) as? HomeRowLoadingState.Success ?: return
+            val ids = row.items.mapNotNull { it?.id }
+            viewModelScope.launchIO {
+                serverRepository.currentUser?.id?.let { streamingOrderService.save(it, ids) }
             }
         }
 

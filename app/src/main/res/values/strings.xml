@@ -133,6 +133,7 @@
     <string name="voice_error_start_failed">Failed to start voice recognition</string>
     <string name="voice_error_timeout">Voice recognition timed out</string>
     <string name="retry">Retry</string>
+    <string name="pinned_server_error">Can\'t reach WeaselPlex right now. Check your internet connection and try again.</string>
     <string name="select_server">Select Server</string>
     <string name="select_user">Select User</string>
     <string name="show_debug_info">Show debug info</string>
@@ -953,6 +954,14 @@
     <string name="login_not_authorized">You are not authorized to access the server at this time</string>
     <string name="streaming_all">All</string>
     <string name="streaming_shows">Shows</string>
+    <string name="reorder">Reorder</string>
+    <string name="reorder_hint">Reordering · Left / Right to move · OK to place</string>
+    <string name="reset_order">Reset to default order</string>
+    <string name="quick_list_popular">Popular</string>
+    <string name="quick_list_trending">Trending</string>
+    <string name="quick_list_top_10">Top 10</string>
+    <string name="quick_list_new">New</string>
+    <string name="quick_list_error">Couldn\'t load %1$s from JustWatch</string>
     <string name="streaming_provider_description">Streaming on %1$s right now.</string>
     <string name="recommended_kicker_just">Just</string>
     <string name="recommended_kicker_top_rated">Top Rated</string>

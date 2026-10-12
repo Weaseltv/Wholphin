@@ -216,7 +216,7 @@ fun SwitchUserContent(
                             viewModel.removeUser(user)
                         },
                         onSwitchServer =
-                            if (connectOnly) {
+                            if (connectOnly || isServerPinned) {
                                 null
                             } else {
                                 {
