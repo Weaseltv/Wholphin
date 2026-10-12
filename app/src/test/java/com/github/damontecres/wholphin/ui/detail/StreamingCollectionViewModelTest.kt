@@ -117,6 +117,7 @@ class StreamingCollectionViewModelTest {
             musicService = mockk(relaxed = true),
             serverReportService = mockk(relaxed = true),
             filterOptionCache = mockk(relaxed = true),
+            quickListService = mockk(relaxed = true),
             itemId = collectionId,
         ).also { store.put("collection", it) }
     }

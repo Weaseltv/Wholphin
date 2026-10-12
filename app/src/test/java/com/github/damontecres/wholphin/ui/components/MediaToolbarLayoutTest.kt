@@ -84,11 +84,23 @@ class MediaToolbarLayoutTest {
         compose.setContent {
             WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
                 Box(Modifier.width(800.dp)) {
-                    CollectionButtons(CollectionState(), {}, {}, {}, { emptyList() }, {}, {}, {}, true, {})
+                    CollectionButtons(
+                        state = CollectionState(),
+                        onSortChange = {},
+                        onClickRandom = {},
+                        onQuickListChange = {},
+                        onFilterChange = {},
+                        getPossibleFilterValues = { emptyList() },
+                        onClickViewOptions = {},
+                        favoriteOnClick = {},
+                        onConfirmDelete = {},
+                        canDelete = true,
+                        moreOnClick = {},
+                    )
                 }
             }
         }
-        for (label in listOf("Play", "More")) {
+        for (label in listOf("Random", "More")) {
             compose.onAllNodes(hasScrollAction())[0].performScrollToNode(hasText(label))
             val button = compose.onNode(hasText(label) and isFocusable())
             button.requestFocus()
