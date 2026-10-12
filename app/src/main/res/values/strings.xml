@@ -133,6 +133,7 @@
     <string name="voice_error_start_failed">Failed to start voice recognition</string>
     <string name="voice_error_timeout">Voice recognition timed out</string>
     <string name="retry">Retry</string>
+    <string name="pinned_server_error">Can\'t reach WeaselPlex right now. Check your internet connection and try again.</string>
     <string name="select_server">Select Server</string>
     <string name="select_user">Select User</string>
     <string name="show_debug_info">Show debug info</string>

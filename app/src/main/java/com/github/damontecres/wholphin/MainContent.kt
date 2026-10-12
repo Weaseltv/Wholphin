@@ -36,9 +36,11 @@ import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.UpdateChecker
 import com.github.damontecres.wholphin.ui.components.AppScreensaver
 import com.github.damontecres.wholphin.ui.nav.ApplicationContent
+import com.github.damontecres.wholphin.ui.setup.PinnedServerContent
 import com.github.damontecres.wholphin.ui.setup.SwitchServerContent
 import com.github.damontecres.wholphin.ui.setup.SwitchUserContent
 import com.github.damontecres.wholphin.ui.setup.UpdatePrompt
+import com.github.damontecres.wholphin.ui.setup.isServerPinned
 import com.github.damontecres.wholphin.ui.util.InterfaceCustomization
 import com.github.damontecres.wholphin.ui.util.LocalInterfaceCustomization
 
@@ -89,7 +91,11 @@ fun MainContent(
                             }
 
                             SetupDestination.ServerList -> {
-                                SwitchServerContent(Modifier.fillMaxSize())
+                                if (isServerPinned) {
+                                    PinnedServerContent(Modifier.fillMaxSize())
+                                } else {
+                                    SwitchServerContent(Modifier.fillMaxSize())
+                                }
                             }
 
                             is SetupDestination.UserList -> {
