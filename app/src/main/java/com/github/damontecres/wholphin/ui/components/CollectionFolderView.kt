@@ -1056,7 +1056,6 @@ fun CollectionFolderViewContent(
                         listIsNotEmpty = state.items.successValue?.isNotEmpty() == true,
                         showHeader = showHeader || state.items !is DataLoadingState.Success,
                         showTitle = showTitle,
-                        playEnabled = playEnabled,
                         title = title,
                         collectionsOptions = collectionHomeOptions.takeIf { collectionsLayout },
                         sortAndDirection = state.sortAndDirection,
@@ -1072,7 +1071,6 @@ fun CollectionFolderViewContent(
                             viewActions.getFilterOptionValues(it)
                         },
                         filterOptions = filterOptions,
-                        onClickPlayAll = gridActions.onClickPlayAll!!,
                         onClickShowViewOptions = { showViewOptions = true },
                         onClickRandom = {
                             clickedRandom = true

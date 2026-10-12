@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.remember
@@ -62,7 +60,6 @@ import com.github.damontecres.wholphin.ui.util.ScrollToTopBringIntoViewSpec
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
 import org.jellyfin.sdk.model.api.ItemSortBy
-import kotlin.time.Duration
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -340,14 +337,12 @@ fun CollectionFolderHeader(
     listIsNotEmpty: Boolean,
     showHeader: Boolean,
     showTitle: Boolean,
-    playEnabled: Boolean,
     title: String,
     sortAndDirection: SortAndDirection,
     onSortChange: (SortAndDirection) -> Unit,
     sortOptions: List<ItemSortBy>,
     getPossibleFilterValues: suspend (ItemFilterBy<*>) -> List<FilterValueOption>,
     onClickShowViewOptions: () -> Unit,
-    onClickPlayAll: (Boolean) -> Unit,
     onClickRandom: () -> Unit,
     modifier: Modifier = Modifier,
     currentFilter: GetItemsFilter = GetItemsFilter(),
@@ -450,22 +445,6 @@ fun CollectionFolderHeader(
                         modifier = Modifier.focusRequester(randomButtonFocusRequester),
                         enabled = listIsNotEmpty,
                     )
-
-                    if (playEnabled) {
-                        ExpandablePlayButton(
-                            title = R.string.play,
-                            resume = Duration.ZERO,
-                            icon = Icons.Default.PlayArrow,
-                            onClick = { onClickPlayAll.invoke(false) },
-                            enabled = listIsNotEmpty,
-                        )
-                        ExpandableFaButton(
-                            title = R.string.shuffle,
-                            iconStringRes = R.string.fa_shuffle,
-                            onClick = { onClickPlayAll.invoke(true) },
-                            enabled = listIsNotEmpty,
-                        )
-                    }
                 }
             }
         }

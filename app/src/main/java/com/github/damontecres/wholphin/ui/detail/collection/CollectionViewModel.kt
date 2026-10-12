@@ -37,6 +37,7 @@ import com.github.damontecres.wholphin.ui.formatTypeName
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.nav.Destination
+import com.github.damontecres.wholphin.ui.showToast
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.ui.util.ResStringProvider
 import com.github.damontecres.wholphin.util.ApiRequestPager
@@ -436,6 +437,41 @@ class CollectionViewModel
         fun navigateTo(destination: Destination) {
             release()
             navigationManager.navigateTo(destination)
+        }
+
+        /**
+         * Navigate to a random item in this collection, honoring the current filter
+         */
+        fun onClickRandom() {
+            viewModelScope.launchIO {
+                try {
+                    val types =
+                        when {
+                            state.value.isCurated -> CuratedCollections.types
+                            state.value.isStreaming -> StreamingCollections.types
+                            else -> typesInCollection
+                        }
+                    val request =
+                        createGetItemsRequest(
+                            sort = SortAndDirection(ItemSortBy.RANDOM, SortOrder.ASCENDING),
+                            filter = state.value.itemFilter,
+                            types = types,
+                        ).copy(limit = 1)
+                    val random =
+                        GetItemsRequestHandler
+                            .execute(api, request)
+                            .content.items
+                            .firstOrNull()
+                            ?.let { BaseItem(it, false) }
+                    Timber.d("Got random item: %s", random?.id)
+                    random?.let { navigateTo(it.destination()) }
+                } catch (ex: CancellationException) {
+                    throw ex
+                } catch (ex: Exception) {
+                    Timber.e(ex, "Error getting random")
+                    showToast(context, "Error: ${ex.localizedMessage}")
+                }
+            }
         }
 
         fun setWatched(

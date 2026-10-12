@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -38,7 +37,7 @@ import kotlin.time.Duration
 fun CollectionButtons(
     state: CollectionState,
     onSortChange: (SortAndDirection) -> Unit,
-    onClickPlayAll: (Boolean) -> Unit,
+    onClickRandom: () -> Unit,
     onFilterChange: (GetItemsFilter) -> Unit,
     getPossibleFilterValues: suspend (ItemFilterBy<*>) -> List<FilterValueOption>,
     onClickViewOptions: () -> Unit,
@@ -76,21 +75,20 @@ fun CollectionButtons(
                         )
                     }
                 }
-            } else {
-                item {
-                    ExpandablePlayButton(
-                        title = R.string.play,
-                        resume = Duration.ZERO,
-                        icon = Icons.Default.PlayArrow,
-                        onClick = { onClickPlayAll.invoke(false) },
-                        modifier = Modifier.focusRequester(firstFocus),
+                item("random") {
+                    ExpandableFaButton(
+                        title = R.string.sort_by_random,
+                        iconStringRes = R.string.fa_dice,
+                        onClick = onClickRandom,
                     )
                 }
-                item {
+            } else {
+                item("random") {
                     ExpandableFaButton(
-                        title = R.string.shuffle,
-                        iconStringRes = R.string.fa_shuffle,
-                        onClick = { onClickPlayAll.invoke(true) },
+                        title = R.string.sort_by_random,
+                        iconStringRes = R.string.fa_dice,
+                        onClick = onClickRandom,
+                        modifier = Modifier.focusRequester(firstFocus),
                     )
                 }
 

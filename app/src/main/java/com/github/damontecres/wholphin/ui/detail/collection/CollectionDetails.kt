@@ -143,21 +143,6 @@ fun CollectionDetails(
     val onClickPlay = { _: RowColumn, item: BaseItem ->
         viewModel.navigateTo(Destination.Playback(item = item))
     }
-    val onClickPlayAll =
-        remember {
-            { shuffle: Boolean ->
-                val dest =
-                    Destination.PlaybackList(
-                        itemId = itemId,
-                        startIndex = 0,
-                        shuffle = shuffle,
-                        recursive = true,
-                        sortAndDirection = state.sortAndDirection,
-                        filter = state.itemFilter,
-                    )
-                viewModel.navigateTo(dest)
-            }
-        }
     val onClickViewOptions = remember { { showViewOptionsDialog = true } }
 
     val loadingState = state.loadingState
@@ -175,7 +160,7 @@ fun CollectionDetails(
                 onLongClickItem = onLongClickItem,
                 onSortChange = onSortChange,
                 onClickPlay = onClickPlay,
-                onClickPlayAll = onClickPlayAll,
+                onClickRandom = viewModel::onClickRandom,
                 onChangeBackdrop = viewModel::updateBackdrop,
                 onFilterChange = onFilterChange,
                 getPossibleFilterValues = viewModel::getPossibleFilterValues,
@@ -289,7 +274,7 @@ fun CollectionDetailsContent(
     onLongClickItem: (RowColumn, BaseItem) -> Unit,
     onSortChange: (SortAndDirection) -> Unit,
     onClickPlay: (RowColumn, BaseItem) -> Unit,
-    onClickPlayAll: (Boolean) -> Unit,
+    onClickRandom: () -> Unit,
     onChangeBackdrop: (BaseItem) -> Unit,
     onFilterChange: (GetItemsFilter) -> Unit,
     getPossibleFilterValues: suspend (ItemFilterBy<*>) -> List<FilterValueOption>,
@@ -406,7 +391,7 @@ fun CollectionDetailsContent(
                             CollectionButtons(
                                 state = state,
                                 onSortChange = onSortChange,
-                                onClickPlayAll = onClickPlayAll,
+                                onClickRandom = onClickRandom,
                                 onFilterChange = onFilterChange,
                                 getPossibleFilterValues = getPossibleFilterValues,
                                 onClickViewOptions = onClickViewOptions,
