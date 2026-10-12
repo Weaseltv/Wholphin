@@ -12,11 +12,15 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -88,11 +92,28 @@ fun <T> ItemRow(
     countEndPadding: Dp = if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.COUNT_END_PADDING_DP.dp else 8.dp,
     titleStartPadding: Dp? = null,
     titleKicker: String? = null,
+    /** When set, move focus to this card, e.g. to follow a card being reordered. */
+    focusIndex: Int? = null,
+    /** Stable keys for the cards; must be unique within the row. */
+    itemKey: ((index: Int, item: T?) -> Any)? = null,
 ) {
     val state = rememberLazyListState()
     val firstFocus = remember { FocusRequester() }
     val focusRequester = remember { FocusRequester() }
     var position by rememberInt()
+
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    LaunchedEffect(focusIndex) {
+        val target = focusIndex ?: return@LaunchedEffect
+        position = target
+        // Let the focus and scroll requesters attach to the target card first
+        withFrameNanos { }
+        // A card moved while focused keeps focus but isn't scrolled to, so scroll it into view
+        // the same way focus would
+        bringIntoViewRequester.bringIntoView()
+        if (state.layoutInfo.visibleItemsInfo.none { it.index == target }) state.scrollToItem(target)
+        firstFocus.tryRequestFocus()
+    }
 
     val currentOnClickItem by rememberUpdatedState(onClickItem)
     val currentOnLongClickItem by rememberUpdatedState(onLongClickItem)
@@ -154,11 +175,11 @@ fun <T> ItemRow(
                     .focusRestorer(firstFocus)
                     .focusRequester(focusRequester),
         ) {
-            itemsIndexed(items) { index, item ->
+            itemsIndexed(items, key = itemKey?.let { key -> { index, item -> key(index, item) } }) { index, item ->
                 val cardModifier =
                     remember(index, position) {
                         if (index == position) {
-                            Modifier.focusRequester(firstFocus)
+                            Modifier.focusRequester(firstFocus).bringIntoViewRequester(bringIntoViewRequester)
                         } else {
                             Modifier
                         }

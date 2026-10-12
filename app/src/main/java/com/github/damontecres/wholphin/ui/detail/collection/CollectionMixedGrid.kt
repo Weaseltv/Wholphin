@@ -11,6 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.preferences.UserPreferences
@@ -18,6 +19,7 @@ import com.github.damontecres.wholphin.ui.cards.GridCard
 import com.github.damontecres.wholphin.ui.data.RowColumn
 import com.github.damontecres.wholphin.ui.detail.CardGrid
 import com.github.damontecres.wholphin.ui.playback.scale
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.util.ScrollToTopBringIntoViewSpec
 import org.jellyfin.sdk.model.api.ItemSortBy
 
@@ -52,7 +54,7 @@ fun CollectionMixedGrid(
                 letterPosition = letterPosition,
                 gridFocusRequester = gridFocusRequester,
                 showJumpButtons = false, // TODO add preference
-                showLetterButtons = state.sortAndDirection.sort == ItemSortBy.SORT_NAME,
+                showLetterButtons = state.quickList == null && state.sortAndDirection.sort == ItemSortBy.SORT_NAME,
                 modifier =
                     Modifier
                         .fillMaxSize(),
@@ -75,6 +77,7 @@ fun CollectionMixedGrid(
                 },
                 columns = cardViewOptions.columns,
                 spacing = cardViewOptions.spacing.dp,
+                topContentPadding = collectionGridTopPadding(),
                 bringIntoViewSpec =
                     remember(cardViewOptions, density) {
                         val spacingPx = with(density) { cardViewOptions.spacing.dp.toPx() }
@@ -88,3 +91,10 @@ fun CollectionMixedGrid(
         }
     }
 }
+
+/**
+ * Space above a collection grid's first row: enough for a focused card's enlargement, outline and
+ * glow, without a large gap under the buttons.
+ */
+@Composable
+fun collectionGridTopPadding(): Dp = if (isWeaselTv()) 20.dp else 16.dp

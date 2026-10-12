@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.ui.main
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.BringIntoViewSpec
@@ -40,8 +41,14 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -162,6 +169,13 @@ fun HomePage(
 
             val playlistState by playlistViewModel.playlistState.collectAsState()
             var position by rememberPosition()
+            // Reordering the Streaming Services row: the row, the moving card and the order to restore on Back
+            var reorderState by remember { mutableStateOf<ReorderState?>(null) }
+            val currentHomeRows by rememberUpdatedState(homeRows)
+            BackHandler(enabled = reorderState != null) {
+                reorderState?.let { viewModel.setRowItems(it.row, it.original) }
+                reorderState = null
+            }
 
             val onFocusPosition = remember { { it: RowColumn -> position = it } }
             val currentHomePrefs by rememberUpdatedState(preferences.appPreferences.homePagePreferences)
@@ -226,6 +240,24 @@ fun HomePage(
                                         },
                                         onClearChosenStreams = {},
                                         onClickRemoveFromNextUp = viewModel::removeFromNextUp,
+                                        onReorder =
+                                            if (row?.rowType?.let(StreamingCollections::isStreamingRow) == true) {
+                                                {
+                                                    val items =
+                                                        (currentHomeRows.getOrNull(clickedPosition.row) as? HomeRowLoadingState.Success)
+                                                            ?.items
+                                                            .orEmpty()
+                                                    reorderState = ReorderState(clickedPosition.row, clickedPosition.column, items)
+                                                }
+                                            } else {
+                                                null
+                                            },
+                                        onResetOrder =
+                                            if (row?.rowType?.let(StreamingCollections::isStreamingRow) == true) {
+                                                { viewModel.resetStreamingOrder(clickedPosition.row) }
+                                            } else {
+                                                null
+                                            },
                                     ),
                             )
                     }
@@ -260,6 +292,27 @@ fun HomePage(
                 showLogo = preferences.appPreferences.interfacePreferences.showLogos,
                 showViewMore = true,
                 onClickViewMore = onClickViewMore,
+                reorder =
+                    reorderState?.let { reordering ->
+                        HomeRowReorder(
+                            row = reordering.row,
+                            index = reordering.index,
+                            onMove = { delta ->
+                                val size =
+                                    (currentHomeRows.getOrNull(reordering.row) as? HomeRowLoadingState.Success)?.items?.size ?: 0
+                                val to = reordering.index + delta
+                                if (to in 0 until size) {
+                                    viewModel.moveRowItem(reordering.row, reordering.index, to)
+                                    reorderState = reordering.copy(index = to)
+                                    position = RowColumn(reordering.row, to)
+                                }
+                            },
+                            onDone = {
+                                viewModel.saveStreamingOrder(reordering.row)
+                                reorderState = null
+                            },
+                        )
+                    },
                 modifier = modifier,
             )
             overviewDialog?.let { info ->
@@ -336,6 +389,7 @@ fun HomePageContent(
     splitHomeTitles: Boolean = false,
     rowHeading: (@Composable (HomeRowLoadingState.Success) -> Pair<String, String?>)? = null,
     onClickViewMore: (RowColumn, HomeRowLoadingState.Success) -> Unit = { _, _ -> },
+    reorder: HomeRowReorder? = null,
 ) {
     val focusedItem =
         remember(homeRows, position) {
@@ -407,11 +461,14 @@ fun HomePageContent(
                         }
                     }.fillMaxSize(),
         ) {
+            val hideHeader = isWeaselTv() && focusedRowHeight == null
             FitHeaderToHeight(
                 headerMaxHeight,
                 // Reserve the measured budget for every title in this row. Shorter
                 // copy must not lift the cards, then move them down for a long title.
                 fillHeight = isWeaselTv() && focusedRowHeight != null,
+                // Don't show the header at its unfitted size before the focused row is measured
+                modifier = Modifier.graphicsLayer { alpha = if (hideHeader) 0f else 1f },
             ) {
                 headerComposable.invoke(focusedItem)
             }
@@ -454,10 +511,12 @@ fun HomePageContent(
                             .focusRestorer(),
                 ) {
                     itemsIndexed(homeRows) { rowIndex, row ->
+                        val reordering = reorder?.row == rowIndex
                         val rowModifier =
                             Modifier
                                 .animateItem(placementSpec = null)
                                 .onSizeChanged { rowHeights[rowIndex] = it.height }
+                                .then(if (reordering) Modifier.onPreviewKeyEvent { reorder!!.onKey(it) } else Modifier)
                                 .padding(
                                     bottom =
                                         if (isWeaselTv() &&
@@ -507,7 +566,15 @@ fun HomePageContent(
                                             }
                                         ItemRow(
                                             title = heading.first,
-                                            titleKicker = heading.second,
+                                            titleKicker = if (reordering) stringResource(R.string.reorder_hint) else heading.second,
+                                            focusIndex = reorder?.index?.takeIf { reordering },
+                                            // Stable card identities, so focus moves with a card being reordered
+                                            itemKey =
+                                                if (row.rowType?.let(StreamingCollections::isStreamingRow) == true) {
+                                                    { index, item -> item?.id ?: index }
+                                                } else {
+                                                    null
+                                                },
                                             onTitleHeightChanged = { rowTitleHeights[rowIndex] = it },
                                             titleAccent = homeRowAccent(row.rowType, libraries),
                                             items = row.items,
@@ -1089,5 +1156,50 @@ fun HomePageViewMoreCard(
             size = DpSize(height = viewOptions.heightDp.dp, width = Dp.Unspecified),
             showTitle = viewOptions.showTitles,
         )
+    }
+}
+
+private data class ReorderState(
+    val row: Int,
+    val index: Int,
+    val original: List<BaseItem?>,
+)
+
+/**
+ * Reordering one Home row: Left/Right move the selected card ([onMove] with -1 or 1), OK places
+ * it ([onDone]), and Up/Down stay in the row. Back (cancel) is handled by the page.
+ */
+data class HomeRowReorder(
+    val row: Int,
+    val index: Int,
+    val onMove: (delta: Int) -> Unit,
+    val onDone: () -> Unit,
+) {
+    fun onKey(event: KeyEvent): Boolean {
+        val down = event.type == KeyEventType.KeyDown
+        return when (event.key) {
+            Key.DirectionLeft -> {
+                if (down) onMove(-1)
+                true
+            }
+
+            Key.DirectionRight -> {
+                if (down) onMove(1)
+                true
+            }
+
+            Key.DirectionUp, Key.DirectionDown -> {
+                true
+            }
+
+            Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
+                if (event.type == KeyEventType.KeyUp) onDone()
+                true
+            }
+
+            else -> {
+                false
+            }
+        }
     }
 }

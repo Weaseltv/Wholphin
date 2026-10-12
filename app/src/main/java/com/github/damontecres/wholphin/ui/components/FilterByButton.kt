@@ -82,6 +82,8 @@ fun FilterByButton(
     getPossibleValues: suspend (ItemFilterBy<*>) -> List<FilterValueOption>,
     modifier: Modifier = Modifier,
     onShow: ((Boolean) -> Unit)? = null,
+    contentColor: Color = Color.Unspecified,
+    compact: Boolean = false,
 ) {
     var dropDown by remember { mutableStateOf(false) }
     var nestedDropDown by remember { mutableStateOf<ItemFilterBy<*>?>(null) }
@@ -95,6 +97,8 @@ fun FilterByButton(
                 onShow?.invoke(true)
                 dropDown = true
             },
+            iconColor = contentColor,
+            compact = compact,
             modifier = Modifier,
         )
 
@@ -398,17 +402,20 @@ fun ExpandableFilterButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    compact: Boolean = false,
     iconColor: Color = Color.Unspecified,
 ) {
     val isFocused = interactionSource.collectIsFocusedAsState().value
+    val size = if (compact) COMPACT_BUTTON_SIZE else MinButtonSize
     Button(
         onClick = onClick,
         modifier =
             modifier.requiredSizeIn(
-                minWidth = MinButtonSize,
-                minHeight = MinButtonSize,
-                maxHeight = MinButtonSize,
+                minWidth = size,
+                minHeight = size,
+                maxHeight = size,
             ),
+        contentHeight = size,
         contentPadding = PaddingValues(0.dp), // DefaultButtonPadding,
         interactionSource = interactionSource,
     ) {
@@ -416,7 +423,7 @@ fun ExpandableFilterButton(
             modifier =
                 Modifier
                     .fillMaxHeight()
-                    .widthIn(min = if (filterCount > 0 || isFocused) (MinButtonSize - 12.dp) else MinButtonSize),
+                    .widthIn(min = if (filterCount > 0 || isFocused) (size - 12.dp) else size),
         ) {
             Text(
                 text = stringResource(R.string.fa_filter),
@@ -432,6 +439,7 @@ fun ExpandableFilterButton(
             Text(
                 text = filterCount.toString(),
                 style = MaterialTheme.typography.titleSmall,
+                color = iconColor,
                 modifier = Modifier.padding(end = 4.dp),
             )
         }
@@ -439,6 +447,7 @@ fun ExpandableFilterButton(
             Text(
                 text = stringResource(R.string.filter),
                 style = MaterialTheme.typography.titleSmall,
+                color = iconColor,
                 modifier = Modifier.padding(start = 4.dp, end = 4.dp),
             )
         }

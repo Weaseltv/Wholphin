@@ -2,14 +2,22 @@ package com.github.damontecres.wholphin.ui.components
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
+import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.neonOutlineColors
 import com.github.damontecres.wholphin.ui.theme.neonSurfaceBorder
 import com.github.damontecres.wholphin.ui.theme.neonSurfaceGlow
@@ -52,6 +60,8 @@ fun TypeFilterButton(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Smaller label and padding, for rows with many buttons. */
+    compact: Boolean = false,
 ) {
     val accent = typeAccent(option.accentKind)
     Button(
@@ -64,12 +74,77 @@ fun TypeFilterButton(
                 restColor = accent,
             ),
         glow = neonSurfaceGlow(accent),
-        contentPadding = PaddingValues(horizontal = 12.dp),
+        contentPadding = PaddingValues(horizontal = if (compact) COMPACT_PADDING else 12.dp),
+        contentHeight = if (compact) COMPACT_BUTTON_SIZE else MinButtonSize,
         modifier = modifier.semantics { this.selected = selected },
     ) {
         Text(
             text = stringResource(option.title).uppercase(),
             color = accent,
+            fontSize = if (compact) COMPACT_FONT_SIZE else TextUnit.Unspecified,
         )
     }
 }
+
+/**
+ * A Popular / Trending / Top 10 quick list on a streaming collection, in the collection's accent
+ * like its other buttons. It stays filled while its list is showing.
+ */
+@Composable
+fun QuickListButton(
+    @StringRes title: Int,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    /** The label colour; the outline and glow use the accent. */
+    contentColor: Color = NeonBoard.Text,
+    compact: Boolean = false,
+    /** Shows a small spinner while this list loads. */
+    loading: Boolean = false,
+) {
+    val accent = LocalNeonAccent.current
+    Button(
+        onClick = onClick,
+        colors =
+            ClickableSurfaceDefaults.colors(
+                containerColor = if (selected) NeonBoard.chipOn(accent) else Color.Transparent,
+                contentColor = NeonBoard.Text,
+                focusedContainerColor = NeonBoard.chipOn(accent),
+                focusedContentColor = NeonBoard.Text,
+                pressedContainerColor = NeonBoard.chipOn(accent),
+                pressedContentColor = NeonBoard.Text,
+            ),
+        border =
+            neonSurfaceBorder(
+                accent = accent,
+                restWidth = if (selected) 2.dp else 1.dp,
+                restColor = accent,
+            ),
+        glow = neonSurfaceGlow(accent),
+        contentPadding = PaddingValues(horizontal = if (compact) COMPACT_PADDING else 12.dp),
+        contentHeight = if (compact) COMPACT_BUTTON_SIZE else MinButtonSize,
+        modifier = modifier.semantics { this.selected = selected },
+    ) {
+        if (loading) {
+            CircularProgress(
+                Modifier
+                    .padding(end = 6.dp)
+                    .size(14.dp),
+            )
+        }
+        Text(
+            text = stringResource(title).uppercase(),
+            color = contentColor,
+            fontSize = if (compact) COMPACT_FONT_SIZE else TextUnit.Unspecified,
+        )
+    }
+}
+
+/** Side padding for compact filter buttons, e.g. a streaming collection's row. */
+internal val COMPACT_PADDING = 6.dp
+
+/** Label size for compact buttons, so a streaming collection's row fits on one line. */
+internal val COMPACT_FONT_SIZE = 15.sp
+
+/** Height of compact buttons, and the size of compact icon buttons. */
+internal val COMPACT_BUTTON_SIZE = 36.dp

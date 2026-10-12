@@ -83,6 +83,7 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.ui.AppColors
 import com.github.damontecres.wholphin.ui.FontAwesome
+import com.github.damontecres.wholphin.ui.cards.gridCardHeight
 import com.github.damontecres.wholphin.ui.components.LocalDetailViewport
 import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.ifElse
@@ -584,6 +585,30 @@ fun <T : CardGridItem> CardGrid(
 }
 
 private val letterHorizontalPadding = 2.dp
+
+/**
+ * The first-row height a [CardGrid] of [com.github.damontecres.wholphin.ui.cards.GridCard]s
+ * needs in a detail viewport. It's computed from the grid's geometry, so a header sized from it
+ * is right before items load and doesn't change when they do. It reserves a one-line title and
+ * a small gutter rather than the full bottom padding: a two-line title extends into that padding
+ * and stays visible, and the header keeps more room for its text.
+ */
+@Composable
+fun cardGridRowHeight(
+    gridWidth: Dp,
+    columns: Int,
+    spacing: Dp,
+    imageAspectRatio: Float,
+    showTitle: Boolean,
+    topContentPadding: Dp = if (isWeaselTv()) 32.dp else 16.dp,
+): Dp {
+    val cardSpacing = if (isWeaselTv()) ApprovedHomeLayout.CARD_SPACING_DP.dp else spacing
+    // The letter column (or its same-width spacer) is always reserved beside the grid
+    val cardsWidth = gridWidth - 16.dp - letterHorizontalPadding * 2 - alphabetCellSize()
+    val cardWidth = (cardsWidth - cardSpacing * (columns - 1)) / columns
+    return topContentPadding + gridCardHeight(cardWidth, imageAspectRatio, showTitle, titleLines = 1) + 8.dp
+}
+
 private val letterButtonSize = 14.dp
 
 /** Keep scaled glyphs inside their hit targets and reserve the same width without the picker. */

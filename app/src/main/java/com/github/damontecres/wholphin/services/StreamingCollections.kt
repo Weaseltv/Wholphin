@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.services
 
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
+import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
@@ -52,6 +53,32 @@ object StreamingCollections {
         return serviceOrder.indexOf(normalized).takeIf { it >= 0 }
     }
 
+    /**
+     * JustWatch's US package codes for each service in [serviceOrder], including ad tiers and
+     * plans that share the catalogue. Hallmark+ is only listed as an Apple TV channel.
+     */
+    private val justWatchPackages =
+        listOf(
+            listOf("nfx", "nfa"),
+            listOf("dnp"),
+            listOf("hlu"),
+            listOf("mxx"),
+            listOf("amp"),
+            listOf("ppp", "ppe"),
+            listOf("pct", "pcp"),
+            listOf("atp"),
+            listOf("acp"),
+            listOf("epx"),
+            listOf("stz"),
+            listOf("bbo"),
+            listOf("cru"),
+            listOf("hmc"),
+            listOf("agl"),
+        )
+
+    /** The JustWatch packages for the streaming collection named [name], if it's a known service. */
+    fun justWatchPackages(name: String?): List<String>? = serviceIndex(name)?.let(justWatchPackages::getOrNull)
+
     val row =
         HomeRowConfig.GetItems(
             name = NAME,
@@ -95,6 +122,13 @@ object StreamingCollections {
         )
         return HomePageResolvedSettings(rows)
     }
+
+    /** [items] in the default service order, ignoring any member's saved order. */
+    fun defaultOrder(items: List<BaseItem?>): List<BaseItem?> =
+        items.sortedWith(
+            compareBy<BaseItem?> { serviceIndex(it?.name) ?: serviceOrder.size }
+                .thenBy { it?.name.orEmpty().lowercase(Locale.ROOT) },
+        )
 
     /** Fresh member-scoped discovery on every Home load; no persisted membership cache. */
     suspend fun fetch(

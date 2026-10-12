@@ -95,6 +95,10 @@ data class ContextMenuActions(
     val onClickRemoveFromNextUp: (BaseItem) -> Unit = {},
     val onClickAddToQueue: (BaseItem) -> Unit = {},
     val onRemoveFromPlaylist: (Int, UUID) -> Unit = { _, _ -> },
+    /** Set where the item's row can be reordered, e.g. Home's Streaming Services row. */
+    val onReorder: ((BaseItem) -> Unit)? = null,
+    /** With [onReorder], puts the row back in its default order. */
+    val onResetOrder: (() -> Unit)? = null,
 )
 
 data class PersonContextActions(
@@ -349,6 +353,17 @@ private fun buildContextMenuItems(
                     dismissOnClick = true,
                 ) {
                     actions.onClickGoTo(item)
+                },
+            )
+        }
+        actions.onReorder?.let { onReorder ->
+            add(
+                DialogItem(
+                    text = R.string.reorder,
+                    iconStringRes = R.string.fa_arrow_left_arrow_right,
+                    dismissOnClick = true,
+                ) {
+                    onReorder(item)
                 },
             )
         }
@@ -643,6 +658,17 @@ private fun buildContextMenuItems(
                     dismissOnClick = true,
                 ) {
                     actions.onSendMediaInfo.invoke(item.id)
+                },
+            )
+        }
+        actions.onResetOrder?.let { onResetOrder ->
+            add(
+                DialogItem(
+                    text = R.string.reset_order,
+                    iconStringRes = R.string.fa_arrows_rotate,
+                    dismissOnClick = true,
+                ) {
+                    onResetOrder()
                 },
             )
         }

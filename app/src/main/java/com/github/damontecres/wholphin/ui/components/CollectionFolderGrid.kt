@@ -43,6 +43,7 @@ import com.github.damontecres.wholphin.ui.cards.GridCard
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
 import com.github.damontecres.wholphin.ui.detail.CardGrid
 import com.github.damontecres.wholphin.ui.detail.GridItemDetails
+import com.github.damontecres.wholphin.ui.detail.cardGridRowHeight
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.main.HomePageHeader
 import com.github.damontecres.wholphin.ui.main.settings.Library
@@ -89,8 +90,21 @@ fun CollectionFolderGrid(
         ) {
             val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
             val density = LocalDensity.current
+            val topContentPadding = if (isWeaselTv()) 24.dp else 16.dp
+            // Size the header for the grid's first row up front, so it doesn't change once items load
+            val gridRowHeight =
+                LocalDetailViewport.current?.let { viewport ->
+                    cardGridRowHeight(
+                        gridWidth = viewport.width,
+                        columns = viewOptions.columns,
+                        spacing = viewOptions.spacing.dp,
+                        imageAspectRatio = viewOptions.aspectRatio.ratio,
+                        showTitle = viewOptions.showTitles,
+                        topContentPadding = topContentPadding,
+                    )
+                }
             AnimatedVisibility(viewOptions.showDetails) {
-                FittedDetailHeader(reservedHeight = 0.dp) {
+                FittedDetailHeader(reservedHeight = 0.dp, firstRowHeight = gridRowHeight) {
                     HomePageHeader(
                         item = focusedItem,
                         showLogo = preferences.appPreferences.interfacePreferences.showLogos,
@@ -135,7 +149,7 @@ fun CollectionFolderGrid(
                 },
                 columns = viewOptions.columns,
                 spacing = viewOptions.spacing.dp,
-                topContentPadding = if (isWeaselTv()) 24.dp else 16.dp,
+                topContentPadding = topContentPadding,
                 bringIntoViewSpec =
                     remember(viewOptions, density) {
                         val spacingPx = with(density) { viewOptions.spacing.dp.toPx() }

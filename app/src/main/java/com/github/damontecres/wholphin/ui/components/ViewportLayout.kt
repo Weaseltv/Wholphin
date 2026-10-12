@@ -1,10 +1,13 @@
 package com.github.damontecres.wholphin.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -16,10 +19,12 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -28,6 +33,7 @@ import androidx.compose.ui.focus.FocusEventModifierNode
 import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onSizeChanged
@@ -49,18 +55,39 @@ import com.github.damontecres.wholphin.ui.theme.LocalHomeCardAppearance
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.util.KeepVisibleBringIntoViewSpec
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.ceil
 
 /** Measured first-row budget, shared by item, cast, chapter and discovery rows. */
 class DetailViewportState(
     val height: Dp,
+    val width: Dp = Dp.Unspecified,
 ) {
     var firstRowHeight by mutableStateOf(280.dp)
         private set
     private var firstRow: Any? = null
     private var firstRowPriority = Int.MAX_VALUE
     var actionBarHeight by mutableStateOf(72.dp)
+        private set
+
+    /** Whether any row has reported its height yet. */
+    var rowReported by mutableStateOf(false)
+        private set
+
+    /** Whether the action bar has reported its height yet. */
+    var actionBarReported by mutableStateOf(false)
+        private set
+
+    /**
+     * The first row and action bar heights the header was first shown with. Once set, the
+     * header keeps that size, so rows loading or changing below it never resize it.
+     */
+    var lockedRowHeight by mutableStateOf<Dp?>(null)
+        private set
+    var lockedActionBarHeight by mutableStateOf<Dp?>(null)
+        private set
 
     fun reportRow(
         key: Any,
@@ -72,6 +99,39 @@ class DetailViewportState(
             firstRowPriority = priority
         }
         if (firstRow === key) firstRowHeight = height
+        rowReported = true
+    }
+
+    fun reportActionBar(height: Dp) {
+        actionBarHeight = height
+        actionBarReported = true
+    }
+
+    /** Whether the page has been revealed with its header size fixed. */
+    val isLocked: Boolean get() = lockedRowHeight != null
+
+    /** Measurements a header needs before the page is revealed, registered by [FittedDetailHeader]. */
+    var needsRow by mutableStateOf(false)
+        private set
+    var needsActionBar by mutableStateOf(false)
+        private set
+
+    fun requireMeasurements(
+        row: Boolean,
+        actionBar: Boolean,
+    ) {
+        if (row) needsRow = true
+        if (actionBar) needsActionBar = true
+    }
+
+    val measurementsReady: Boolean
+        get() = (!needsRow || rowReported) && (!needsActionBar || actionBarReported)
+
+    fun lock() {
+        if (lockedRowHeight == null) {
+            lockedRowHeight = firstRowHeight
+            lockedActionBarHeight = actionBarHeight
+        }
     }
 }
 
@@ -88,14 +148,31 @@ fun DetailPageViewport(
     content: @Composable () -> Unit,
 ) {
     BoxWithConstraints(modifier) {
-        val state = remember(maxHeight) { DetailViewportState(maxHeight) }
+        val state = remember(maxHeight, maxWidth) { DetailViewportState(maxHeight, maxWidth) }
         val neon = isWeaselTv()
         val inheritedScrollSpec = LocalBringIntoViewSpec.current
+        if (neon) {
+            // Keep the page hidden until its header knows the row and action bar sizes, then
+            // reveal it with everything in its final place, so nothing shifts as it appears.
+            LaunchedEffect(state) {
+                // Lazy items (and their headers) compose during the first layout
+                withFrameNanos { }
+                withTimeoutOrNull(HEADER_MEASURE_TIMEOUT_MS) {
+                    snapshotFlow { state.measurementsReady }.first { it }
+                }
+                // Let the reported sizes settle for a frame before fixing the header's size
+                withFrameNanos { }
+                state.lock()
+            }
+        }
+        val alpha by animateFloatAsState(if (!neon || state.isLocked) 1f else 0f, tween(100), label = "pageReveal")
         CompositionLocalProvider(
             LocalDetailViewport provides if (neon) state else null,
             LocalBringIntoViewSpec provides if (neon) KeepVisibleBringIntoViewSpec else inheritedScrollSpec,
         ) {
-            content()
+            Box(Modifier.graphicsLayer { this.alpha = alpha }) {
+                content()
+            }
         }
     }
 }
@@ -114,23 +191,40 @@ fun Modifier.reportDetailRowHeight(priority: Int = Int.MAX_VALUE): Modifier {
 fun Modifier.reportDetailActionHeight(): Modifier {
     val viewport = LocalDetailViewport.current ?: return this
     val density = LocalDensity.current
-    return onSizeChanged { viewport.actionBarHeight = with(density) { it.height.toDp() } }
+    return onSizeChanged { viewport.reportActionBar(with(density) { it.height.toDp() }) }
 }
 
-/** Reserve a full first row, action bar and bottom gutter before laying out detail copy. */
+/** How long a page waits for its first row and action bar to be measured before showing. */
+private const val HEADER_MEASURE_TIMEOUT_MS = 300L
+
+/**
+ * Reserve a full first row, action bar and bottom gutter before laying out detail copy.
+ *
+ * Pass [firstRowHeight] when the first row's height is known up front. Otherwise the page
+ * ([DetailPageViewport]) stays hidden until the measured first row and action bar arrive (or a
+ * short timeout), then appears with the header at that size and keeps it, so the header never
+ * visibly shrinks or grows as rows load.
+ */
 @Composable
 fun FittedDetailHeader(
     reservedHeight: Dp? = null,
+    firstRowHeight: Dp? = null,
     content: @Composable () -> Unit,
 ) {
     val viewport = LocalDetailViewport.current
     if (viewport == null) {
         content()
     } else {
+        val waitForRow = firstRowHeight == null
+        val waitForActionBar = reservedHeight == null
+        SideEffect { viewport.requireMeasurements(row = waitForRow, actionBar = waitForActionBar) }
+        val rowHeight = firstRowHeight ?: viewport.lockedRowHeight ?: viewport.firstRowHeight
+        val actionBarHeight = viewport.lockedActionBarHeight ?: viewport.actionBarHeight
         val budget =
-            (viewport.height - viewport.firstRowHeight - (reservedHeight ?: (viewport.actionBarHeight + 32.dp))).coerceAtLeast(
-                1.dp,
-            )
+            (viewport.height - rowHeight - (reservedHeight ?: (actionBarHeight + 32.dp)))
+                .coerceAtLeast(
+                    1.dp,
+                )
         CompositionLocalProvider(LocalCompactDetailHeader provides (budget < 230.dp)) {
             FitHeaderToHeight(budget, content = content)
         }
@@ -146,10 +240,11 @@ fun FittedDetailHeader(
 fun FitHeaderToHeight(
     maxHeight: Dp,
     fillHeight: Boolean = false,
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
     CompositionLocalProvider(LocalHeaderHeightBudget provides maxHeight) {
-        Layout(content = content) { measurables, constraints ->
+        Layout(content = content, modifier = modifier) { measurables, constraints ->
             val children = measurables.map { it.measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity)) }
             val naturalHeight = children.maxOfOrNull { it.height } ?: 0
             val limit = maxHeight.roundToPx().coerceAtLeast(1)
