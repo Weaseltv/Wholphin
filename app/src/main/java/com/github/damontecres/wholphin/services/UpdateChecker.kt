@@ -47,6 +47,7 @@ import javax.inject.Singleton
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 
 /**
  * Checks if an app update is available
@@ -77,6 +78,11 @@ class UpdateChecker
             private val NOTE_REGEX = Regex("<!-- app-note:(.+) -->")
 
             val ACTIVE = BuildConfig.UPDATING_ENABLED
+
+            private const val PENDING_INSTALL_KEY = "preference.update.pendingInstallAt"
+
+            /** How long after being sent to "Install unknown apps" the update still carries on. */
+            private val PENDING_INSTALL_TIME = 30.minutes
         }
 
         private val _prompt = MutableStateFlow<Release?>(null)
@@ -133,6 +139,51 @@ class UpdateChecker
         /** WeaselFin: closes the popup, whichever button was pressed. */
         fun dismissPrompt() {
             _prompt.value = null
+        }
+
+        private val _resumeInstall = MutableStateFlow(false)
+
+        /**
+         * WeaselFin: true when an update was waiting on "Install unknown apps" and that is now
+         * allowed, so the update page should open and carry on (see [checkPendingInstall]).
+         */
+        val resumeInstall: StateFlow<Boolean> = _resumeInstall
+
+        /**
+         * WeaselFin: remember that an update is waiting for "Install unknown apps". Saved to
+         * disk because allowing it can make Android restart the app, which loses anything held
+         * in memory, so the update would otherwise need a second press.
+         */
+        fun markPendingInstall() {
+            PreferenceManager.getDefaultSharedPreferences(context).edit {
+                putLong(PENDING_INSTALL_KEY, System.currentTimeMillis())
+            }
+        }
+
+        fun clearPendingInstall() {
+            PreferenceManager.getDefaultSharedPreferences(context).edit { remove(PENDING_INSTALL_KEY) }
+        }
+
+        /** Whether an update was sent to "Install unknown apps" in the last [PENDING_INSTALL_TIME]. */
+        fun hasPendingInstall(): Boolean {
+            val markedAt = PreferenceManager.getDefaultSharedPreferences(context).getLong(PENDING_INSTALL_KEY, 0)
+            val age = System.currentTimeMillis() - markedAt
+            return markedAt > 0 && age in 0..PENDING_INSTALL_TIME.inWholeMilliseconds
+        }
+
+        /**
+         * WeaselFin: on returning to the app, carry on with an update that was waiting for
+         * "Install unknown apps" once it's allowed, including after Android restarted the app.
+         */
+        fun checkPendingInstall() {
+            if (hasPendingInstall() && canInstallPackages()) {
+                Timber.i("Install permission granted; resuming the pending update")
+                _resumeInstall.value = true
+            }
+        }
+
+        fun consumeResumeInstall() {
+            _resumeInstall.value = false
         }
 
         /**
