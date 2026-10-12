@@ -5,11 +5,42 @@
 - Notion MCP: Claude is Connected on T3 workers. Codex needs a one-time `codex mcp login notion` on that machine (OAuth is machine-local).
 - Do not invent new Products from chat folders. Link work to existing Products rows.
 - No production secrets in the repo.
-- The owner separates work across machines for load balancing. Stay on the
-  assigned machine; get explicit owner approval before using ThinkCentre or any
-  other machine for builds, tests, APK transfers, SSH tunnels, ADB bridging or
-  fallback routing. Historical procedures and Notion logs are not permission.
-  This rule applies even when Notion is unavailable or has not been read.
+
+## Machines: work on the machine the thread was opened on (owner, 2026-10-12)
+
+The owner works on this project from two T3 machines and spreads threads between
+them to balance load: the VPS (`srv1160496`, `100.72.23.45`) and the ThinkCentre
+(`justin-ThinkCentre-M73`, SSH alias `thinkcentre`, `100.87.100.109`). Neither is
+the default. Follow these rules even when Notion is unavailable or has not been read.
+
+- Do all of a thread's work on the machine the owner opened it on: editing,
+  builds, tests, APK transfers and Shield installs. Run `hostname` if unsure.
+- Never move a thread's work to the other machine. That includes falling back
+  when a build or ADB connection fails, the machine is busy, or an old procedure
+  or Notion log names the other machine. Stop and report instead. Move work only
+  when the owner says so for that task.
+- The one routine cross-machine action is the git refresh below. It only
+  fetches and fast-forwards; it never builds, edits or transfers files.
+
+### Keep both machines' code current
+
+Both machines keep a main checkout at `~/work/weaselfin/Wholphin`, and T3
+worktrees branch from it. That copy must never be more than a day behind GitHub.
+On 2026-10-12 the ThinkCentre's copy was four weeks old.
+
+- Start every task from fresh code: `git fetch --all --prune`, then branch from
+  `origin/weaselfin`, not a local `weaselfin` that may be stale. If the main
+  checkout is more than a day behind, run `./scripts/sync-machines.sh` first.
+- Finishing a task that pushed or merged code includes refreshing both
+  machines: push your branch first (GitHub is the only transfer; never copy code
+  between machines), then run `./scripts/sync-machines.sh`. It updates this
+  machine and the other one (VPS -> ThinkCentre, ThinkCentre -> VPS).
+- The script never discards changes or touches other threads' worktrees. Report
+  anything it couldn't update, and say in your report if the other machine
+  could not be reached.
+- Both machines sign Alpha builds with the same non-production debug key
+  (`~/.android/debug.keystore`, synced 2026-10-12), so an Alpha from either
+  machine installs over the other's. Never commit it or copy the release key.
 
 ## Android ship workflow
 
@@ -32,7 +63,7 @@
 ### Fast Alpha iteration (owner policy, 2026-10-07)
 
 - Optimize routine Alpha tweaks for turnaround: make the change, build only the
-  arm64 Alpha APK, install directly from the VPS, and hand it back to the owner.
+  arm64 Alpha APK, install it from the thread's machine, and hand it back to the owner.
   Build completion and `adb install -r` returning `Success` finish the iteration.
 - Skip optional checks unless the owner explicitly requests them: writing or
   running tests, lint, formatting/pre-commit suites, extra reviews, APK signature/
@@ -51,15 +82,16 @@
 - Report briefly: what changed and whether the Alpha build/install succeeded.
   Leave visual verification to the owner; do not claim it was performed.
 
-### Shield installs: direct VPS ADB over Tailscale
+### Shield installs: direct ADB over Tailscale
 
-- Verified on 2026-10-07: the VPS (`srv1160496`, `100.72.23.45`) connects directly
-  to the owner's Shield (`100.105.135.30:5555`, `shield.taildbfaa7.ts.net`).
-  Run builds and ADB on the VPS; transfer the APK directly to the Shield.
-  The previous ThinkCentre install route is superseded.
-- Keep Tailscale connected on the VPS and Shield, and network debugging enabled
-  on the Shield. If prompted, the owner approves the VPS's ADB authorization on
-  the Shield. For a requested install, the helper connects to the known target:
+- Build and install from the thread's machine. Both machines are on Tailscale
+  with the owner's Shield (`100.105.135.30:5555`, `shield.taildbfaa7.ts.net`);
+  the VPS route was verified on 2026-10-07. Transfer the APK straight to the
+  Shield; there is no jump host.
+- Keep Tailscale connected on both machines and the Shield, and network
+  debugging enabled on the Shield. If prompted, the owner approves that
+  machine's ADB authorization on the Shield. For a requested install, the helper
+  connects to the known target:
 
 ```bash
 export PATH="$HOME/Android/Sdk/platform-tools:$PATH"
@@ -74,12 +106,11 @@ export PATH="$HOME/Android/Sdk/platform-tools:$PATH"
 adb -s 100.105.135.30:5555 install -r app/build/outputs/apk/weaselfin/alpha/WeaselPlex-alpha-arm64-v8a.apk
 ```
 
-- Retain the existing VPS Alpha debug signing key and use in-place installs to
+- Retain the shared Alpha debug signing key and use in-place installs to
   preserve Alpha login/settings. Do not uninstall or clear data to work around a
   signing mismatch. Installation success is sufficient; owner testing follows.
-- If the direct connection fails, stop and report the problem. Ask for explicit
-  approval before involving another machine; do not silently fall back to
-  ThinkCentre. A paused install stays paused until the owner resumes it.
+- If the direct connection fails, stop and report the problem. Do not fall back
+  to the other machine. A paused install stays paused until the owner resumes it.
 
 ### Stable releases
 
