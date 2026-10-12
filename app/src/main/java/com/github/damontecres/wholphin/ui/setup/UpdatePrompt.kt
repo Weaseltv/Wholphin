@@ -49,6 +49,18 @@ fun UpdatePrompt(
 ) {
     val release by updateChecker.prompt.collectAsState()
     val current = navigationManager.backStack.lastOrNull()
+    // An update that was waiting on "Install unknown apps", now allowed: open the update page
+    // to carry on (it does so itself if it's already showing)
+    val resumeInstall by updateChecker.resumeInstall.collectAsState()
+    LaunchedEffect(resumeInstall, current) {
+        if (resumeInstall && !current.isPlayback) {
+            updateChecker.consumeResumeInstall()
+            updateChecker.dismissPrompt()
+            if (current !is Destination.UpdateApp) {
+                navigationManager.navigateTo(Destination.UpdateApp(installNow = true))
+            }
+        }
+    }
     release?.let { release ->
         if (!current.isPlayback && current !is Destination.UpdateApp) {
             UpdatePromptDialog(

@@ -359,6 +359,8 @@ class MainActivity : AppCompatActivity() {
         updateCheckJob =
             lifecycleScope.launchDefault {
                 repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    // Back from "Install unknown apps" (perhaps restarted by Android): carry on
+                    if (UpdateChecker.ACTIVE) updateChecker.checkPendingInstall()
                     while (isActive) {
                         val appPreferences = userPreferencesDataStore.data.first()
                         if (UpdateChecker.ACTIVE && appPreferences.autoCheckForUpdates) {

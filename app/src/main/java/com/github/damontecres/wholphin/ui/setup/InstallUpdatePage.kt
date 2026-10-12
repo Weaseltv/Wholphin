@@ -126,12 +126,17 @@ class UpdateViewModel
             // Ask for permission BEFORE downloading. Granting it restarts the app, so
             // doing this first means the restart costs nothing instead of stranding the
             // user on a spinner owned by a killed process.
+            // Already downloading, e.g. both the page opening and returning to it asked
+            if (downloadJob?.isActive == true) return
             if (!updater.canInstallPackages()) {
                 Timber.i("Install permission not granted yet; sending user to settings first")
                 _state.update { it.copy(needsInstallPermission = true) }
+                // Remembered on disk, so the install carries on even if allowing it restarts the app
+                updater.markPendingInstall()
                 updater.requestInstallPermission()
                 return
             }
+            updater.clearPendingInstall()
             _state.update { it.copy(needsInstallPermission = false) }
             downloadJob =
                 viewModelScope.launchIO {
@@ -191,15 +196,17 @@ fun InstallUpdatePage(
 
     val state by viewModel.state.collectAsState()
     var permissions by remember { mutableStateOf(viewModel.updater.hasPermissions()) }
+    // Android 9 and older ask for storage first; carry on with the update once it's allowed
+    var awaitingStorage by remember { mutableStateOf<Release?>(null) }
     val launcher =
         rememberLauncherForActivityResult(
             ActivityResultContracts.RequestPermission(),
         ) { isGranted: Boolean ->
             if (isGranted) {
                 permissions = true
-            } else {
-                // TODO
+                awaitingStorage?.let(viewModel::installRelease)
             }
+            awaitingStorage = null
         }
     when (val st = state.loading) {
         is LoadingState.Error -> {
@@ -217,6 +224,7 @@ fun InstallUpdatePage(
             if (release != null) {
                 val onInstallRelease = {
                     if (!permissions) {
+                        awaitingStorage = release
                         launcher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
                     } else {
                         viewModel.installRelease(release)
@@ -228,10 +236,15 @@ fun InstallUpdatePage(
                 if (installNow && release.version.isGreaterThan(viewModel.currentVersion)) {
                     OneTimeLaunchedEffect { onInstallRelease() }
                 }
-                // WeaselFin: back from "Install unknown apps" with it now allowed, and Android
-                // didn't restart the app: carry on rather than wait for a second press.
+                // WeaselFin: back from "Install unknown apps" with it now allowed: carry on rather
+                // than wait for a second press. The saved marker covers Android restarting the
+                // app when it's allowed, which loses needsInstallPermission.
                 LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-                    if (state.needsInstallPermission && viewModel.updater.canInstallPackages()) {
+                    val waiting = state.needsInstallPermission || viewModel.updater.hasPendingInstall()
+                    if (waiting &&
+                        viewModel.updater.canInstallPackages() &&
+                        release.version.isGreaterThan(viewModel.currentVersion)
+                    ) {
                         onInstallRelease()
                     }
                 }
