@@ -6,8 +6,8 @@ import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -213,6 +213,7 @@ class HomeRowGridViewModel
             viewModelScope.launchIO {
                 try {
                     val items = (state.value.loading as? HomeRowLoadingState.Success)?.items ?: return@launchIO
+
                     @Suppress("UNCHECKED_CAST")
                     val random =
                         (items as? BlockingList<BaseItem?>)?.randomBlocking()
