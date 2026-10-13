@@ -414,6 +414,7 @@ fun CollectionFolderHeader(
                             sortOptions = sortOptions,
                             current = sortAndDirection,
                             onSortChange = onSortChange,
+                            allCaps = isWeaselTv(),
                             modifier = Modifier.focusRequester(focusRequester),
                         )
                     }
@@ -431,12 +432,14 @@ fun CollectionFolderHeader(
                                         Modifier.focusRequester(focusRequester),
                                     ),
                             onShow = onShowFilterDropdown,
+                            allCaps = isWeaselTv(),
                         )
                     }
                     ExpandableFaButton(
                         title = R.string.view_options,
                         iconStringRes = R.string.fa_sliders,
                         onClick = onClickShowViewOptions,
+                        allCaps = isWeaselTv(),
                         modifier =
                             Modifier.ifElse(
                                 sortOptions.isEmpty() && filterOptions.isEmpty(),
@@ -458,6 +461,7 @@ fun CollectionFolderHeader(
                         onClick = onClickRandom,
                         modifier = Modifier.focusRequester(randomButtonFocusRequester),
                         enabled = listIsNotEmpty,
+                        allCaps = isWeaselTv(),
                     )
                 }
             }

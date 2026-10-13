@@ -84,6 +84,8 @@ fun FilterByButton(
     onShow: ((Boolean) -> Unit)? = null,
     contentColor: Color = Color.Unspecified,
     compact: Boolean = false,
+    /** An uppercase "FILTER" label when focused, like the other text buttons. */
+    allCaps: Boolean = false,
 ) {
     var dropDown by remember { mutableStateOf(false) }
     var nestedDropDown by remember { mutableStateOf<ItemFilterBy<*>?>(null) }
@@ -99,6 +101,7 @@ fun FilterByButton(
             },
             iconColor = contentColor,
             compact = compact,
+            allCaps = allCaps,
             modifier = Modifier,
         )
 
@@ -404,6 +407,7 @@ fun ExpandableFilterButton(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     compact: Boolean = false,
     iconColor: Color = Color.Unspecified,
+    allCaps: Boolean = false,
 ) {
     val isFocused = interactionSource.collectIsFocusedAsState().value
     val size = if (compact) COMPACT_BUTTON_SIZE else MinButtonSize
@@ -444,12 +448,20 @@ fun ExpandableFilterButton(
             )
         }
         AnimatedVisibility(isFocused) {
-            Text(
-                text = stringResource(R.string.filter),
-                style = MaterialTheme.typography.titleSmall,
-                color = iconColor,
-                modifier = Modifier.padding(start = 4.dp, end = 4.dp),
-            )
+            if (allCaps) {
+                Text(
+                    text = stringResource(R.string.filter).uppercase(),
+                    color = iconColor,
+                    modifier = Modifier.padding(start = 2.dp, end = 8.dp),
+                )
+            } else {
+                Text(
+                    text = stringResource(R.string.filter),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = iconColor,
+                    modifier = Modifier.padding(start = 4.dp, end = 4.dp),
+                )
+            }
         }
     }
 }

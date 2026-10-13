@@ -51,6 +51,8 @@ fun SortByButton(
     collapsed: Boolean = false,
     contentColor: Color = Color.Unspecified,
     compact: Boolean = false,
+    /** An uppercase label, like the other text buttons. */
+    allCaps: Boolean = false,
 ) {
     val currentSort = current.sort
     val currentDirection = current.direction
@@ -73,7 +75,7 @@ fun SortByButton(
                 },
             ) {
                 Text(
-                    text = current.toAnnotatedString(),
+                    text = current.toAnnotatedString(allCaps),
                 )
             }
         }
@@ -128,7 +130,7 @@ fun SortByButton(
 }
 
 @Composable
-fun SortAndDirection.toAnnotatedString() =
+fun SortAndDirection.toAnnotatedString(allCaps: Boolean = false) =
     buildAnnotatedString {
         withStyle(SpanStyle(fontFamily = FontAwesome)) {
             append(
@@ -142,7 +144,7 @@ fun SortAndDirection.toAnnotatedString() =
             )
         }
         append(" ")
-        append(stringResource(getStringRes(sort)))
+        append(stringResource(getStringRes(sort)).let { if (allCaps) it.uppercase() else it })
     }
 
 // TODO code duplicated from SortByButton
@@ -289,11 +291,10 @@ fun ExpandableSortButton(
         }
         AnimatedVisibility(isFocused) {
             Text(
-                text = stringResource(getStringRes(current.sort)),
-                style = MaterialTheme.typography.titleSmall,
+                text = stringResource(getStringRes(current.sort)).uppercase(),
                 color = contentColor,
                 fontSize = if (compact) COMPACT_FONT_SIZE else TextUnit.Unspecified,
-                modifier = Modifier.padding(start = 4.dp, end = if (compact) 6.dp else 8.dp),
+                modifier = Modifier.padding(start = 2.dp, end = if (compact) 6.dp else 8.dp),
             )
         }
     }

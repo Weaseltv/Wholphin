@@ -255,9 +255,11 @@ fun ExpandablePlayButton(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     mirrorIcon: Boolean = false,
     enabled: Boolean = true,
+    allCaps: Boolean = false,
 ) = ExpandablePlayButton(
     title = title,
     resume = resume,
+    allCaps = allCaps,
     icon = {
         Icon(
             imageVector = icon,
@@ -312,6 +314,8 @@ fun ExpandablePlayButton(
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     enabled: Boolean = true,
+    /** An uppercase label in the button font with the same padding as other text buttons. */
+    allCaps: Boolean = false,
 ) {
     val isFocused = interactionSource.collectIsFocusedAsState().value
     // Neon Board (`02-components-tv.md` § T5): the Play button is the PRIMARY in the item's
@@ -364,13 +368,21 @@ fun ExpandablePlayButton(
         ) {
             icon.invoke(this)
         }
-        AnimatedVisibility(isWeaselTv() || isFocused) {
-            Spacer(Modifier.size(8.dp))
+        if (allCaps) {
+            Spacer(Modifier.size(6.dp))
             Text(
-                text = stringResource(title),
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(end = 4.dp),
+                text = stringResource(title).uppercase(),
+                modifier = Modifier.padding(end = 8.dp),
             )
+        } else {
+            AnimatedVisibility(isWeaselTv() || isFocused) {
+                Spacer(Modifier.size(8.dp))
+                Text(
+                    text = stringResource(title),
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(end = 4.dp),
+                )
+            }
         }
     }
 }
@@ -391,6 +403,8 @@ fun ExpandableFaButton(
     contentColor: Color = Color.Unspecified,
     /** Show only the icon until focused, with an uppercase label in the button font. */
     collapsed: Boolean = false,
+    /** An uppercase label in the button font with the same padding as other text buttons. */
+    allCaps: Boolean = false,
 ) {
     val isFocused = interactionSource.collectIsFocusedAsState().value
     Button(
@@ -402,7 +416,12 @@ fun ExpandableFaButton(
                 minHeight = MinButtonSize,
                 maxHeight = MinButtonSize,
             ),
-        contentPadding = if (collapsed) PaddingValues(0.dp) else DefaultButtonPadding,
+        contentPadding =
+            when {
+                collapsed -> PaddingValues(0.dp)
+                allCaps -> PaddingValues(start = 4.dp, end = 4.dp)
+                else -> DefaultButtonPadding
+            },
         contentHeight = MinButtonSize,
         interactionSource = interactionSource,
     ) {
@@ -429,6 +448,12 @@ fun ExpandableFaButton(
                     modifier = Modifier.padding(start = 2.dp, end = 6.dp),
                 )
             }
+        } else if (allCaps) {
+            Text(
+                text = stringResource(title).uppercase(),
+                color = contentColor,
+                modifier = Modifier.padding(start = 2.dp, end = 8.dp),
+            )
         } else {
             AnimatedVisibility(isWeaselTv() || isFocused) {
                 Text(
@@ -484,6 +509,7 @@ fun DeleteButton(
     title: String,
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    allCaps: Boolean = false,
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     val focused by interactionSource.collectIsFocusedAsState()
@@ -518,6 +544,7 @@ fun DeleteButton(
         },
         onClick = { showDeleteDialog = true },
         interactionSource = interactionSource,
+        allCaps = allCaps,
         modifier = modifier,
     )
     if (showDeleteDialog) {
