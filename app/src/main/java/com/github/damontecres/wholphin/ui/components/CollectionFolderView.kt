@@ -102,7 +102,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
-import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
 import org.jellyfin.sdk.model.api.ImageType
@@ -402,17 +401,6 @@ class CollectionFolderViewModel
             }
         }
 
-        /**
-         * Streaming service cards show how many titles the service has, as Home and the collection
-         * page do, rather than Jellyfin's unwatched count, which counts every unwatched episode.
-         */
-        private fun withTitleCount(item: BaseItemDto): BaseItemDto =
-            if (BuildConfig.FLAVOR == "weaselfin" && StreamingCollections.isStreamingCollection(item)) {
-                item.copy(userData = item.userData?.copy(unplayedItemCount = item.childCount))
-            } else {
-                item
-            }
-
         /** Fetch every member-scoped collection, in the server's sort-name order. */
         private suspend fun loadOrderedCollections(
             request: GetItemsRequest,
@@ -436,7 +424,7 @@ class CollectionFolderViewModel
                             ),
                         ).content
                 val page = result.items
-                items.addAll(page.map { BaseItem(withTitleCount(it).copy(sortName = it.name), useSeriesForPrimary) })
+                items.addAll(page.map { BaseItem(it.copy(sortName = it.name), useSeriesForPrimary) })
                 start += page.size
                 if (page.isEmpty() || start >= result.totalRecordCount) break
             }
@@ -451,7 +439,7 @@ class CollectionFolderViewModel
             if (items is ApiRequestPager<*>) {
                 items.refreshItem(position, itemId)
             } else {
-                val updated = BaseItem(withTitleCount(api.userLibraryApi.getItem(itemId).content), useSeriesForPrimary)
+                val updated = BaseItem(api.userLibraryApi.getItem(itemId).content, useSeriesForPrimary)
                 _state.update { current ->
                     val currentItems = current.items.successValue ?: return@update current
                     current.copy(
@@ -588,7 +576,13 @@ class CollectionFolderViewModel
                                     }
                                 }
                             },
-                        fields = SlimItemFields,
+                        // Collections show their title count on the card
+                        fields =
+                            if (item?.data?.collectionType == CollectionType.BOXSETS) {
+                                SlimItemFields + ItemFields.CHILD_COUNT
+                            } else {
+                                SlimItemFields
+                            },
                     ),
                     // An unset UI type filter must not erase BOX_SET from the library query:
                     // ordering selection below relies on the effective query, not just the page title.

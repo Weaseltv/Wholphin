@@ -1041,7 +1041,7 @@ fun PlaylistItem(
                             showOverlay = true,
                             favorite = item?.data?.userData?.isFavorite ?: false,
                             watched = item?.data?.userData?.played ?: false,
-                            unwatchedCount = item?.data?.userData?.unplayedItemCount ?: -1,
+                            unwatchedCount = item?.countBadge ?: -1,
                             watchedPercent = 0.0,
                             numberOfVersions = item?.data?.mediaSourceCount ?: 0,
                             modifier = Modifier.width(imageWidth).height(72.dp),

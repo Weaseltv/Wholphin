@@ -473,7 +473,7 @@ fun ListItemSeries(
         }
     val trailingContent =
         remember(item) {
-            val unplayedItemCount = item?.data?.userData?.unplayedItemCount
+            val unplayedItemCount = item?.countBadge
             if (unplayedItemCount != null && unplayedItemCount > 0) {
                 @Composable { Text(unplayedItemCount.toString()) }
             } else if (item?.played == true) {

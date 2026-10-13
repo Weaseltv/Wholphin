@@ -110,7 +110,7 @@ fun GridCard(
                 showOverlay = true,
                 favorite = dto?.userData?.isFavorite ?: false,
                 watched = dto?.userData?.played ?: false,
-                unwatchedCount = dto?.userData?.unplayedItemCount ?: -1,
+                unwatchedCount = item?.countBadge ?: -1,
                 watchedPercent = dto?.userData?.playedPercentage,
                 numberOfVersions = dto?.mediaSourceCount ?: 0,
                 useFallbackText = false,

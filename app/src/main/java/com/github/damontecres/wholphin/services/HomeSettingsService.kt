@@ -1116,6 +1116,7 @@ class HomeSettingsService
                                 BaseItem(
                                     it.copy(
                                         userData = it.userData?.copy(unplayedItemCount = null),
+                                        childCount = null,
                                         officialRating = null,
                                         overview = it.overview?.replace(" in WeaselPlex", "", ignoreCase = true),
                                     ),
