@@ -1,13 +1,13 @@
 package com.github.damontecres.wholphin.ui.detail.collection
 
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.runtime.Composable
@@ -269,39 +269,44 @@ private fun StreamingCollectionButtons(
                 )
             }
         }
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(end = 16.dp, bottom = 8.dp),
-        ) {
-            SortByButton(
-                sortOptions = MovieSortOptions,
-                current = state.sortAndDirection,
-                onSortChange = onSortChange,
-            )
-            FilterByButton(
-                filterOptions = DefaultFilterOptions,
-                current = state.itemFilter,
-                onFilterChange = onFilterChange,
-                getPossibleValues = getPossibleFilterValues,
-            )
-            StreamingQuickList.entries.forEach { quickList ->
-                QuickListButton(
-                    title = quickList.title,
-                    selected = state.quickList == quickList,
-                    loading = state.quickListLoading == quickList,
-                    onClick = { onQuickListChange(quickList) },
+        // Grey outlines at rest like the Watchlist's buttons; the service colour shows on focus
+        CompositionLocalProvider(LocalNeonOutlineRest provides null) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(end = 16.dp, bottom = 8.dp),
+            ) {
+                StreamingQuickList.entries.forEach { quickList ->
+                    QuickListButton(
+                        title = quickList.title,
+                        selected = state.quickList == quickList,
+                        loading = state.quickListLoading == quickList,
+                        onClick = { onQuickListChange(quickList) },
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                ExpandableFaButton(
+                    title = R.string.sort_by_random,
+                    iconStringRes = R.string.fa_dice,
+                    onClick = onClickRandom,
+                    collapsed = true,
+                )
+                SortByButton(
+                    sortOptions = MovieSortOptions,
+                    current = state.sortAndDirection,
+                    onSortChange = onSortChange,
+                    collapsed = true,
+                )
+                FilterByButton(
+                    filterOptions = DefaultFilterOptions,
+                    current = state.itemFilter,
+                    onFilterChange = onFilterChange,
+                    getPossibleValues = getPossibleFilterValues,
                 )
             }
-            Spacer(Modifier.weight(1f))
-            ExpandableFaButton(
-                title = R.string.sort_by_random,
-                iconStringRes = R.string.fa_dice,
-                onClick = onClickRandom,
-            )
         }
     }
 }

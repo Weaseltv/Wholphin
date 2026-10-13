@@ -398,12 +398,12 @@ fun ExpandableFaButton(
         enabled = enabled,
         modifier =
             modifier.requiredSizeIn(
-                minWidth = if (collapsed) COMPACT_BUTTON_SIZE else MinButtonSize,
-                minHeight = if (collapsed) COMPACT_BUTTON_SIZE else MinButtonSize,
-                maxHeight = if (collapsed) COMPACT_BUTTON_SIZE else MinButtonSize,
+                minWidth = MinButtonSize,
+                minHeight = MinButtonSize,
+                maxHeight = MinButtonSize,
             ),
         contentPadding = if (collapsed) PaddingValues(0.dp) else DefaultButtonPadding,
-        contentHeight = if (collapsed) COMPACT_BUTTON_SIZE else MinButtonSize,
+        contentHeight = MinButtonSize,
         interactionSource = interactionSource,
     ) {
         Box(
@@ -426,7 +426,6 @@ fun ExpandableFaButton(
                 Text(
                     text = stringResource(title).uppercase(),
                     color = contentColor,
-                    fontSize = COMPACT_FONT_SIZE,
                     modifier = Modifier.padding(start = 2.dp, end = 6.dp),
                 )
             }

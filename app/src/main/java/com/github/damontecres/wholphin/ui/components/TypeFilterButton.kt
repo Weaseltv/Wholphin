@@ -17,6 +17,7 @@ import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.LocalNeonOutlineRest
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.neonOutlineColors
 import com.github.damontecres.wholphin.ui.theme.neonSurfaceBorder
@@ -114,11 +115,13 @@ fun QuickListButton(
                 pressedContainerColor = NeonBoard.chipOn(accent),
                 pressedContentColor = accent,
             ),
+        // Grey at rest like other outline buttons; the active list keeps the accent so it's clear
+        // which one is showing
         border =
             neonSurfaceBorder(
                 accent = accent,
                 restWidth = if (selected) 2.dp else 1.dp,
-                restColor = accent,
+                restColor = if (selected) accent else LocalNeonOutlineRest.current ?: NeonBoard.Line2,
             ),
         glow = neonSurfaceGlow(accent),
         contentPadding = PaddingValues(horizontal = if (compact) COMPACT_PADDING else 12.dp),
