@@ -3,6 +3,7 @@ package com.github.damontecres.wholphin.ui.detail.movie
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.ChosenStreams
 import com.github.damontecres.wholphin.data.ExtrasItem
 import com.github.damontecres.wholphin.data.ItemPlaybackRepository
@@ -152,12 +153,15 @@ class MovieViewModel
                         )
                     }
                 }
-                viewModelScope.launchIO {
-                    val results = seerrService.similar(movie).orEmpty()
-                    _state.update {
-                        it.copy(
-                            discovered = results,
-                        )
+                // WeaselPlex has no Requests row on movie pages
+                if (BuildConfig.FLAVOR != "weaselfin") {
+                    viewModelScope.launchIO {
+                        val results = seerrService.similar(movie).orEmpty()
+                        _state.update {
+                            it.copy(
+                                discovered = results,
+                            )
+                        }
                     }
                 }
 

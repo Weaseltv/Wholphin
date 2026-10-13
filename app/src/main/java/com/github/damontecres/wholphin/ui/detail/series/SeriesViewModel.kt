@@ -4,6 +4,7 @@ import android.content.Context
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.ChosenStreams
 import com.github.damontecres.wholphin.data.ExtrasItem
 import com.github.damontecres.wholphin.data.ItemPlaybackRepository
@@ -251,9 +252,12 @@ class SeriesViewModel
                             _state.update { it.copy(similar = similar) }
                         }
                     }
-                    viewModelScope.launchIO {
-                        val results = seerrService.similar(series).orEmpty()
-                        _state.update { it.copy(discovered = results) }
+                    // WeaselPlex has no Requests row on series pages
+                    if (BuildConfig.FLAVOR != "weaselfin") {
+                        viewModelScope.launchIO {
+                            val results = seerrService.similar(series).orEmpty()
+                            _state.update { it.copy(discovered = results) }
+                        }
                     }
                     viewModelScope.launchIO {
                         seerrService.active.collectLatest { active ->
@@ -527,6 +531,35 @@ class SeriesViewModel
                         "Could not find an episode to play",
                         Toast.LENGTH_SHORT,
                     )
+                }
+            }
+        }
+
+        /** Open a random episode of the series. */
+        fun onClickRandomEpisode() {
+            viewModelScope.launchIO {
+                try {
+                    val episode =
+                        GetItemsRequestHandler
+                            .execute(
+                                api,
+                                GetItemsRequest(
+                                    userId = serverRepository.currentUser?.id,
+                                    parentId = seriesId,
+                                    recursive = true,
+                                    includeItemTypes = listOf(BaseItemKind.EPISODE),
+                                    sortBy = listOf(ItemSortBy.RANDOM),
+                                    limit = 1,
+                                    enableTotalRecordCount = false,
+                                ),
+                            ).content.items
+                            .firstOrNull()
+                            ?.let { BaseItem(it, false) }
+                    episode?.let { navigateTo(it.destination()) }
+                } catch (ex: CancellationException) {
+                    throw ex
+                } catch (ex: Exception) {
+                    Timber.e(ex, "Error getting a random episode of %s", seriesId)
                 }
             }
         }

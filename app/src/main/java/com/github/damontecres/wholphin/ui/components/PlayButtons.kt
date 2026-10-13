@@ -64,6 +64,7 @@ import com.github.damontecres.wholphin.ui.data.SortAndDirection
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.PreviewInteractionSource
+import com.github.damontecres.wholphin.ui.theme.ProvideButtonsOverArtwork
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonOutlineColors
@@ -113,117 +114,120 @@ fun ExpandablePlayButtons(
 
     var chooseVersion by remember { mutableStateOf<DialogParams?>(null) }
 
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(8.dp),
-        modifier =
-            Modifier
-                .reportDetailActionHeight()
-                .then(modifier)
-                .focusGroup()
-                .focusRestorer(firstFocus),
-    ) {
-        item("play") {
-            ExpandablePlayButton(
-                title = if (resumePosition > Duration.ZERO) R.string.resume else R.string.play,
-                resume = resumePosition,
-                icon = Icons.Default.PlayArrow,
-                onClick = playOnClick,
-                modifier =
-                    Modifier
-                        .onFocusChanged(buttonOnFocusChanged)
-                        .focusRequester(firstFocus),
-            )
-        }
-        if (resumePosition > Duration.ZERO) {
-            item("restart") {
+    // Over the item's artwork: white outlines and a dark backing for readability
+    ProvideButtonsOverArtwork {
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(8.dp),
+            modifier =
+                Modifier
+                    .reportDetailActionHeight()
+                    .then(modifier)
+                    .focusGroup()
+                    .focusRestorer(firstFocus),
+        ) {
+            item("play") {
                 ExpandablePlayButton(
-                    title = R.string.restart,
-                    resume = Duration.ZERO,
-                    icon = Icons.Default.Refresh,
+                    title = if (resumePosition > Duration.ZERO) R.string.resume else R.string.play,
+                    resume = resumePosition,
+                    icon = Icons.Default.PlayArrow,
                     onClick = playOnClick,
-                    modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
-                    mirrorIcon = true,
-                    interactionSource = restartInteractionSource,
-                )
-            }
-        }
-
-        if (chooseVersionParams != null && chooseVersionParams.mediaSources.size > 1) {
-            item {
-                ExpandableFaButton(
-                    title = R.string.version,
-                    iconStringRes = R.string.fa_file_video,
-                    onClick = {
-                        chooseVersion =
-                            chooseVersionParams(
-                                resources,
-                                chooseVersionParams.mediaSources.orEmpty(),
-                                chooseVersionParams.chosenStreams
-                                    ?.source
-                                    ?.id
-                                    ?.toUUIDOrNull(),
-                            ) { idx ->
-                                val source = chooseVersionParams.mediaSources[idx]
-                                chooseVersionParams.onChooseVersion.invoke(source)
-                            }
-                    },
-                    modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
-                )
-            }
-        }
-
-        // Watched button
-        item("watched") {
-            ExpandableFaButton(
-                title = if (watched) R.string.mark_unwatched else R.string.mark_watched,
-                iconStringRes = if (watched) R.string.fa_eye else R.string.fa_eye_slash,
-                onClick = watchOnClick,
-                modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
-            )
-        }
-
-        // Favorite button
-        item("favorite") {
-            ExpandableFaButton(
-                title = if (favorite) R.string.remove_favorite else R.string.add_favorite,
-                iconStringRes = R.string.fa_heart,
-                onClick = favoriteOnClick,
-                iconColor = if (favorite) Color.Red else Color.Unspecified,
-                modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
-            )
-        }
-
-        if (trailers != null) {
-            item("trailers") {
-                TrailerButton(
-                    trailers = trailers,
-                    trailerOnClick = trailerOnClick,
-                    modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
-                )
-            }
-        }
-        if (canDelete) {
-            item("delete") {
-                DeleteButton(
-                    title = title,
-                    onConfirmDelete = onConfirmDelete,
                     modifier =
                         Modifier
-                            .onFocusChanged(buttonOnFocusChanged),
+                            .onFocusChanged(buttonOnFocusChanged)
+                            .focusRequester(firstFocus),
                 )
             }
-        }
+            if (resumePosition > Duration.ZERO) {
+                item("restart") {
+                    ExpandablePlayButton(
+                        title = R.string.restart,
+                        resume = Duration.ZERO,
+                        icon = Icons.Default.Refresh,
+                        onClick = playOnClick,
+                        modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
+                        mirrorIcon = true,
+                        interactionSource = restartInteractionSource,
+                    )
+                }
+            }
 
-        // More button
-        item("more") {
-            ExpandablePlayButton(
-                title = R.string.more,
-                resume = Duration.ZERO,
-                icon = Icons.Default.MoreVert,
-                onClick = { moreOnClick.invoke() },
-                modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
-            )
+            if (chooseVersionParams != null && chooseVersionParams.mediaSources.size > 1) {
+                item {
+                    ExpandableFaButton(
+                        title = R.string.version,
+                        iconStringRes = R.string.fa_file_video,
+                        onClick = {
+                            chooseVersion =
+                                chooseVersionParams(
+                                    resources,
+                                    chooseVersionParams.mediaSources.orEmpty(),
+                                    chooseVersionParams.chosenStreams
+                                        ?.source
+                                        ?.id
+                                        ?.toUUIDOrNull(),
+                                ) { idx ->
+                                    val source = chooseVersionParams.mediaSources[idx]
+                                    chooseVersionParams.onChooseVersion.invoke(source)
+                                }
+                        },
+                        modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
+                    )
+                }
+            }
+
+            // Watched button
+            item("watched") {
+                ExpandableFaButton(
+                    title = if (watched) R.string.mark_unwatched else R.string.mark_watched,
+                    iconStringRes = if (watched) R.string.fa_eye else R.string.fa_eye_slash,
+                    onClick = watchOnClick,
+                    modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
+                )
+            }
+
+            // Favorite button
+            item("favorite") {
+                ExpandableFaButton(
+                    title = if (favorite) R.string.remove_favorite else R.string.add_favorite,
+                    iconStringRes = R.string.fa_heart,
+                    onClick = favoriteOnClick,
+                    iconColor = if (favorite) Color.Red else Color.Unspecified,
+                    modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
+                )
+            }
+
+            if (trailers != null) {
+                item("trailers") {
+                    TrailerButton(
+                        trailers = trailers,
+                        trailerOnClick = trailerOnClick,
+                        modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
+                    )
+                }
+            }
+            if (canDelete) {
+                item("delete") {
+                    DeleteButton(
+                        title = title,
+                        onConfirmDelete = onConfirmDelete,
+                        modifier =
+                            Modifier
+                                .onFocusChanged(buttonOnFocusChanged),
+                    )
+                }
+            }
+
+            // More button
+            item("more") {
+                ExpandablePlayButton(
+                    title = R.string.more,
+                    resume = Duration.ZERO,
+                    icon = Icons.Default.MoreVert,
+                    onClick = { moreOnClick.invoke() },
+                    modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
+                )
+            }
         }
     }
     chooseVersion?.let { params ->
