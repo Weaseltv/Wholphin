@@ -301,7 +301,7 @@ class HomeViewModel
             }
         }
 
-        /** Forget the member's Streaming Services order and reload, so the server's order shows. */
+        /** Forget the member's Streaming Services order and reload, so the default order shows. */
         fun resetStreamingOrder(
             @Suppress("UNUSED_PARAMETER") rowIndex: Int,
         ) {
