@@ -24,11 +24,6 @@ import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.ui.playOnClickSound
 import com.github.damontecres.wholphin.ui.playSoundOnFocus
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
-import com.github.damontecres.wholphin.ui.theme.neonOutlineColors
-import com.github.damontecres.wholphin.ui.theme.neonSurfaceBorder
-import com.github.damontecres.wholphin.ui.theme.neonSurfaceGlow
-import com.github.damontecres.wholphin.ui.theme.neonSurfaceScale
-import com.github.damontecres.wholphin.ui.theme.neonSurfaceShape
 
 /**
  * Show a clickable overview. WeaselPlex measures complete text lines naturally.
@@ -68,20 +63,8 @@ fun OverviewText(
         )
     }
     if (isWeaselTv()) {
-        Surface(
-            onClick = {
-                playOnClickSound(context)
-                onClick()
-            },
-            enabled = enabled,
-            interactionSource = interactionSource,
-            shape = neonSurfaceShape(),
-            border = neonSurfaceBorder(),
-            glow = neonSurfaceGlow(),
-            scale = neonSurfaceScale(),
-            colors = neonOutlineColors(),
-            modifier = modifier.keepFocusedItemVisible().playSoundOnFocus(true),
-        ) { textContent() }
+        // WeaselPlex: descriptions are plain text. They can't be selected or opened in a popup.
+        Box(modifier = modifier) { textContent() }
     } else {
         Box(
             modifier =
