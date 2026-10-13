@@ -1,5 +1,9 @@
 package com.github.damontecres.wholphin.ui.detail.collection
 
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -72,6 +76,19 @@ fun CollectionButtons(
         LocalNeonAccent provides serviceColor.takeOrElse { LocalNeonAccent.current },
         LocalNeonOutlineRest provides serviceColor.takeIf { it.isSpecified },
     ) {
+        if (state.isStreaming) {
+            StreamingCollectionButtons(
+                state = state,
+                onSortChange = onSortChange,
+                onClickRandom = onClickRandom,
+                onQuickListChange = onQuickListChange,
+                onFilterChange = onFilterChange,
+                getPossibleFilterValues = getPossibleFilterValues,
+                firstFocus = firstFocus,
+                modifier = Modifier.reportDetailActionHeight().then(modifier),
+            )
+            return@CompositionLocalProvider
+        }
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier.reportDetailActionHeight().then(modifier),
@@ -210,6 +227,81 @@ fun CollectionButtons(
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * A streaming collection's buttons, laid out like the Watchlist's: ALL / MOVIES / SHOWS on the
+ * first row, then sort, filter and the quick lists, with Random on the right, at the Watchlist's
+ * sizes and spacing.
+ */
+@Composable
+private fun StreamingCollectionButtons(
+    state: CollectionState,
+    onSortChange: (SortAndDirection) -> Unit,
+    onClickRandom: () -> Unit,
+    onQuickListChange: (StreamingQuickList) -> Unit,
+    onFilterChange: (GetItemsFilter) -> Unit,
+    getPossibleFilterValues: suspend (ItemFilterBy<*>) -> List<FilterValueOption>,
+    firstFocus: FocusRequester,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .focusGroup()
+                .focusRestorer(firstFocus),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            // Room for the focus glow, as on the Watchlist
+            modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
+        ) {
+            StreamingTypeFilters.forEachIndexed { index, option ->
+                TypeFilterButton(
+                    option = option,
+                    selected = state.itemFilter.includeItemTypes == option.types,
+                    onClick = { onFilterChange(state.itemFilter.copy(includeItemTypes = option.types)) },
+                    modifier = if (index == 0) Modifier.focusRequester(firstFocus) else Modifier,
+                )
+            }
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(end = 16.dp, bottom = 8.dp),
+        ) {
+            SortByButton(
+                sortOptions = MovieSortOptions,
+                current = state.sortAndDirection,
+                onSortChange = onSortChange,
+            )
+            FilterByButton(
+                filterOptions = DefaultFilterOptions,
+                current = state.itemFilter,
+                onFilterChange = onFilterChange,
+                getPossibleValues = getPossibleFilterValues,
+            )
+            StreamingQuickList.entries.forEach { quickList ->
+                QuickListButton(
+                    title = quickList.title,
+                    selected = state.quickList == quickList,
+                    loading = state.quickListLoading == quickList,
+                    onClick = { onQuickListChange(quickList) },
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            ExpandableFaButton(
+                title = R.string.sort_by_random,
+                iconStringRes = R.string.fa_dice,
+                onClick = onClickRandom,
+            )
         }
     }
 }
