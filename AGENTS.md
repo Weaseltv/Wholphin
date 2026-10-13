@@ -42,6 +42,22 @@ On 2026-10-12 the ThinkCentre's copy was four weeks old.
   (`~/.android/debug.keystore`, synced 2026-10-12), so an Alpha from either
   machine installs over the other's. Never commit it or copy the release key.
 
+### Sending files to the owner's Windows PC: Taildrop
+
+The owner's Windows PC is `desktop-gualr4f` (`100.72.194.48`) on the same
+Tailscale network. It has no SSH, so never try `ssh`/`scp`, and never send files
+as T3 thread attachments instead. When the owner asks for files on their PC
+(for example "save to `C:\Users\justi\Desktop\...`"), send them with Taildrop
+from the thread's machine:
+
+```bash
+tailscale file cp <file> [<file> ...] desktop-gualr4f:
+```
+
+Taildrop delivers to the PC's Downloads folder; agents cannot choose the
+Windows folder. Say so in the report and give the target folder the owner asked
+for. Taildrop files *from* the PC arrive with `tailscale file get <dir>`.
+
 ## Android ship workflow
 
 ### Alpha testing and release cadence
