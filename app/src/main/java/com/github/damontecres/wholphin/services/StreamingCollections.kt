@@ -1,7 +1,6 @@
 package com.github.damontecres.wholphin.services
 
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
-import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
@@ -10,6 +9,8 @@ import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemFields
+import org.jellyfin.sdk.model.api.ItemSortBy
+import org.jellyfin.sdk.model.api.SortOrder
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import java.util.Locale
 import java.util.UUID
@@ -123,20 +124,24 @@ object StreamingCollections {
         return HomePageResolvedSettings(rows)
     }
 
-    /** [items] in the default service order, ignoring any member's saved order. */
-    fun defaultOrder(items: List<BaseItem?>): List<BaseItem?> =
-        items.sortedWith(
-            compareBy<BaseItem?> { serviceIndex(it?.name) ?: serviceOrder.size }
-                .thenBy { it?.name.orEmpty().lowercase(Locale.ROOT) },
-        )
-
-    /** Fresh member-scoped discovery on every Home load; no persisted membership cache. */
+    /**
+     * Fresh member-scoped discovery on every Home load; no persisted membership cache. Returned in
+     * the server's sort-name order, the order the web player and phone apps show.
+     */
     suspend fun fetch(
         api: ApiClient,
         userId: UUID,
     ): List<BaseItemDto> {
         val collections =
-            GetItemsRequestHandler.execute(api, row.getItems.copy(userId = userId)).content.items
+            GetItemsRequestHandler
+                .execute(
+                    api,
+                    row.getItems.copy(
+                        userId = userId,
+                        sortBy = listOf(ItemSortBy.SORT_NAME),
+                        sortOrder = listOf(SortOrder.ASCENDING),
+                    ),
+                ).content.items
         val visible =
             collections.filter { collection ->
                 // ChildCount may be absent on some servers. Probe with the same member scope.
@@ -155,11 +160,6 @@ object StreamingCollections {
                         .isNotEmpty()
                 )
             }
-        return visible.sortedWith(
-            compareBy<BaseItemDto> {
-                serviceIndex(it.name)
-                    ?: serviceOrder.size
-            }.thenBy { it.name.orEmpty().lowercase(Locale.ROOT) },
-        )
+        return visible
     }
 }
