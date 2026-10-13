@@ -21,7 +21,6 @@ import com.github.damontecres.wholphin.ui.components.ViewOptions
 import com.github.damontecres.wholphin.ui.components.ViewOptions.Companion.ViewOptionsAspectRatio
 import com.github.damontecres.wholphin.ui.components.ViewOptions.Companion.ViewOptionsColumns
 import com.github.damontecres.wholphin.ui.components.ViewOptions.Companion.ViewOptionsContentScale
-import com.github.damontecres.wholphin.ui.components.ViewOptions.Companion.ViewOptionsDetailHeader
 import com.github.damontecres.wholphin.ui.components.ViewOptions.Companion.ViewOptionsImageType
 import com.github.damontecres.wholphin.ui.components.ViewOptions.Companion.ViewOptionsReset
 import com.github.damontecres.wholphin.ui.components.ViewOptions.Companion.ViewOptionsShowTitles
@@ -98,7 +97,6 @@ data class CollectionViewOptions(
     val separateTypes: Boolean = false,
     val cardViewOptions: ViewOptions =
         ViewOptions(
-            showDetails = true,
             showTitles = true,
         ),
 ) {
@@ -115,7 +113,6 @@ data class CollectionViewOptions(
             listOf(
                 ViewOptionsImageType,
                 ViewOptionsAspectRatio,
-                ViewOptionsDetailHeader,
                 ViewOptionsShowTitles,
                 ViewOptionsColumns,
                 ViewOptionsSpacing,
@@ -125,7 +122,6 @@ data class CollectionViewOptions(
 
         val SeparateOptions =
             listOf(
-                ViewOptionsDetailHeader,
                 ViewOptionsShowTitles,
                 ViewOptionsReset,
             )

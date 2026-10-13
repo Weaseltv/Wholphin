@@ -134,7 +134,15 @@ class CollectionViewModel
             viewOptionsFlow.collectLatestIn(viewModelScope) { viewOptions ->
                 Timber.v("Updated viewOptions")
                 _state.update {
-                    it.copy(viewOptions = if (it.isStreaming || it.isCurated) StreamingViewOptions else viewOptions)
+                    it.copy(
+                        viewOptions =
+                            if (it.isStreaming || it.isCurated) {
+                                StreamingViewOptions
+                            } else {
+                                // Navigating the grid never swaps the header for the focused card, like library pages
+                                viewOptions.copy(cardViewOptions = viewOptions.cardViewOptions.copy(showDetails = false))
+                            },
+                    )
                 }
             }
             libraryDisplayInfoFlow
