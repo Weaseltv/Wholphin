@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
@@ -97,9 +98,21 @@ fun CollectionDetailsHeader(
 
                 // Description
                 dto.overview?.let { overview ->
+                    if (streaming) {
+                        // Short and fixed, so it's plain text: it can't take focus or open in a popup
+                        Text(
+                            text = overview.replace(" in WeaselPlex", "", ignoreCase = true),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(8.dp),
+                        )
+                        return@let
+                    }
                     OverviewText(
-                        overview = if (streaming) overview.replace(" in WeaselPlex", "", ignoreCase = true) else overview,
-                        maxLines = if (streaming) 2 else 3,
+                        overview = overview,
+                        maxLines = 3,
                         onClick = overviewOnClick,
                         textBoxHeight = Dp.Unspecified,
                         modifier =
