@@ -95,7 +95,7 @@ fun CollectionViewOptionsDialog(
 
 @Serializable
 data class CollectionViewOptions(
-    val separateTypes: Boolean = true,
+    val separateTypes: Boolean = false,
     val cardViewOptions: ViewOptions =
         ViewOptions(
             showDetails = true,
