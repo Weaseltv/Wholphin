@@ -62,9 +62,15 @@ import kotlin.math.ceil
 
 /** Measured first-row budget, shared by item, cast, chapter and discovery rows. */
 class DetailViewportState(
-    val height: Dp,
-    val width: Dp = Dp.Unspecified,
+    height: Dp,
+    width: Dp = Dp.Unspecified,
 ) {
+    /** The page's current size. It changes as headers above the content animate in and out. */
+    var height by mutableStateOf(height)
+        internal set
+    var width by mutableStateOf(width)
+        internal set
+
     var firstRowHeight by mutableStateOf(280.dp)
         private set
     private var firstRow: Any? = null
@@ -148,7 +154,11 @@ fun DetailPageViewport(
     content: @Composable () -> Unit,
 ) {
     BoxWithConstraints(modifier) {
-        val state = remember(maxHeight, maxWidth) { DetailViewportState(maxHeight, maxWidth) }
+        // One state for the life of the page: a header animating above the content changes its
+        // size every frame, and a new state would hide the page and fade it in again (a black flash)
+        val state = remember { DetailViewportState(maxHeight, maxWidth) }
+        state.height = maxHeight
+        state.width = maxWidth
         val neon = isWeaselTv()
         val inheritedScrollSpec = LocalBringIntoViewSpec.current
         if (neon) {
