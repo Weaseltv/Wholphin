@@ -189,21 +189,25 @@ fun DetailPageViewport(
 }
 
 /**
- * Rows scroll far enough to leave [room] beside the focused item, so the item at either end keeps
- * its border and glow instead of stopping flush against the clipping edge. WeaselTV only.
+ * On detail pages, rows scroll far enough to leave [start] / [end] beside the focused item, so the
+ * item at either end keeps its border and glow instead of stopping flush against the clipping edge.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun KeepFocusRoomOnScroll(
-    room: Dp,
+    start: Dp,
+    end: Dp = start,
     content: @Composable () -> Unit,
 ) {
-    if (!isWeaselTv()) {
+    val inherited = LocalBringIntoViewSpec.current
+    if (inherited !== KeepVisibleBringIntoViewSpec) {
         content()
         return
     }
-    val roomPx = with(LocalDensity.current) { room.toPx() }
-    val spec = remember(roomPx) { KeepVisibleWithMarginBringIntoViewSpec(roomPx) }
+    val density = LocalDensity.current
+    val startPx = with(density) { start.toPx() }
+    val endPx = with(density) { end.toPx() }
+    val spec = remember(startPx, endPx) { KeepVisibleWithMarginBringIntoViewSpec(startPx, endPx) }
     CompositionLocalProvider(LocalBringIntoViewSpec provides spec, content = content)
 }
 
@@ -295,6 +299,7 @@ fun FitHeaderToHeight(
 }
 
 /** All media rows reserve the actual focus enlargement, outline and glow on both edges. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FocusSafeLazyRow(
     modifier: Modifier = Modifier,
@@ -323,33 +328,42 @@ fun FocusSafeLazyRow(
         }
     val top = maxOf(contentPadding.calculateTopPadding(), clearance)
     val bottom = maxOf(contentPadding.calculateBottomPadding(), clearance)
+    val start = contentPadding.calculateStartPadding(direction)
+    // Detail pages scroll only until the focused item is visible, which leaves the end item flush
+    // against the edge. There, keep room for its focus effects at the end and while scrolling.
+    // The start padding stays as given, so the first item keeps its place.
+    val detailPage = neon && LocalBringIntoViewSpec.current === KeepVisibleBringIntoViewSpec
+    val end =
+        contentPadding.calculateEndPadding(direction).let { if (detailPage) maxOf(it, clearance) else it }
     val padding =
         PaddingValues(
-            start = contentPadding.calculateStartPadding(direction),
-            end = contentPadding.calculateEndPadding(direction),
+            start = start,
+            end = end,
             top = top,
             bottom = bottom,
         )
-    LazyRow(
-        modifier =
-            modifier
-                .onSizeChanged {
-                    // Subtract the same rounded pixel padding used by LazyRow. Subtracting
-                    // fractional dp from rounded sizes feeds rounding error back into padding.
-                    contentHeight =
-                        with(density) {
-                            (it.height - top.roundToPx() - bottom.roundToPx()).coerceAtLeast(0).toDp()
-                        }
-                },
-        state = state,
-        contentPadding = padding,
-        reverseLayout = reverseLayout,
-        horizontalArrangement = horizontalArrangement,
-        verticalAlignment = verticalAlignment,
-        flingBehavior = flingBehavior,
-        userScrollEnabled = userScrollEnabled,
-        content = content,
-    )
+    KeepFocusRoomOnScroll(start = if (detailPage) maxOf(start, clearance) else start, end = end) {
+        LazyRow(
+            modifier =
+                modifier
+                    .onSizeChanged {
+                        // Subtract the same rounded pixel padding used by LazyRow. Subtracting
+                        // fractional dp from rounded sizes feeds rounding error back into padding.
+                        contentHeight =
+                            with(density) {
+                                (it.height - top.roundToPx() - bottom.roundToPx()).coerceAtLeast(0).toDp()
+                            }
+                    },
+            state = state,
+            contentPadding = padding,
+            reverseLayout = reverseLayout,
+            horizontalArrangement = horizontalArrangement,
+            verticalAlignment = verticalAlignment,
+            flingBehavior = flingBehavior,
+            userScrollEnabled = userScrollEnabled,
+            content = content,
+        )
+    }
 }
 
 /**

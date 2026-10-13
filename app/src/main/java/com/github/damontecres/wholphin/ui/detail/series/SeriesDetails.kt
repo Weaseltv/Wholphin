@@ -43,7 +43,6 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.tv.material3.MaterialTheme
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ExtrasItem
-import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.DiscoverItem
 import com.github.damontecres.wholphin.data.model.Person
@@ -58,6 +57,7 @@ import com.github.damontecres.wholphin.ui.cards.ExtrasRow
 import com.github.damontecres.wholphin.ui.cards.ItemRow
 import com.github.damontecres.wholphin.ui.cards.PersonRow
 import com.github.damontecres.wholphin.ui.cards.SeasonCard
+import com.github.damontecres.wholphin.ui.components.ButtonGlowRoom
 import com.github.damontecres.wholphin.ui.components.ConfirmDialog
 import com.github.damontecres.wholphin.ui.components.ContextMenu
 import com.github.damontecres.wholphin.ui.components.ContextMenuActions
@@ -336,9 +336,6 @@ private const val EXTRAS_ROW = TRAILER_ROW + 1
 private const val SIMILAR_ROW = EXTRAS_ROW + 1
 private const val DISCOVER_ROW = SIMILAR_ROW + 1
 
-/** Room for a focused button's glow at the button row's ends. */
-private val BUTTON_GLOW_ROOM = 16.dp
-
 @Composable
 fun SeriesDetailsContent(
     preferences: UserPreferences,
@@ -405,7 +402,7 @@ fun SeriesDetailsContent(
                     }
                     // Over the series artwork: white outlines and a dark backing for readability
                     ProvideButtonsOverArtwork {
-                        KeepFocusRoomOnScroll(BUTTON_GLOW_ROOM) {
+                        KeepFocusRoomOnScroll(ButtonGlowRoom) {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                                 modifier =
@@ -413,9 +410,9 @@ fun SeriesDetailsContent(
                                         .reportDetailActionHeight()
                                         // Move the scroll's clipping edge out past the focus glow
                                         // without moving the buttons off the posters' line
-                                        .bleedHorizontal(start = BUTTON_GLOW_ROOM, end = 0.dp)
+                                        .bleedHorizontal(start = ButtonGlowRoom, end = 0.dp)
                                         .horizontalScroll(rememberScrollState())
-                                        .padding(start = HeaderUtils.startPadding + BUTTON_GLOW_ROOM, end = BUTTON_GLOW_ROOM)
+                                        .padding(start = HeaderUtils.startPadding + ButtonGlowRoom, end = ButtonGlowRoom)
                                         .focusRequester(focusRequesters[HEADER_ROW])
                                         .focusRestorer(firstButtonFocusRequester)
                                         .focusGroup()
@@ -483,37 +480,34 @@ fun SeriesDetailsContent(
                     }
                 }
                 item {
-                    // Scroll the end season clear of the edge so its border and glow show
-                    KeepFocusRoomOnScroll(ApprovedHomeLayout.END_PADDING_DP.dp) {
-                        ItemRow(
-                            title = stringResource(R.string.tv_seasons) + " (${seasons.size})",
-                            items = seasons,
-                            onClickItem = { index, item ->
-                                position = SEASONS_ROW
-                                onClickItem.invoke(index, item)
-                            },
-                            onLongClickItem = { index, item ->
-                                position = SEASONS_ROW
-                                onLongClickItem.invoke(index, item)
-                            },
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .reportDetailRowHeight(SEASONS_ROW)
-                                    .focusRequester(focusRequesters[SEASONS_ROW]),
-                            cardContent = @Composable { index, item, mod, onClick, onLongClick ->
-                                SeasonCard(
-                                    item = item,
-                                    onClick = onClick,
-                                    onLongClick = onLongClick,
-                                    imageHeight = Cards.height2x3,
-                                    imageWidth = Dp.Unspecified,
-                                    showImageOverlay = true,
-                                    modifier = mod,
-                                )
-                            },
-                        )
-                    }
+                    ItemRow(
+                        title = stringResource(R.string.tv_seasons) + " (${seasons.size})",
+                        items = seasons,
+                        onClickItem = { index, item ->
+                            position = SEASONS_ROW
+                            onClickItem.invoke(index, item)
+                        },
+                        onLongClickItem = { index, item ->
+                            position = SEASONS_ROW
+                            onLongClickItem.invoke(index, item)
+                        },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .reportDetailRowHeight(SEASONS_ROW)
+                                .focusRequester(focusRequesters[SEASONS_ROW]),
+                        cardContent = @Composable { index, item, mod, onClick, onLongClick ->
+                            SeasonCard(
+                                item = item,
+                                onClick = onClick,
+                                onLongClick = onLongClick,
+                                imageHeight = Cards.height2x3,
+                                imageWidth = Dp.Unspecified,
+                                showImageOverlay = true,
+                                modifier = mod,
+                            )
+                        },
+                    )
                 }
                 if (people.isNotEmpty()) {
                     item {
