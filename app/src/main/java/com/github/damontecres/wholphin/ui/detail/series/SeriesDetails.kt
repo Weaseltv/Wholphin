@@ -43,6 +43,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.tv.material3.MaterialTheme
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ExtrasItem
+import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.DiscoverItem
 import com.github.damontecres.wholphin.data.model.Person
@@ -52,6 +53,7 @@ import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.TrailerService
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.RequestOrRestoreFocus
+import com.github.damontecres.wholphin.ui.bleedHorizontal
 import com.github.damontecres.wholphin.ui.cards.ExtrasRow
 import com.github.damontecres.wholphin.ui.cards.ItemRow
 import com.github.damontecres.wholphin.ui.cards.PersonRow
@@ -66,10 +68,10 @@ import com.github.damontecres.wholphin.ui.components.DialogItem
 import com.github.damontecres.wholphin.ui.components.DialogParams
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.ExpandableFaButton
-import com.github.damontecres.wholphin.ui.components.ExpandablePlayButton
 import com.github.damontecres.wholphin.ui.components.FittedDetailHeader
 import com.github.damontecres.wholphin.ui.components.GenreText
 import com.github.damontecres.wholphin.ui.components.HeaderUtils
+import com.github.damontecres.wholphin.ui.components.KeepFocusRoomOnScroll
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.components.LocalCompactDetailHeader
 import com.github.damontecres.wholphin.ui.components.Optional
@@ -334,6 +336,9 @@ private const val EXTRAS_ROW = TRAILER_ROW + 1
 private const val SIMILAR_ROW = EXTRAS_ROW + 1
 private const val DISCOVER_ROW = SIMILAR_ROW + 1
 
+/** Room for a focused button's glow at the button row's ends. */
+private val BUTTON_GLOW_ROOM = 16.dp
+
 @Composable
 fun SeriesDetailsContent(
     preferences: UserPreferences,
@@ -370,7 +375,7 @@ fun SeriesDetailsContent(
 
     var position by rememberInt()
     val focusRequesters = remember { List(DISCOVER_ROW + 1) { FocusRequester() } }
-    val playFocusRequester = remember { FocusRequester() }
+    val firstButtonFocusRequester = remember { FocusRequester() }
     RequestOrRestoreFocus(focusRequesters.getOrNull(position))
 
     DetailPageViewport(modifier = modifier) {
@@ -400,144 +405,115 @@ fun SeriesDetailsContent(
                     }
                     // Over the series artwork: white outlines and a dark backing for readability
                     ProvideButtonsOverArtwork {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            modifier =
-                                Modifier
-                                    .reportDetailActionHeight()
-                                    .horizontalScroll(rememberScrollState())
-                                    .padding(start = HeaderUtils.startPadding)
-                                    .focusRequester(focusRequesters[HEADER_ROW])
-                                    .focusRestorer(playFocusRequester)
-                                    .focusGroup()
-                                    .padding(bottom = 16.dp),
-                        ) {
-                            // No Play here: pick a season first. Shuffle and Random expand on focus.
-                            ExpandableFaButton(
-                                title = R.string.shuffle,
-                                iconStringRes = R.string.fa_shuffle,
-                                onClick = {
-                                    position = HEADER_ROW
-                                    playOnClick.invoke(true)
-                                },
-                                collapsed = true,
+                        KeepFocusRoomOnScroll(BUTTON_GLOW_ROOM) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
                                 modifier =
                                     Modifier
-                                        .focusRequester(playFocusRequester)
-                                        .onFocusChanged {
-                                            if (it.isFocused) {
-                                                scope.launch(ExceptionHandler()) {
-                                                    bringIntoViewRequester.bringIntoView()
-                                                }
-                                            }
-                                        },
-                            )
-                            ExpandableFaButton(
-                                title = R.string.sort_by_random,
-                                iconStringRes = R.string.fa_dice,
-                                onClick = {
-                                    position = HEADER_ROW
-                                    onClickRandom()
-                                },
-                                collapsed = true,
-                                modifier =
+                                        .reportDetailActionHeight()
+                                        // Move the scroll's clipping edge out past the focus glow
+                                        // without moving the buttons off the posters' line
+                                        .bleedHorizontal(start = BUTTON_GLOW_ROOM, end = 0.dp)
+                                        .horizontalScroll(rememberScrollState())
+                                        .padding(start = HeaderUtils.startPadding + BUTTON_GLOW_ROOM, end = BUTTON_GLOW_ROOM)
+                                        .focusRequester(focusRequesters[HEADER_ROW])
+                                        .focusRestorer(firstButtonFocusRequester)
+                                        .focusGroup()
+                                        .padding(bottom = 16.dp),
+                            ) {
+                                val bringHeaderIntoView =
                                     Modifier.onFocusChanged {
                                         if (it.isFocused) {
                                             scope.launch(ExceptionHandler()) {
                                                 bringIntoViewRequester.bringIntoView()
                                             }
                                         }
-                                    },
-                            )
-                            ExpandableFaButton(
-                                title = if (played) R.string.mark_unwatched else R.string.mark_watched,
-                                iconStringRes = if (played) R.string.fa_eye else R.string.fa_eye_slash,
-                                onClick = watchOnClick,
-                                modifier =
-                                    Modifier.onFocusChanged {
-                                        if (it.isFocused) {
-                                            scope.launch(ExceptionHandler()) {
-                                                bringIntoViewRequester.bringIntoView()
-                                            }
-                                        }
-                                    },
-                            )
-                            ExpandableFaButton(
-                                title = if (favorite) R.string.remove_favorite else R.string.add_favorite,
-                                iconStringRes = R.string.fa_heart,
-                                onClick = favoriteOnClick,
-                                iconColor = if (favorite) Color.Red else Color.Unspecified,
-                                modifier =
-                                    Modifier.onFocusChanged {
-                                        if (it.isFocused) {
-                                            scope.launch(ExceptionHandler()) {
-                                                bringIntoViewRequester.bringIntoView()
-                                            }
-                                        }
-                                    },
-                            )
-                            TrailerButton(
-                                trailers = trailers,
-                                trailerOnClick = trailerOnClick,
-                                modifier =
-                                    Modifier.onFocusChanged {
-                                        if (it.isFocused) {
-                                            scope.launch(ExceptionHandler()) {
-                                                bringIntoViewRequester.bringIntoView()
-                                            }
-                                        }
-                                    },
-                            )
-                            if (canDelete) {
-                                DeleteButton(
-                                    title = series.title ?: "",
-                                    onConfirmDelete = {
-                                        position = HEADER_ROW
-                                        actions.onDeleteItem.invoke(series)
-                                    },
-                                    modifier =
-                                        Modifier
-                                            .onFocusChanged {
-                                                if (it.isFocused) {
-                                                    scope.launch(ExceptionHandler()) {
-                                                        bringIntoViewRequester.bringIntoView()
-                                                    }
-                                                }
-                                            },
+                                    }
+                                // No Play here: pick a season first. Random and Shuffle expand on focus.
+                                ExpandableFaButton(
+                                    title = if (favorite) R.string.remove_favorite else R.string.add_favorite,
+                                    iconStringRes = R.string.fa_heart,
+                                    onClick = favoriteOnClick,
+                                    iconColor = if (favorite) Color.Red else Color.Unspecified,
+                                    modifier = Modifier.focusRequester(firstButtonFocusRequester).then(bringHeaderIntoView),
                                 )
+                                TrailerButton(
+                                    trailers = trailers,
+                                    trailerOnClick = trailerOnClick,
+                                    modifier = bringHeaderIntoView,
+                                )
+                                ExpandableFaButton(
+                                    title = if (played) R.string.mark_unwatched else R.string.mark_watched,
+                                    iconStringRes = if (played) R.string.fa_eye else R.string.fa_eye_slash,
+                                    onClick = watchOnClick,
+                                    modifier = bringHeaderIntoView,
+                                )
+                                ExpandableFaButton(
+                                    title = R.string.sort_by_random,
+                                    iconStringRes = R.string.fa_dice,
+                                    onClick = {
+                                        position = HEADER_ROW
+                                        onClickRandom()
+                                    },
+                                    collapsed = true,
+                                    modifier = bringHeaderIntoView,
+                                )
+                                ExpandableFaButton(
+                                    title = R.string.shuffle,
+                                    iconStringRes = R.string.fa_shuffle,
+                                    onClick = {
+                                        position = HEADER_ROW
+                                        playOnClick.invoke(true)
+                                    },
+                                    collapsed = true,
+                                    modifier = bringHeaderIntoView,
+                                )
+                                if (canDelete) {
+                                    DeleteButton(
+                                        title = series.title ?: "",
+                                        onConfirmDelete = {
+                                            position = HEADER_ROW
+                                            actions.onDeleteItem.invoke(series)
+                                        },
+                                        modifier = bringHeaderIntoView,
+                                    )
+                                }
                             }
                         }
                     }
                 }
                 item {
-                    ItemRow(
-                        title = stringResource(R.string.tv_seasons) + " (${seasons.size})",
-                        items = seasons,
-                        onClickItem = { index, item ->
-                            position = SEASONS_ROW
-                            onClickItem.invoke(index, item)
-                        },
-                        onLongClickItem = { index, item ->
-                            position = SEASONS_ROW
-                            onLongClickItem.invoke(index, item)
-                        },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .reportDetailRowHeight(SEASONS_ROW)
-                                .focusRequester(focusRequesters[SEASONS_ROW]),
-                        cardContent = @Composable { index, item, mod, onClick, onLongClick ->
-                            SeasonCard(
-                                item = item,
-                                onClick = onClick,
-                                onLongClick = onLongClick,
-                                imageHeight = Cards.height2x3,
-                                imageWidth = Dp.Unspecified,
-                                showImageOverlay = true,
-                                modifier = mod,
-                            )
-                        },
-                    )
+                    // Scroll the end season clear of the edge so its border and glow show
+                    KeepFocusRoomOnScroll(ApprovedHomeLayout.END_PADDING_DP.dp) {
+                        ItemRow(
+                            title = stringResource(R.string.tv_seasons) + " (${seasons.size})",
+                            items = seasons,
+                            onClickItem = { index, item ->
+                                position = SEASONS_ROW
+                                onClickItem.invoke(index, item)
+                            },
+                            onLongClickItem = { index, item ->
+                                position = SEASONS_ROW
+                                onLongClickItem.invoke(index, item)
+                            },
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .reportDetailRowHeight(SEASONS_ROW)
+                                    .focusRequester(focusRequesters[SEASONS_ROW]),
+                            cardContent = @Composable { index, item, mod, onClick, onLongClick ->
+                                SeasonCard(
+                                    item = item,
+                                    onClick = onClick,
+                                    onLongClick = onLongClick,
+                                    imageHeight = Cards.height2x3,
+                                    imageWidth = Dp.Unspecified,
+                                    showImageOverlay = true,
+                                    modifier = mod,
+                                )
+                            },
+                        )
+                    }
                 }
                 if (people.isNotEmpty()) {
                     item {

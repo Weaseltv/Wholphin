@@ -422,8 +422,11 @@ fun ExpandableFaButton(
             ),
         contentPadding =
             when {
-                collapsed -> PaddingValues(0.dp)
+                // Centres the 32dp icon in the 40dp button while collapsed
+                collapsed -> PaddingValues(horizontal = (MinButtonSize - 32.dp) / 2)
+
                 allCaps -> PaddingValues(start = 4.dp, end = 4.dp)
+
                 else -> DefaultButtonPadding
             },
         contentHeight = MinButtonSize,

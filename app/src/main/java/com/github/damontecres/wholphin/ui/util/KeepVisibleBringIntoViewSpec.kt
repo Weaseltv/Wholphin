@@ -29,3 +29,17 @@ object KeepVisibleBringIntoViewSpec : BringIntoViewSpec {
         return if (abs(distance) <= 1f) 0f else distance
     }
 }
+
+/**
+ * [KeepVisibleBringIntoViewSpec] that also keeps [marginPx] clear beside the target, so a
+ * focused item at a row's end shows the row's edge padding and its border and glow aren't cut.
+ */
+class KeepVisibleWithMarginBringIntoViewSpec(
+    private val marginPx: Float,
+) : BringIntoViewSpec {
+    override fun calculateScrollDistance(
+        offset: Float,
+        size: Float,
+        containerSize: Float,
+    ): Float = KeepVisibleBringIntoViewSpec.calculateScrollDistance(offset - marginPx, size + 2 * marginPx, containerSize)
+}

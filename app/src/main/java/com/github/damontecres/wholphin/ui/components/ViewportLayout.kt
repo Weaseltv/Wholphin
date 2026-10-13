@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import com.github.damontecres.wholphin.ui.theme.LocalHomeCardAppearance
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.util.KeepVisibleBringIntoViewSpec
+import com.github.damontecres.wholphin.ui.util.KeepVisibleWithMarginBringIntoViewSpec
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -185,6 +186,25 @@ fun DetailPageViewport(
             }
         }
     }
+}
+
+/**
+ * Rows scroll far enough to leave [room] beside the focused item, so the item at either end keeps
+ * its border and glow instead of stopping flush against the clipping edge. WeaselTV only.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun KeepFocusRoomOnScroll(
+    room: Dp,
+    content: @Composable () -> Unit,
+) {
+    if (!isWeaselTv()) {
+        content()
+        return
+    }
+    val roomPx = with(LocalDensity.current) { room.toPx() }
+    val spec = remember(roomPx) { KeepVisibleWithMarginBringIntoViewSpec(roomPx) }
+    CompositionLocalProvider(LocalBringIntoViewSpec provides spec, content = content)
 }
 
 /** Report a whole titled row, including captions and the clearance for focus effects. */
