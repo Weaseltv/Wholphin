@@ -34,6 +34,7 @@ import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
 import com.github.damontecres.wholphin.ui.data.flip
 import com.github.damontecres.wholphin.ui.data.getStringRes
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
 
@@ -52,7 +53,7 @@ fun SortByButton(
     contentColor: Color = Color.Unspecified,
     compact: Boolean = false,
     /** An uppercase label, like the other text buttons. */
-    allCaps: Boolean = false,
+    allCaps: Boolean = isWeaselTv(),
 ) {
     val currentSort = current.sort
     val currentDirection = current.direction

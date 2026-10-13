@@ -63,6 +63,7 @@ import com.github.damontecres.wholphin.data.model.GetItemsFilter
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import java.util.UUID
 
@@ -85,7 +86,7 @@ fun FilterByButton(
     contentColor: Color = Color.Unspecified,
     compact: Boolean = false,
     /** An uppercase "FILTER" label when focused, like the other text buttons. */
-    allCaps: Boolean = false,
+    allCaps: Boolean = isWeaselTv(),
 ) {
     var dropDown by remember { mutableStateOf(false) }
     var nestedDropDown by remember { mutableStateOf<ItemFilterBy<*>?>(null) }
@@ -407,7 +408,7 @@ fun ExpandableFilterButton(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     compact: Boolean = false,
     iconColor: Color = Color.Unspecified,
-    allCaps: Boolean = false,
+    allCaps: Boolean = isWeaselTv(),
 ) {
     val isFocused = interactionSource.collectIsFocusedAsState().value
     val size = if (compact) COMPACT_BUTTON_SIZE else MinButtonSize

@@ -255,7 +255,7 @@ fun ExpandablePlayButton(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     mirrorIcon: Boolean = false,
     enabled: Boolean = true,
-    allCaps: Boolean = false,
+    allCaps: Boolean = isWeaselTv(),
 ) = ExpandablePlayButton(
     title = title,
     resume = resume,
@@ -315,7 +315,7 @@ fun ExpandablePlayButton(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     enabled: Boolean = true,
     /** An uppercase label in the button font with the same padding as other text buttons. */
-    allCaps: Boolean = false,
+    allCaps: Boolean = isWeaselTv(),
 ) {
     val isFocused = interactionSource.collectIsFocusedAsState().value
     // Neon Board (`02-components-tv.md` § T5): the Play button is the PRIMARY in the item's
@@ -404,7 +404,7 @@ fun ExpandableFaButton(
     /** Show only the icon until focused, with an uppercase label in the button font. */
     collapsed: Boolean = false,
     /** An uppercase label in the button font with the same padding as other text buttons. */
-    allCaps: Boolean = false,
+    allCaps: Boolean = isWeaselTv(),
 ) {
     val isFocused = interactionSource.collectIsFocusedAsState().value
     Button(
@@ -509,7 +509,7 @@ fun DeleteButton(
     title: String,
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
-    allCaps: Boolean = false,
+    allCaps: Boolean = isWeaselTv(),
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     val focused by interactionSource.collectIsFocusedAsState()
