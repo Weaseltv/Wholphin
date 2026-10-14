@@ -26,14 +26,23 @@ object CollectionGroups {
             "Streaming Services",
         )
 
+    private val groupOrder = compareBy<String>({ order.indexOf(it).takeIf { index -> index >= 0 } ?: order.size }, { it })
+
     /** The groups that [collections] belong to, in the owner's order. Groups with no collections are left out. */
     fun groups(collections: List<BaseItemDto>): List<String> =
         collections
-            .flatMap { it.tags.orEmpty() }
-            .filter { it.startsWith(TAG_PREFIX) && it.length > TAG_PREFIX.length }
-            .map { it.removePrefix(TAG_PREFIX) }
+            .mapNotNull(::group)
             .distinct()
-            .sortedWith(compareBy({ order.indexOf(it).takeIf { index -> index >= 0 } ?: order.size }, { it }))
+            .sortedWith(groupOrder)
+
+    /** [collections] group by group in the owner's order, keeping their order within each group. Untagged ones go last. */
+    fun inGroupOrder(collections: List<BaseItemDto>): List<BaseItemDto> =
+        collections.sortedWith(compareBy(nullsLast(groupOrder)) { group(it) })
+
+    private fun group(collection: BaseItemDto): String? =
+        collection.tags
+            ?.firstOrNull { it.startsWith(TAG_PREFIX) && it.length > TAG_PREFIX.length }
+            ?.removePrefix(TAG_PREFIX)
 
     fun tag(group: String) = TAG_PREFIX + group
 }

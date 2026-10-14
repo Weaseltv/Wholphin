@@ -390,14 +390,6 @@ fun CollectionFolderHeader(
             if (showTitle) {
                 GridTitle(title, collectionsOptions = collectionsOptions)
             }
-            if (collectionGroups.isNotEmpty()) {
-                CollectionGroupButtons(
-                    groups = collectionGroups,
-                    selected = collectionGroup,
-                    onChange = onCollectionGroupChange,
-                    selectedFocusRequester = groupButtonFocusRequester,
-                )
-            }
             val endPadding =
                 16.dp + if (sortAndDirection.sort == ItemSortBy.SORT_NAME) 24.dp else 0.dp
 
@@ -481,13 +473,21 @@ fun CollectionFolderHeader(
                     )
                 }
             }
+            if (collectionGroups.isNotEmpty()) {
+                CollectionGroupButtons(
+                    groups = collectionGroups,
+                    selected = collectionGroup,
+                    onChange = onCollectionGroupChange,
+                    selectedFocusRequester = groupButtonFocusRequester,
+                )
+            }
         }
     }
 }
 
 /**
- * The Collections page's group shortcuts: ALL and four groups on the first row, then four to a
- * row. Smaller than the page's other buttons so each row fits without scrolling.
+ * The Collections page's group shortcuts on two rows, ALL first. Smaller than the page's other
+ * buttons so each row fits without scrolling.
  */
 @Composable
 private fun CollectionGroupButtons(
@@ -499,16 +499,16 @@ private fun CollectionGroupButtons(
 ) {
     // null is ALL
     val buttons = listOf(null) + groups
-    val rows = listOf(buttons.take(5)) + buttons.drop(5).chunked(4)
+    val rows = buttons.chunked((buttons.size + 1) / 2)
     val all = stringResource(R.string.streaming_all).uppercase()
     // Grey outlines at rest; the accent shows on focus and on the group that's showing
     CompositionLocalProvider(LocalNeonOutlineRest provides null) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = modifier.padding(top = 4.dp, bottom = 4.dp).focusGroup(),
+            verticalArrangement = Arrangement.spacedBy(GROUP_BUTTON_SPACING),
+            modifier = modifier.padding(bottom = 8.dp).focusGroup(),
         ) {
             rows.forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(GROUP_BUTTON_SPACING)) {
                     row.forEach { group ->
                         QuickListButton(
                             title = group?.uppercase() ?: all,
@@ -526,6 +526,7 @@ private fun CollectionGroupButtons(
     }
 }
 
-private val GROUP_BUTTON_HEIGHT = 30.dp
-private val GROUP_BUTTON_PADDING = 10.dp
-private val GROUP_BUTTON_FONT_SIZE = 13.sp
+private val GROUP_BUTTON_HEIGHT = 28.dp
+private val GROUP_BUTTON_PADDING = 8.dp
+private val GROUP_BUTTON_SPACING = 8.dp
+private val GROUP_BUTTON_FONT_SIZE = 11.sp

@@ -103,6 +103,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
+import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
 import org.jellyfin.sdk.model.api.ImageType
@@ -428,12 +429,12 @@ class CollectionFolderViewModel
             }
         }
 
-        /** Fetch every member-scoped collection, in the server's sort-name order. */
+        /** Fetch every member-scoped collection, in the server's sort-name order within each group. */
         private suspend fun loadOrderedCollections(
             request: GetItemsRequest,
             descending: Boolean,
         ): BlockingList<BaseItem?> {
-            val items = mutableListOf<BaseItem>()
+            val items = mutableListOf<BaseItemDto>()
             var start = 0
             while (true) {
                 val result =
@@ -451,11 +452,14 @@ class CollectionFolderViewModel
                             ),
                         ).content
                 val page = result.items
-                items.addAll(page.map { BaseItem(it.copy(sortName = it.name), useSeriesForPrimary) })
+                items.addAll(page)
                 start += page.size
                 if (page.isEmpty() || start >= result.totalRecordCount) break
             }
-            return BlockingList.of(items)
+            // Sort names put the groups' collections between each other, so list them group by group
+            return BlockingList.of(
+                CollectionGroups.inGroupOrder(items).map { BaseItem(it.copy(sortName = it.name), useSeriesForPrimary) },
+            )
         }
 
         private suspend fun refreshItem(
