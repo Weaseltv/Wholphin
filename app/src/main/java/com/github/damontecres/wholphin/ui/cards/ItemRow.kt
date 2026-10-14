@@ -96,6 +96,7 @@ fun <T> ItemRow(
     focusIndex: Int? = null,
     /** Stable keys for the cards; must be unique within the row. */
     itemKey: ((index: Int, item: T?) -> Any)? = null,
+    showCount: Boolean = true,
 ) {
     val state = rememberLazyListState()
     val firstFocus = remember { FocusRequester() }
@@ -141,7 +142,7 @@ fun <T> ItemRow(
         ItemRowTitle(
             title,
             kicker = titleKicker,
-            count = items.size.takeIf { isWeaselTv() },
+            count = items.size.takeIf { isWeaselTv() && showCount },
             accent = titleAccent,
             dividerGap = titleDividerGap,
             modifier = Modifier.onSizeChanged { onTitleHeightChanged(it.height) },

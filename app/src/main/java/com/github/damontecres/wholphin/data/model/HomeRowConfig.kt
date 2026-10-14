@@ -68,6 +68,30 @@ sealed interface HomeRowConfig {
     }
 
     /**
+     * Media recently added to several libraries in one row, newest first, e.g. Movies and TV Shows
+     */
+    @Serializable
+    @SerialName("RecentlyAddedCombined")
+    data class RecentlyAddedCombined(
+        val parentIds: List<UUID>,
+        override val viewOptions: HomeRowViewOptions = HomeRowViewOptions(),
+    ) : HomeRowConfig {
+        override fun updateViewOptions(viewOptions: HomeRowViewOptions): RecentlyAddedCombined = this.copy(viewOptions = viewOptions)
+    }
+
+    /**
+     * A JustWatch ranking, showing the ranked titles that are on the server in their ranked order
+     */
+    @Serializable
+    @SerialName("JustWatch")
+    data class JustWatch(
+        val list: JustWatchHomeList,
+        override val viewOptions: HomeRowViewOptions = HomeRowViewOptions(),
+    ) : HomeRowConfig {
+        override fun updateViewOptions(viewOptions: HomeRowViewOptions): JustWatch = this.copy(viewOptions = viewOptions)
+    }
+
+    /**
      * Media recently released (premiere date) in a library
      */
     @Serializable

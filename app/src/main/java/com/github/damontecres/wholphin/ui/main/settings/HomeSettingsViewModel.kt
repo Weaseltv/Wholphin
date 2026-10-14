@@ -730,6 +730,12 @@ class HomeSettingsViewModel
                                     it.config.updateViewOptions(viewOptions)
                                 }
 
+                                is HomeRowConfig.RecentlyAddedCombined,
+                                is HomeRowConfig.JustWatch,
+                                -> {
+                                    it.config.updateViewOptions(preset.getByCollectionType(CollectionType.MOVIES))
+                                }
+
                                 is HomeRowConfig.Recordings -> {
                                     it.config.updateViewOptions(preset.tvLibrary)
                                 }
