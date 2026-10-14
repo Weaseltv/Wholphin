@@ -1,21 +1,14 @@
 package com.github.damontecres.wholphin.services
 
-import android.content.Context
 import android.util.Base64
 import androidx.annotation.StringRes
 import com.github.damontecres.wholphin.R
-import com.github.damontecres.wholphin.data.model.JustWatchHomeList
 import com.github.damontecres.wholphin.services.hilt.StandardOkHttpClient
-import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -35,7 +28,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import timber.log.Timber
-import java.io.File
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -55,7 +47,6 @@ enum class StreamingQuickList(
 }
 
 /** A title in a JustWatch ranking, identified the way Jellyfin stores it. */
-@Serializable
 data class RankedTitle(
     val isMovie: Boolean,
     val tmdbId: String,
@@ -64,75 +55,14 @@ data class RankedTitle(
 /**
  * Reads US streaming rankings from JustWatch's public GraphQL API: the same Popular, Trending and
  * daily Top 10 lists its website shows for each service. Results are kept for a few hours.
- *
- * Home's lists ([homeList]) are kept for a day, in the app's cache directory so they survive restarts.
  */
 @Singleton
 class JustWatchService
     @Inject
     constructor(
-        @param:ApplicationContext private val context: Context,
         @param:StandardOkHttpClient private val okHttpClient: OkHttpClient,
     ) {
         private val cache = ConcurrentHashMap<Pair<List<String>, StreamingQuickList>, Pair<Long, List<RankedTitle>>>()
-        private val homeCache = ConcurrentHashMap<JustWatchHomeList, SavedList>()
-        private val homeLock = Mutex()
-        private val json = Json { ignoreUnknownKeys = true }
-
-        @Serializable
-        private data class SavedList(
-            val savedAt: Long,
-            val titles: List<RankedTitle>,
-        )
-
-        /**
-         * The titles ranked by the Home [list], best first, fetched again once a day. If JustWatch
-         * can't be reached, the last list fetched is used.
-         */
-        suspend fun homeList(list: JustWatchHomeList): List<RankedTitle> =
-            withContext(Dispatchers.IO) {
-                homeLock.withLock {
-                    val saved = homeCache[list] ?: readSaved(list)?.also { homeCache[list] = it }
-                    if (saved != null && System.currentTimeMillis() - saved.savedAt < HOME_CACHE_TIME.inWholeMilliseconds) {
-                        return@withContext saved.titles
-                    }
-                }
-                val titles =
-                    try {
-                        fetchHomeList(list)
-                    } catch (ex: CancellationException) {
-                        throw ex
-                    } catch (ex: Exception) {
-                        val stale = homeCache[list] ?: throw ex
-                        Timber.w(ex, "JustWatch %s failed, using the list from %s", list, stale.savedAt)
-                        return@withContext stale.titles
-                    }
-                Timber.d("JustWatch %s: %s titles", list, titles.size)
-                val fresh = SavedList(System.currentTimeMillis(), titles)
-                homeCache[list] = fresh
-                runCatching {
-                    homeFile(list).apply { parentFile?.mkdirs() }.writeText(json.encodeToString(fresh))
-                }.onFailure { Timber.w(it, "Couldn't save JustWatch %s", list) }
-                titles
-            }
-
-        private suspend fun fetchHomeList(list: JustWatchHomeList): List<RankedTitle> =
-            when (list) {
-                JustWatchHomeList.MOVIE_CHART -> chart(null, "MOVIE").map { it.second }
-                JustWatchHomeList.SHOW_CHART -> chart(null, "SHOW").map { it.second }
-                JustWatchHomeList.POPULAR -> popularTitles(null, "POPULAR", pages = HOME_PAGES)
-                JustWatchHomeList.TRENDING -> popularTitles(null, "TRENDING", pages = HOME_PAGES)
-                JustWatchHomeList.TOP_10_MOVIES -> popularTitles(null, "TRENDING", objectType = "MOVIE", pages = 1)
-                JustWatchHomeList.TOP_10_SHOWS -> popularTitles(null, "TRENDING", objectType = "SHOW", pages = 1)
-            }
-
-        private fun readSaved(list: JustWatchHomeList): SavedList? =
-            runCatching {
-                homeFile(list).takeIf { it.exists() }?.readText()?.let { json.decodeFromString<SavedList>(it) }
-            }.onFailure { Timber.w(it, "Couldn't read JustWatch %s", list) }
-                .getOrNull()
-
-        private fun homeFile(list: JustWatchHomeList) = File(context.cacheDir, "justwatch/${list.name.lowercase()}.json")
 
         /** The titles ranked by [list] on the JustWatch [packages] (one service), best first. */
         suspend fun ranked(
@@ -161,13 +91,11 @@ class JustWatchService
          * at the same time instead of one after another.
          */
         private suspend fun popularTitles(
-            packages: List<String>?,
+            packages: List<String>,
             sortBy: String,
-            objectType: String? = null,
-            pages: Int = POPULAR_PAGES,
         ): List<RankedTitle> =
             coroutineScope {
-                (0 until pages)
+                (0 until POPULAR_PAGES)
                     .map { page ->
                         async {
                             val cursor = if (page == 0) null else Base64.encodeToString("${page * PAGE_SIZE}".toByteArray(), Base64.NO_WRAP)
@@ -179,13 +107,7 @@ class JustWatchService
                                     put("first", PAGE_SIZE)
                                     put("after", cursor?.let { JsonPrimitive(it) } ?: JsonNull)
                                     put("sortBy", sortBy)
-                                    put(
-                                        "filter",
-                                        buildJsonObject {
-                                            packages?.let { put("packages", it.toJsonArray()) }
-                                            objectType?.let { put("objectTypes", listOf(it).toJsonArray()) }
-                                        },
-                                    )
+                                    put("filter", buildJsonObject { put("packages", packages.toJsonArray()) })
                                 },
                             ).obj("popularTitles")
                                 .array("edges")
@@ -198,44 +120,37 @@ class JustWatchService
         /** JustWatch's daily chart: separate movie and show charts merged by their shared rank. */
         private fun dailyChart(packages: List<String>): List<RankedTitle> =
             listOf("MOVIE", "SHOW")
-                .flatMap { chart(packages, it) }
-                .sortedBy { it.first }
-                .map { it.second }
-
-        /** One of JustWatch's daily charts with each title's rank, of every service when [packages] is null. */
-        private fun chart(
-            packages: List<String>?,
-            objectType: String,
-        ): List<Pair<Int, RankedTitle>> =
-            query(
-                CHART_QUERY,
-                buildJsonObject {
-                    put("country", COUNTRY)
-                    put("language", LANGUAGE)
-                    put("first", PAGE_SIZE)
-                    put(
-                        "filter",
+                .flatMap { objectType ->
+                    query(
+                        CHART_QUERY,
                         buildJsonObject {
-                            put("category", "DAILY_POPULARITY_SAME_CONTENT_TYPE")
-                            put("objectType", objectType)
-                            packages?.let { put("packages", it.toJsonArray()) }
+                            put("country", COUNTRY)
+                            put("language", LANGUAGE)
+                            put("first", PAGE_SIZE)
+                            put(
+                                "filter",
+                                buildJsonObject {
+                                    put("category", "DAILY_POPULARITY_SAME_CONTENT_TYPE")
+                                    put("objectType", objectType)
+                                    put("packages", packages.toJsonArray())
+                                },
+                            )
                         },
-                    )
-                },
-            ).obj("streamingCharts")
-                .array("edges")
-                .mapNotNull { edge ->
-                    val rank =
-                        edge.jsonObject
-                            .obj("streamingChartInfo")["rank"]
-                            ?.jsonPrimitive
-                            ?.intOrNull ?: return@mapNotNull null
-                    edge.jsonObject
-                        .obj("node")
-                        .toRankedTitle()
-                        ?.let { rank to it }
-                }
-                .sortedBy { it.first }
+                    ).obj("streamingCharts")
+                        .array("edges")
+                        .mapNotNull { edge ->
+                            val rank =
+                                edge.jsonObject
+                                    .obj("streamingChartInfo")["rank"]
+                                    ?.jsonPrimitive
+                                    ?.intOrNull ?: return@mapNotNull null
+                            edge.jsonObject
+                                .obj("node")
+                                .toRankedTitle()
+                                ?.let { rank to it }
+                        }
+                }.sortedBy { it.first }
+                .map { it.second }
 
         private fun query(
             query: String,
@@ -291,10 +206,6 @@ class JustWatchService
             private const val PAGE_SIZE = 100
             private const val POPULAR_PAGES = 3
             private val CACHE_TIME = 3.hours
-
-            /** Home's Popular and Trending rows go 200 deep: about a third of those titles aren't on the server. */
-            private const val HOME_PAGES = 2
-            private val HOME_CACHE_TIME = 24.hours
             private val JSON_TYPE = "application/json".toMediaType()
 
             private const val POPULAR_QUERY =
