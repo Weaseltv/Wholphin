@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -37,6 +38,7 @@ fun OverviewText(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     textBoxHeight: Dp = maxLines * 20.dp,
     enabled: Boolean = true,
+    textStyle: TextStyle = MaterialTheme.typography.bodyMedium,
 ) {
     val compact = LocalCompactDetailHeader.current
     val visibleLines = if (compact) minOf(maxLines, 2) else maxLines
@@ -52,7 +54,7 @@ fun OverviewText(
     val textContent: @Composable () -> Unit = {
         Text(
             text = overview,
-            style = MaterialTheme.typography.bodyMedium,
+            style = textStyle,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = visibleLines,
             overflow = TextOverflow.Ellipsis,

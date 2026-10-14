@@ -15,6 +15,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
@@ -27,6 +28,7 @@ import com.github.damontecres.wholphin.ui.components.OverviewText
 import com.github.damontecres.wholphin.ui.components.QuickDetails
 import com.github.damontecres.wholphin.ui.components.TitleOrLogo
 import com.github.damontecres.wholphin.ui.components.VideoStreamDetails
+import com.github.damontecres.wholphin.ui.components.scaled
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.letNotEmpty
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
@@ -47,6 +49,8 @@ fun MovieDetailsHeader(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val neon = isWeaselTv()
+    val infoScale = HeaderUtils.detailInfoTextScale()
+    val typography = MaterialTheme.typography
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = modifier,
@@ -69,10 +73,15 @@ fun MovieDetailsHeader(
                 movie.ui.quickDetails,
                 movie.timeRemainingOrRuntime,
                 Modifier.padding(start = HeaderUtils.startPadding),
+                textStyle = typography.titleSmall.scaled(infoScale),
             )
 
             dto.genres?.letNotEmpty {
-                GenreText(it, Modifier.padding(start = HeaderUtils.startPadding))
+                GenreText(
+                    it,
+                    Modifier.padding(start = HeaderUtils.startPadding),
+                    textStyle = typography.bodyMedium.scaled(infoScale),
+                )
             }
 
             VideoStreamDetails(
@@ -84,11 +93,12 @@ fun MovieDetailsHeader(
                         top = 4.dp,
                         bottom = 16.dp,
                     ),
+                fontSize = 12.sp * infoScale,
             )
             dto.taglines?.firstOrNull()?.let { tagline ->
                 Text(
                     text = tagline,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = typography.bodyLarge.scaled(infoScale),
                     fontStyle = FontStyle.Italic,
                     modifier = Modifier.padding(start = HeaderUtils.startPadding),
                 )
@@ -101,6 +111,7 @@ fun MovieDetailsHeader(
                     maxLines = 3,
                     onClick = overviewOnClick,
                     textBoxHeight = Dp.Unspecified,
+                    textStyle = typography.bodyMedium.scaled(infoScale),
                     modifier =
                         Modifier.onFocusChanged {
                             if (it.isFocused && !neon) {
@@ -124,7 +135,7 @@ fun MovieDetailsHeader(
                 ?.let {
                     Text(
                         text = stringResource(R.string.directed_by, it),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = typography.bodyMedium.scaled(infoScale),
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(start = HeaderUtils.startPadding),
                     )

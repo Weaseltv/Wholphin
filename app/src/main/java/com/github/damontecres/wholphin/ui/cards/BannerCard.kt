@@ -55,6 +55,7 @@ import com.github.damontecres.wholphin.ui.enableMarquee
 import com.github.damontecres.wholphin.ui.theme.LocalHomeCardAppearance
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.LocalPosterCountAppearance
+import com.github.damontecres.wholphin.ui.theme.NeonBadge
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonAccentFor
@@ -89,6 +90,7 @@ fun BannerCard(
     accent: Color = neonAccentFor(item),
     useSeriesForPrimary: Boolean = true,
     cornerTextScale: Float = 1f,
+    typeBadge: String? = null,
 ) {
     val providerPoster = if (isWeaselTv() && item?.type == BaseItemKind.BOX_SET) providerWordmark(item.name) else null
     val appearance = LocalPosterCountAppearance.current ?: LocalHomeCardAppearance.current
@@ -201,6 +203,17 @@ fun BannerCard(
                         Modifier
                             .padding(16.dp)
                             .align(Alignment.Center),
+                )
+            }
+            if (typeBadge != null) {
+                // Neon Board: MOVIE / SHOW top-left, in the card's accent
+                NeonBadge(
+                    text = typeBadge,
+                    accent = accent,
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopStart)
+                            .padding(horizontal = badgeInsetX, vertical = badgeInsetY),
                 )
             }
             if (played || cornerText != null) {

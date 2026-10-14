@@ -60,6 +60,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.jellyfin.sdk.api.client.ApiClient
+import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.client.extensions.libraryApi
 import org.jellyfin.sdk.api.client.extensions.liveTvApi
 import org.jellyfin.sdk.api.client.extensions.userApi
@@ -105,6 +106,7 @@ class HomeSettingsService
         private val suggestionService: SuggestionService,
         private val displayPreferencesService: DisplayPreferencesService,
         private val streamingOrderService: StreamingOrderService,
+        private val justWatchRowService: JustWatchRowService,
     ) {
         @OptIn(ExperimentalSerializationApi::class)
         val jsonParser =
@@ -303,9 +305,10 @@ class HomeSettingsService
             settings: HomePageResolvedSettings,
         ): HomePageResolvedSettings {
             if (revision >= ApprovedHomeLayout.REVISION) return settings
+            val arranged = if (revision < ApprovedHomeLayout.ARRANGED_ROWS_REVISION) arrangeRows(userId, settings) else settings
             val matched =
                 HomePageResolvedSettings(
-                    settings.rows.map { row ->
+                    arranged.rows.map { row ->
                         row.copy(
                             config =
                                 row.config.updateViewOptions(
@@ -323,6 +326,26 @@ class HomeSettingsService
             return matched
         }
 
+        /** Put the rows in WeaselPlex's order ([WeaselHomeRows.arrange]), keeping each existing row's ID and title. */
+        private suspend fun arrangeRows(
+            userId: UUID,
+            settings: HomePageResolvedSettings,
+        ): HomePageResolvedSettings {
+            val libraries = homeLibraries(userId)
+            var nextId = (settings.rows.maxOfOrNull { it.id } ?: -1) + 1
+            val existing = settings.rows.toMutableList()
+            return HomePageResolvedSettings(
+                WeaselHomeRows.arrange(settings.rows.map { it.config }, libraries).map { config ->
+                    existing.firstOrNull { it.config == config }?.also { existing.remove(it) } ?: resolve(nextId++, config)
+                },
+            )
+        }
+
+        private suspend fun homeLibraries(userId: UUID): List<Library> {
+            val userDto = serverRepository.currentUserDto?.takeIf { it.id == userId }
+            return navDrawerService.getAllUserLibraries(userId, userDto?.tvAccess ?: false)
+        }
+
         /** Save approved defaults to both Alpha and customer server-backed Home preferences. */
         private suspend fun syncApprovedLayoutToServer(
             userId: UUID,
@@ -333,12 +356,19 @@ class HomeSettingsService
                 val key = "approved_layout_${ApprovedHomeLayout.REVISION}_${userId}_$client"
                 if (migrations.getBoolean(key, false)) continue
                 try {
+                    val libraries = homeLibraries(userId)
                     displayPreferencesService.updateDisplayPreferences(userId, client = client) {
                         val existing = get(CUSTOM_PREF_ID)?.let { decode(jsonParser.parseToJsonElement(it)) }
                         val base = existing ?: HomePageSettings(settings.rows.map { it.config }, SUPPORTED_HOME_PAGE_SETTINGS_VERSION)
                         if (base.layoutDefaultsRevision < ApprovedHomeLayout.REVISION) {
+                            val arranged =
+                                if (existing != null && base.layoutDefaultsRevision < ApprovedHomeLayout.ARRANGED_ROWS_REVISION) {
+                                    WeaselHomeRows.arrange(base.rows, libraries)
+                                } else {
+                                    base.rows
+                                }
                             val rows =
-                                base.rows.map { row ->
+                                arranged.map { row ->
                                     val options =
                                         ApprovedHomeLayout.upgrade(
                                             row.viewOptions,
@@ -429,6 +459,13 @@ class HomeSettingsService
                     ),
                 )
             val rowConfig = continueWatchingRow + includedIds
+            if (BuildConfig.FLAVOR == "weaselfin") {
+                return HomePageResolvedSettings(
+                    WeaselHomeRows.arrange(rowConfig.map { it.config }, libraries).mapIndexed { index, config ->
+                        rowConfig.firstOrNull { it.config == config }?.copy(id = index) ?: resolve(index, config)
+                    },
+                )
+            }
             return HomePageResolvedSettings(rowConfig)
         }
 
@@ -639,6 +676,14 @@ class HomeSettingsService
                         title,
                         config,
                     )
+                }
+
+                is HomeRowConfig.RecentlyAddedCombined -> {
+                    HomeRowConfigDisplay(id, ResStringProvider(R.string.home_recently_added_full), config)
+                }
+
+                is HomeRowConfig.JustWatch -> {
+                    HomeRowConfigDisplay(id, ResStringProvider(config.list.fullTitle), config)
                 }
 
                 is HomeRowConfig.Favorite -> {
@@ -968,6 +1013,57 @@ class HomeSettingsService
                                 )
                             }
                     latest
+                }
+
+                is HomeRowConfig.RecentlyAddedCombined -> {
+                    // Each library's newest, then merged newest first
+                    val latest =
+                        coroutineScope {
+                            row.parentIds
+                                .map { parentId ->
+                                    async {
+                                        try {
+                                            api.userLibraryApi
+                                                .getLatestMedia(
+                                                    GetLatestMediaRequest(
+                                                        fields = HomeItemFields + ItemFields.DATE_CREATED,
+                                                        imageTypeLimit = 1,
+                                                        parentId = parentId,
+                                                        groupItems = true,
+                                                        limit = limit,
+                                                        isPlayed = null, // Server will handle user's preference
+                                                    ),
+                                                ).content
+                                        } catch (ex: InvalidStatusException) {
+                                            // A library the member can no longer see
+                                            Timber.w(ex, "Recently added unavailable for %s", parentId)
+                                            emptyList()
+                                        }
+                                    }
+                                }.awaitAll()
+                                .flatten()
+                        }.sortedByDescending { it.dateCreated }
+                            .take(limit)
+                            .map { BaseItem(it, row.viewOptions.useSeries) }
+                    Success(
+                        ResStringProvider(R.string.home_recently_added_full),
+                        latest,
+                        row.viewOptions,
+                        rowType = row,
+                        showViewMore = latest.size >= limit,
+                    )
+                }
+
+                is HomeRowConfig.JustWatch -> {
+                    // Each list has its own length, so the member's row length doesn't apply
+                    val items = justWatchRowService.items(userDto.id, row.list)
+                    Success(
+                        ResStringProvider(row.list.fullTitle),
+                        items,
+                        row.viewOptions,
+                        rowType = row,
+                        showViewMore = false,
+                    )
                 }
 
                 is HomeRowConfig.RecentlyReleased -> {

@@ -5,7 +5,10 @@ import com.github.damontecres.wholphin.ui.AspectRatio
 
 /** Owner-approved presentation captured from all eight Alpha rows on 2026-10-09. */
 object ApprovedHomeLayout {
-    const val REVISION = 13
+    const val REVISION = 14
+
+    /** Revision 14 puts saved Home rows in the 2026-10-14 order once; presentation is unchanged. */
+    const val ARRANGED_ROWS_REVISION = 14
     const val CARD_SPACING_DP = 10
     const val CARD_HEIGHT_DP = 170
     const val VERTICAL_PADDING_DP = 4

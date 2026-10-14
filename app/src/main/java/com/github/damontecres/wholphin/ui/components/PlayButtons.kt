@@ -101,6 +101,8 @@ fun ExpandablePlayButtons(
     chooseVersionParams: ChooseVersionParams?,
     buttonOnFocusChanged: (FocusState) -> Unit,
     modifier: Modifier = Modifier,
+    /** Show MORE as just its icon until focused. */
+    collapseMore: Boolean = false,
 ) {
     val resources = LocalResources.current
     val firstFocus = remember { FocusRequester() }
@@ -180,16 +182,6 @@ fun ExpandablePlayButtons(
                     }
                 }
 
-                // Watched button
-                item("watched") {
-                    ExpandableFaButton(
-                        title = if (watched) R.string.mark_unwatched else R.string.mark_watched,
-                        iconStringRes = if (watched) R.string.fa_eye else R.string.fa_eye_slash,
-                        onClick = watchOnClick,
-                        modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
-                    )
-                }
-
                 // Favorite button
                 item("favorite") {
                     ExpandableFaButton(
@@ -197,6 +189,16 @@ fun ExpandablePlayButtons(
                         iconStringRes = R.string.fa_heart,
                         onClick = favoriteOnClick,
                         iconColor = if (favorite) Color.Red else Color.Unspecified,
+                        modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
+                    )
+                }
+
+                // Watched button
+                item("watched") {
+                    ExpandableFaButton(
+                        title = if (watched) R.string.mark_unwatched else R.string.mark_watched,
+                        iconStringRes = if (watched) R.string.fa_eye else R.string.fa_eye_slash,
+                        onClick = watchOnClick,
                         modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
                     )
                 }
@@ -229,7 +231,12 @@ fun ExpandablePlayButtons(
                         resume = Duration.ZERO,
                         icon = Icons.Default.MoreVert,
                         onClick = { moreOnClick.invoke() },
-                        modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
+                        modifier =
+                            Modifier
+                                .onFocusChanged(buttonOnFocusChanged)
+                                // Expanding on focus widens the row, so scroll again once it has grown
+                                .then(if (collapseMore) Modifier.keepFocusedItemVisible() else Modifier),
+                        collapsed = collapseMore,
                     )
                 }
             }
@@ -265,10 +272,12 @@ fun ExpandablePlayButton(
     mirrorIcon: Boolean = false,
     enabled: Boolean = true,
     allCaps: Boolean = isWeaselTv(),
+    collapsed: Boolean = false,
 ) = ExpandablePlayButton(
     title = title,
     resume = resume,
     allCaps = allCaps,
+    collapsed = collapsed,
     icon = {
         Icon(
             imageVector = icon,
@@ -325,6 +334,8 @@ fun ExpandablePlayButton(
     enabled: Boolean = true,
     /** An uppercase label in the button font with the same padding as other text buttons. */
     allCaps: Boolean = isWeaselTv(),
+    /** Show only the icon until focused, with an uppercase label in the button font. */
+    collapsed: Boolean = false,
 ) {
     val isFocused = interactionSource.collectIsFocusedAsState().value
     // Neon Board (`02-components-tv.md` § T5): the Play button is the PRIMARY in the item's
@@ -341,7 +352,13 @@ fun ExpandablePlayButton(
                 minHeight = MinButtonSize,
                 maxHeight = MinButtonSize,
             ),
-        contentPadding = DefaultButtonPadding,
+        contentPadding =
+            if (collapsed) {
+                // Centres the 28dp icon in the 40dp button while collapsed
+                PaddingValues(horizontal = (MinButtonSize - 28.dp) / 2)
+            } else {
+                DefaultButtonPadding
+            },
         interactionSource = interactionSource,
         colors =
             if (primaryAction) {
@@ -372,12 +389,20 @@ fun ExpandablePlayButton(
             contentAlignment = Alignment.Center,
             modifier =
                 Modifier
-                    .padding(start = 2.dp)
+                    .padding(start = if (collapsed) 0.dp else 2.dp)
                     .height(MinButtonSize),
         ) {
             icon.invoke(this)
         }
-        if (allCaps) {
+        if (collapsed) {
+            // Expanded, it has the same spacing as the label below
+            AnimatedVisibility(isFocused) {
+                Text(
+                    text = stringResource(title).uppercase(),
+                    modifier = Modifier.padding(start = 6.dp, end = 6.dp),
+                )
+            }
+        } else if (allCaps) {
             Spacer(Modifier.size(6.dp))
             Text(
                 text = stringResource(title).uppercase(),

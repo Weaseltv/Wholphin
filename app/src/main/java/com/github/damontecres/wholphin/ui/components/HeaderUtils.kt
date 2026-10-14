@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -22,6 +24,13 @@ object HeaderUtils {
 
     @Composable
     fun detailTopPadding() = if (isWeaselTv()) 16.dp else topPadding
+
+    /**
+     * WeaselPlex: the details under a detail page's title are 20% larger than the theme's text.
+     * The page shrinks the whole header to fit above the buttons, so this keeps them readable.
+     */
+    @Composable
+    fun detailInfoTextScale() = if (isWeaselTv()) 1.2f else 1f
 
     val logoHeight = 60.dp
 
@@ -53,6 +62,17 @@ object HeaderUtils {
             homeModifier()
         }
 }
+
+/** This style with its font size and line height multiplied by [scale]. */
+fun TextStyle.scaled(scale: Float) =
+    if (scale == 1f) {
+        this
+    } else {
+        copy(
+            fontSize = if (fontSize.isSpecified) fontSize * scale else fontSize,
+            lineHeight = if (lineHeight.isSpecified) lineHeight * scale else lineHeight,
+        )
+    }
 
 /** A short, localized label for an item kind, used by eyebrows and card badges. */
 fun itemKindLabel(

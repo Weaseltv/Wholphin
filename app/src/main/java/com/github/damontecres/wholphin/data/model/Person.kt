@@ -56,6 +56,27 @@ data class Person(
     }
 }
 
+/**
+ * One entry per person, in the order of their first credit, so someone credited several times
+ * (director, writer and producer) shows once with all of their roles.
+ */
+fun List<Person>.mergeRepeated(): List<Person> =
+    groupBy { it.id }.values.map { credits ->
+        if (credits.size == 1) {
+            credits.first()
+        } else {
+            credits.first().copy(
+                role =
+                    credits
+                        .mapNotNull { it.role?.takeIf { role -> role.isNotBlank() } }
+                        .distinct()
+                        .joinToString(", ")
+                        .ifEmpty { null },
+                favorite = credits.any { it.favorite },
+            )
+        }
+    }
+
 private fun personRole(
     context: Context,
     role: String?,

@@ -962,6 +962,26 @@
     <string name="quick_list_top_10">Top 10</string>
     <string name="quick_list_new">New</string>
     <string name="quick_list_error">Couldn\'t load %1$s from JustWatch</string>
+    <string name="home_recently_added_kicker">Recently Added</string>
+    <string name="home_movies_and_tv_shows">Movies and TV Shows</string>
+    <string name="home_recently_added_full">Recently added movies and TV shows</string>
+    <string name="home_movies_kicker">Movies</string>
+    <string name="home_tv_shows_kicker">TV Shows</string>
+    <string name="home_top_of_the_charts">Top of the Charts</string>
+    <string name="home_movies_and_shows"><![CDATA[Movies & TV Shows]]></string>
+    <string name="home_movies_this_week">Movies This Week</string>
+    <string name="home_shows_this_week">TV Shows This Week</string>
+    <string name="home_movie_top_of_the_charts">Movies top of the charts</string>
+    <string name="home_show_top_of_the_charts">TV shows top of the charts</string>
+    <string name="home_popular_full"><![CDATA[Popular movies & TV shows]]></string>
+    <string name="home_trending_full"><![CDATA[Trending movies & TV shows]]></string>
+    <string name="home_top_10_movies_full">Top 10 movies this week</string>
+    <string name="home_top_10_shows_full">Top 10 TV shows this week</string>
+    <string-array name="home_continue_watching_empty">
+        <item>Start a movie or show, and you can pick up right where you left off.</item>
+        <item>When you finish an episode, the next one shows up here automatically.</item>
+        <item>If you\'re caught up on a show, episode 1 of its next season appears here as soon as it\'s added.</item>
+    </string-array>
     <string name="streaming_provider_description">Streaming on %1$s right now.</string>
     <string name="recommended_kicker_just">Just</string>
     <string name="recommended_kicker_top_rated">Top Rated</string>

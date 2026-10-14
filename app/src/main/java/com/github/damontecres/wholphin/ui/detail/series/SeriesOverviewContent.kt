@@ -52,11 +52,13 @@ import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.cards.BannerCard
 import com.github.damontecres.wholphin.ui.cards.ExtrasRow
 import com.github.damontecres.wholphin.ui.cards.PersonRow
+import com.github.damontecres.wholphin.ui.components.ButtonGlowRoom
 import com.github.damontecres.wholphin.ui.components.DetailPageViewport
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.FittedDetailHeader
 import com.github.damontecres.wholphin.ui.components.FocusSafeLazyRow
 import com.github.damontecres.wholphin.ui.components.HeaderUtils
+import com.github.damontecres.wholphin.ui.components.KeepFocusRoomOnScroll
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.components.TabDetails
 import com.github.damontecres.wholphin.ui.components.TabRow
@@ -67,6 +69,8 @@ import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.logTab
 import com.github.damontecres.wholphin.ui.playback.isPlayKeyUp
 import com.github.damontecres.wholphin.ui.rememberInt
+import com.github.damontecres.wholphin.ui.theme.ProvideButtonsOverArtwork
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
 import com.github.damontecres.wholphin.ui.util.rememberDelayedNestedScroll
@@ -161,32 +165,43 @@ fun SeriesOverviewContent(
                         .focusGroup()
                         .bringIntoViewRequester(bringIntoViewRequester),
             ) {
+                val neon = isWeaselTv()
                 val paddingValues =
-                    remember(preferences.appPreferences.interfacePreferences.showClock) {
-                        if (preferences.appPreferences.interfacePreferences.showClock) {
+                    remember(preferences.appPreferences.interfacePreferences.showClock, neon) {
+                        if (neon) {
+                            // The tabs sit below the clock, so they run to the edge of the page.
+                            // The first tab lines up with the title and buttons below.
+                            PaddingValues(start = HeaderUtils.startPadding, end = 0.dp)
+                        } else if (preferences.appPreferences.interfacePreferences.showClock) {
                             PaddingValues(start = 0.dp, end = 184.dp)
                         } else {
                             PaddingValues(start = 0.dp, end = 16.dp)
                         }
                     }
-                TabRow(
-                    selectedTabIndex = selectedTabIndex,
-                    tabs = tabs,
-                    onClick =
-                        remember {
-                            {
-                                selectedTabIndex = it
-                                currentOnChangeSeason(it)
-                                requestFocusAfterSeason = true
-                            }
-                        },
-                    modifier =
-                        Modifier
-                            .focusRequester(tabRowFocusRequester)
-                            .padding(paddingValues)
-                            .padding(bottom = 4.dp)
-                            .fillMaxWidth(),
-                )
+                // Like the series page's buttons: white outlines and a dark backing over the artwork,
+                // and a focused tab keeps its border and glow clear of the row's ends
+                ProvideButtonsOverArtwork {
+                    KeepFocusRoomOnScroll(ButtonGlowRoom) {
+                        TabRow(
+                            selectedTabIndex = selectedTabIndex,
+                            tabs = tabs,
+                            onClick =
+                                remember {
+                                    {
+                                        selectedTabIndex = it
+                                        currentOnChangeSeason(it)
+                                        requestFocusAfterSeason = true
+                                    }
+                                },
+                            modifier =
+                                Modifier
+                                    .focusRequester(tabRowFocusRequester)
+                                    .padding(paddingValues)
+                                    .padding(bottom = 4.dp)
+                                    .fillMaxWidth(),
+                        )
+                    }
+                }
                 FittedDetailHeader(reservedHeight = 160.dp) {
                     Column {
                         TitleOrLogo(

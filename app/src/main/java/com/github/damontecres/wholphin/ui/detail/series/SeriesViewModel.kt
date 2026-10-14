@@ -14,6 +14,7 @@ import com.github.damontecres.wholphin.data.model.DiscoverItem
 import com.github.damontecres.wholphin.data.model.ItemPlayback
 import com.github.damontecres.wholphin.data.model.Person
 import com.github.damontecres.wholphin.data.model.Trailer
+import com.github.damontecres.wholphin.data.model.mergeRepeated
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.ExtrasService
@@ -649,6 +650,7 @@ class SeriesViewModel
                                         .content.people
                                         ?.map { Person.fromDto(context, it, api) }
                                         .orEmpty()
+                                        .mergeRepeated()
 
                                 PeopleInItem(item.id, list)
                             }
