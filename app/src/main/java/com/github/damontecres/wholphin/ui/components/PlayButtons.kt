@@ -182,16 +182,6 @@ fun ExpandablePlayButtons(
                     }
                 }
 
-                // Watched button
-                item("watched") {
-                    ExpandableFaButton(
-                        title = if (watched) R.string.mark_unwatched else R.string.mark_watched,
-                        iconStringRes = if (watched) R.string.fa_eye else R.string.fa_eye_slash,
-                        onClick = watchOnClick,
-                        modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
-                    )
-                }
-
                 // Favorite button
                 item("favorite") {
                     ExpandableFaButton(
@@ -199,6 +189,16 @@ fun ExpandablePlayButtons(
                         iconStringRes = R.string.fa_heart,
                         onClick = favoriteOnClick,
                         iconColor = if (favorite) Color.Red else Color.Unspecified,
+                        modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
+                    )
+                }
+
+                // Watched button
+                item("watched") {
+                    ExpandableFaButton(
+                        title = if (watched) R.string.mark_unwatched else R.string.mark_watched,
+                        iconStringRes = if (watched) R.string.fa_eye else R.string.fa_eye_slash,
+                        onClick = watchOnClick,
                         modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
                     )
                 }
