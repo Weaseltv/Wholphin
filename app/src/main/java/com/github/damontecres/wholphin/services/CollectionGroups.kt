@@ -9,19 +9,19 @@ import org.jellyfin.sdk.model.api.BaseItemDto
 object CollectionGroups {
     const val TAG_PREFIX = "WeaselPlex Group: "
 
-    /** The owner's order (2026-10-14). Groups that aren't listed follow it, by name. */
+    /** The owner's order (revised 2026-10-14). Groups that aren't listed follow it, by name. */
     private val order =
         listOf(
             "New & Trending",
             "Moods & Picks",
             "TV Binges",
             "Top Episodes",
-            "Charts & Awards",
             "Based On",
+            "Charts & Awards",
+            "Sports",
             "Studios",
             "TV Networks",
             "Actors & Directors",
-            "Sports",
             "Franchises & Universes",
             "Streaming Services",
         )
