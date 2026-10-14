@@ -967,12 +967,12 @@
     <string name="home_recently_added_full">Recently added movies and TV shows</string>
     <string name="home_movies_kicker">Movies</string>
     <string name="home_tv_shows_kicker">TV Shows</string>
-    <string name="home_streaming_charts">Streaming Charts</string>
+    <string name="home_top_of_the_charts">Top of the Charts</string>
     <string name="home_movies_and_shows"><![CDATA[Movies & TV Shows]]></string>
     <string name="home_movies_this_week">Movies This Week</string>
     <string name="home_shows_this_week">TV Shows This Week</string>
-    <string name="home_movie_streaming_charts">Movie streaming charts</string>
-    <string name="home_show_streaming_charts">TV show streaming charts</string>
+    <string name="home_movie_top_of_the_charts">Movies top of the charts</string>
+    <string name="home_show_top_of_the_charts">TV shows top of the charts</string>
     <string name="home_popular_full"><![CDATA[Popular movies & TV shows]]></string>
     <string name="home_trending_full"><![CDATA[Trending movies & TV shows]]></string>
     <string name="home_top_10_movies_full">Top 10 movies this week</string>

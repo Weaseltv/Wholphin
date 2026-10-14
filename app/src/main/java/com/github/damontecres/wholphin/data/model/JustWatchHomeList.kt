@@ -13,10 +13,10 @@ enum class JustWatchHomeList(
     @param:StringRes val fullTitle: Int,
 ) {
     /** justwatch.com/us/streaming-charts?ct=daily */
-    MOVIE_CHART(25, R.string.home_movies_kicker, R.string.home_streaming_charts, R.string.home_movie_streaming_charts),
+    MOVIE_CHART(25, R.string.home_movies_kicker, R.string.home_top_of_the_charts, R.string.home_movie_top_of_the_charts),
 
     /** justwatch.com/us/streaming-charts?ct=daily&t=shows */
-    SHOW_CHART(25, R.string.home_tv_shows_kicker, R.string.home_streaming_charts, R.string.home_show_streaming_charts),
+    SHOW_CHART(25, R.string.home_tv_shows_kicker, R.string.home_top_of_the_charts, R.string.home_show_top_of_the_charts),
 
     /** justwatch.com/us */
     POPULAR(50, R.string.quick_list_popular, R.string.home_movies_and_shows, R.string.home_popular_full),
