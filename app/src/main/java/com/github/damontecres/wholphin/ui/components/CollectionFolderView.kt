@@ -93,6 +93,7 @@ import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
@@ -117,6 +118,10 @@ import org.jellyfin.sdk.model.serializer.toUUID
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+
+/** The Collections page's grouped lists by request, kept while the app runs so it reopens straight away. */
+private val savedCollections = ConcurrentHashMap<GetItemsRequest, List<BaseItemDto>>()
 
 @HiltViewModel(assistedFactory = CollectionFolderViewModel.Factory::class)
 class CollectionFolderViewModel
@@ -220,10 +225,11 @@ class CollectionFolderViewModel
                         }
 
                     _state.update { it.copy(item = DataLoadingState.Success(item)) }
-                    if (collectionsPage) viewModelScope.launchIO { loadCollectionGroups() }
                     if (useApprovedOrder) saveLibraryDisplayInfo(newFilter = filterToUse, newSort = sortAndDirection)
                     loadResults(true, sortAndDirection, recursive, filterToUse, useSeriesForPrimary)
                         .join()
+                    // The grouped list finds the groups itself; other sorts ask for them
+                    if (collectionsPage && state.value.collectionGroups.isEmpty()) loadCollectionGroups()
                     if (useApprovedOrder && state.value.items is DataLoadingState.Success) {
                         orderPreferences.edit().putBoolean(orderKey, true).apply()
                     }
@@ -252,6 +258,9 @@ class CollectionFolderViewModel
             try {
                 val currentItems = state.value.items.successValue
                 if (currentItems != null && currentItems !is ApiRequestPager<*>) {
+                    // Don't show the deleted collection again from memory
+                    savedCollections.clear()
+                    collections = null
                     loadResults(true, state.value.sortAndDirection, recursive, state.value.filter, useSeriesForPrimary).join()
                     return
                 }
@@ -357,7 +366,9 @@ class CollectionFolderViewModel
         override fun onCollectionGroupChange(group: String?) {
             _state.update { it.copy(collectionGroup = group) }
             position = 0
-            loadResults(true, state.value.sortAndDirection, recursive, state.value.filter, useSeriesForPrimary)
+            // The grouped list has every collection, so a group is picked from it without a reload
+            collections?.let(::showCollections)
+                ?: loadResults(true, state.value.sortAndDirection, recursive, state.value.filter, useSeriesForPrimary)
         }
 
         /** Every collection's tags, to find which groups the member has collections in. */
@@ -379,87 +390,133 @@ class CollectionFolderViewModel
             }
         }
 
+        private var loadJob: Job? = null
+
+        /** Every collection the grouped list was last shown from, so a group can be picked without a reload. */
+        @Volatile
+        private var collections: List<BaseItemDto>? = null
+
         private fun loadResults(
             resetState: Boolean,
             sortAndDirection: SortAndDirection,
             recursive: Boolean,
             filter: GetItemsFilter,
             useSeriesForPrimary: Boolean,
-        ) = viewModelScope.launch(WholphinDispatchers.IO) {
-            _state.update {
-                it.copy(
-                    items = DataLoadingState.Loading,
-                    backgroundLoading = LoadingState.Loading,
-                    sortAndDirection = sortAndDirection,
-                    filter = filter,
+        ): Job {
+            loadJob?.cancel()
+            return viewModelScope
+                .launch(WholphinDispatchers.IO) {
+                    val request = createGetItemsRequest(sortAndDirection, recursive, filter)
+                    val groupedCollections =
+                        BuildConfig.FLAVOR == "weaselfin" && filter.override == GetItemsFilterOverride.NONE &&
+                            request.includeItemTypes == listOf(BaseItemKind.BOX_SET) &&
+                            sortAndDirection.sort in listOf(ItemSortBy.SORT_NAME, ItemSortBy.DEFAULT)
+                    if (groupedCollections) {
+                        loadCollections(request, sortAndDirection, filter)
+                        return@launch
+                    }
+                    collections = null
+                    _state.update {
+                        it.copy(
+                            items = DataLoadingState.Loading,
+                            backgroundLoading = LoadingState.Loading,
+                            sortAndDirection = sortAndDirection,
+                            filter = filter,
+                        )
+                    }
+                    try {
+                        val newPager = createPager(sortAndDirection, recursive, filter, useSeriesForPrimary).init()
+                        if (newPager.isNotEmpty()) newPager.getBlocking(0)
+                        _state.update {
+                            it.copy(
+                                items = DataLoadingState.Success(newPager),
+                                backgroundLoading = LoadingState.Success,
+                            )
+                        }
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: Exception) {
+                        Timber.e(
+                            ex,
+                            "Exception while loading data: sort=%s, filter=%s",
+                            sortAndDirection,
+                            filter,
+                        )
+                        _state.update {
+                            it.copy(
+                                items = DataLoadingState.Error(ex),
+                                backgroundLoading = LoadingState.Pending,
+                            )
+                        }
+                    }
+                }.also { loadJob = it }
+        }
+
+        /**
+         * Every member-scoped collection in the server's sort-name order, group by group. Shown
+         * straight away from memory when the page has loaded them before, then refreshed. Watched
+         * and favourite marks follow in a second request: the server takes several seconds to
+         * work them out for every collection, and the posters don't need to wait for them.
+         */
+        private suspend fun loadCollections(
+            request: GetItemsRequest,
+            sortAndDirection: SortAndDirection,
+            filter: GetItemsFilter,
+        ) {
+            val all =
+                request.copy(
+                    tags = null,
+                    sortBy = listOf(ItemSortBy.SORT_NAME),
+                    sortOrder = listOf(if (sortAndDirection.direction == SortOrder.DESCENDING) SortOrder.DESCENDING else SortOrder.ASCENDING),
+                    fields = (request.fields.orEmpty() + ItemFields.TAGS + ItemFields.CHILD_COUNT).distinct(),
+                    startIndex = null,
+                    limit = null,
+                    enableTotalRecordCount = false,
                 )
+            val cached = savedCollections[all]
+            _state.update { it.copy(sortAndDirection = sortAndDirection, filter = filter) }
+            if (cached != null) {
+                showCollections(cached)
+            } else {
+                _state.update { it.copy(items = DataLoadingState.Loading, backgroundLoading = LoadingState.Loading) }
             }
             try {
-                val request = createGetItemsRequest(sortAndDirection, recursive, filter)
-                val groupedCollections =
-                    BuildConfig.FLAVOR == "weaselfin" && filter.override == GetItemsFilterOverride.NONE &&
-                        request.includeItemTypes == listOf(BaseItemKind.BOX_SET) &&
-                        sortAndDirection.sort in listOf(ItemSortBy.SORT_NAME, ItemSortBy.DEFAULT)
-                val newPager: BlockingList<BaseItem?> =
-                    if (groupedCollections) {
-                        loadOrderedCollections(request, sortAndDirection.direction == SortOrder.DESCENDING)
-                    } else {
-                        createPager(sortAndDirection, recursive, filter, useSeriesForPrimary).init()
-                    }
-                if (newPager.isNotEmpty()) newPager.getBlocking(0)
-                _state.update {
-                    it.copy(
-                        items = DataLoadingState.Success(newPager),
-                        backgroundLoading = LoadingState.Success,
-                    )
-                }
+                val marks = cached.orEmpty().associate { it.id to it.userData }
+                val fresh =
+                    CollectionGroups
+                        .inGroupOrder(GetItemsRequestHandler.execute(api, all.copy(enableUserData = false)).content.items)
+                        .map { it.copy(userData = marks[it.id]) }
+                showCollections(fresh)
+                val userData =
+                    GetItemsRequestHandler
+                        .execute(api, all.copy(fields = null, enableImages = false, enableImageTypes = null))
+                        .content.items
+                        .associate { it.id to it.userData }
+                val complete = fresh.map { it.copy(userData = userData[it.id] ?: it.userData) }
+                savedCollections[all] = complete
+                showCollections(complete)
+            } catch (ex: CancellationException) {
+                throw ex
             } catch (ex: Exception) {
-                Timber.e(
-                    ex,
-                    "Exception while loading data: sort=%s, filter=%s",
-                    sortAndDirection,
-                    filter,
-                )
-                _state.update {
-                    it.copy(
-                        items = DataLoadingState.Error(ex),
-                        backgroundLoading = LoadingState.Pending,
-                    )
+                Timber.e(ex, "Exception while loading collections")
+                if (state.value.items !is DataLoadingState.Success) {
+                    _state.update { it.copy(items = DataLoadingState.Error(ex), backgroundLoading = LoadingState.Pending) }
                 }
             }
         }
 
-        /** Fetch every member-scoped collection, in the server's sort-name order within each group. */
-        private suspend fun loadOrderedCollections(
-            request: GetItemsRequest,
-            descending: Boolean,
-        ): BlockingList<BaseItem?> {
-            val items = mutableListOf<BaseItemDto>()
-            var start = 0
-            while (true) {
-                val result =
-                    GetItemsRequestHandler
-                        .execute(
-                            api,
-                            request.copy(
-                                // The server's sort-name order, which the web player and phone apps show
-                                sortBy = listOf(ItemSortBy.SORT_NAME),
-                                sortOrder = listOf(if (descending) SortOrder.DESCENDING else SortOrder.ASCENDING),
-                                startIndex = start,
-                                limit = 200,
-                                enableTotalRecordCount = true,
-                                fields = (request.fields.orEmpty() + ItemFields.TAGS + ItemFields.CHILD_COUNT).distinct(),
-                            ),
-                        ).content
-                val page = result.items
-                items.addAll(page)
-                start += page.size
-                if (page.isEmpty() || start >= result.totalRecordCount) break
+        /** [all] collections, or just the selected group's, and the groups they're in. */
+        private fun showCollections(all: List<BaseItemDto>) {
+            collections = all
+            val group = state.value.collectionGroup
+            val shown = if (group == null) all else all.filter { CollectionGroups.tag(group) in it.tags.orEmpty() }
+            _state.update {
+                it.copy(
+                    items = DataLoadingState.Success(BlockingList.of(shown.map { BaseItem(it.copy(sortName = it.name), useSeriesForPrimary) })),
+                    backgroundLoading = LoadingState.Success,
+                    collectionGroups = CollectionGroups.groups(all),
+                )
             }
-            // Sort names put the groups' collections between each other, so list them group by group
-            return BlockingList.of(
-                CollectionGroups.inGroupOrder(items).map { BaseItem(it.copy(sortName = it.name), useSeriesForPrimary) },
-            )
         }
 
         private suspend fun refreshItem(
@@ -471,6 +528,8 @@ class CollectionFolderViewModel
                 items.refreshItem(position, itemId)
             } else {
                 val updated = BaseItem(api.userLibraryApi.getItem(itemId).content, useSeriesForPrimary)
+                // Keep a new favourite or watched mark when another group is picked
+                collections = collections?.map { if (it.id == itemId) it.copy(userData = updated.data.userData) else it }
                 _state.update { current ->
                     val currentItems = current.items.successValue ?: return@update current
                     current.copy(
