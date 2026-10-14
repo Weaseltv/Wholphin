@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -102,6 +103,30 @@ fun QuickListButton(
     compact: Boolean = false,
     /** Shows a small spinner while this list loads. */
     loading: Boolean = false,
+) = QuickListButton(
+    title = stringResource(title).uppercase(),
+    selected = selected,
+    onClick = onClick,
+    modifier = modifier,
+    contentColor = contentColor,
+    height = if (compact) COMPACT_BUTTON_SIZE else MinButtonSize,
+    horizontalPadding = if (compact) COMPACT_PADDING else 12.dp,
+    fontSize = if (compact) COMPACT_FONT_SIZE else TextUnit.Unspecified,
+    loading = loading,
+)
+
+/** A quick-list style button with a [title] that's shown as given, and its own size. */
+@Composable
+fun QuickListButton(
+    title: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    height: Dp,
+    horizontalPadding: Dp,
+    fontSize: TextUnit,
+    modifier: Modifier = Modifier,
+    contentColor: Color = Color.Unspecified,
+    loading: Boolean = false,
 ) {
     val accent = LocalNeonAccent.current
     Button(
@@ -124,8 +149,8 @@ fun QuickListButton(
                 restColor = if (selected) accent else LocalNeonOutlineRest.current ?: NeonBoard.Line2,
             ),
         glow = neonSurfaceGlow(accent),
-        contentPadding = PaddingValues(horizontal = if (compact) COMPACT_PADDING else 12.dp),
-        contentHeight = if (compact) COMPACT_BUTTON_SIZE else MinButtonSize,
+        contentPadding = PaddingValues(horizontal = horizontalPadding),
+        contentHeight = height,
         modifier = modifier.semantics { this.selected = selected },
     ) {
         if (loading) {
@@ -136,9 +161,9 @@ fun QuickListButton(
             )
         }
         Text(
-            text = stringResource(title).uppercase(),
+            text = title,
             color = contentColor,
-            fontSize = if (compact) COMPACT_FONT_SIZE else TextUnit.Unspecified,
+            fontSize = fontSize,
         )
     }
 }

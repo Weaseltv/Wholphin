@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -28,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
@@ -51,6 +54,7 @@ import com.github.damontecres.wholphin.ui.playback.scale
 import com.github.damontecres.wholphin.ui.preferences.FittedPanelTitle
 import com.github.damontecres.wholphin.ui.theme.ApprovedCollectionCardAppearance
 import com.github.damontecres.wholphin.ui.theme.CollectionCardStyle
+import com.github.damontecres.wholphin.ui.theme.LocalNeonOutlineRest
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
 import com.github.damontecres.wholphin.ui.theme.NeonSectionRule
@@ -366,6 +370,10 @@ fun CollectionFolderHeader(
     filterButtonFocusRequester: FocusRequester = remember { FocusRequester() },
     randomButtonFocusRequester: FocusRequester = remember { FocusRequester() },
     collectionsOptions: HomeRowViewOptions? = null,
+    collectionGroups: List<String> = emptyList(),
+    collectionGroup: String? = null,
+    onCollectionGroupChange: (String?) -> Unit = {},
+    groupButtonFocusRequester: FocusRequester = remember { FocusRequester() },
 ) {
     AnimatedVisibility(
         showHeader,
@@ -381,6 +389,14 @@ fun CollectionFolderHeader(
         ) {
             if (showTitle) {
                 GridTitle(title, collectionsOptions = collectionsOptions)
+            }
+            if (collectionGroups.isNotEmpty()) {
+                CollectionGroupButtons(
+                    groups = collectionGroups,
+                    selected = collectionGroup,
+                    onChange = onCollectionGroupChange,
+                    selectedFocusRequester = groupButtonFocusRequester,
+                )
             }
             val endPadding =
                 16.dp + if (sortAndDirection.sort == ItemSortBy.SORT_NAME) 24.dp else 0.dp
@@ -468,3 +484,48 @@ fun CollectionFolderHeader(
         }
     }
 }
+
+/**
+ * The Collections page's group shortcuts: ALL and four groups on the first row, then four to a
+ * row. Smaller than the page's other buttons so each row fits without scrolling.
+ */
+@Composable
+private fun CollectionGroupButtons(
+    groups: List<String>,
+    selected: String?,
+    onChange: (String?) -> Unit,
+    selectedFocusRequester: FocusRequester,
+    modifier: Modifier = Modifier,
+) {
+    // null is ALL
+    val buttons = listOf(null) + groups
+    val rows = listOf(buttons.take(5)) + buttons.drop(5).chunked(4)
+    val all = stringResource(R.string.streaming_all).uppercase()
+    // Grey outlines at rest; the accent shows on focus and on the group that's showing
+    CompositionLocalProvider(LocalNeonOutlineRest provides null) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = modifier.padding(top = 4.dp, bottom = 4.dp).focusGroup(),
+        ) {
+            rows.forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    row.forEach { group ->
+                        QuickListButton(
+                            title = group?.uppercase() ?: all,
+                            selected = group == selected,
+                            onClick = { onChange(group) },
+                            height = GROUP_BUTTON_HEIGHT,
+                            horizontalPadding = GROUP_BUTTON_PADDING,
+                            fontSize = GROUP_BUTTON_FONT_SIZE,
+                            modifier = if (group == selected) Modifier.focusRequester(selectedFocusRequester) else Modifier,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private val GROUP_BUTTON_HEIGHT = 30.dp
+private val GROUP_BUTTON_PADDING = 10.dp
+private val GROUP_BUTTON_FONT_SIZE = 13.sp

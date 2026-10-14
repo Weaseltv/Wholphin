@@ -48,6 +48,7 @@ import com.github.damontecres.wholphin.data.model.LibraryDisplayInfo
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.BackdropService
+import com.github.damontecres.wholphin.services.CollectionGroups
 import com.github.damontecres.wholphin.services.CuratedCollections
 import com.github.damontecres.wholphin.services.FavoriteWatchManager
 import com.github.damontecres.wholphin.services.FilterOptionCache
@@ -188,17 +189,17 @@ class CollectionFolderViewModel
                         )
                     }
 
-                    val orderPreferences = context.getSharedPreferences("collections_display_order", Context.MODE_PRIVATE)
-                    val orderKey =
-                        "explicit_order_v2_${serverRepository.currentUser?.rowId}_" +
-                            "${collectionFilter.libraryDisplayInfoIdOverride ?: itemId}"
-                    val useApprovedOrder =
+                    val collectionsPage =
                         BuildConfig.FLAVOR == "weaselfin" &&
                             (
                                 item?.data?.collectionType == CollectionType.BOXSETS ||
                                     collectionFilter.filter.includeItemTypes == listOf(BaseItemKind.BOX_SET)
-                            ) &&
-                            !orderPreferences.getBoolean(orderKey, false)
+                            )
+                    val orderPreferences = context.getSharedPreferences("collections_display_order", Context.MODE_PRIVATE)
+                    val orderKey =
+                        "explicit_order_v2_${serverRepository.currentUser?.rowId}_" +
+                            "${collectionFilter.libraryDisplayInfoIdOverride ?: itemId}"
+                    val useApprovedOrder = collectionsPage && !orderPreferences.getBoolean(orderKey, false)
                     val sortAndDirection =
                         if (useApprovedOrder) {
                             SortAndDirection.DEFAULT
@@ -218,6 +219,7 @@ class CollectionFolderViewModel
                         }
 
                     _state.update { it.copy(item = DataLoadingState.Success(item)) }
+                    if (collectionsPage) viewModelScope.launchIO { loadCollectionGroups() }
                     if (useApprovedOrder) saveLibraryDisplayInfo(newFilter = filterToUse, newSort = sortAndDirection)
                     loadResults(true, sortAndDirection, recursive, filterToUse, useSeriesForPrimary)
                         .join()
@@ -349,6 +351,31 @@ class CollectionFolderViewModel
             )
             saveLibraryDisplayInfo(filter, sortAndDirection)
             loadResults(true, sortAndDirection, recursive, filter, useSeriesForPrimary)
+        }
+
+        override fun onCollectionGroupChange(group: String?) {
+            _state.update { it.copy(collectionGroup = group) }
+            position = 0
+            loadResults(true, state.value.sortAndDirection, recursive, state.value.filter, useSeriesForPrimary)
+        }
+
+        /** Every collection's tags, to find which groups the member has collections in. */
+        private suspend fun loadCollectionGroups() {
+            try {
+                val request =
+                    createGetItemsRequest(SortAndDirection.DEFAULT, recursive, collectionFilter.filter).copy(
+                        tags = null,
+                        fields = listOf(ItemFields.TAGS),
+                        enableImages = false,
+                        enableImageTypes = null,
+                        enableUserData = false,
+                        enableTotalRecordCount = false,
+                    )
+                val groups = CollectionGroups.groups(GetItemsRequestHandler.execute(api, request).content.items)
+                _state.update { it.copy(collectionGroups = groups) }
+            } catch (ex: Exception) {
+                Timber.w(ex, "Couldn't load the collection groups")
+            }
         }
 
         private fun loadResults(
@@ -590,7 +617,7 @@ class CollectionFolderViewModel
                         BuildConfig.FLAVOR != "weaselfin" ||
                             item?.data?.collectionType != CollectionType.BOXSETS || filter.includeItemTypes != null,
                 )
-            return request
+            return state.value.collectionGroup?.let { request.copy(tags = listOf(CollectionGroups.tag(it))) } ?: request
         }
 
         override suspend fun getFilterOptionValues(filterOption: ItemFilterBy<*>): List<FilterValueOption> =
@@ -737,6 +764,10 @@ data class CollectionFolderState(
     val sortAndDirection: SortAndDirection = SortAndDirection.DEFAULT,
     val filter: GetItemsFilter = GetItemsFilter(),
     val viewOptions: ViewOptions,
+    /** The Collections page's group shortcuts, in order; empty elsewhere. */
+    val collectionGroups: List<String> = emptyList(),
+    /** The group showing, or null for all collections. Not saved, so the page opens on ALL. */
+    val collectionGroup: String? = null,
 )
 
 /**
@@ -924,6 +955,9 @@ interface CollectionFolderViewActions {
      * Navigate to a random item
      */
     fun onClickRandom()
+
+    /** Show one of the Collections page's groups, or all collections when [group] is null. */
+    fun onCollectionGroupChange(group: String?) {}
 }
 
 @Composable
@@ -956,6 +990,10 @@ fun CollectionFolderViewContent(
 
     // Track if leaving page due to clicking the random button so focus can be restored there
     var clickedRandom by rememberSaveable { mutableStateOf(false) }
+
+    // Keep focus on a group button while its collections load
+    var clickedGroup by rememberSaveable { mutableStateOf(false) }
+    val groupButtonFocusRequester = remember { FocusRequester() }
 
     val contextMenu = rememberContextMenu(preferences, provider)
     var showViewOptions by rememberSaveable { mutableStateOf(false) }
@@ -1088,6 +1126,13 @@ fun CollectionFolderViewContent(
                         onShowFilterDropdown = { filterDropdownShowing = it },
                         filterButtonFocusRequester = filterButtonFocusRequester,
                         randomButtonFocusRequester = randomButtonFocusRequester,
+                        collectionGroups = if (collectionsLayout) state.collectionGroups else emptyList(),
+                        collectionGroup = state.collectionGroup,
+                        onCollectionGroupChange = {
+                            clickedGroup = true
+                            viewActions.onCollectionGroupChange(it)
+                        },
+                        groupButtonFocusRequester = groupButtonFocusRequester,
                     )
 
                     when (val pager = state.items) {
@@ -1111,11 +1156,13 @@ fun CollectionFolderViewContent(
                                         contextMenu.isShowing -> null
                                         filterDropdownShowing -> filterButtonFocusRequester
                                         clickedRandom -> randomButtonFocusRequester
+                                        clickedGroup -> groupButtonFocusRequester
                                         pager.data.isNotEmpty() -> gridFocusRequester
                                         else -> focusRequesterOnEmpty ?: headerRowFocusRequester
                                     }
                                 focusRequester?.tryRequestFocus()
                                 clickedRandom = false
+                                clickedGroup = false
                             }
                             Box(Modifier.fillMaxSize()) {
                                 if (state.viewOptions.type == ViewOptionsType.GRID) {
