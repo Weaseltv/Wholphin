@@ -58,6 +58,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -1204,11 +1205,15 @@ private fun ContinueWatchingEmptyCard(
                 .border(1.dp, if (focused) LocalNeonAccent.current else NeonBoard.Line2, shape)
                 .padding(horizontal = 24.dp, vertical = 16.dp),
     ) {
-        Text(
-            text = stringResource(R.string.home_continue_watching_empty),
-            style = NeonType.body(),
-            color = Color.White,
-        )
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            stringArrayResource(R.array.home_continue_watching_empty).forEach { line ->
+                Row {
+                    Text(text = "•", style = NeonType.body(), color = Color.White)
+                    Spacer(Modifier.width(10.dp))
+                    Text(text = line, style = NeonType.body(), color = Color.White)
+                }
+            }
+        }
     }
 }
 
