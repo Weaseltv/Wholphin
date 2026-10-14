@@ -199,10 +199,11 @@ fun PersonCard(
                         .enableMarquee(focusedAfterDelay),
             )
             role?.let {
+                // Two lines, so a person with several roles shows them all
                 Text(
                     text = role,
-                    maxLines = 1,
-                    overflow = if (focusedAfterDelay) TextOverflow.Clip else TextOverflow.Ellipsis,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodySmall,
                     fontSize = 11.sp,
@@ -211,8 +212,7 @@ fun PersonCard(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 4.dp)
-                            .enableMarquee(focusedAfterDelay),
+                            .padding(horizontal = 4.dp),
                 )
             }
         }
