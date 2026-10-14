@@ -467,7 +467,16 @@ class CollectionFolderViewModel
                 request.copy(
                     tags = null,
                     sortBy = listOf(ItemSortBy.SORT_NAME),
-                    sortOrder = listOf(if (sortAndDirection.direction == SortOrder.DESCENDING) SortOrder.DESCENDING else SortOrder.ASCENDING),
+                    sortOrder =
+                        listOf(
+                            if (sortAndDirection.direction ==
+                                SortOrder.DESCENDING
+                            ) {
+                                SortOrder.DESCENDING
+                            } else {
+                                SortOrder.ASCENDING
+                            },
+                        ),
                     fields = (request.fields.orEmpty() + ItemFields.TAGS + ItemFields.CHILD_COUNT).distinct(),
                     startIndex = null,
                     limit = null,
@@ -512,7 +521,10 @@ class CollectionFolderViewModel
             val shown = if (group == null) all else all.filter { CollectionGroups.tag(group) in it.tags.orEmpty() }
             _state.update {
                 it.copy(
-                    items = DataLoadingState.Success(BlockingList.of(shown.map { BaseItem(it.copy(sortName = it.name), useSeriesForPrimary) })),
+                    items =
+                        DataLoadingState.Success(
+                            BlockingList.of(shown.map { BaseItem(it.copy(sortName = it.name), useSeriesForPrimary) }),
+                        ),
                     backgroundLoading = LoadingState.Success,
                     collectionGroups = CollectionGroups.groups(all),
                 )
