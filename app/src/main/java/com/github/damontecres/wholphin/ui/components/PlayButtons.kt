@@ -396,13 +396,12 @@ fun ExpandablePlayButton(
     }
 }
 
-/**
- * Similar to [ExpandablePlayButton], but uses a [FontAwesome] string instead of an Icon
- */
-
 /** Room for a focused button's glow at the ends of a scrolling button row. */
 val ButtonGlowRoom = 16.dp
 
+/**
+ * Similar to [ExpandablePlayButton], but uses a [FontAwesome] string instead of an Icon
+ */
 @Composable
 fun ExpandableFaButton(
     @StringRes title: Int,
