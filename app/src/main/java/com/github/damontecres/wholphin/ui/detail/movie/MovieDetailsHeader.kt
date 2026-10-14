@@ -12,11 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -30,6 +28,7 @@ import com.github.damontecres.wholphin.ui.components.OverviewText
 import com.github.damontecres.wholphin.ui.components.QuickDetails
 import com.github.damontecres.wholphin.ui.components.TitleOrLogo
 import com.github.damontecres.wholphin.ui.components.VideoStreamDetails
+import com.github.damontecres.wholphin.ui.components.scaled
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.letNotEmpty
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
@@ -50,7 +49,7 @@ fun MovieDetailsHeader(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val neon = isWeaselTv()
-    val infoScale = if (neon) INFO_TEXT_SCALE else 1f
+    val infoScale = HeaderUtils.detailInfoTextScale()
     val typography = MaterialTheme.typography
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -145,18 +144,3 @@ fun MovieDetailsHeader(
     }
 }
 
-/**
- * WeaselPlex: the details under the title are 20% larger than the theme's text. The page shrinks
- * the whole header to fit above the buttons, so this keeps them readable on a TV.
- */
-private const val INFO_TEXT_SCALE = 1.2f
-
-private fun TextStyle.scaled(scale: Float) =
-    if (scale == 1f) {
-        this
-    } else {
-        copy(
-            fontSize = if (fontSize.isSpecified) fontSize * scale else fontSize,
-            lineHeight = if (lineHeight.isSpecified) lineHeight * scale else lineHeight,
-        )
-    }

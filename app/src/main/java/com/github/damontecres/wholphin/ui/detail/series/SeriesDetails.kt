@@ -82,6 +82,7 @@ import com.github.damontecres.wholphin.ui.components.TitleOrLogo
 import com.github.damontecres.wholphin.ui.components.TrailerButton
 import com.github.damontecres.wholphin.ui.components.reportDetailActionHeight
 import com.github.damontecres.wholphin.ui.components.reportDetailRowHeight
+import com.github.damontecres.wholphin.ui.components.scaled
 import com.github.damontecres.wholphin.ui.data.AddPlaylistViewModel
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialog
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialogInfo
@@ -336,6 +337,13 @@ private const val EXTRAS_ROW = TRAILER_ROW + 1
 private const val SIMILAR_ROW = EXTRAS_ROW + 1
 private const val DISCOVER_ROW = SIMILAR_ROW + 1
 
+/**
+ * The space kept below the buttons for the Seasons row: its title, posters and captions. It leaves
+ * out the empty focus room under the captions, so the header has more height and its text is
+ * shrunk less.
+ */
+private val SeasonsRowReserve = Cards.height2x3 + 116.dp
+
 @Composable
 fun SeriesDetailsContent(
     preferences: UserPreferences,
@@ -387,7 +395,7 @@ fun SeriesDetailsContent(
                 modifier = Modifier,
             ) {
                 item {
-                    FittedDetailHeader {
+                    FittedDetailHeader(firstRowHeight = SeasonsRowReserve) {
                         SeriesDetailsHeader(
                             series = series,
                             showLogo = preferences.appPreferences.interfacePreferences.showLogos,
@@ -635,6 +643,8 @@ fun SeriesDetailsHeader(
     val scope = rememberCoroutineScope()
     val neon = isWeaselTv()
     val dto = series.data
+    val infoScale = HeaderUtils.detailInfoTextScale()
+    val typography = MaterialTheme.typography
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = modifier,
@@ -655,23 +665,29 @@ fun SeriesDetailsHeader(
                 series.ui.quickDetails,
                 null,
                 Modifier.padding(start = HeaderUtils.startPadding),
+                textStyle = typography.titleSmall.scaled(infoScale),
             )
             if (LocalCompactDetailHeader.current) {
                 GenreText(
                     series.studioNames + dto.genres.orEmpty(),
                     Modifier.padding(start = HeaderUtils.startPadding),
+                    textStyle = typography.bodyMedium.scaled(infoScale),
                 )
             } else {
                 dto.studios?.let {
                     val studios = remember { series.studioNames }
                     GenreText(
                         studios,
-                        textStyle = MaterialTheme.typography.bodyLarge,
+                        textStyle = typography.bodyLarge.scaled(infoScale),
                         modifier = Modifier.padding(start = HeaderUtils.startPadding),
                     )
                 }
                 dto.genres?.letNotEmpty {
-                    GenreText(it, Modifier.padding(start = HeaderUtils.startPadding, bottom = 4.dp))
+                    GenreText(
+                        it,
+                        Modifier.padding(start = HeaderUtils.startPadding, bottom = 4.dp),
+                        textStyle = typography.bodyMedium.scaled(infoScale),
+                    )
                 }
             }
             dto.overview?.let { overview ->
@@ -680,6 +696,7 @@ fun SeriesDetailsHeader(
                     maxLines = 3,
                     onClick = overviewOnClick,
                     textBoxHeight = Dp.Unspecified,
+                    textStyle = typography.bodyMedium.scaled(infoScale),
                     modifier =
                         Modifier.onFocusChanged {
                             if (it.isFocused && !neon) {
