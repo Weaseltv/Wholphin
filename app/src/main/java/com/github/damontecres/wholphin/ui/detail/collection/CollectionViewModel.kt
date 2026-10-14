@@ -134,7 +134,15 @@ class CollectionViewModel
             viewOptionsFlow.collectLatestIn(viewModelScope) { viewOptions ->
                 Timber.v("Updated viewOptions")
                 _state.update {
-                    it.copy(viewOptions = if (it.isStreaming || it.isCurated) StreamingViewOptions else viewOptions)
+                    it.copy(
+                        viewOptions =
+                            if (it.isStreaming || it.isCurated) {
+                                StreamingViewOptions
+                            } else {
+                                // Navigating the grid never swaps the header for the focused card, like library pages
+                                viewOptions.copy(cardViewOptions = viewOptions.cardViewOptions.copy(showDetails = false))
+                            },
+                    )
                 }
             }
             libraryDisplayInfoFlow
@@ -320,8 +328,14 @@ class CollectionViewModel
                 _state.update { it.copy(items = result) }
             } else {
                 supervisorScope {
+                    // One row per type the ALL / MOVIES / SHOWS choice allows
+                    val rowTypes =
+                        filter.includeItemTypes
+                            ?.takeIf { it.isNotEmpty() }
+                            ?.let { chosen -> typesInCollection.filter { it in chosen } }
+                            ?: typesInCollection
                     val jobs =
-                        typesInCollection.map { type ->
+                        rowTypes.map { type ->
                             async(WholphinDispatchers.IO) {
                                 val title = ResStringProvider(formatTypeName(type))
                                 val result =
@@ -449,7 +463,13 @@ class CollectionViewModel
                                     ?.takeIf { it.isNotEmpty() } ?: allowedTypes,
                         )
                     } else {
-                        filtered
+                        // ALL / MOVIES / SHOWS narrow the collection's own types
+                        val chosen = filter?.includeItemTypes?.takeIf { it.isNotEmpty() }
+                        if (chosen == null) {
+                            filtered
+                        } else {
+                            filtered.copy(includeItemTypes = types.filter { it in chosen }.ifEmpty { chosen })
+                        }
                     }
                 }
             return request

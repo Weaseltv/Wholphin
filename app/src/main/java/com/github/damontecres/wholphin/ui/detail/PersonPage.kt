@@ -161,7 +161,8 @@ class PersonViewModel
                         _state.update { it.copy(episodes = RowLoadingState.Success(emptyList())) }
                     }
                     viewModelScope.launchIO {
-                        val results = seerrService.similar(person).orEmpty()
+                        // WeaselPlex has no Requests row on person pages
+                        val results = if (BuildConfig.FLAVOR == "weaselfin") emptyList() else seerrService.similar(person).orEmpty()
                         _state.update {
                             it.copy(
                                 discovered = results,

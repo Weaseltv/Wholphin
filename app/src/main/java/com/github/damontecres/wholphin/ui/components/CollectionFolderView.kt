@@ -48,7 +48,6 @@ import com.github.damontecres.wholphin.data.model.LibraryDisplayInfo
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.BackdropService
-import com.github.damontecres.wholphin.services.CollectionDisplayOrder
 import com.github.damontecres.wholphin.services.CuratedCollections
 import com.github.damontecres.wholphin.services.FavoriteWatchManager
 import com.github.damontecres.wholphin.services.FilterOptionCache
@@ -402,7 +401,7 @@ class CollectionFolderViewModel
             }
         }
 
-        /** Fetch every member-scoped page before sorting, so group order spans page boundaries. */
+        /** Fetch every member-scoped collection, in the server's sort-name order. */
         private suspend fun loadOrderedCollections(
             request: GetItemsRequest,
             descending: Boolean,
@@ -415,6 +414,9 @@ class CollectionFolderViewModel
                         .execute(
                             api,
                             request.copy(
+                                // The server's sort-name order, which the web player and phone apps show
+                                sortBy = listOf(ItemSortBy.SORT_NAME),
+                                sortOrder = listOf(if (descending) SortOrder.DESCENDING else SortOrder.ASCENDING),
                                 startIndex = start,
                                 limit = 200,
                                 enableTotalRecordCount = true,
@@ -426,7 +428,7 @@ class CollectionFolderViewModel
                 start += page.size
                 if (page.isEmpty() || start >= result.totalRecordCount) break
             }
-            return BlockingList.of(CollectionDisplayOrder.sort(items, descending))
+            return BlockingList.of(items)
         }
 
         private suspend fun refreshItem(
@@ -574,7 +576,13 @@ class CollectionFolderViewModel
                                     }
                                 }
                             },
-                        fields = SlimItemFields,
+                        // Collections show their title count on the card
+                        fields =
+                            if (item?.data?.collectionType == CollectionType.BOXSETS) {
+                                SlimItemFields + ItemFields.CHILD_COUNT
+                            } else {
+                                SlimItemFields
+                            },
                     ),
                     // An unset UI type filter must not erase BOX_SET from the library query:
                     // ordering selection below relies on the effective query, not just the page title.

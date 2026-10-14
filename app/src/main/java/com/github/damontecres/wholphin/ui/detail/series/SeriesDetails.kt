@@ -52,10 +52,12 @@ import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.TrailerService
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.RequestOrRestoreFocus
+import com.github.damontecres.wholphin.ui.bleedHorizontal
 import com.github.damontecres.wholphin.ui.cards.ExtrasRow
 import com.github.damontecres.wholphin.ui.cards.ItemRow
 import com.github.damontecres.wholphin.ui.cards.PersonRow
 import com.github.damontecres.wholphin.ui.cards.SeasonCard
+import com.github.damontecres.wholphin.ui.components.ButtonGlowRoom
 import com.github.damontecres.wholphin.ui.components.ConfirmDialog
 import com.github.damontecres.wholphin.ui.components.ContextMenu
 import com.github.damontecres.wholphin.ui.components.ContextMenuActions
@@ -66,10 +68,10 @@ import com.github.damontecres.wholphin.ui.components.DialogItem
 import com.github.damontecres.wholphin.ui.components.DialogParams
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.ExpandableFaButton
-import com.github.damontecres.wholphin.ui.components.ExpandablePlayButton
 import com.github.damontecres.wholphin.ui.components.FittedDetailHeader
 import com.github.damontecres.wholphin.ui.components.GenreText
 import com.github.damontecres.wholphin.ui.components.HeaderUtils
+import com.github.damontecres.wholphin.ui.components.KeepFocusRoomOnScroll
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.components.LocalCompactDetailHeader
 import com.github.damontecres.wholphin.ui.components.Optional
@@ -89,6 +91,7 @@ import com.github.damontecres.wholphin.ui.discover.DiscoverRowData
 import com.github.damontecres.wholphin.ui.letNotEmpty
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberInt
+import com.github.damontecres.wholphin.ui.theme.ProvideButtonsOverArtwork
 import com.github.damontecres.wholphin.ui.theme.ProvideNeonAccent
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonAccentFor
@@ -257,6 +260,7 @@ fun SeriesDetails(
                     onClickExtra = { _, extra ->
                         viewModel.navigateTo(extra.destination)
                     },
+                    onClickRandom = viewModel::onClickRandomEpisode,
                     discoverSeries = state.discoverSeries,
                     onClickDiscoverSeries = {
                         state.discoverSeries?.let {
@@ -359,6 +363,7 @@ fun SeriesDetailsContent(
     onClickDiscover: (Int, DiscoverItem) -> Unit,
     discoverSeries: DiscoverItem?,
     onClickDiscoverSeries: () -> Unit,
+    onClickRandom: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -367,7 +372,7 @@ fun SeriesDetailsContent(
 
     var position by rememberInt()
     val focusRequesters = remember { List(DISCOVER_ROW + 1) { FocusRequester() } }
-    val playFocusRequester = remember { FocusRequester() }
+    val firstButtonFocusRequester = remember { FocusRequester() }
     RequestOrRestoreFocus(focusRequesters.getOrNull(position))
 
     DetailPageViewport(modifier = modifier) {
@@ -395,128 +400,82 @@ fun SeriesDetailsContent(
                                     .padding(top = HeaderUtils.detailTopPadding(), bottom = 8.dp),
                         )
                     }
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier =
-                            Modifier
-                                .reportDetailActionHeight()
-                                .horizontalScroll(rememberScrollState())
-                                .padding(start = HeaderUtils.startPadding)
-                                .focusRequester(focusRequesters[HEADER_ROW])
-                                .focusRestorer(playFocusRequester)
-                                .focusGroup()
-                                .padding(bottom = 16.dp),
-                    ) {
-                        ExpandablePlayButton(
-                            title = R.string.play,
-                            resume = Duration.ZERO,
-                            icon = Icons.Default.PlayArrow,
-                            onClick = {
-                                position = HEADER_ROW
-                                playOnClick.invoke(false)
-                            },
-                            modifier =
-                                Modifier
-                                    .focusRequester(playFocusRequester)
-                                    .onFocusChanged {
-                                        if (it.isFocused) {
-                                            scope.launch(ExceptionHandler()) {
-                                                bringIntoViewRequester.bringIntoView()
-                                            }
-                                        }
-                                    },
-                        )
-                        ExpandableFaButton(
-                            title = R.string.shuffle,
-                            iconStringRes = R.string.fa_shuffle,
-                            onClick = {
-                                position = HEADER_ROW
-                                playOnClick.invoke(true)
-                            },
-                            modifier =
-                                Modifier.onFocusChanged {
-                                    if (it.isFocused) {
-                                        scope.launch(ExceptionHandler()) {
-                                            bringIntoViewRequester.bringIntoView()
-                                        }
-                                    }
-                                },
-                        )
-                        ExpandableFaButton(
-                            title = if (played) R.string.mark_unwatched else R.string.mark_watched,
-                            iconStringRes = if (played) R.string.fa_eye else R.string.fa_eye_slash,
-                            onClick = watchOnClick,
-                            modifier =
-                                Modifier.onFocusChanged {
-                                    if (it.isFocused) {
-                                        scope.launch(ExceptionHandler()) {
-                                            bringIntoViewRequester.bringIntoView()
-                                        }
-                                    }
-                                },
-                        )
-                        ExpandableFaButton(
-                            title = if (favorite) R.string.remove_favorite else R.string.add_favorite,
-                            iconStringRes = R.string.fa_heart,
-                            onClick = favoriteOnClick,
-                            iconColor = if (favorite) Color.Red else Color.Unspecified,
-                            modifier =
-                                Modifier.onFocusChanged {
-                                    if (it.isFocused) {
-                                        scope.launch(ExceptionHandler()) {
-                                            bringIntoViewRequester.bringIntoView()
-                                        }
-                                    }
-                                },
-                        )
-                        TrailerButton(
-                            trailers = trailers,
-                            trailerOnClick = trailerOnClick,
-                            modifier =
-                                Modifier.onFocusChanged {
-                                    if (it.isFocused) {
-                                        scope.launch(ExceptionHandler()) {
-                                            bringIntoViewRequester.bringIntoView()
-                                        }
-                                    }
-                                },
-                        )
-                        if (canDelete) {
-                            DeleteButton(
-                                title = series.title ?: "",
-                                onConfirmDelete = {
-                                    position = HEADER_ROW
-                                    actions.onDeleteItem.invoke(series)
-                                },
+                    // Over the series artwork: white outlines and a dark backing for readability
+                    ProvideButtonsOverArtwork {
+                        KeepFocusRoomOnScroll(ButtonGlowRoom) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
                                 modifier =
                                     Modifier
-                                        .onFocusChanged {
-                                            if (it.isFocused) {
-                                                scope.launch(ExceptionHandler()) {
-                                                    bringIntoViewRequester.bringIntoView()
-                                                }
-                                            }
-                                        },
-                            )
-                        }
-                        AnimatedVisibility(
-                            visible = discoverSeries != null,
-                            enter = fadeIn(),
-                            exit = fadeOut(),
-                        ) {
-                            ExpandableFaButton(
-                                title = R.string.discover,
-                                iconStringRes = R.string.fa_magnifying_glass_plus,
-                                onClick = onClickDiscoverSeries,
-                                modifier =
+                                        .reportDetailActionHeight()
+                                        // Move the scroll's clipping edge out past the focus glow
+                                        // without moving the buttons off the posters' line
+                                        .bleedHorizontal(start = ButtonGlowRoom, end = 0.dp)
+                                        .horizontalScroll(rememberScrollState())
+                                        .padding(start = HeaderUtils.startPadding + ButtonGlowRoom, end = ButtonGlowRoom)
+                                        .focusRequester(focusRequesters[HEADER_ROW])
+                                        .focusRestorer(firstButtonFocusRequester)
+                                        .focusGroup()
+                                        .padding(bottom = 16.dp),
+                            ) {
+                                val bringHeaderIntoView =
                                     Modifier.onFocusChanged {
                                         if (it.isFocused) {
                                             scope.launch(ExceptionHandler()) {
                                                 bringIntoViewRequester.bringIntoView()
                                             }
                                         }
+                                    }
+                                // No Play here: pick a season first. Random and Shuffle expand on focus.
+                                ExpandableFaButton(
+                                    title = if (favorite) R.string.remove_favorite else R.string.add_favorite,
+                                    iconStringRes = R.string.fa_heart,
+                                    onClick = favoriteOnClick,
+                                    iconColor = if (favorite) Color.Red else Color.Unspecified,
+                                    modifier = Modifier.focusRequester(firstButtonFocusRequester).then(bringHeaderIntoView),
+                                )
+                                TrailerButton(
+                                    trailers = trailers,
+                                    trailerOnClick = trailerOnClick,
+                                    modifier = bringHeaderIntoView,
+                                )
+                                ExpandableFaButton(
+                                    title = if (played) R.string.mark_unwatched else R.string.mark_watched,
+                                    iconStringRes = if (played) R.string.fa_eye else R.string.fa_eye_slash,
+                                    onClick = watchOnClick,
+                                    modifier = bringHeaderIntoView,
+                                )
+                                ExpandableFaButton(
+                                    title = R.string.sort_by_random,
+                                    iconStringRes = R.string.fa_dice,
+                                    onClick = {
+                                        position = HEADER_ROW
+                                        onClickRandom()
                                     },
-                            )
+                                    collapsed = true,
+                                    modifier = bringHeaderIntoView,
+                                )
+                                ExpandableFaButton(
+                                    title = R.string.shuffle,
+                                    iconStringRes = R.string.fa_shuffle,
+                                    onClick = {
+                                        position = HEADER_ROW
+                                        playOnClick.invoke(true)
+                                    },
+                                    collapsed = true,
+                                    modifier = bringHeaderIntoView,
+                                )
+                                if (canDelete) {
+                                    DeleteButton(
+                                        title = series.title ?: "",
+                                        onConfirmDelete = {
+                                            position = HEADER_ROW
+                                            actions.onDeleteItem.invoke(series)
+                                        },
+                                        modifier = bringHeaderIntoView,
+                                    )
+                                }
+                            }
                         }
                     }
                 }

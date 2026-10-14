@@ -181,6 +181,21 @@ val LocalNeonAccent = compositionLocalOf { NeonBoard.Volt }
 /** Rest outline colour for outline [com.github.damontecres.wholphin.ui.components.Button]s; null keeps `line2`. */
 val LocalNeonOutlineRest = compositionLocalOf<Color?> { null }
 
+/** Background for outline buttons at rest; null keeps them transparent. */
+val LocalNeonOutlineContainer = compositionLocalOf<Color?> { null }
+
+/**
+ * Outline buttons over artwork (detail pages): a white outline and a dark backing so the artwork
+ * doesn't show through the labels.
+ */
+@Composable
+fun ProvideButtonsOverArtwork(content: @Composable () -> Unit) =
+    CompositionLocalProvider(
+        LocalNeonOutlineRest provides Color.White,
+        LocalNeonOutlineContainer provides Color.Black.copy(alpha = .8f),
+        content = content,
+    )
+
 @Composable
 fun ProvideNeonAccent(
     accent: Color,
@@ -580,7 +595,7 @@ private fun homeCardAccent(default: Color): Color =
 fun neonSurfaceBorder(
     accent: Color = LocalNeonAccent.current,
     restWidth: Dp = 0.dp,
-    restColor: Color = NeonBoard.Line2,
+    restColor: Color = LocalNeonOutlineRest.current ?: NeonBoard.Line2,
     fallback: ClickableSurfaceBorder? = null,
 ): ClickableSurfaceBorder {
     if (!isWeaselTv()) return fallback ?: ClickableSurfaceDefaults.border()
@@ -659,14 +674,15 @@ fun neonOutlineColors(
     fallback: ClickableSurfaceColors? = null,
 ): ClickableSurfaceColors {
     if (!isWeaselTv()) return fallback ?: ClickableSurfaceDefaults.colors()
+    val rest = LocalNeonOutlineContainer.current ?: Color.Transparent
     return ClickableSurfaceDefaults.colors(
-        containerColor = Color.Transparent,
+        containerColor = rest,
         contentColor = NeonBoard.Text,
         focusedContainerColor = NeonBoard.chipOn(accent),
         focusedContentColor = accent,
         pressedContainerColor = NeonBoard.chipOn(accent),
         pressedContentColor = accent,
-        disabledContainerColor = Color.Transparent,
+        disabledContainerColor = rest,
         disabledContentColor = NeonBoard.Text.copy(alpha = NeonBoard.DISABLED_ALPHA),
     )
 }

@@ -61,7 +61,7 @@ fun SeasonCard(
         imageUrl = imageUrl,
         isFavorite = item?.data?.userData?.isFavorite ?: false,
         isPlayed = item?.data?.userData?.played ?: false,
-        unplayedItemCount = item?.data?.userData?.unplayedItemCount ?: 0,
+        unplayedItemCount = item?.countBadge ?: 0,
         playedPercentage = item?.data?.userData?.playedPercentage ?: 0.0,
         numberOfVersions = item?.data?.mediaSourceCount ?: 0,
         accent = accent,

@@ -301,12 +301,13 @@ class HomeViewModel
             }
         }
 
-        /** Put the Streaming Services row back in the default order and forget the member's order. */
-        fun resetStreamingOrder(rowIndex: Int) {
-            val row = state.value.homeRows.getOrNull(rowIndex) as? HomeRowLoadingState.Success ?: return
-            setRowItems(rowIndex, StreamingCollections.defaultOrder(row.items))
+        /** Forget the member's Streaming Services order and reload, so the default order shows. */
+        fun resetStreamingOrder(
+            @Suppress("UNUSED_PARAMETER") rowIndex: Int,
+        ) {
             viewModelScope.launchIO {
                 serverRepository.currentUser?.id?.let { streamingOrderService.reset(it) }
+                init()
             }
         }
 
