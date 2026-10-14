@@ -12,9 +12,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
+import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
@@ -47,6 +50,8 @@ fun MovieDetailsHeader(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val neon = isWeaselTv()
+    val infoScale = if (neon) INFO_TEXT_SCALE else 1f
+    val typography = MaterialTheme.typography
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = modifier,
@@ -69,10 +74,15 @@ fun MovieDetailsHeader(
                 movie.ui.quickDetails,
                 movie.timeRemainingOrRuntime,
                 Modifier.padding(start = HeaderUtils.startPadding),
+                textStyle = typography.titleSmall.scaled(infoScale),
             )
 
             dto.genres?.letNotEmpty {
-                GenreText(it, Modifier.padding(start = HeaderUtils.startPadding))
+                GenreText(
+                    it,
+                    Modifier.padding(start = HeaderUtils.startPadding),
+                    textStyle = typography.bodyMedium.scaled(infoScale),
+                )
             }
 
             VideoStreamDetails(
@@ -84,11 +94,12 @@ fun MovieDetailsHeader(
                         top = 4.dp,
                         bottom = 16.dp,
                     ),
+                fontSize = 12.sp * infoScale,
             )
             dto.taglines?.firstOrNull()?.let { tagline ->
                 Text(
                     text = tagline,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = typography.bodyLarge.scaled(infoScale),
                     fontStyle = FontStyle.Italic,
                     modifier = Modifier.padding(start = HeaderUtils.startPadding),
                 )
@@ -101,6 +112,7 @@ fun MovieDetailsHeader(
                     maxLines = 3,
                     onClick = overviewOnClick,
                     textBoxHeight = Dp.Unspecified,
+                    textStyle = typography.bodyMedium.scaled(infoScale),
                     modifier =
                         Modifier.onFocusChanged {
                             if (it.isFocused && !neon) {
@@ -124,7 +136,7 @@ fun MovieDetailsHeader(
                 ?.let {
                     Text(
                         text = stringResource(R.string.directed_by, it),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = typography.bodyMedium.scaled(infoScale),
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(start = HeaderUtils.startPadding),
                     )
@@ -132,3 +144,19 @@ fun MovieDetailsHeader(
         }
     }
 }
+
+/**
+ * WeaselPlex: the details under the title are 20% larger than the theme's text. The page shrinks
+ * the whole header to fit above the buttons, so this keeps them readable on a TV.
+ */
+private const val INFO_TEXT_SCALE = 1.2f
+
+private fun TextStyle.scaled(scale: Float) =
+    if (scale == 1f) {
+        this
+    } else {
+        copy(
+            fontSize = if (fontSize.isSpecified) fontSize * scale else fontSize,
+            lineHeight = if (lineHeight.isSpecified) lineHeight * scale else lineHeight,
+        )
+    }

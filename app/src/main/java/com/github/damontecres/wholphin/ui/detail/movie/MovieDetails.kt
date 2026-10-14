@@ -293,6 +293,12 @@ private const val EXTRAS_ROW = CHAPTER_ROW + 1
 private const val SIMILAR_ROW = EXTRAS_ROW + 1
 private const val DISCOVER_ROW = SIMILAR_ROW + 1
 
+/**
+ * The space kept below the buttons for the cast row, down to its names. It leaves out the empty
+ * focus room under the names, so the header has more height and its text is shrunk less.
+ */
+private val CastRowReserve = 218.dp
+
 @Composable
 fun MovieDetailsContent(
     preferences: UserPreferences,
@@ -340,7 +346,7 @@ fun MovieDetailsContent(
                             .fillMaxWidth()
                             .bringIntoViewRequester(bringIntoViewRequester),
                 ) {
-                    FittedDetailHeader {
+                    FittedDetailHeader(firstRowHeight = CastRowReserve) {
                         MovieDetailsHeader(
                             preferences = preferences,
                             movie = movie,
@@ -388,6 +394,7 @@ fun MovieDetailsContent(
                                     onChooseVersion = onChooseVersion,
                                 )
                             },
+                        collapseMore = true,
                         modifier =
                             Modifier
                                 .fillMaxWidth()

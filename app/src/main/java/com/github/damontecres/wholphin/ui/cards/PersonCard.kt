@@ -181,13 +181,16 @@ fun PersonCard(
                         .clip(CircleShape),
             )
         }
+        // Small enough that most names and roles fit the card's width without being cut off
         SlidingCardText(focused) {
             Text(
                 text = name ?: "",
                 maxLines = 1,
                 overflow = if (focusedAfterDelay) TextOverflow.Clip else TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodySmall,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier =
                     Modifier
@@ -202,6 +205,8 @@ fun PersonCard(
                     overflow = if (focusedAfterDelay) TextOverflow.Clip else TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodySmall,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
                     fontWeight = FontWeight.Normal,
                     modifier =
                         Modifier
