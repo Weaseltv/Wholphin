@@ -42,9 +42,7 @@ import com.github.damontecres.wholphin.ui.AppColors
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
-import com.github.damontecres.wholphin.ui.components.StreamingProviderPoster
 import com.github.damontecres.wholphin.ui.components.itemKindLabel
-import com.github.damontecres.wholphin.ui.components.providerWordmark
 import com.github.damontecres.wholphin.ui.gt
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.logCoilError
@@ -129,12 +127,6 @@ fun ItemCardImage(
         typeBadge = typeBadge,
         typeBadgeFilled = badgeFilled,
         progressAccent = typeAccent(item?.type),
-        providerPoster =
-            if (isWeaselTv() && item?.type == BaseItemKind.BOX_SET && imageType == ImageType.PRIMARY) {
-                providerWordmark(item.name)
-            } else {
-                null
-            },
     )
 }
 
@@ -155,7 +147,6 @@ fun ItemCardImage(
     typeBadge: String? = null,
     typeBadgeFilled: Boolean = false,
     progressAccent: Color = accent,
-    providerPoster: String? = null,
     fallback: @Composable BoxScope.() -> Unit = {
         ItemCardImageFallback(
             name = name,
@@ -168,9 +159,7 @@ fun ItemCardImage(
     Box(
         modifier = modifier,
     ) {
-        if (providerPoster != null) {
-            StreamingProviderPoster(name = name, wordmark = providerPoster, modifier = Modifier.fillMaxSize())
-        } else if (!imageError && imageUrl.isNotNullOrBlank()) {
+        if (!imageError && imageUrl.isNotNullOrBlank()) {
             AsyncImage(
                 model = imageUrl,
                 contentDescription = name,

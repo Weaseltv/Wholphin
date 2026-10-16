@@ -74,6 +74,16 @@ class StreamingCollectionsTest {
     }
 
     @Test
+    fun `JustWatch codes follow the new names, and the old ones still work`() {
+        assertEquals(listOf("mxx"), StreamingCollections.justWatchPackages("HBO Max"))
+        assertEquals(listOf("mxx"), StreamingCollections.justWatchPackages("Max"))
+        assertEquals(listOf("atp"), StreamingCollections.justWatchPackages("Apple TV"))
+        assertEquals(listOf("atp"), StreamingCollections.justWatchPackages("Apple TV+"))
+        assertEquals(listOf("nfx", "nfa"), StreamingCollections.justWatchPackages(" netflix "))
+        assertEquals(null, StreamingCollections.justWatchPackages("YouTube"))
+    }
+
+    @Test
     fun `Only tagged BoxSets open in Streaming mode`() {
         assertTrue(
             StreamingCollections.isStreamingCollection(
@@ -99,26 +109,34 @@ class StreamingCollectionsTest {
             val initialId = netflixId
             val requests = mutableListOf<Map<String, String>>()
             val headers = mutableListOf<String?>()
+            // The server's sort-name order is the owner's row order; the app keeps it as is
             val expected =
                 listOf(
                     "Netflix",
-                    "Disney+",
-                    "Max",
+                    "YouTube",
                     "Prime Video",
+                    "Disney+",
+                    "HBO Max",
                     "Paramount+",
+                    "Showtime",
                     "Peacock",
-                    "Apple TV+",
+                    "Apple TV",
+                    "Tubi",
+                    "Pluto TV",
+                    "Starz",
+                    "Crunchyroll",
+                    "Discovery+",
                     "AMC+",
                     "MGM+",
-                    "Starz",
-                    "BritBox",
-                    "Crunchyroll",
                     "Hallmark",
+                    "BritBox",
+                    "Shudder",
+                    "Acorn TV",
                     "Angel",
-                    "Alpha",
-                    "Zeta",
+                    "Criterion Channel",
                 )
-            val names = expected.reversed() + "Hulu"
+            // Hulu (sixth on the server) has no titles for this member, so it's left out
+            val names = expected.take(5) + "Hulu" + expected.drop(5)
             val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
             server.createContext("/Items") { exchange ->
                 val query =
@@ -141,7 +159,7 @@ class StreamingCollectionsTest {
                             """{"Id":"$id","Name":"$name","Type":"BoxSet","ChildCount":$count}"""
                         }
                     }
-                val body = """{"Items":[$items],"TotalRecordCount":17,"StartIndex":0}""".toByteArray()
+                val body = """{"Items":[$items],"TotalRecordCount":23,"StartIndex":0}""".toByteArray()
                 exchange.responseHeaders.add("Content-Type", "application/json")
                 exchange.sendResponseHeaders(200, body.size.toLong())
                 exchange.responseBody.use { it.write(body) }
@@ -186,6 +204,8 @@ class StreamingCollectionsTest {
                     assertEquals(StreamingCollections.TAG, it["tags"])
                     assertTrue(it["fields"].orEmpty().contains("ChildCount"))
                     assertTrue(it["fields"].orEmpty().contains("Tags"))
+                    assertEquals("SortName", it["sortBy"])
+                    assertEquals("Ascending", it["sortOrder"])
                     assertFalse(it.containsKey("limit"))
                     assertFalse(it.containsKey("parentId"))
                 }

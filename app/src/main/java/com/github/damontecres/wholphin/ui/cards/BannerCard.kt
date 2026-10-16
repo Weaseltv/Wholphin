@@ -48,9 +48,7 @@ import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
-import com.github.damontecres.wholphin.ui.components.StreamingProviderPoster
 import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
-import com.github.damontecres.wholphin.ui.components.providerWordmark
 import com.github.damontecres.wholphin.ui.enableMarquee
 import com.github.damontecres.wholphin.ui.theme.LocalHomeCardAppearance
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
@@ -92,7 +90,6 @@ fun BannerCard(
     cornerTextScale: Float = 1f,
     typeBadge: String? = null,
 ) {
-    val providerPoster = if (isWeaselTv() && item?.type == BaseItemKind.BOX_SET) providerWordmark(item.name) else null
     val appearance = LocalPosterCountAppearance.current ?: LocalHomeCardAppearance.current
     val badgeInsetX = appearance.badgeHorizontalInsetDp?.dp ?: (4.dp * cornerTextScale)
     val badgeInsetY = appearance.badgeVerticalInsetDp?.dp ?: (4.dp * cornerTextScale)
@@ -177,9 +174,8 @@ fun BannerCard(
                     .fillMaxSize(),
 //                    .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
-            if (providerPoster != null) {
-                StreamingProviderPoster(name = item?.name, wordmark = providerPoster, modifier = Modifier.fillMaxSize())
-            } else if (!imageError && displayedImageUrl != null) {
+            // Streaming services show the owner's poster cards from the server (2026-10-16)
+            if (!imageError && displayedImageUrl != null) {
                 AsyncImage(
                     model = displayedImageUrl,
                     contentDescription = null,
