@@ -18,6 +18,7 @@ import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.FavoriteWatchManager
 import com.github.damontecres.wholphin.services.FilterOptionCache
 import com.github.damontecres.wholphin.services.ImageUrlService
+import com.github.damontecres.wholphin.services.JustWatchRowService
 import com.github.damontecres.wholphin.services.KeyValueService
 import com.github.damontecres.wholphin.services.MediaManagementService
 import com.github.damontecres.wholphin.services.MusicService
@@ -103,6 +104,7 @@ class CollectionViewModel
         val serverReportService: ServerReportService,
         private val filterOptionCache: FilterOptionCache,
         private val quickListService: StreamingQuickListService,
+        private val justWatchRowService: JustWatchRowService,
         @Assisted private val itemId: UUID,
     ) : ViewModel() {
         @AssistedFactory
@@ -198,7 +200,12 @@ class CollectionViewModel
                     }
                     if (state.value.isStreaming) {
                         serverRepository.currentUser?.id?.let { userId ->
-                            quickListService.prefetch(userId, StreamingCollections.justWatchPackages(collection.name))
+                            viewModelScope.launchIO {
+                                // The server says which lists this service has (owner, 2026-10-16)
+                                val justWatch = justWatchRowService.serviceLists(userId, collection.id, collection.name)
+                                _state.update { it.copy(justWatch = justWatch) }
+                                quickListService.prefetch(userId, justWatch)
+                            }
                         }
                     }
                     listenForStateUpdates()
@@ -374,12 +381,12 @@ class CollectionViewModel
             filter: GetItemsFilter,
         ): List<BaseItem?> {
             val userId = serverRepository.currentUser?.id ?: return emptyList()
-            val packages = StreamingCollections.justWatchPackages(state.value.collection?.name)
+            val justWatch = state.value.justWatch
             if (quickListService.canFilterLocally(filter)) {
-                return quickListService.items(userId, itemId, packages, quickList, filter)
+                return quickListService.items(userId, itemId, justWatch, quickList, filter)
             }
             // Other filters need the server: rank the members, then fetch them with the filter
-            val ranked = quickListService.items(userId, itemId, packages, quickList, GetItemsFilter())
+            val ranked = quickListService.items(userId, itemId, justWatch, quickList, GetItemsFilter())
             val ids = ranked.map { it.id }
             val byId =
                 coroutineScope {
@@ -724,6 +731,8 @@ data class CollectionState(
     val quickList: StreamingQuickList? = null,
     /** The quick list being loaded, while the previous posters stay on screen. */
     val quickListLoading: StreamingQuickList? = null,
+    /** A streaming service's lists, once known; null for one without any (no quick-list buttons). */
+    val justWatch: StreamingCollections.JustWatchLists? = null,
 ) {
     val isStreaming: Boolean
         get() = BuildConfig.FLAVOR == "weaselfin" && collection?.data?.let(StreamingCollections::isStreamingCollection) == true

@@ -23,42 +23,109 @@ object StreamingCollections {
     const val NAME = "Streaming Services"
     val types = listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES)
 
-    /** The names the server used before (owner, 2026-10-16: Max -> HBO Max, Apple TV+ -> Apple TV). */
+    /**
+     * The names the server used before (owner, 2026-10-16: Max -> HBO Max, Apple TV+ -> Apple TV), and
+     * other common names. Not "Showtime Network": that's a TV Networks collection, not the service.
+     */
     private fun canonicalName(name: String?): String =
         when (val value = name.orEmpty().trim().lowercase(Locale.ROOT)) {
             "max", "max (hbo)", "hbo" -> "hbo max"
             "apple tv+", "apple tv plus" -> "apple tv"
             "hallmark+" -> "hallmark"
             "angel studios" -> "angel"
+            "discovery plus" -> "discovery+"
+            "the criterion channel" -> "criterion channel"
+            "pluto" -> "pluto tv"
+            "tubi tv" -> "tubi"
+            "acorn" -> "acorn tv"
             else -> value
         }
 
     /**
-     * JustWatch's US package codes for each service the server's JustWatch lists cover, by
-     * collection name, including ad tiers and plans that share the catalogue. Hallmark+ is only
-     * listed as an Apple TV channel. The first code keys the server's lists (`justwatch-home.sh`).
+     * A streaming service's JustWatch lists. The server keys its saved lists by [code]
+     * (`justwatch-home.sh`); [packages] are JustWatch's US package codes for the service, including
+     * ad tiers and plans that share the catalog, for asking JustWatch when the server has none
+     * (empty for a service only the server knows).
      */
-    private val justWatchPackages =
+    data class JustWatchLists(
+        val code: String,
+        val packages: List<String>,
+    )
+
+    /** Lists keyed by the first package, as for most services. */
+    private fun lists(vararg packages: String) = JustWatchLists(packages.first(), packages.toList())
+
+    /**
+     * The services the server's JustWatch lists cover, by collection name, for servers without
+     * `service_codes` (see [justWatch]) and for JustWatch's packages. Hallmark+ is only listed
+     * as an Apple TV channel. Showtime has no JustWatch service of its own any more (it's folded into
+     * Paramount+ Premium), so its lists are Paramount+'s rankings kept to its own members, saved
+     * under its own code (owner, 2026-10-16).
+     */
+    private val justWatch =
         mapOf(
-            "netflix" to listOf("nfx", "nfa"),
-            "disney+" to listOf("dnp"),
-            "hulu" to listOf("hlu"),
-            "hbo max" to listOf("mxx"),
-            "prime video" to listOf("amp"),
-            "paramount+" to listOf("ppp", "ppe"),
-            "peacock" to listOf("pct", "pcp"),
-            "apple tv" to listOf("atp"),
-            "amc+" to listOf("acp"),
-            "mgm+" to listOf("epx"),
-            "starz" to listOf("stz"),
-            "britbox" to listOf("bbo"),
-            "crunchyroll" to listOf("cru"),
-            "hallmark" to listOf("hmc"),
-            "angel" to listOf("agl"),
+            "netflix" to lists("nfx", "nfa"),
+            "disney+" to lists("dnp"),
+            "hulu" to lists("hlu"),
+            "hbo max" to lists("mxx"),
+            "prime video" to lists("amp"),
+            "paramount+" to lists("ppp", "ppe"),
+            "peacock" to lists("pct", "pcp"),
+            "apple tv" to lists("atp"),
+            "amc+" to lists("acp"),
+            "mgm+" to lists("epx"),
+            "starz" to lists("stz"),
+            "britbox" to lists("bbo"),
+            "crunchyroll" to lists("cru"),
+            "hallmark" to lists("hmc"),
+            "angel" to lists("agl"),
+            "tubi" to lists("tbv"),
+            "pluto tv" to lists("ptv"),
+            "discovery+" to lists("dpu"),
+            "shudder" to lists("shd", "sua"),
+            "acorn tv" to lists("act", "acr"),
+            "criterion channel" to lists("crc"),
+            "youtube" to lists("yfr", "ytr"),
+            "showtime" to JustWatchLists("sho", listOf("ppp", "ppe")),
         )
 
-    /** The JustWatch packages for the streaming collection named [name], if it's a known service. */
-    fun justWatchPackages(name: String?): List<String>? = justWatchPackages[canonicalName(name)]
+    /** The JustWatch lists for the streaming collection named [name], if it's a known service. */
+    fun justWatch(name: String?): JustWatchLists? = justWatch[canonicalName(name)]
+
+    /**
+     * The JustWatch lists for the streaming collection [id] named [name]. The server says which
+     * collection has which lists ([serviceCodes], see [parseServiceCodes]), so a service added there
+     * gets them without an app release (owner, 2026-10-16); a collection it leaves out has none. Only
+     * without that mapping (an older server job) do the built-in names decide. JustWatch's packages
+     * always come from the built-in names.
+     */
+    fun justWatch(
+        id: UUID,
+        name: String?,
+        serviceCodes: Map<String, String>?,
+    ): JustWatchLists? {
+        val builtIn = justWatch(name)
+        if (serviceCodes == null) return builtIn
+        val code = serviceCodes[serverId(id.toString())] ?: return null
+        return JustWatchLists(code, builtIn?.packages.orEmpty())
+    }
+
+    /**
+     * The server's `service_codes` ("<collection id>=<code>,…") by collection ID, or null when it has
+     * none (missing or empty), so the built-in names apply.
+     */
+    fun parseServiceCodes(value: String?): Map<String, String>? {
+        if (value.isNullOrBlank()) return null
+        return value
+            .split(',')
+            .mapNotNull { pair ->
+                val (id, code) = pair.split('=', limit = 2).takeIf { it.size == 2 } ?: return@mapNotNull null
+                (serverId(id) to code.trim()).takeIf { it.first.isNotEmpty() && it.second.isNotEmpty() }
+            }.toMap()
+    }
+
+    /** IDs compared as the server writes them: no dashes, any case. */
+    private fun serverId(id: String) = id.trim().replace("-", "").lowercase(Locale.ROOT)
 
     val row =
         HomeRowConfig.GetItems(

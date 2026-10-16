@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelStore
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.services.NavDrawerItemState
 import com.github.damontecres.wholphin.services.NavDrawerService
+import com.github.damontecres.wholphin.services.SearchIndexService
 import com.github.damontecres.wholphin.services.SeerrService
 import com.github.damontecres.wholphin.ui.main.settings.Library
 import com.github.damontecres.wholphin.ui.search.SearchViewModel
@@ -52,6 +53,8 @@ class SearchLibraryInitializationTest {
                 every { server.currentUserDto } returns null
                 val seerr = mockk<SeerrService>()
                 every { seerr.active } returns MutableStateFlow(false)
+                val searchIndex = mockk<SearchIndexService>(relaxed = true)
+                every { searchIndex.index } returns MutableStateFlow(null)
                 val model =
                     SearchViewModel(
                         context = mockk(relaxed = true),
@@ -68,6 +71,7 @@ class SearchLibraryInitializationTest {
                         liveTvService = mockk(relaxed = true),
                         keyValueService = mockk(relaxed = true),
                         navDrawerService = nav,
+                        searchIndexService = searchIndex,
                     )
                 store.put("search", model)
                 advanceUntilIdle()

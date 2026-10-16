@@ -12,6 +12,7 @@ import kotlinx.coroutines.async
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
+import timber.log.Timber
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -27,8 +28,9 @@ import kotlin.time.Duration.Companion.minutes
  * rankings once a day, matches them to the library every 10 minutes, and saves each list's item IDs
  * in every member's display preferences ([PREFS_ID], [PREFS_CLIENT]; one key per list, named after it
  * in lower case). The service pages' lists are kept apart in [STREAMING_PREFS_ID], so Home's read
- * stays small. The app reads them once per Home load and fetches the items as the member, so
- * anything they can't see drops out.
+ * stays small; Home's prefs also say which streaming collection has which lists ([SERVICE_CODES]).
+ * The app reads them once per Home load and fetches the items as the member, so anything they can't
+ * see drops out.
  */
 @Singleton
 class JustWatchRowService
@@ -49,8 +51,9 @@ class JustWatchRowService
         /**
          * A streaming service's top 10 movies or shows this week: the highest-ranked titles on JustWatch's
          * weekly chart for it that are in Movies or TV Shows. The server lists the chart 100 deep, so a row
-         * fills up from further down when some of the top 10 aren't on the server. [code] is the service's
-         * first JustWatch package, see [StreamingCollections.justWatchPackages].
+         * fills up from further down when some of the top 10 aren't on the server, and stays empty (so it's
+         * hidden) for a service without a weekly chart, like Showtime. [code] is the service's
+         * [StreamingCollections.JustWatchLists.code].
          */
         suspend fun serviceTop10(
             userId: UUID,
@@ -59,9 +62,25 @@ class JustWatchRowService
         ): List<BaseItem> = ranked(userId, "top_10_${if (movies) "movies" else "shows"}_$code", 10)
 
         /**
+         * The streaming collection [collectionId] named [name]'s lists, by the server's [SERVICE_CODES]
+         * when it has saved them, else by the built-in names ([StreamingCollections.justWatch]).
+         */
+        suspend fun serviceLists(
+            userId: UUID,
+            collectionId: UUID,
+            name: String?,
+        ): StreamingCollections.JustWatchLists? {
+            val codes =
+                runCatching { StreamingCollections.parseServiceCodes(lists(userId, PREFS_ID).await()[SERVICE_CODES]) }
+                    .onFailure { Timber.w(it, "Couldn't read the streaming service codes") }
+                    .getOrNull()
+            return StreamingCollections.justWatch(collectionId, name, codes)
+        }
+
+        /**
          * A streaming service page's POPULAR, TRENDING or TOP 10 list: the IDs of the service collection's
          * titles in ranked order (TOP 10 holds its first 10 movies and 10 shows), or null when the server
-         * hasn't saved one. [code] is the service's first JustWatch package.
+         * hasn't saved one. [code] is the service's [StreamingCollections.JustWatchLists.code].
          */
         suspend fun serviceList(
             userId: UUID,
@@ -123,6 +142,9 @@ class JustWatchRowService
         companion object {
             const val PREFS_ID = "justwatch-home"
             const val STREAMING_PREFS_ID = "justwatch-streaming"
+
+            /** In [PREFS_ID]: "<collection id>=<code>,…" for each streaming collection with lists. */
+            const val SERVICE_CODES = "service_codes"
             const val PREFS_CLIENT = "WeaselPlex"
             private val REUSE_FOR = 5.minutes
         }

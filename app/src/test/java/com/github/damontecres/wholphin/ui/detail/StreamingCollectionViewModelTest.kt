@@ -117,6 +117,10 @@ class StreamingCollectionViewModelTest {
             serverReportService = mockk(relaxed = true),
             filterOptionCache = mockk(relaxed = true),
             quickListService = mockk(relaxed = true),
+            justWatchRowService =
+                mockk {
+                    coEvery { serviceLists(any(), any(), any()) } returns StreamingCollections.justWatch("Netflix")
+                },
             itemId = collectionId,
         ).also { store.put("collection", it) }
     }
