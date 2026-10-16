@@ -289,7 +289,7 @@ class HomeSettingsService
                     applyApprovedLayoutOnce(
                         userId,
                         settings?.layoutDefaultsRevision ?: 0,
-                        CuratedCollections.withCuratedRow(resolvedSettings),
+                        StreamingCollections.withStreamingRow(resolvedSettings),
                     )
                 } else {
                     resolvedSettings
@@ -316,7 +316,6 @@ class HomeSettingsService
                                         row.config.viewOptions,
                                         revision,
                                         StreamingCollections.isStreamingRow(row.config),
-                                        CuratedCollections.isCuratedRow(row.config),
                                     ),
                                 ),
                         )
@@ -374,7 +373,6 @@ class HomeSettingsService
                                             row.viewOptions,
                                             if (existing == null) ApprovedHomeLayout.REVISION else base.layoutDefaultsRevision,
                                             StreamingCollections.isStreamingRow(row),
-                                            CuratedCollections.isCuratedRow(row),
                                         )
                                     row.updateViewOptions(options)
                                 }
@@ -404,7 +402,7 @@ class HomeSettingsService
             val resolvedSettings = HomePageResolvedSettings(resolvedRows)
             currentSettings.update {
                 if (BuildConfig.FLAVOR == "weaselfin") {
-                    CuratedCollections.withCuratedRow(resolvedSettings)
+                    StreamingCollections.withStreamingRow(resolvedSettings)
                 } else {
                     resolvedSettings
                 }
@@ -642,9 +640,7 @@ class HomeSettingsService
 
                 is HomeRowConfig.GetItems -> {
                     val title =
-                        if (BuildConfig.FLAVOR == "weaselfin" && CuratedCollections.isCuratedRow(config)) {
-                            CuratedCollections.NAME
-                        } else if (BuildConfig.FLAVOR == "weaselfin") {
+                        if (BuildConfig.FLAVOR == "weaselfin") {
                             StreamingCollections.title(config)
                         } else {
                             config.name
@@ -1191,7 +1187,6 @@ class HomeSettingsService
 
                 is HomeRowConfig.GetItems -> {
                     val streaming = BuildConfig.FLAVOR == "weaselfin" && StreamingCollections.isStreamingRow(row)
-                    val curated = BuildConfig.FLAVOR == "weaselfin" && CuratedCollections.isCuratedRow(row)
                     val request =
                         row.getItems.let {
                             if (it.limit == null) {
@@ -1219,8 +1214,6 @@ class HomeSettingsService
                                     false,
                                 )
                             }
-                        } else if (curated) {
-                            CuratedCollections.fetch(api, userDto.id).map { BaseItem(it, false) }
                         } else if (usePaging) {
                             ApiRequestPager(
                                 api,
@@ -1237,9 +1230,7 @@ class HomeSettingsService
                         }
                     Success(
                         StringStringProvider(
-                            if (curated) {
-                                CuratedCollections.NAME
-                            } else if (streaming) {
+                            if (streaming) {
                                 StreamingCollections.NAME
                             } else {
                                 row.name
@@ -1248,7 +1239,7 @@ class HomeSettingsService
                         items,
                         row.viewOptions,
                         rowType = row,
-                        showViewMore = !streaming && !curated && items.size >= limit,
+                        showViewMore = !streaming && items.size >= limit,
                     )
                 }
 

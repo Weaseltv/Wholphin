@@ -49,7 +49,6 @@ import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.CollectionGroups
-import com.github.damontecres.wholphin.services.CuratedCollections
 import com.github.damontecres.wholphin.services.FavoriteWatchManager
 import com.github.damontecres.wholphin.services.FilterOptionCache
 import com.github.damontecres.wholphin.services.HomeSettingsService
@@ -958,12 +957,9 @@ fun CollectionFolderView(
 ) {
     val state by viewModel.state.collectAsState()
     val homeSettings by viewModel.homeSettingsService.currentSettings.collectAsState()
+    // The values every saved Picks row held when it was retired, so collection posters look the same
     val collectionHomeOptions =
-        homeSettings.rows
-            .firstOrNull { CuratedCollections.isCuratedRow(it.config) }
-            ?.config
-            ?.viewOptions
-            ?: ApprovedHomeLayout.apply(HomeRowViewOptions(cardAppearance = ApprovedCollectionCardAppearance))
+        remember { ApprovedHomeLayout.apply(HomeRowViewOptions(useSeries = false, cardAppearance = ApprovedCollectionCardAppearance)) }
     val streamingCardAppearance =
         homeSettings.rows
             .firstOrNull { StreamingCollections.isStreamingRow(it.config) }

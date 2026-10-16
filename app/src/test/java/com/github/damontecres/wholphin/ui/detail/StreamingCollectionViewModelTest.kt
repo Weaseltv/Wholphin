@@ -10,7 +10,6 @@ import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.GetItemsFilter
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.LibraryDisplayInfo
-import com.github.damontecres.wholphin.services.CuratedCollections
 import com.github.damontecres.wholphin.services.KeyValueService
 import com.github.damontecres.wholphin.services.StreamingCollections
 import com.github.damontecres.wholphin.ui.AspectRatio
@@ -148,44 +147,6 @@ class StreamingCollectionViewModelTest {
                 assertEquals(user.id, it.userId)
                 assertEquals(collectionId, it.parentId)
                 assertEquals(false, it.recursive)
-                assertNull(it.tags)
-            }
-        }
-
-    @Test
-    fun `Curated opens as a member scoped movie poster grid and refetches changed contents`() =
-        runTest(dispatcher) {
-            collectionTag = CuratedCollections.TAG
-            val first = create()
-            advanceUntilIdle()
-            assertTrue(first.state.value.isCurated)
-            assertFalse(first.state.value.isStreaming)
-            assertFalse(first.state.value.viewOptions.separateTypes)
-            assertEquals(AspectRatio.TALL, first.state.value.viewOptions.cardViewOptions.aspectRatio)
-            assertEquals(ViewOptionImageType.PRIMARY, first.state.value.viewOptions.cardViewOptions.imageType)
-            assertEquals(
-                movieId,
-                first.state.value.items
-                    .first()
-                    ?.id,
-            )
-            val before = requests.size
-            movieId = UUID.randomUUID()
-            store.clear()
-            val reopened = create()
-            advanceUntilIdle()
-            assertTrue(requests.size > before)
-            assertEquals(
-                movieId,
-                reopened.state.value.items
-                    .first()
-                    ?.id,
-            )
-            requests.forEach {
-                assertEquals(user.id, it.userId)
-                assertEquals(collectionId, it.parentId)
-                assertEquals(false, it.recursive)
-                assertEquals(listOf(BaseItemKind.MOVIE), it.includeItemTypes)
                 assertNull(it.tags)
             }
         }

@@ -989,4 +989,5 @@
     <string name="recommended_title_released">Released</string>
     <string name="recommended_title_added">Added</string>
     <string name="recommended_title_unwatched">Unwatched</string>
+    <string name="recommended_title_on_service">On %1$s</string>
 </resources>

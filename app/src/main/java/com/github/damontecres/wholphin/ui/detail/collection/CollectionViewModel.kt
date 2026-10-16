@@ -15,7 +15,6 @@ import com.github.damontecres.wholphin.data.model.GetItemsFilter
 import com.github.damontecres.wholphin.data.model.LibraryDisplayInfo
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.services.BackdropService
-import com.github.damontecres.wholphin.services.CuratedCollections
 import com.github.damontecres.wholphin.services.FavoriteWatchManager
 import com.github.damontecres.wholphin.services.FilterOptionCache
 import com.github.damontecres.wholphin.services.ImageUrlService
@@ -136,7 +135,7 @@ class CollectionViewModel
                 _state.update {
                     it.copy(
                         viewOptions =
-                            if (it.isStreaming || it.isCurated) {
+                            if (it.isStreaming) {
                                 StreamingViewOptions
                             } else {
                                 // Navigating the grid never swaps the header for the focused card, like library pages
@@ -183,9 +182,7 @@ class CollectionViewModel
                             collection = collection,
                             logoImageUrl = logoImageUrl,
                             viewOptions =
-                                if (streaming ||
-                                    (BuildConfig.FLAVOR == "weaselfin" && CuratedCollections.isCuratedCollection(collection.data))
-                                ) {
+                                if (streaming) {
                                     StreamingViewOptions
                                 } else {
                                     it.viewOptions
@@ -318,12 +315,7 @@ class CollectionViewModel
                 )
             }
             if (!separateTypes) {
-                val types =
-                    when {
-                        state.value.isCurated -> CuratedCollections.types
-                        state.value.isStreaming -> StreamingCollections.types
-                        else -> typesInCollection
-                    }
+                val types = if (state.value.isStreaming) StreamingCollections.types else typesInCollection
                 val result = fetchItems(sort, filter, types)
                 _state.update { it.copy(items = result) }
             } else {
@@ -452,8 +444,8 @@ class CollectionViewModel
                     fields = SlimItemFields,
                 ).let {
                     val filtered = filter?.applyTo(it, false) ?: it
-                    if (state.value.isStreaming || state.value.isCurated) {
-                        val allowedTypes = if (state.value.isCurated) CuratedCollections.types else StreamingCollections.types
+                    if (state.value.isStreaming) {
+                        val allowedTypes = StreamingCollections.types
                         filtered.copy(
                             userId = requireNotNull(serverRepository.currentUser).id,
                             includeItemTypes =
@@ -574,12 +566,7 @@ class CollectionViewModel
         fun onClickRandom() {
             viewModelScope.launchIO {
                 try {
-                    val types =
-                        when {
-                            state.value.isCurated -> CuratedCollections.types
-                            state.value.isStreaming -> StreamingCollections.types
-                            else -> typesInCollection
-                        }
+                    val types = if (state.value.isStreaming) StreamingCollections.types else typesInCollection
                     val request =
                         createGetItemsRequest(
                             sort = SortAndDirection(ItemSortBy.RANDOM, SortOrder.ASCENDING),
@@ -736,9 +723,6 @@ data class CollectionState(
     /** The quick list being loaded, while the previous posters stay on screen. */
     val quickListLoading: StreamingQuickList? = null,
 ) {
-    val isCurated: Boolean
-        get() = BuildConfig.FLAVOR == "weaselfin" && collection?.data?.let(CuratedCollections::isCuratedCollection) == true
-
     val isStreaming: Boolean
         get() = BuildConfig.FLAVOR == "weaselfin" && collection?.data?.let(StreamingCollections::isStreamingCollection) == true
 }

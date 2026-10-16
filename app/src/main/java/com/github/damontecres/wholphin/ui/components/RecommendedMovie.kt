@@ -106,6 +106,7 @@ fun RecommendedMovie(
                     suggestionsType = BaseItemKind.MOVIE,
                     recommendedRows = getRecommendedRows(parentId),
                     viewOptions = HomeRowViewOptions(),
+                    serviceTop10Type = BaseItemKind.MOVIE,
                 )
             },
         ),
