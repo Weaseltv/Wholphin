@@ -197,7 +197,9 @@ class CollectionViewModel
                         )
                     }
                     if (state.value.isStreaming) {
-                        quickListService.prefetch(StreamingCollections.justWatchPackages(collection.name))
+                        serverRepository.currentUser?.id?.let { userId ->
+                            quickListService.prefetch(userId, StreamingCollections.justWatchPackages(collection.name))
+                        }
                     }
                     listenForStateUpdates()
                     themeSongPlayer.playThemeFor(itemId)
