@@ -51,8 +51,10 @@ import kotlin.time.Duration.Companion.seconds
  * is shown as soon as it arrives and the rest fill in behind it. The finished snapshot is kept in
  * memory for the collections in use and saved to the app's cache directory, so it survives app
  * restarts. NEW, Popular, Trending and Top 10, and the ALL / MOVIES / SHOWS
- * filters, are then built from it instantly. Snapshots older than [REFRESH_AFTER] are shown and
- * refreshed in the background for next time; older than [MAX_AGE] they're fetched again first.
+ * filters, are then built from it instantly. Popular, Trending and Top 10 follow the server's saved
+ * lists ([JustWatchRowService.serviceList]), or JustWatch's rankings matched here when it has none.
+ * Snapshots older than [REFRESH_AFTER] are shown and refreshed in the background for next time;
+ * older than [MAX_AGE] they're fetched again first.
  *
  * Work runs in this service's own scope and is shared, so leaving a page or moving focus never
  * throws away a load, and asking again joins the load already running.
@@ -64,6 +66,7 @@ class StreamingQuickListService
         @param:ApplicationContext private val context: Context,
         private val api: ApiClient,
         private val justWatchService: JustWatchService,
+        private val justWatchRowService: JustWatchRowService,
     ) {
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         private val json = Json { ignoreUnknownKeys = true }
@@ -85,6 +88,8 @@ class StreamingQuickListService
                         val tmdbId = item.data.providerIds?.get("Tmdb") ?: return@mapNotNull null
                         (if (item.type == BaseItemKind.MOVIE) "m:" else "t:") + tmdbId to item
                     }.toMap()
+
+            val byId: Map<UUID, BaseItem> = items.associateBy { it.id }
         }
 
         private data class Key(
@@ -138,10 +143,10 @@ class StreamingQuickListService
             list: StreamingQuickList,
             filter: GetItemsFilter,
         ): List<BaseItem> {
-            val rankedJob =
+            val savedJob =
                 packages
                     ?.takeIf { list != StreamingQuickList.NEW }
-                    ?.let { scope.async { justWatchService.ranked(it, list) } }
+                    ?.let { scope.async { saved(userId, it, list) } }
             val snapshot =
                 try {
                     foregroundLoads.update { it + 1 }
@@ -150,13 +155,15 @@ class StreamingQuickListService
                     foregroundLoads.update { it - 1 }
                 }
             val members =
-                if (rankedJob == null) {
+                if (packages == null || savedJob == null) {
                     snapshot.items
                 } else {
-                    rankedJob
-                        .await()
-                        .mapNotNull { snapshot.byTmdbId[(if (it.isMovie) "m:" else "t:") + it.tmdbId] }
-                        .distinctBy { it.id }
+                    val ranked =
+                        savedJob.await()?.mapNotNull { snapshot.byId[it] }
+                            ?: justWatchService
+                                .ranked(packages, list)
+                                .mapNotNull { snapshot.byTmdbId[(if (it.isMovie) "m:" else "t:") + it.tmdbId] }
+                    ranked.distinctBy { it.id }
                 }
             val types = filter.includeItemTypes
             val filtered = if (types.isNullOrEmpty()) members else members.filter { it.type in types }
@@ -166,13 +173,31 @@ class StreamingQuickListService
         /** Whether [filter] only chooses types, so [items] can apply it without the server. */
         fun canFilterLocally(filter: GetItemsFilter): Boolean = filter.copy(includeItemTypes = null) == GetItemsFilter()
 
-        /** Load the rankings for [packages] ahead of time; the snapshot loads with the page. */
-        fun prefetch(packages: List<String>?) {
+        /**
+         * Read the server's lists for [packages] ahead of time, or load JustWatch's rankings when it has
+         * none; the snapshot loads with the page.
+         */
+        fun prefetch(
+            userId: UUID,
+            packages: List<String>?,
+        ) {
             packages ?: return
-            StreamingQuickList.entries
-                .filter { it != StreamingQuickList.NEW }
-                .forEach { list -> scope.launch { runCatching { justWatchService.ranked(packages, list) } } }
+            scope.launch {
+                if (saved(userId, packages, StreamingQuickList.POPULAR) != null) return@launch
+                StreamingQuickList.entries
+                    .filter { it != StreamingQuickList.NEW }
+                    .forEach { list -> launch { runCatching { justWatchService.ranked(packages, list) } } }
+            }
         }
+
+        private suspend fun saved(
+            userId: UUID,
+            packages: List<String>,
+            list: StreamingQuickList,
+        ): List<UUID>? =
+            runCatching { justWatchRowService.serviceList(userId, packages.first(), list) }
+                .onFailure { Timber.w(it, "Couldn't read the saved %s list", list) }
+                .getOrNull()
 
         /**
          * Save snapshots for [collectionIds] without one from the last [PREFETCH_REFRESH_AFTER],
