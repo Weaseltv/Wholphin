@@ -60,8 +60,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
@@ -79,7 +77,6 @@ import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.data.model.JustWatchHomeList
 import com.github.damontecres.wholphin.data.model.QuickDetailsData
 import com.github.damontecres.wholphin.preferences.UserPreferences
-import com.github.damontecres.wholphin.services.CuratedCollections
 import com.github.damontecres.wholphin.services.StreamingCollections
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.cards.BannerCard
@@ -124,7 +121,6 @@ import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
 import com.github.damontecres.wholphin.ui.theme.NeonSectionPalette
 import com.github.damontecres.wholphin.ui.theme.NeonType
-import com.github.damontecres.wholphin.ui.theme.curatedPickAccent
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.libraryAccent
 import com.github.damontecres.wholphin.ui.theme.neonAccentFor
@@ -567,9 +563,6 @@ fun HomePageContent(
                                     if (hasContent(row)) {
                                         val emptyWatching = row.items.isEmpty()
                                         val viewOptions = row.viewOptions
-                                        val curated =
-                                            BuildConfig.FLAVOR == "weaselfin" &&
-                                                row.rowType?.let(CuratedCollections::isCuratedRow) == true
                                         val heading =
                                             if (rowHeading != null && isWeaselTv()) {
                                                 rowHeading(row)
@@ -636,8 +629,7 @@ fun HomePageContent(
                                                         (
                                                             viewOptions.verticalPaddingDp +
                                                                 (
-                                                                    viewOptions.extraVerticalPaddingDp
-                                                                        ?: if (curated) CuratedCollections.EXTRA_VERTICAL_PADDING_DP else 0
+                                                                    viewOptions.extraVerticalPaddingDp ?: 0
                                                                 )
                                                         ).dp
                                                     PaddingValues(
@@ -709,8 +701,6 @@ fun HomePageContent(
                                                             row.rowType?.let(StreamingCollections::isStreamingRow) == true
                                                         ) {
                                                             streamingProviderAccent(item.name) ?: homeRowAccent(row.rowType, libraries)
-                                                        } else if (curated && item != null) {
-                                                            curatedPickAccent(item.name) ?: homeRowAccent(row.rowType, libraries)
                                                         } else if (item?.type in
                                                             listOf(
                                                                 BaseItemKind.MOVIE,
@@ -738,17 +728,10 @@ fun HomePageContent(
                                                         } else {
                                                             null
                                                         },
-                                                    cornerTextScale = if (curated) CuratedCollections.CARD_SIZE_MULTIPLIER else 1f,
                                                     typeBadge = if (row.rowType.mixesMoviesAndShows) mediaKindBadge(item?.type) else null,
                                                     modifier =
                                                         cardModifier
-                                                            .then(
-                                                                if (curated && item != null) {
-                                                                    Modifier.semantics { contentDescription = item.name.orEmpty() }
-                                                                } else {
-                                                                    Modifier
-                                                                },
-                                                            ).onFocusChanged { onFocus(it.isFocused) }
+                                                            .onFocusChanged { onFocus(it.isFocused) }
                                                             .onKeyEvent { onKey(it) },
                                                 )
                                             },
@@ -830,10 +813,6 @@ private fun homeRowHeading(
 
         row?.let(StreamingCollections::isStreamingRow) == true -> {
             StreamingCollections.NAME to stringResource(R.string.collections)
-        }
-
-        row?.let(CuratedCollections::isCuratedRow) == true -> {
-            CuratedCollections.NAME to stringResource(R.string.collections)
         }
 
         row is HomeRowConfig.RecentlyAdded -> {

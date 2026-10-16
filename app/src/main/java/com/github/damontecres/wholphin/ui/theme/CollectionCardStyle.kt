@@ -23,7 +23,7 @@ import com.github.damontecres.wholphin.data.model.CollectionBadgeAppearance
 import com.github.damontecres.wholphin.data.model.HomeCardAppearance
 import org.jellyfin.sdk.model.api.BaseItemKind
 
-/** Owner-approved Picks focus/count values, also used before Home settings finish loading. */
+/** Owner-approved collection poster focus/count values. */
 val ApprovedCollectionCardAppearance = ApprovedHomeLayout.CARD_APPEARANCE.copy(borderOpacityPercent = 100)
 
 val LocalCollectionCardAppearance = compositionLocalOf<HomeCardAppearance?> { null }
@@ -50,9 +50,9 @@ fun CollectionCardStyle(
     }
 }
 
-/** Picks, additional collections and sports use the owner's supplied poster palettes. */
+/** Additional collections and sports use the owner's supplied poster palettes. */
 fun collectionPosterAccent(name: String?) =
-    curatedPickAccent(name) ?: when (
+    when (
         name
             ?.trim()
             ?.lowercase(java.util.Locale.ROOT)
