@@ -221,8 +221,7 @@ class RecommendedViewModel
                 streamingOrderService.sort(userId, StreamingCollections.fetch(api, userId)).mapNotNull { service ->
                     val name = service.name ?: return@mapNotNull null
                     val code = StreamingCollections.justWatchPackages(name)?.firstOrNull() ?: return@mapNotNull null
-                    // Apple calls it Apple TV now, as JustWatch does (owner's row title)
-                    code to if (name.equals("Apple TV+", ignoreCase = true)) "Apple TV" else name
+                    code to name
                 }
             } catch (ex: Exception) {
                 Timber.w(ex, "Couldn't read the streaming services")

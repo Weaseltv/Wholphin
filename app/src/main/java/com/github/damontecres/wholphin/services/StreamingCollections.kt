@@ -9,6 +9,8 @@ import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemFields
+import org.jellyfin.sdk.model.api.ItemSortBy
+import org.jellyfin.sdk.model.api.SortOrder
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import java.util.Locale
 import java.util.UUID
@@ -20,63 +22,43 @@ object StreamingCollections {
     /** The Home row's title. Saved layouts may still hold an older name, so use [title] to show it. */
     const val NAME = "Streaming Services"
     val types = listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES)
-    private val serviceOrder =
-        listOf(
-            "Netflix",
-            "Disney+",
-            "Hulu",
-            "Max",
-            "Prime Video",
-            "Paramount+",
-            "Peacock",
-            "Apple TV+",
-            "AMC+",
-            "MGM+",
-            "Starz",
-            "BritBox",
-            "Crunchyroll",
-            "Hallmark",
-            "Angel",
-        ).map { it.lowercase(Locale.ROOT) }
 
-    /** Shared by Home and the Collections page, including server naming aliases. */
-    fun serviceIndex(name: String?): Int? {
-        val normalized =
-            when (val value = name.orEmpty().trim().lowercase(Locale.ROOT)) {
-                "hbo max", "max (hbo)", "hbo" -> "max"
-                "apple tv" -> "apple tv+"
-                "hallmark+" -> "hallmark"
-                "angel studios" -> "angel"
-                else -> value
-            }
-        return serviceOrder.indexOf(normalized).takeIf { it >= 0 }
-    }
+    /** The names the server used before (owner, 2026-10-16: Max -> HBO Max, Apple TV+ -> Apple TV). */
+    private fun canonicalName(name: String?): String =
+        when (val value = name.orEmpty().trim().lowercase(Locale.ROOT)) {
+            "max", "max (hbo)", "hbo" -> "hbo max"
+            "apple tv+", "apple tv plus" -> "apple tv"
+            "hallmark+" -> "hallmark"
+            "angel studios" -> "angel"
+            else -> value
+        }
 
     /**
-     * JustWatch's US package codes for each service in [serviceOrder], including ad tiers and
-     * plans that share the catalogue. Hallmark+ is only listed as an Apple TV channel.
+     * JustWatch's US package codes for each service the server's JustWatch lists cover, by
+     * collection name, including ad tiers and plans that share the catalogue. Hallmark+ is only
+     * listed as an Apple TV channel. The first code keys the server's lists (`justwatch-home.sh`).
      */
     private val justWatchPackages =
-        listOf(
-            listOf("nfx", "nfa"),
-            listOf("dnp"),
-            listOf("hlu"),
-            listOf("mxx"),
-            listOf("amp"),
-            listOf("ppp", "ppe"),
-            listOf("pct", "pcp"),
-            listOf("atp"),
-            listOf("acp"),
-            listOf("epx"),
-            listOf("stz"),
-            listOf("bbo"),
-            listOf("cru"),
-            listOf("hmc"),
-            listOf("agl"),
+        mapOf(
+            "netflix" to listOf("nfx", "nfa"),
+            "disney+" to listOf("dnp"),
+            "hulu" to listOf("hlu"),
+            "hbo max" to listOf("mxx"),
+            "prime video" to listOf("amp"),
+            "paramount+" to listOf("ppp", "ppe"),
+            "peacock" to listOf("pct", "pcp"),
+            "apple tv" to listOf("atp"),
+            "amc+" to listOf("acp"),
+            "mgm+" to listOf("epx"),
+            "starz" to listOf("stz"),
+            "britbox" to listOf("bbo"),
+            "crunchyroll" to listOf("cru"),
+            "hallmark" to listOf("hmc"),
+            "angel" to listOf("agl"),
         )
 
     /** The JustWatch packages for the streaming collection named [name], if it's a known service. */
-    fun justWatchPackages(name: String?): List<String>? = serviceIndex(name)?.let(justWatchPackages::getOrNull)
+    fun justWatchPackages(name: String?): List<String>? = justWatchPackages[canonicalName(name)]
 
     val row =
         HomeRowConfig.GetItems(
@@ -87,6 +69,9 @@ object StreamingCollections {
                     recursive = true,
                     tags = listOf(TAG),
                     fields = listOf(ItemFields.CHILD_COUNT, ItemFields.OVERVIEW, ItemFields.TAGS),
+                    // The owner's order: each collection's sort name is its position (~01 Netflix…)
+                    sortBy = listOf(ItemSortBy.SORT_NAME),
+                    sortOrder = listOf(SortOrder.ASCENDING),
                 ),
             viewOptions = ApprovedHomeLayout.apply(HomeRowViewOptions(), streaming = true),
         )
@@ -122,7 +107,11 @@ object StreamingCollections {
         return HomePageResolvedSettings(rows)
     }
 
-    /** Fresh member-scoped discovery on every Home load; no persisted membership cache. */
+    /**
+     * Fresh member-scoped discovery on every Home load; no persisted membership cache. Every
+     * collection tagged [TAG], in the server's sort-name order (the owner's row order), however
+     * many there are.
+     */
     suspend fun fetch(
         api: ApiClient,
         userId: UUID,
@@ -147,13 +136,6 @@ object StreamingCollections {
                         .isNotEmpty()
                 )
             }
-        return defaultOrder(visible)
+        return visible
     }
-
-    /** The row's own service order (Netflix, Disney+, Hulu…), then any other service alphabetically. */
-    fun defaultOrder(collections: List<BaseItemDto>): List<BaseItemDto> =
-        collections.sortedWith(
-            compareBy<BaseItemDto> { serviceIndex(it.name) ?: serviceOrder.size }
-                .thenBy { it.name.orEmpty().lowercase(Locale.ROOT) },
-        )
 }
