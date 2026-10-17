@@ -23,7 +23,6 @@ import com.github.damontecres.wholphin.data.filter.DefaultFilterOptions
 import com.github.damontecres.wholphin.data.filter.FilterValueOption
 import com.github.damontecres.wholphin.data.filter.ItemFilterBy
 import com.github.damontecres.wholphin.data.model.GetItemsFilter
-import com.github.damontecres.wholphin.services.StreamingCollections
 import com.github.damontecres.wholphin.services.StreamingQuickList
 import com.github.damontecres.wholphin.ui.components.DeleteButton
 import com.github.damontecres.wholphin.ui.components.ExpandableFaButton
@@ -100,12 +99,9 @@ fun CollectionButtons(
                             .padding(end = 16.dp, bottom = 8.dp),
                 ) {
                     if (state.isStreaming) {
-                        // Only services the server keeps JustWatch lists for; the others
-                        // (YouTube, Tubi…) stay on their newest-first grid
-                        val ranked =
-                            remember(state.collection) {
-                                StreamingCollections.justWatchPackages(state.collection?.data?.name) != null
-                            }
+                        // Only services the server keeps JustWatch lists for; any others
+                        // stay on their newest-first grid
+                        val ranked = state.justWatch != null
                         StreamingQuickList.entries.filter { ranked }.forEach { quickList ->
                             QuickListButton(
                                 title = quickList.title,

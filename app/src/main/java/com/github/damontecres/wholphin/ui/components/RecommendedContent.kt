@@ -214,13 +214,16 @@ class RecommendedViewModel
                     false
                 }
 
-        /** The member's streaming services in their Streaming Services order, as (JustWatch code, name) pairs. */
+        /**
+         * The member's streaming services with lists, in their Streaming Services order, as (JustWatch code,
+         * name) pairs. The server says which collection has which lists.
+         */
         private suspend fun streamingServices(): List<Pair<String, String>> =
             try {
                 val userId = userId()
                 streamingOrderService.sort(userId, StreamingCollections.fetch(api, userId)).mapNotNull { service ->
                     val name = service.name ?: return@mapNotNull null
-                    val code = StreamingCollections.justWatchPackages(name)?.firstOrNull() ?: return@mapNotNull null
+                    val code = justWatchRowService.serviceLists(userId, service.id, name)?.code ?: return@mapNotNull null
                     code to name
                 }
             } catch (ex: Exception) {

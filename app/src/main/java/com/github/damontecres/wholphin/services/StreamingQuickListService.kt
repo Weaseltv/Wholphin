@@ -139,14 +139,14 @@ class StreamingQuickListService
         suspend fun items(
             userId: UUID,
             collectionId: UUID,
-            packages: List<String>?,
+            justWatch: StreamingCollections.JustWatchLists?,
             list: StreamingQuickList,
             filter: GetItemsFilter,
         ): List<BaseItem> {
             val savedJob =
-                packages
+                justWatch
                     ?.takeIf { list != StreamingQuickList.NEW }
-                    ?.let { scope.async { saved(userId, it, list) } }
+                    ?.let { scope.async { saved(userId, it.code, list) } }
             val snapshot =
                 try {
                     foregroundLoads.update { it + 1 }
@@ -155,14 +155,27 @@ class StreamingQuickListService
                     foregroundLoads.update { it - 1 }
                 }
             val members =
-                if (packages == null || savedJob == null) {
+                if (justWatch == null || savedJob == null) {
                     snapshot.items
                 } else {
+                    val savedIds = savedJob.await()
                     val ranked =
-                        savedJob.await()?.mapNotNull { snapshot.byId[it] }
-                            ?: justWatchService
-                                .ranked(packages, list)
-                                .mapNotNull { snapshot.byTmdbId[(if (it.isMovie) "m:" else "t:") + it.tmdbId] }
+                        when {
+                            savedIds != null -> {
+                                savedIds.mapNotNull { snapshot.byId[it] }
+                            }
+
+                            // A service only the server knows has no JustWatch packages to ask with
+                            justWatch.packages.isEmpty() -> {
+                                emptyList()
+                            }
+
+                            else -> {
+                                justWatchService
+                                    .ranked(justWatch.packages, list)
+                                    .mapNotNull { snapshot.byTmdbId[(if (it.isMovie) "m:" else "t:") + it.tmdbId] }
+                            }
+                        }
                     ranked.distinctBy { it.id }
                 }
             val types = filter.includeItemTypes
@@ -174,28 +187,30 @@ class StreamingQuickListService
         fun canFilterLocally(filter: GetItemsFilter): Boolean = filter.copy(includeItemTypes = null) == GetItemsFilter()
 
         /**
-         * Read the server's lists for [packages] ahead of time, or load JustWatch's rankings when it has
-         * none; the snapshot loads with the page.
+         * Read the server's lists for [justWatch] ahead of time, or load JustWatch's rankings when it
+         * has none; the snapshot loads with the page.
          */
         fun prefetch(
             userId: UUID,
-            packages: List<String>?,
+            justWatch: StreamingCollections.JustWatchLists?,
         ) {
-            packages ?: return
+            justWatch ?: return
             scope.launch {
-                if (saved(userId, packages, StreamingQuickList.POPULAR) != null) return@launch
+                val hasSaved = saved(userId, justWatch.code, StreamingQuickList.POPULAR) != null
+                // A service only the server knows has no JustWatch packages to ask with
+                if (hasSaved || justWatch.packages.isEmpty()) return@launch
                 StreamingQuickList.entries
                     .filter { it != StreamingQuickList.NEW }
-                    .forEach { list -> launch { runCatching { justWatchService.ranked(packages, list) } } }
+                    .forEach { list -> launch { runCatching { justWatchService.ranked(justWatch.packages, list) } } }
             }
         }
 
         private suspend fun saved(
             userId: UUID,
-            packages: List<String>,
+            code: String,
             list: StreamingQuickList,
         ): List<UUID>? =
-            runCatching { justWatchRowService.serviceList(userId, packages.first(), list) }
+            runCatching { justWatchRowService.serviceList(userId, code, list) }
                 .onFailure { Timber.w(it, "Couldn't read the saved %s list", list) }
                 .getOrNull()
 
