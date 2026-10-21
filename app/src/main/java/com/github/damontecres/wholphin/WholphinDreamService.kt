@@ -30,6 +30,7 @@ import com.github.damontecres.wholphin.services.hilt.AuthOkHttpClient
 import com.github.damontecres.wholphin.ui.CoilConfig
 import com.github.damontecres.wholphin.ui.components.AppScreensaverContent
 import com.github.damontecres.wholphin.ui.launchDefault
+import com.github.damontecres.wholphin.ui.showToast
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import com.github.damontecres.wholphin.ui.util.ProvideLocalClock
@@ -93,7 +94,8 @@ class WholphinDreamService :
         savedStateRegistryController.performRestore(null)
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
         lifecycleScope.launchDefault {
-            if (serverRepository.current.value == null) {
+            // Kid profiles (plan 4.1): the screensaver only shows the existing session and never restores one
+            if (!BuildConfig.KID_PROFILES_ENABLED && serverRepository.current.value == null) {
                 val prefs = preferencesDataStore.data.first()
                 serverRepository.restoreSession(prefs.currentServerId.toUUIDOrNull(), prefs.currentUserId.toUUIDOrNull())
             }
@@ -207,6 +209,11 @@ class WholphinDreamService :
                     .catch { ex -> Timber.e(ex, "Error in screensaver play subscription") }
                     .collect { message ->
                         val request = message.data ?: return@collect
+                        if (remotePlaybackService.isPlayOnLocked()) {
+                            // Kid profiles: dreaming means the app is in the background
+                            showToast(this@WholphinDreamService, getString(R.string.remote_play_locked))
+                            return@collect
+                        }
                         val intent = remotePlaybackService.createLaunchIntent(request)
                         if (intent == null) {
                             Timber.w("Ignoring remote play request while dreaming: %s", request)

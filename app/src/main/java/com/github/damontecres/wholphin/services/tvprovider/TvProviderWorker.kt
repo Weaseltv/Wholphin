@@ -15,6 +15,8 @@ import androidx.tvprovider.media.tv.TvContractCompat
 import androidx.tvprovider.media.tv.TvContractCompat.Channels
 import androidx.tvprovider.media.tv.TvContractCompat.WatchNextPrograms
 import androidx.tvprovider.media.tv.WatchNextProgram
+import com.github.damontecres.wholphin.BuildConfig
+import com.github.damontecres.wholphin.services.WorkerSession
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.github.damontecres.wholphin.MainActivity
@@ -68,7 +70,9 @@ class TvProviderWorker
             val userId =
                 inputData.getString(PARAM_USER_ID)?.toUUIDOrNull() ?: return Result.failure()
 
-            if (api.baseUrl.isNullOrBlank() || api.accessToken.isNullOrBlank()) {
+            if (BuildConfig.KID_PROFILES_ENABLED) {
+                WorkerSession.check(serverRepository, serverId, userId)?.let { return it }
+            } else if (api.baseUrl.isNullOrBlank() || api.accessToken.isNullOrBlank()) {
                 // Not active
                 var currentUser = serverRepository.current.value
                 if (currentUser == null) {
@@ -88,6 +92,10 @@ class TvProviderWorker
                         prefs.homePagePreferences.enableRewatchingNextUp,
                         prefs.homePagePreferences.maxDaysNextUp,
                     )
+                if (BuildConfig.KID_PROFILES_ENABLED) {
+                    // Don't put another profile's items on the launcher
+                    WorkerSession.check(serverRepository, serverId, userId)?.let { return it }
+                }
                 val potentialItemsToAddIds = potentialItemsToAdd.map { it.id.toString() }
 
                 Timber.v("potentialItemsToAddIds=%s", potentialItemsToAddIds)
@@ -136,6 +144,9 @@ class TvProviderWorker
                     )
                 Timber.v("Added %s", addedCount)
 
+                if (BuildConfig.KID_PROFILES_ENABLED) {
+                    WorkerSession.check(serverRepository, serverId, userId)?.let { return it }
+                }
                 addOtherChannels()
 
                 Timber.d("Completed successfully")

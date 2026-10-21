@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.appcompat.app.AppCompatActivity
 import androidx.hilt.work.HiltWorker
 import androidx.lifecycle.lifecycleScope
+import com.github.damontecres.wholphin.BuildConfig
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -49,6 +50,18 @@ class LatestNextUpWorker
             val userId =
                 inputData.getString(PARAM_USER_ID)?.toUUIDOrNull() ?: return Result.failure()
 
+            if (BuildConfig.KID_PROFILES_ENABLED) {
+                WorkerSession.check(serverRepository, serverId, userId)?.let { return it }
+                return try {
+                    latestNextUpService.updateRemovedFromNextUp(userId) {
+                        WorkerSession.isCurrent(serverRepository, serverId, userId)
+                    }
+                    WorkerSession.check(serverRepository, serverId, userId) ?: Result.success()
+                } catch (ex: Exception) {
+                    Timber.e(ex, "Error during updateRemovedFromNextUp")
+                    Result.retry()
+                }
+            }
             try {
                 if (api.baseUrl.isNullOrBlank() || api.accessToken.isNullOrBlank()) {
                     // Not active

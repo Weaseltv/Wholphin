@@ -27,6 +27,7 @@ import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.model.UUID
 import org.jellyfin.sdk.model.api.GeneralCommand
 import org.jellyfin.sdk.model.api.GeneralCommandType
+import com.github.damontecres.wholphin.kids.ProfileChooserLock
 import org.jellyfin.sdk.model.api.PlayCommand
 import org.jellyfin.sdk.model.api.PlayRequest
 import org.junit.After
@@ -55,6 +56,7 @@ class RemotePlaybackServiceTest {
     private val userPreferencesService = mockk<UserPreferencesService>()
     private val registry = ActivePlaybackRegistry()
     private val volumeService = mockk<VolumeService>(relaxed = true)
+    private val profileChooserLock = mockk<ProfileChooserLock>()
 
     private val serverId = UUID.randomUUID()
     private val userId = UUID.randomUUID()
@@ -70,6 +72,7 @@ class RemotePlaybackServiceTest {
         every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(currentUser)
         every { navigationManager.backStack } returns mutableListOf(Destination.Home())
         every { setupNavigationManager.backStack } returns mutableListOf(SetupDestination.AppContent(currentUser))
+        every { profileChooserLock.isPlayOnLocked() } returns false
         service =
             RemotePlaybackService(
                 context = context,
@@ -80,6 +83,7 @@ class RemotePlaybackServiceTest {
                 userPreferencesService = userPreferencesService,
                 activePlaybackRegistry = registry,
                 volumeService = volumeService,
+                profileChooserLock = profileChooserLock,
             )
     }
 
@@ -278,5 +282,18 @@ class RemotePlaybackServiceTest {
             verify(exactly = 1) { navigationManager.goToHome() }
             verify(exactly = 1) { navigationManager.goBack() }
             verify(exactly = 1) { navigationManager.navigateTo(Destination.Search()) }
+        }
+
+    @Test
+    fun `Play On is refused while the profile screen lock is up`() =
+        runTest(testDispatcher) {
+            every { profileChooserLock.isPlayOnLocked() } returns true
+
+            service.onPlayRequest(playRequest(listOf(UUID.randomUUID())))
+
+            verify(exactly = 0) { navigationManager.navigateTo(any()) }
+            verify(exactly = 0) { navigationManager.replaceTop(any()) }
+            verify(exactly = 0) { setupNavigationManager.navigateTo(any()) }
+            assertEquals(null, service.createLaunchIntent(playRequest(listOf(UUID.randomUUID()))))
         }
 }
