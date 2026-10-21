@@ -19,6 +19,7 @@ import com.github.damontecres.wholphin.util.WholphinDispatchers
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -140,6 +141,10 @@ class ServerRepository
                         beforePublish.invoke(updatedUser)
                     } catch (ex: Exception) {
                         if (updatedUser.rowId > 0) {
+                            if (BuildConfig.KID_PROFILES_ENABLED && updatedUser.profileKind != ProfileKind.ADULT) {
+                                // Never a kid row on an unprotected device
+                                kidProtectionStore.protect()
+                            }
                             serverDao.updateUserPolicy(
                                 updatedUser.rowId,
                                 updatedUser.maxParentalRating,
@@ -149,25 +154,41 @@ class ServerRepository
                         throw ex
                     }
                 }
-                serverDao.addOrUpdateServer(updatedServer)
-                updatedUser = serverDao.addOrUpdateUser(updatedUser)
-                // Kid profiles: protection and the session ceiling are persisted before the session is published
-                recordSessionCeiling(updatedUser)
-                userPreferencesDataStore.updateData {
-                    it
-                        .toBuilder()
-                        .apply {
-                            currentServerId = updatedServer.id.toServerString()
-                            currentUserId = updatedUser.id.toServerString()
-                        }.build()
+                val kidProfiles = BuildConfig.KID_PROFILES_ENABLED
+                if (kidProfiles) {
+                    // Kid profiles: protection is on before a kid row is admitted, and the switch is journalled so
+                    // an interruption before it completes restarts gated (unknown ceiling), never at a higher one
+                    kidProtectionStore.beginSwitch(protect = updatedUser.profileKind != ProfileKind.ADULT)
                 }
-                val currentUser = CurrentUser(updatedServer, updatedUser)
-                apiClient.update(baseUrl = updatedServer.url, accessToken = updatedUser.accessToken)
-                withContext(WholphinDispatchers.Main) {
-                    // WeaselFin: the user's policy goes out first, so anything that reacts to
-                    // the new user (the Seerr kid guard) already sees that user's policy.
-                    _currentUserDto.value = userDto
-                    _current.value = currentUser
+                val currentUser =
+                    try {
+                        serverDao.addOrUpdateServer(updatedServer)
+                        updatedUser = serverDao.addOrUpdateUser(updatedUser)
+                        userPreferencesDataStore.updateData {
+                            it
+                                .toBuilder()
+                                .apply {
+                                    currentServerId = updatedServer.id.toServerString()
+                                    currentUserId = updatedUser.id.toServerString()
+                                }.build()
+                        }
+                        val currentUser = CurrentUser(updatedServer, updatedUser)
+                        apiClient.update(baseUrl = updatedServer.url, accessToken = updatedUser.accessToken)
+                        withContext(WholphinDispatchers.Main) {
+                            // WeaselFin: the user's policy goes out first, so anything that reacts to
+                            // the new user (the Seerr kid guard) already sees that user's policy.
+                            _currentUserDto.value = userDto
+                            _current.value = currentUser
+                        }
+                        currentUser
+                    } catch (ex: Throwable) {
+                        // Nothing was published: the previous session ceiling still applies
+                        if (kidProfiles) withContext(NonCancellable) { kidProtectionStore.abortSwitch() }
+                        throw ex
+                    }
+                if (kidProfiles) {
+                    // The switch completed: the session ceiling is the destination's (plan 4.2)
+                    withContext(NonCancellable) { kidProtectionStore.completeSwitch(updatedUser.profileCeiling) }
                 }
                 getServerSharedPreferences(context).edit(true) {
                     putString(SERVER_URL_KEY, updatedServer.url)
@@ -418,10 +439,11 @@ class ServerRepository
             if (refreshed.policyState == cur.user.policyState && refreshed.maxParentalRating == cur.user.maxParentalRating) {
                 return
             }
+            // Protection first, so the Room row never says kid on an unprotected device
+            recordSessionCeiling(refreshed)
             withContext(ioDispatcher) {
                 serverDao.updateUserPolicy(refreshed.rowId, refreshed.maxParentalRating, refreshed.policyState)
             }
-            recordSessionCeiling(refreshed)
             withContext(WholphinDispatchers.Main) {
                 _current.update { if (it?.user?.id == refreshed.id) it.copy(user = refreshed) else it }
             }

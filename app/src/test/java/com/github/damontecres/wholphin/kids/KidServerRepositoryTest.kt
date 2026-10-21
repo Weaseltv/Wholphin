@@ -160,7 +160,7 @@ class KidServerRepositoryTest {
     }
 
     @Test
-    fun `kid switch persists policy, protection and ceiling before publishing`() =
+    fun `kid switch persists policy and protection before publishing, the ceiling once completed`() =
         runTest {
             val kid = row(3)
             coEvery { userApi.getCurrentUser() } returns successResponse(userDto(kid.id, 10))
@@ -187,10 +187,12 @@ class KidServerRepositoryTest {
 
             assertEquals(PolicyState.KID, saved.captured.policyState)
             assertEquals(10, saved.captured.maxParentalRating)
+            // Published while the switch is journalled (reads unknown), completed right after
             assertEquals(
-                listOf("room", "dto", "current protected=true ceiling=${ProfileCeiling.Rating(10)}"),
+                listOf("room", "dto", "current protected=true ceiling=${ProfileCeiling.Unknown}"),
                 events,
             )
+            assertEquals(ProfileCeiling.Rating(10), store.sessionCeiling())
         }
 
     @Test
@@ -324,6 +326,64 @@ class KidServerRepositoryTest {
             assertEquals(0, saved.captured.rowId)
             assertNull(saved.captured.pin)
             assertEquals("adult-token", saved.captured.accessToken)
+        }
+
+    @Test
+    fun `a switch interrupted before it completes never leaves a higher ceiling`() =
+        runTest {
+            store.markProtected(ProfileCeiling.Rating(10))
+            store.setSessionCeiling(ProfileCeiling.Rating(10))
+            val adult = row(1, pin = "1234")
+            coEvery { userApi.getCurrentUser() } returns successResponse(userDto(adult.id, null))
+            // What a restart would read if the process died at each step of the switch
+            val seenOnRestart = mutableListOf<ProfileCeiling>()
+            fun snapshot() = runBlocking { seenOnRestart += KidProtectionStore(keyValue).sessionCeiling() }
+            every { serverDao.addOrUpdateUser(any()) } answers {
+                snapshot()
+                firstArg()
+            }
+            every { sharedApi.update(any(), any(), any(), any()) } answers {
+                snapshot()
+                throw IllegalStateException("died before publishing")
+            }
+
+            try {
+                repository.changeUser(server, adult)
+                error("should have thrown")
+            } catch (_: IllegalStateException) {
+            }
+
+            assertEquals(2, seenOnRestart.size)
+            seenOnRestart.forEach { assertFalse("saw $it", it == ProfileCeiling.Unlimited) }
+            assertNull(repository.current.value)
+            assertEquals(ProfileCeiling.Rating(10), store.sessionCeiling())
+        }
+
+    @Test
+    fun `an unfinished switch reads as unknown after a restart`() =
+        runTest {
+            store.markProtected(ProfileCeiling.Rating(10))
+            store.setSessionCeiling(ProfileCeiling.Rating(10))
+            store.beginSwitch(protect = false)
+            assertEquals(ProfileCeiling.Unknown, KidProtectionStore(keyValue).sessionCeiling())
+            store.completeSwitch(ProfileCeiling.Rating(14))
+            assertEquals(ProfileCeiling.Rating(14), KidProtectionStore(keyValue).sessionCeiling())
+        }
+
+    @Test
+    fun `first kid admission protects the device before the kid row is written`() =
+        runTest {
+            val kid = row(3)
+            coEvery { userApi.getCurrentUser() } returns successResponse(userDto(kid.id, 10))
+            var protectedWhenRowWritten: Boolean? = null
+            every { serverDao.addOrUpdateUser(any()) } answers {
+                protectedWhenRowWritten = runBlocking { KidProtectionStore(keyValue).isProtected() }
+                firstArg()
+            }
+
+            repository.changeUser(server, kid)
+
+            assertEquals(true, protectedWhenRowWritten)
         }
 
     @Test
