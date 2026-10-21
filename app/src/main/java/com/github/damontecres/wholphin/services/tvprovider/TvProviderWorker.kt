@@ -70,8 +70,12 @@ class TvProviderWorker
             val userId =
                 inputData.getString(PARAM_USER_ID)?.toUUIDOrNull() ?: return Result.failure()
 
+            // Kid profiles: whether the scheduled user stopped being the session (then the result to return)
+            val stale: () -> Result? = {
+                if (BuildConfig.KID_PROFILES_ENABLED) WorkerSession.check(serverRepository, serverId, userId) else null
+            }
             if (BuildConfig.KID_PROFILES_ENABLED) {
-                WorkerSession.check(serverRepository, serverId, userId)?.let { return it }
+                stale()?.let { return it }
             } else if (api.baseUrl.isNullOrBlank() || api.accessToken.isNullOrBlank()) {
                 // Not active
                 var currentUser = serverRepository.current.value
@@ -92,10 +96,8 @@ class TvProviderWorker
                         prefs.homePagePreferences.enableRewatchingNextUp,
                         prefs.homePagePreferences.maxDaysNextUp,
                     )
-                if (BuildConfig.KID_PROFILES_ENABLED) {
-                    // Don't put another profile's items on the launcher
-                    WorkerSession.check(serverRepository, serverId, userId)?.let { return it }
-                }
+                // Don't put another profile's items on the launcher
+                stale()?.let { return it }
                 val potentialItemsToAddIds = potentialItemsToAdd.map { it.id.toString() }
 
                 Timber.v("potentialItemsToAddIds=%s", potentialItemsToAddIds)
@@ -128,6 +130,7 @@ class TvProviderWorker
                 Timber.v("toAdd (%s)=%s", toAdd.size, toAdd.map { it.id })
 
                 // Remove existing items if they are no longer in the next up from server
+                stale()?.let { return it }
                 (toRemove + userRemoved)
                     .map { TvContractCompat.buildWatchNextProgramUri(it.id) }
                     .forEach {
@@ -135,6 +138,7 @@ class TvProviderWorker
                     }
 
                 // Add new ones
+                stale()?.let { return it }
                 val addedCount =
                     context.contentResolver.bulkInsert(
                         WatchNextPrograms.CONTENT_URI,
@@ -144,10 +148,8 @@ class TvProviderWorker
                     )
                 Timber.v("Added %s", addedCount)
 
-                if (BuildConfig.KID_PROFILES_ENABLED) {
-                    WorkerSession.check(serverRepository, serverId, userId)?.let { return it }
-                }
-                addOtherChannels()
+                stale()?.let { return it }
+                addOtherChannels(stale)?.let { return it }
 
                 Timber.d("Completed successfully")
             } catch (_: ApiClientException) {
@@ -267,26 +269,17 @@ class TvProviderWorker
                     )
                 }.build()
 
-        private suspend fun addOtherChannels() {
+        /**
+         * Replaces the Recently Added channel. [stale] is checked after the request and before every provider
+         * write; a non-null result means the scheduled user is no longer current, so nothing more is written and
+         * that result is returned.
+         */
+        private suspend fun addOtherChannels(stale: () -> Result?): Result? {
             val preferences = preferences.data.firstOrNull()
             val channelsPrefs = context.getSharedPreferences("channels", Context.MODE_PRIVATE)
 
-            val latest =
-                api.userLibraryApi
-                    .getLatestMedia(
-                        GetLatestMediaRequest(
-                            fields = SlimItemFields,
-                            includeItemTypes = listOf(BaseItemKind.MOVIE, BaseItemKind.EPISODE),
-                            imageTypeLimit = 1,
-                            parentId = null,
-                            groupItems = true,
-                            limit =
-                                preferences?.homePagePreferences?.maxItemsPerRow
-                                    ?: AppPreference.HomePageItems.defaultValue.toInt(),
-                            isPlayed = null, // Server will handle user's preference
-                        ),
-                    ).content
-                    .map { BaseItem(it, true) }
+            val latest = fetchLatest(preferences)
+            stale()?.let { return it }
 
             var channelId = channelsPrefs.getString("latest", null)?.toUri()
             if (channelId == null) {
@@ -299,6 +292,7 @@ class TvProviderWorker
                             setType(Channels.TYPE_PREVIEW)
                             setAppLinkIntent(Intent(context, MainActivity::class.java))
                         }.build()
+                stale()?.let { return it }
                 channelId =
                     context.contentResolver.insert(
                         Channels.CONTENT_URI,
@@ -320,14 +314,35 @@ class TvProviderWorker
             val programs = latest.map { convert(channelId, it).toContentValues() }.toTypedArray()
 
             // Delete & replace
+            stale()?.let { return it }
             context.contentResolver.delete(TvContractCompat.PreviewPrograms.CONTENT_URI, null, null)
+            stale()?.let { return it }
             val count =
                 context.contentResolver.bulkInsert(
                     TvContractCompat.PreviewPrograms.CONTENT_URI,
                     programs,
                 )
             Timber.v("Inserted $count records")
+            return null
         }
+
+        /** The scheduled user's Recently Added items */
+        internal suspend fun fetchLatest(preferences: AppPreferences?): List<BaseItem> =
+            api.userLibraryApi
+                .getLatestMedia(
+                    GetLatestMediaRequest(
+                        fields = SlimItemFields,
+                        includeItemTypes = listOf(BaseItemKind.MOVIE, BaseItemKind.EPISODE),
+                        imageTypeLimit = 1,
+                        parentId = null,
+                        groupItems = true,
+                        limit =
+                            preferences?.homePagePreferences?.maxItemsPerRow
+                                ?: AppPreference.HomePageItems.defaultValue.toInt(),
+                        isPlayed = null, // Server will handle user's preference
+                    ),
+                ).content
+                .map { BaseItem(it, true) }
 
         private fun convert(
             channelId: Uri,
