@@ -54,7 +54,9 @@ import androidx.tv.material3.Text
 import androidx.tv.material3.surfaceColorAtElevation
 import coil3.SingletonImageLoader
 import coil3.imageLoader
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
+import com.github.damontecres.wholphin.kids.PinCheckResult
 import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.AppSwitchPreference
@@ -88,6 +90,7 @@ import com.github.damontecres.wholphin.ui.setup.ReleaseNotes
 import com.github.damontecres.wholphin.ui.setup.UpdateViewModel
 import com.github.damontecres.wholphin.ui.setup.seerr.AddSeerServerDialog
 import com.github.damontecres.wholphin.ui.setup.seerr.SwitchSeerrViewModel
+import com.github.damontecres.wholphin.ui.setup.PinEntryDialog
 import com.github.damontecres.wholphin.ui.showToast
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
@@ -132,11 +135,20 @@ fun PreferencesContent(
     var seerrDialogMode by remember { mutableStateOf<SeerrDialogMode>(SeerrDialogMode.None) }
     var showQuickConnectDialog by remember { mutableStateOf(false) }
     var showLocaleChoiceDialog by remember { mutableStateOf(false) }
+    // Kid profiles
+    val multiProfile by viewModel.multiProfile.collectAsState()
+    val deviceProtected by viewModel.deviceProtected.collectAsState()
+    val canTurnOffProtection by viewModel.canTurnOffProtection.collectAsState()
+    var showTurnOffProtectionPin by remember { mutableStateOf(false) }
+    var turnOffProtectionMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.preferenceDataStore.data.collect {
             preferences = it
         }
+    }
+    LaunchedEffect(currentUser) {
+        viewModel.refreshKidProtection()
     }
     var updateCache by remember { mutableStateOf(false) }
     LaunchedEffect(updateCache) {
@@ -454,47 +466,116 @@ fun PreferencesContent(
                                 }
 
                                 AppPreference.ProtectProfilePreference -> {
-                                    val summary =
-                                        when {
-                                            currentUser?.requireLogin == true -> R.string.require_login
-                                            currentUser?.hasPin == true -> R.string.require_pin_code
-                                            else -> R.string.none
-                                        }
-                                    ChoicePreference(
-                                        title = stringResource(pref.title),
-                                        summary = stringResource(summary),
-                                        interactionSource = interactionSource,
-                                        possibleValues =
-                                            listOf(
-                                                stringResource(R.string.none),
-                                                stringResource(R.string.require_pin_code),
-                                                stringResource(R.string.require_login),
-                                            ),
-                                        selectedIndex =
+                                    Column {
+                                        val summary =
                                             when {
-                                                currentUser?.requireLogin == true -> ProfileProtection.LOGIN
-                                                currentUser?.hasPin == true -> ProfileProtection.PIN
-                                                else -> ProfileProtection.NONE
-                                            }.ordinal,
-                                        onValueChange = {
-                                            currentUser?.let { user ->
-                                                when (ProfileProtection.entries[it]) {
-                                                    ProfileProtection.NONE -> {
-                                                        viewModel.removeLoginAndPin(user)
+                                                currentUser?.requireLogin == true -> R.string.require_login
+                                                currentUser?.hasPin == true -> R.string.require_pin_code
+                                                else -> R.string.none
+                                            }
+                                        ChoicePreference(
+                                            title = stringResource(pref.title),
+                                            summary = stringResource(summary),
+                                            interactionSource = interactionSource,
+                                            possibleValues =
+                                                listOf(
+                                                    stringResource(R.string.none),
+                                                    stringResource(R.string.require_pin_code),
+                                                    stringResource(R.string.require_login),
+                                                ),
+                                            selectedIndex =
+                                                when {
+                                                    currentUser?.requireLogin == true -> ProfileProtection.LOGIN
+                                                    currentUser?.hasPin == true -> ProfileProtection.PIN
+                                                    else -> ProfileProtection.NONE
+                                                }.ordinal,
+                                            onValueChange = {
+                                                currentUser?.let { user ->
+                                                    val choice = ProfileProtection.entries[it]
+                                                    if (BuildConfig.KID_PROFILES_ENABLED &&
+                                                        deviceProtected &&
+                                                        user.hasPin &&
+                                                        choice != ProfileProtection.PIN
+                                                    ) {
+                                                        // Plan 4.2: PIN removal is blocked on a protected device
+                                                        Toast
+                                                            .makeText(
+                                                                context,
+                                                                context.getString(R.string.kid_pin_removal_blocked),
+                                                                Toast.LENGTH_LONG,
+                                                            ).show()
+                                                        return@let
                                                     }
+                                                    when (choice) {
+                                                        ProfileProtection.NONE -> {
+                                                            viewModel.removeLoginAndPin(user)
+                                                        }
 
-                                                    ProfileProtection.PIN -> {
-                                                        showPinFlow = true
-                                                    }
+                                                        ProfileProtection.PIN -> {
+                                                            showPinFlow = true
+                                                        }
 
-                                                    ProfileProtection.LOGIN -> {
-                                                        viewModel.setRequireLogin(user)
+                                                        ProfileProtection.LOGIN -> {
+                                                            viewModel.setRequireLogin(user)
+                                                        }
                                                     }
                                                 }
-                                            }
-                                        },
-                                        modifier = focusModifier,
-                                    )
+                                            },
+                                            modifier = focusModifier,
+                                        )
+                                        if (canTurnOffProtection) {
+                                            ClickPreference(
+                                                title = stringResource(R.string.kid_turn_off_protection),
+                                                onClick = {
+                                                    if (currentUser?.hasPin == true) {
+                                                        turnOffProtectionMessage = null
+                                                        showTurnOffProtectionPin = true
+                                                    } else {
+                                                        Toast
+                                                            .makeText(
+                                                                context,
+                                                                context.getString(R.string.kid_protection_needs_pin),
+                                                                Toast.LENGTH_LONG,
+                                                            ).show()
+                                                    }
+                                                },
+                                                summary = stringResource(R.string.kid_turn_off_protection_summary),
+                                                onLongClick = {},
+                                                interactionSource = remember { MutableInteractionSource() },
+                                            )
+                                        }
+                                    }
+                                }
+
+                                AppPreference.SignInAuto -> {
+                                    if (BuildConfig.KID_PROFILES_ENABLED && multiProfile) {
+                                        // Plan 4.5: with more than one profile the profile screen always shows
+                                        ClickPreference(
+                                            title = stringResource(pref.title),
+                                            onClick = {},
+                                            modifier = focusModifier,
+                                            summary = stringResource(R.string.kid_sign_in_auto_always_on),
+                                            onLongClick = {},
+                                            interactionSource = interactionSource,
+                                        )
+                                    } else {
+                                        val value = AppPreference.SignInAuto.getter.invoke(preferences)
+                                        ComposablePreference(
+                                            preference = AppPreference.SignInAuto,
+                                            value = value,
+                                            onNavigate = viewModel.navigationManager::navigateTo,
+                                            onValueChange = { newValue ->
+                                                scope.launch(ExceptionHandler()) {
+                                                    preferences =
+                                                        viewModel.preferenceDataStore.updateData { prefs ->
+                                                            AppPreference.SignInAuto.setter(prefs, newValue)
+                                                        }
+                                                }
+                                            },
+                                            interactionSource = interactionSource,
+                                            modifier = focusModifier,
+                                        )
+                                    }
                                 }
 
                                 AppPreference.SeerrIntegration -> {
@@ -723,6 +804,53 @@ fun PreferencesContent(
                         showPinFlow = false
                     },
                     onDismissRequest = { showPinFlow = false },
+                    allowRemove = !(BuildConfig.KID_PROFILES_ENABLED && deviceProtected),
+                    checkWholePin = BuildConfig.KID_PROFILES_ENABLED,
+                )
+            }
+        }
+        if (showTurnOffProtectionPin) {
+            currentUser?.let { user ->
+                PinEntryDialog(
+                    onDismissRequest = { showTurnOffProtectionPin = false },
+                    onTextChange = {},
+                    onClickServerAuth = { showTurnOffProtectionPin = false },
+                    onSubmit = { pin ->
+                        viewModel.turnOffKidProtection(user, pin) { result, turnedOff ->
+                            when {
+                                turnedOff -> {
+                                    showTurnOffProtectionPin = false
+                                    Toast
+                                        .makeText(context, context.getString(R.string.kid_protection_turned_off), Toast.LENGTH_LONG)
+                                        .show()
+                                }
+
+                                result is PinCheckResult.Wrong -> {
+                                    turnOffProtectionMessage =
+                                        context.getString(R.string.kid_pin_wrong, result.attemptsBeforeLockout)
+                                }
+
+                                result is PinCheckResult.LockedOut -> {
+                                    val seconds = ((result.retryAtMillis - System.currentTimeMillis()) / 1000).coerceAtLeast(1)
+                                    turnOffProtectionMessage = context.getString(R.string.kid_pin_locked_out, seconds)
+                                }
+
+                                else -> {
+                                    showTurnOffProtectionPin = false
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            context.getString(R.string.kid_protection_not_turned_off),
+                                            Toast.LENGTH_LONG,
+                                        ).show()
+                                }
+                            }
+                        }
+                    },
+                    submitLength = user.pin?.length,
+                    title = stringResource(R.string.kid_turn_off_protection),
+                    message = turnOffProtectionMessage,
+                    serverAuthRemovesPin = false,
                 )
             }
         }

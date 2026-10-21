@@ -58,6 +58,8 @@ import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.ui.components.BasicDialog
 import com.github.damontecres.wholphin.ui.components.CircularProgress
+import com.github.damontecres.wholphin.ui.components.DialogItem
+import com.github.damontecres.wholphin.ui.components.DialogPopup
 import com.github.damontecres.wholphin.ui.components.EditTextBox
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.LoadingPage
@@ -66,6 +68,7 @@ import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.dimAndBlur
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.nav.Destination
+import com.github.damontecres.wholphin.ui.preferences.SetPinFlow
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonBrandRow
 import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
@@ -141,6 +144,29 @@ fun SwitchUserContent(
     }
     var switchUserWithPin by remember { mutableStateOf<JellyfinUser?>(null) }
 
+    // Kid profiles: a gated switch that failed with the server (eg expired token)
+    LaunchedEffect(state.switchError) {
+        state.switchError?.let { error ->
+            viewModel.clearSwitchError()
+            Toast.makeText(context, error.errorMessage, Toast.LENGTH_LONG).show()
+            if (error.showLogin && error.user != null) {
+                showAddUserDialog(error.user)
+            }
+        }
+    }
+    // Kid profiles: an adult signing in on a protected device sets a PIN before anything is published
+    state.pendingPinSetup?.let {
+        SetPinFlow(
+            currentPin = null,
+            onAddPin = viewModel::completePinSetup,
+            onRemovePin = {},
+            onDismissRequest = {
+                viewModel.cancelPinSetup()
+                hideAddUserDialog()
+            },
+        )
+    }
+
     when (val st = state.loading) {
         is LoadingState.Error -> {
             ErrorMessage(st, modifier)
@@ -203,6 +229,8 @@ fun SwitchUserContent(
                         onSwitchUser = { user ->
                             if (user.accessToken == null || user.requireLogin) {
                                 showAddUserDialog(user)
+                            } else if (BuildConfig.KID_PROFILES_ENABLED) {
+                                viewModel.onProfileSelected(user)
                             } else if (user.hasPin) {
                                 switchUserWithPin = user
                             } else {
@@ -263,7 +291,7 @@ fun SwitchUserContent(
         }
     }
 
-    if (showAddUser) {
+    if (showAddUser && state.pendingPinSetup == null) {
         var useQuickConnect by remember { mutableStateOf(state.quickConnectEnabled || connectOnly) }
         LaunchedEffect(Unit) {
             viewModel.clearSwitchUserState()
@@ -468,6 +496,68 @@ fun SwitchUserContent(
                 }
             }
         }
+    }
+    when (val prompt = state.prompt) {
+        is ChooserPrompt.Pin -> {
+            PinEntryDialog(
+                onDismissRequest = viewModel::dismissPrompt,
+                onClickServerAuth = {
+                    viewModel.dismissPrompt()
+                    showAddUserDialog(prompt.target)
+                },
+                onTextChange = {},
+                onSubmit = viewModel::submitPin,
+                submitLength = prompt.pinOwner.pin?.length,
+                title =
+                    if (prompt.isParentPin) {
+                        stringResource(R.string.kid_parent_pin_title, prompt.pinOwner.shownName.orEmpty())
+                    } else {
+                        null
+                    },
+                message = prompt.message,
+                serverAuthRemovesPin = false,
+            )
+        }
+
+        is ChooserPrompt.PickParent -> {
+            val targetName = prompt.target.shownName.orEmpty()
+            DialogPopup(
+                showDialog = true,
+                title =
+                    if (prompt.locked) {
+                        stringResource(R.string.kid_profile_locked, targetName)
+                    } else {
+                        stringResource(R.string.kid_ask_parent, targetName)
+                    },
+                dialogItems =
+                    buildList {
+                        prompt.parents.forEach { parent ->
+                            add(
+                                DialogItem(
+                                    stringResource(R.string.kid_parent_pin_title, parent.shownName.orEmpty()),
+                                    R.string.fa_user,
+                                ) { viewModel.pickParent(parent) },
+                            )
+                        }
+                        if (prompt.purpose == PinPurpose.SWITCH) {
+                            add(
+                                DialogItem(
+                                    stringResource(R.string.kid_sign_in_quick_connect, targetName),
+                                    R.string.fa_arrow_left_arrow_right,
+                                ) {
+                                    viewModel.dismissPrompt()
+                                    showAddUserDialog(prompt.target)
+                                },
+                            )
+                        }
+                    },
+                onDismissRequest = viewModel::dismissPrompt,
+                dismissOnClick = false,
+                waitToLoad = false,
+            )
+        }
+
+        null -> {}
     }
     switchUserWithPin?.let { user ->
         PinEntryDialog(

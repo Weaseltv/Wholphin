@@ -44,11 +44,23 @@ import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonUpper
 
+/**
+ * @param onSubmit kid profiles: called with the whole PIN once [submitLength] keys were entered, then the
+ * input clears; the caller checks it (with attempt backoff) instead of a per-keystroke compare
+ * @param title shown instead of "Enter PIN" (eg whose PIN is asked for)
+ * @param message a line under the dots (wrong PIN, locked out)
+ * @param serverAuthRemovesPin shows the "will remove PIN" note under the server sign-in button
+ */
 @Composable
 fun PinEntry(
     onTextChange: (String) -> Unit,
     onClickServerAuth: () -> Unit,
     modifier: Modifier = Modifier,
+    onSubmit: ((String) -> Unit)? = null,
+    submitLength: Int? = null,
+    title: String? = null,
+    message: String? = null,
+    serverAuthRemovesPin: Boolean = true,
 ) {
     var input by remember { mutableStateOf("") }
     Column(
@@ -56,13 +68,21 @@ fun PinEntry(
         modifier = modifier,
     ) {
         Text(
-            text = stringResource(R.string.enter_pin).neonUpper(),
+            text = (title ?: stringResource(R.string.enter_pin)).neonUpper(),
             style = if (isWeaselTv()) NeonType.dialogTitle() else MaterialTheme.typography.headlineLarge,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.align(Alignment.CenterHorizontally),
         )
         PinArrowRow(Modifier.align(Alignment.CenterHorizontally))
         PinEntryDots(input.length, Modifier.align(Alignment.CenterHorizontally))
+        if (message != null) {
+            Text(
+                text = message,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
+        }
 
         TextButton(
             onClick = onClickServerAuth,
@@ -93,7 +113,12 @@ fun PinEntry(
                                     else -> return@onKeyEvent false
                                 }
                             onTextChange.invoke(str)
-                            input = str
+                            if (onSubmit != null && submitLength != null && str.length >= submitLength) {
+                                input = ""
+                                onSubmit.invoke(str)
+                            } else {
+                                input = str
+                            }
                             return@onKeyEvent true
                         } else {
                             return@onKeyEvent false
@@ -106,10 +131,12 @@ fun PinEntry(
                 Text(
                     text = stringResource(R.string.use_server_credentials),
                 )
-                Text(
-                    text = stringResource(R.string.will_remove_pin),
-                    fontSize = 10.sp,
-                )
+                if (serverAuthRemovesPin) {
+                    Text(
+                        text = stringResource(R.string.will_remove_pin),
+                        fontSize = 10.sp,
+                    )
+                }
             }
         }
     }
@@ -266,6 +293,11 @@ fun PinEntryDialog(
     onDismissRequest: () -> Unit,
     onTextChange: (String) -> Unit,
     onClickServerAuth: () -> Unit,
+    onSubmit: ((String) -> Unit)? = null,
+    submitLength: Int? = null,
+    title: String? = null,
+    message: String? = null,
+    serverAuthRemovesPin: Boolean = true,
 ) {
     BasicDialog(
         onDismissRequest = onDismissRequest,
@@ -273,6 +305,11 @@ fun PinEntryDialog(
         PinEntry(
             onTextChange = onTextChange,
             onClickServerAuth = onClickServerAuth,
+            onSubmit = onSubmit,
+            submitLength = submitLength,
+            title = title,
+            message = message,
+            serverAuthRemovesPin = serverAuthRemovesPin,
             modifier = Modifier.padding(16.dp),
         )
     }

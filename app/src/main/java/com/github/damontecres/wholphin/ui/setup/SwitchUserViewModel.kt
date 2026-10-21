@@ -3,12 +3,21 @@ package com.github.damontecres.wholphin.ui.setup
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.WholphinApplication
 import com.github.damontecres.wholphin.data.JellyfinServerDao
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
+import com.github.damontecres.wholphin.kids.GateDecision
+import com.github.damontecres.wholphin.kids.KidProtectionStore
+import com.github.damontecres.wholphin.kids.KidSessionGateImpl
+import com.github.damontecres.wholphin.kids.PinCheckResult
+import com.github.damontecres.wholphin.kids.ProfileChooserLock
+import com.github.damontecres.wholphin.kids.ProfileGateException
+import com.github.damontecres.wholphin.kids.ProfileKind
+import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.services.ImageUrlService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.SetupDestination
@@ -40,6 +49,7 @@ import org.jellyfin.sdk.api.client.extensions.quickConnectApi
 import org.jellyfin.sdk.api.client.extensions.systemApi
 import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.model.ServerVersion
+import org.jellyfin.sdk.model.api.AuthenticationResult
 import org.jellyfin.sdk.model.api.QuickConnectDto
 import org.jellyfin.sdk.model.api.QuickConnectResult
 import timber.log.Timber
@@ -56,6 +66,9 @@ class SwitchUserViewModel
         val navigationManager: NavigationManager,
         val setupNavigationManager: SetupNavigationManager,
         val imageUrlService: ImageUrlService,
+        private val kidSessionGate: KidSessionGateImpl,
+        private val kidProtectionStore: KidProtectionStore,
+        private val profileChooserLock: ProfileChooserLock,
         @Assisted val server: JellyfinServer,
     ) : ViewModel() {
         @AssistedFactory
@@ -78,6 +91,12 @@ class SwitchUserViewModel
 
         fun init() {
             viewModelScope.launchDefault {
+                if (BuildConfig.KID_PROFILES_ENABLED) {
+                    // Chooser teardown (plan 4.1): no session while the profile screen shows, and no
+                    // parental authorization carried over from before
+                    kidSessionGate.clearParentUnlock()
+                    serverRepository.endSessionForChooser()
+                }
                 serverRepository.switchServerOrUser()
             }
             quickConnectJob?.cancel()
@@ -131,8 +150,18 @@ class SwitchUserViewModel
         fun trySwitchUser(user: JellyfinUser): Deferred<SwitchUserResult> =
             viewModelScope.async(WholphinDispatchers.IO) {
                 try {
-                    val current = serverRepository.changeUser(server, user)
-                    setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
+                    if (BuildConfig.KID_PROFILES_ENABLED) {
+                        val current = kidSessionGate.switchTo(server, user)
+                        profileChooserLock.navigateAfterSwitch(current)
+                    } else {
+                        val current = serverRepository.changeUser(server, user)
+                        setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
+                    }
+                    SwitchUserResult.Success
+                } catch (ex: ProfileGateException) {
+                    // The refreshed policy needs more than was granted: ask again
+                    Timber.i("Switch refused by the gate: %s", ex.decision)
+                    askForDecision(user, ex.decision, PinPurpose.SWITCH)
                     SwitchUserResult.Success
                 } catch (ex: InvalidStatusException) {
                     when (ex.status) {
@@ -177,9 +206,7 @@ class SwitchUserViewModel
                         username = username,
                         password = password,
                     )
-                    val current =
-                        serverRepository.changeUser(server.url, authenticationResult, existingUser)
-                    setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
+                    finishFreshAuth(server.url, authenticationResult, existingUser)
                 } catch (ex: Exception) {
                     Timber.e(ex, "Error logging in user")
                     if (ex is InvalidStatusException && ex.status == 401) {
@@ -220,13 +247,7 @@ class SwitchUserViewModel
                         val authenticationResult by api.userApi.authenticateWithQuickConnect(
                             QuickConnectDto(secret = quickConnectStatus.secret),
                         )
-                        val current =
-                            serverRepository.changeUser(
-                                server.url,
-                                authenticationResult,
-                                existingUser,
-                            )
-                        setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
+                        finishFreshAuth(server.url, authenticationResult, existingUser)
                     } catch (_: CancellationException) {
                         // no-op, user may have canceled
                     } catch (ex: Exception) {
@@ -254,12 +275,231 @@ class SwitchUserViewModel
         }
 
         fun removeUser(user: JellyfinUser) {
+            if (BuildConfig.KID_PROFILES_ENABLED) {
+                requestRemoveUser(user)
+                return
+            }
             viewModelScope.launchIO {
-                serverRepository.removeUser(user)
-                val serverUsers = getUsers()
-                _state.update { it.copy(users = serverUsers) }
+                removeUserNow(user)
             }
         }
+
+        private suspend fun removeUserNow(user: JellyfinUser) {
+            serverRepository.removeUser(user)
+            val serverUsers = getUsers()
+            _state.update { it.copy(users = serverUsers) }
+        }
+
+        /**
+         * A sign-in that just authenticated with the server (Quick Connect or password). Counts as parental
+         * authorization for its target (plan 4.2), but on a protected device an adult without a PIN must
+         * set one before anything is published (cancel = no change).
+         */
+        private suspend fun finishFreshAuth(
+            serverUrl: String,
+            authenticationResult: AuthenticationResult,
+            existingUser: JellyfinUser?,
+        ) {
+            if (!BuildConfig.KID_PROFILES_ENABLED) {
+                val current = serverRepository.changeUser(serverUrl, authenticationResult, existingUser)
+                setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
+                return
+            }
+            val authedUser = authenticationResult.user
+            val policy = authedUser?.policy
+            val isAdult = policy != null && policy.maxParentalRating == null
+            val savedPin =
+                existingUser?.pin
+                    ?: authedUser?.let { withContext(WholphinDispatchers.IO) { serverDao.getUser(server.id, it.id) } }?.pin
+            if (isAdult && savedPin.isNullOrBlank() && kidProtectionStore.isProtected()) {
+                Timber.i("Adult without a PIN on a protected device: PIN setup before sign-in")
+                _state.update {
+                    it.copy(pendingPinSetup = PendingPinSetup(serverUrl, authenticationResult, existingUser))
+                }
+                return
+            }
+            completeFreshAuth(serverUrl, authenticationResult, existingUser, null)
+        }
+
+        private suspend fun completeFreshAuth(
+            serverUrl: String,
+            authenticationResult: AuthenticationResult,
+            existingUser: JellyfinUser?,
+            newPin: String?,
+        ) {
+            val current = serverRepository.changeUser(serverUrl, authenticationResult, existingUser, newPin = newPin)
+            kidSessionGate.grantUnlockForFreshAuth(current.user)
+            profileChooserLock.navigateAfterSwitch(current)
+        }
+
+        /** The in-flow PIN of a deferred adult sign-in was set: publish it now */
+        fun completePinSetup(pin: String) {
+            val pending = _state.value.pendingPinSetup ?: return
+            viewModelScope.launchIO {
+                try {
+                    completeFreshAuth(pending.serverUrl, pending.authenticationResult, pending.existingUser, pin)
+                    _state.update { it.copy(pendingPinSetup = null) }
+                } catch (ex: Exception) {
+                    Timber.e(ex, "Error finishing sign-in")
+                    _state.update { it.copy(pendingPinSetup = null) }
+                    setError("Error during login", ex)
+                }
+            }
+        }
+
+        /** The in-flow PIN setup was cancelled: nothing changes */
+        fun cancelPinSetup() {
+            _state.update { it.copy(pendingPinSetup = null) }
+        }
+
+        /**
+         * Kid profiles: a profile was picked on the chooser. PIN profiles always prompt for their PIN, then the
+         * switch gate decides whether a parent PIN is needed (plan 4.2, 4.5).
+         */
+        fun onProfileSelected(user: JellyfinUser) {
+            viewModelScope.launchIO {
+                if (user.hasPin) {
+                    showPrompt(ChooserPrompt.Pin(target = user, pinOwner = user, purpose = PinPurpose.SWITCH))
+                } else {
+                    continueSwitch(user)
+                }
+            }
+        }
+
+        private suspend fun continueSwitch(user: JellyfinUser) {
+            when (val decision = kidSessionGate.evaluate(user)) {
+                GateDecision.Allow -> {
+                    val result = trySwitchUser(user).await()
+                    if (result is SwitchUserResult.Error) {
+                        _state.update { it.copy(switchError = result.copy(user = user)) }
+                    }
+                }
+
+                else -> {
+                    askForDecision(user, decision, PinPurpose.SWITCH)
+                }
+            }
+        }
+
+        private suspend fun askForDecision(
+            target: JellyfinUser,
+            decision: GateDecision,
+            purpose: PinPurpose,
+        ) {
+            val parents =
+                getSavedUsers().filter {
+                    it.profileKind == ProfileKind.ADULT && it.hasPin && it.rowId != target.rowId
+                }
+            val prompt =
+                when {
+                    decision == GateDecision.LockedAdult -> {
+                        ChooserPrompt.PickParent(target, parents, locked = true, purpose = purpose)
+                    }
+
+                    parents.size == 1 -> {
+                        ChooserPrompt.Pin(target = target, pinOwner = parents.first(), purpose = purpose)
+                    }
+
+                    else -> {
+                        ChooserPrompt.PickParent(target, parents, locked = false, purpose = purpose)
+                    }
+                }
+            showPrompt(prompt)
+        }
+
+        fun pickParent(parent: JellyfinUser) {
+            val prompt = _state.value.prompt as? ChooserPrompt.PickParent ?: return
+            showPrompt(ChooserPrompt.Pin(target = prompt.target, pinOwner = parent, purpose = prompt.purpose))
+        }
+
+        fun submitPin(pin: String) {
+            val prompt = _state.value.prompt as? ChooserPrompt.Pin ?: return
+            viewModelScope.launchIO {
+                val owner = prompt.pinOwner
+                val result =
+                    if (owner.profileKind == ProfileKind.ADULT) {
+                        kidSessionGate.verifyParentPin(owner, pin)
+                    } else {
+                        kidSessionGate.verifyProfilePin(owner, pin)
+                    }
+                when (result) {
+                    PinCheckResult.Correct -> {
+                        showPrompt(null)
+                        when (prompt.purpose) {
+                            PinPurpose.SWITCH -> {
+                                continueSwitch(prompt.target)
+                            }
+
+                            PinPurpose.DELETE -> {
+                                continueRemove(prompt.target, pinChecked = true)
+                            }
+                        }
+                    }
+
+                    is PinCheckResult.Wrong -> {
+                        showPrompt(prompt.copy(message = context.getString(R.string.kid_pin_wrong, result.attemptsBeforeLockout)))
+                    }
+
+                    is PinCheckResult.LockedOut -> {
+                        val seconds = ((result.retryAtMillis - System.currentTimeMillis()) / 1000).coerceAtLeast(1)
+                        showPrompt(prompt.copy(message = context.getString(R.string.kid_pin_locked_out, seconds)))
+                    }
+                }
+            }
+        }
+
+        /** A PIN prompt or parent pick was dismissed: nothing changes and any unlock is dropped */
+        fun dismissPrompt() {
+            showPrompt(null)
+            kidSessionGate.clearParentUnlock()
+        }
+
+        fun clearSwitchError() {
+            _state.update { it.copy(switchError = null) }
+        }
+
+        private fun showPrompt(prompt: ChooserPrompt?) {
+            _state.update { it.copy(prompt = prompt) }
+        }
+
+        /**
+         * Long-press delete (plan 4.2): a kid row goes freely ("Remove from this TV"); any other row needs that
+         * profile's PIN; a pinless adult on a protected device needs another adult's unlock.
+         */
+        private fun requestRemoveUser(user: JellyfinUser) {
+            viewModelScope.launchIO {
+                continueRemove(user, pinChecked = false)
+            }
+        }
+
+        private suspend fun continueRemove(
+            user: JellyfinUser,
+            pinChecked: Boolean,
+        ) {
+            when {
+                user.profileKind == ProfileKind.KID || pinChecked -> {
+                    removeUserNow(user)
+                    kidSessionGate.clearParentUnlock()
+                }
+
+                user.hasPin -> {
+                    showPrompt(ChooserPrompt.Pin(target = user, pinOwner = user, purpose = PinPurpose.DELETE))
+                }
+
+                !kidProtectionStore.isProtected() -> {
+                    removeUserNow(user)
+                }
+
+                else -> {
+                    askForDecision(user, GateDecision.LockedAdult, PinPurpose.DELETE)
+                }
+            }
+        }
+
+        private suspend fun getSavedUsers(): List<JellyfinUser> =
+            withContext(WholphinDispatchers.IO) {
+                serverDao.getServer(server.id)?.users.orEmpty()
+            }
 
         private suspend fun getUsers(): List<JellyfinUserAndImage> =
             withContext(WholphinDispatchers.IO) {
@@ -332,6 +572,39 @@ data class JellyfinUserAndImage(
     val known: Boolean,
 )
 
+/** Why a PIN is asked for on the chooser */
+enum class PinPurpose { SWITCH, DELETE }
+
+/** Kid profiles: what the chooser is asking for */
+sealed interface ChooserPrompt {
+    val target: JellyfinUser
+
+    /** [pinOwner]'s PIN; for a parent unlock the owner differs from [target] */
+    data class Pin(
+        override val target: JellyfinUser,
+        val pinOwner: JellyfinUser,
+        val purpose: PinPurpose,
+        val message: String? = null,
+    ) : ChooserPrompt {
+        val isParentPin: Boolean get() = pinOwner.rowId != target.rowId
+    }
+
+    /** Pick which parent unlocks [target]; [locked] = a pinless adult on a protected device */
+    data class PickParent(
+        override val target: JellyfinUser,
+        val parents: List<JellyfinUser>,
+        val locked: Boolean,
+        val purpose: PinPurpose,
+    ) : ChooserPrompt
+}
+
+/** An adult's completed sign-in held back until they set a PIN (protected device) */
+data class PendingPinSetup(
+    val serverUrl: String,
+    val authenticationResult: AuthenticationResult,
+    val existingUser: JellyfinUser?,
+)
+
 data class SwitchUserState(
     // LoadingState for fetching available users
     val loading: LoadingState = LoadingState.Pending,
@@ -343,6 +616,10 @@ data class SwitchUserState(
     val loginAttempts: Int = 0,
     val serverVersion: String? = null,
     val serverVersionSupported: ServerVersionSupported = ServerVersionSupported.UNKNOWN,
+    // Kid profiles
+    val prompt: ChooserPrompt? = null,
+    val pendingPinSetup: PendingPinSetup? = null,
+    val switchError: SwitchUserResult.Error? = null,
 )
 
 /**
@@ -354,5 +631,6 @@ sealed interface SwitchUserResult {
     data class Error(
         val errorMessage: String?,
         val showLogin: Boolean,
+        val user: JellyfinUser? = null,
     ) : SwitchUserResult
 }

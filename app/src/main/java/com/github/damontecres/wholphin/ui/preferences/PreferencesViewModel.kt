@@ -11,9 +11,15 @@ import androidx.core.net.toUri
 import androidx.datastore.core.DataStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinUser
+import com.github.damontecres.wholphin.kids.KidSessionGateImpl
+import com.github.damontecres.wholphin.kids.PinCheckResult
+import com.github.damontecres.wholphin.kids.ProfileChooserLock
+import com.github.damontecres.wholphin.kids.ProfileKind
+import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.resetSubtitles
 import com.github.damontecres.wholphin.preferences.updateSubtitlePreferences
@@ -28,6 +34,7 @@ import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import com.github.damontecres.wholphin.util.LoadingState
+import com.github.damontecres.wholphin.util.WholphinDispatchers
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +42,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.api.client.ApiClient
 import timber.log.Timber
 import javax.inject.Inject
@@ -53,6 +61,8 @@ class PreferencesViewModel
         private val seerrServerRepository: SeerrServerRepository,
         private val updateChecker: UpdateChecker,
         private val serverReportService: ServerReportService,
+        private val kidSessionGate: KidSessionGateImpl,
+        profileChooserLock: ProfileChooserLock,
     ) : ViewModel() {
         val currentUser =
             serverRepository.currentUserFlow.stateIn(
@@ -68,6 +78,44 @@ class PreferencesViewModel
             )
 
         val seerrConnection = seerrServerRepository.connection
+
+        /** Kid profiles: more than one profile on this TV, so the profile screen always shows (plan 4.5) */
+        val multiProfile: StateFlow<Boolean> = profileChooserLock.multiProfile
+
+        /** Kid profiles: PIN removal is blocked on a protected device (plan 4.2) */
+        val deviceProtected: StateFlow<Boolean> =
+            kidSessionGate.isDeviceProtected.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+        private val _canTurnOffProtection = MutableStateFlow(false)
+
+        /** Kid profiles: show "Turn off kid protection on this TV" (an adult, protected device, no kid rows) */
+        val canTurnOffProtection: StateFlow<Boolean> = _canTurnOffProtection
+
+        fun refreshKidProtection() {
+            if (!BuildConfig.KID_PROFILES_ENABLED) return
+            viewModelScope.launchIO {
+                val adult = serverRepository.currentUser?.profileKind == ProfileKind.ADULT
+                _canTurnOffProtection.value = adult && kidSessionGate.canTurnOffProtection()
+            }
+        }
+
+        /**
+         * "Turn off kid protection on this TV": the adult's PIN gives the [com.github.damontecres.wholphin.kids.ParentUnlock]
+         * it needs
+         */
+        fun turnOffKidProtection(
+            user: JellyfinUser,
+            pin: String,
+            onResult: (PinCheckResult, Boolean) -> Unit,
+        ) {
+            viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
+                val result = kidSessionGate.verifyParentPin(user, pin)
+                val turnedOff = result == PinCheckResult.Correct && kidSessionGate.turnOffProtection()
+                kidSessionGate.clearParentUnlock()
+                refreshKidProtection()
+                withContext(WholphinDispatchers.Main) { onResult(result, turnedOff) }
+            }
+        }
 
         private val _quickConnectStatus = MutableStateFlow<LoadingState>(LoadingState.Pending)
         val quickConnectStatus: StateFlow<LoadingState> = _quickConnectStatus
@@ -109,6 +157,10 @@ class PreferencesViewModel
         ) {
             viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
                 serverRepository.updateUserAuth(user, pin, false)
+                if (!user.hasPin && pin != null) {
+                    // A first PIN counts as parental authorization only on an unprotected TV (plan 4.1)
+                    kidSessionGate.grantUnlockForFirstPin(user.copy(pin = pin))
+                }
             }
         }
 
