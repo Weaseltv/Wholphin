@@ -92,7 +92,7 @@ class ChooserGateViewModelTest {
         every { serverDao.getServer(serverId) } returns
             JellyfinServerUsers(server, listOf(parent, pinlessAdult, kid, olderKid, kidWithPin))
         coEvery { store.isProtected() } returns true
-        coEvery { serverRepository.removeUser(any()) } just runs
+        coEvery { serverRepository.removeUser(any(), any()) } just runs
         viewModel =
             SwitchUserViewModel(
                 context = context,
@@ -117,6 +117,17 @@ class ChooserGateViewModelTest {
 
     private val prompt get() = viewModel.state.value.prompt
 
+    /** The parent's PIN check; a correct one grants through the asking flow's admission, as the real gate does */
+    private fun parentPin(
+        pin: String,
+        result: PinCheckResult,
+    ) {
+        coEvery { gate.verifyParentPin(parent, pin, any(), any()) } answers {
+            if (result == PinCheckResult.Correct) arg<(() -> Unit) -> Unit>(3).invoke {}
+            result
+        }
+    }
+
     @Test
     fun `pinless adult on a protected TV asks another parent`() =
         runTest(dispatcher) {
@@ -127,7 +138,7 @@ class ChooserGateViewModelTest {
             val p = prompt as ChooserPrompt.PickParent
             assertTrue(p.locked)
             assertEquals(listOf(parent), p.parents)
-            coVerify(exactly = 0) { gate.switchTo(any(), any()) }
+            coVerify(exactly = 0) { gate.switchTo(any(), any(), any()) }
         }
 
     @Test
@@ -140,14 +151,14 @@ class ChooserGateViewModelTest {
             assertEquals(parent, p.pinOwner)
             assertTrue(p.isParentPin)
 
-            coEvery { gate.verifyParentPin(parent, "0000", any()) } returns PinCheckResult.Wrong(4)
+            parentPin("0000", PinCheckResult.Wrong(4))
             viewModel.submitPin("0000")
             assertTrue((prompt as ChooserPrompt.Pin).message != null)
 
             viewModel.dismissPrompt()
             assertNull(prompt)
             verify { gate.clearParentUnlock() }
-            coVerify(exactly = 0) { gate.switchTo(any(), any()) }
+            coVerify(exactly = 0) { gate.switchTo(any(), any(), any()) }
         }
 
     @Test
@@ -164,7 +175,7 @@ class ChooserGateViewModelTest {
     fun `a kid row can be removed freely`() =
         runTest(dispatcher) {
             viewModel.removeUser(kid)
-            coVerify(exactly = 1) { serverRepository.removeUser(kid) }
+            coVerify(exactly = 1) { serverRepository.removeUser(kid, any()) }
             assertNull(prompt)
         }
 
@@ -172,29 +183,29 @@ class ChooserGateViewModelTest {
     fun `deleting an adult with a PIN needs that PIN`() =
         runTest(dispatcher) {
             viewModel.removeUser(parent)
-            coVerify(exactly = 0) { serverRepository.removeUser(any()) }
+            coVerify(exactly = 0) { serverRepository.removeUser(any(), any()) }
             val p = prompt as ChooserPrompt.Pin
             assertEquals(PinPurpose.DELETE, p.purpose)
             assertEquals(parent, p.pinOwner)
 
-            coEvery { gate.verifyParentPin(parent, "1234", any()) } returns PinCheckResult.Correct
+            parentPin("1234", PinCheckResult.Correct)
             viewModel.submitPin("1234")
-            coVerify(exactly = 1) { serverRepository.removeUser(parent) }
+            coVerify(exactly = 1) { serverRepository.removeUser(parent, any()) }
         }
 
     @Test
     fun `deleting a locked pinless adult needs another parent`() =
         runTest(dispatcher) {
             viewModel.removeUser(pinlessAdult)
-            coVerify(exactly = 0) { serverRepository.removeUser(any()) }
+            coVerify(exactly = 0) { serverRepository.removeUser(any(), any()) }
             val pick = prompt as ChooserPrompt.PickParent
             assertTrue(pick.locked)
             assertEquals(PinPurpose.DELETE, pick.purpose)
 
             viewModel.pickParent(parent)
-            coEvery { gate.verifyParentPin(parent, "1234", any()) } returns PinCheckResult.Correct
+            parentPin("1234", PinCheckResult.Correct)
             viewModel.submitPin("1234")
-            coVerify(exactly = 1) { serverRepository.removeUser(pinlessAdult) }
+            coVerify(exactly = 1) { serverRepository.removeUser(pinlessAdult, any()) }
         }
 
     @Test
@@ -202,7 +213,7 @@ class ChooserGateViewModelTest {
         runTest(dispatcher) {
             coEvery { store.isProtected() } returns false
             viewModel.removeUser(pinlessAdult)
-            coVerify(exactly = 1) { serverRepository.removeUser(pinlessAdult) }
+            coVerify(exactly = 1) { serverRepository.removeUser(pinlessAdult, any()) }
         }
 
     @Test
@@ -227,7 +238,7 @@ class ChooserGateViewModelTest {
                     serverId = serverId.toServerString(),
                 )
 
-            viewModel.finishFreshAuth(server.url, auth, existingUser = kidWithPin)
+            viewModel.signIn(server.url, existingUser = kidWithPin, onError = {}) { auth }
 
             val pending = viewModel.state.value.pendingPinSetup
             assertNotNull("the new adult must set their own PIN first", pending)
@@ -242,12 +253,12 @@ class ChooserGateViewModelTest {
             viewModel.onProfileSelected(olderKid)
             verify(exactly = 1) { gate.clearParentUnlock() }
 
-            coEvery { gate.verifyParentPin(parent, "1234", any()) } returns PinCheckResult.Correct
+            parentPin("1234", PinCheckResult.Correct)
             // The older kid's saved token has expired
-            coEvery { gate.switchTo(server, olderKid) } throws InvalidStatusException(401)
+            coEvery { gate.switchTo(server, olderKid, any()) } throws InvalidStatusException(401)
             viewModel.submitPin("1234")
 
-            coVerify { gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(olderKid.rowId)) }
+            coVerify { gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(olderKid.rowId), any()) }
             assertEquals(
                 olderKid,
                 viewModel.state.value.switchError
@@ -267,9 +278,9 @@ class ChooserGateViewModelTest {
         runTest(dispatcher) {
             viewModel.removeUser(pinlessAdult)
             viewModel.pickParent(parent)
-            coEvery { gate.verifyParentPin(parent, "1234", any()) } returns PinCheckResult.Correct
+            parentPin("1234", PinCheckResult.Correct)
             viewModel.submitPin("1234")
-            coVerify { gate.verifyParentPin(parent, "1234", UnlockPurpose.Remove(pinlessAdult.rowId)) }
+            coVerify { gate.verifyParentPin(parent, "1234", UnlockPurpose.Remove(pinlessAdult.rowId), any()) }
         }
 
     @Test
@@ -278,17 +289,19 @@ class ChooserGateViewModelTest {
             coEvery { gate.evaluate(any()) } returns GateDecision.Allow
             val firstSwitch = CompletableDeferred<Unit>()
             // The first switch finishes even though it is cancelled (publication can't be interrupted)
-            coEvery { gate.switchTo(server, kid) } coAnswers {
+            coEvery { gate.switchTo(server, kid, any()) } coAnswers {
                 withContext(NonCancellable) { firstSwitch.await() }
-                CurrentUser(server, kid)
+                CurrentUser(server, kid).also { thirdArg<((CurrentUser) -> Unit)?>()?.invoke(it) }
             }
-            coEvery { gate.switchTo(server, olderKid) } returns CurrentUser(server, olderKid)
+            coEvery { gate.switchTo(server, olderKid, any()) } coAnswers {
+                CurrentUser(server, olderKid).also { thirdArg<((CurrentUser) -> Unit)?>()?.invoke(it) }
+            }
 
             viewModel.onProfileSelected(kid)
             viewModel.onProfileSelected(olderKid)
             firstSwitch.complete(Unit)
 
-            coVerify(exactly = 1) { chooserLock.navigateAfterSwitch(CurrentUser(server, olderKid)) }
-            coVerify(exactly = 0) { chooserLock.navigateAfterSwitch(CurrentUser(server, kid)) }
+            coVerify(exactly = 1) { chooserLock.navigateAfterSwitch(CurrentUser(server, olderKid), any()) }
+            coVerify(exactly = 0) { chooserLock.navigateAfterSwitch(CurrentUser(server, kid), any()) }
         }
 }

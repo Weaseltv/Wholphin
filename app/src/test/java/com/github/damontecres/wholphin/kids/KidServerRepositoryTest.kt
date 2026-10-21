@@ -3,9 +3,6 @@ package com.github.damontecres.wholphin.kids
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.datastore.core.DataStore
-import androidx.datastore.core.DataStoreFactory
-import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -17,7 +14,6 @@ import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.PolicyState
 import com.github.damontecres.wholphin.preferences.AppPreferences
-import com.github.damontecres.wholphin.preferences.AppPreferencesSerializer
 import com.github.damontecres.wholphin.ui.successResponse
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.util.WholphinDispatchers
@@ -31,12 +27,9 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.drop
@@ -69,10 +62,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
-import java.io.File
 import java.util.UUID
 
 /**
@@ -82,10 +72,6 @@ import java.util.UUID
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class KidServerRepositoryTest {
-    @get:Rule
-    val temporaryFolder: TemporaryFolder = TemporaryFolder.builder().assureDeletion().build()
-
-    private val ioScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val context = mockk<Context>(relaxed = true)
     private val jellyfin = mockk<Jellyfin>()
     private val serverDao = mockk<JellyfinServerDao>()
@@ -93,7 +79,9 @@ class KidServerRepositoryTest {
     private val scopedApi = mockk<ApiClient>()
     private val userApi = mockk<UserApi>()
     private val systemApi = mockk<SystemApi>()
-    private lateinit var keyValue: DataStore<Preferences>
+
+    /** In memory (review round 4): no real IO, so the test dispatcher is the only timing model */
+    private val keyValue = FakePreferencesDataStore()
     private lateinit var store: KidProtectionStore
     private lateinit var repository: ServerRepository
 
@@ -131,19 +119,9 @@ class KidServerRepositoryTest {
     fun setUp() {
         Assume.assumeTrue(BuildConfig.KID_PROFILES_ENABLED)
         WholphinDispatchers.configure(UnconfinedTestDispatcher())
-        keyValue =
-            PreferenceDataStoreFactory.create(
-                scope = ioScope,
-                produceFile = { File(temporaryFolder.root, "key_value.preferences_pb") },
-            )
         store = KidProtectionStore(keyValue)
-        val appPreferences =
-            DataStoreFactory.create(
-                serializer = AppPreferencesSerializer(),
-                produceFile = { File(temporaryFolder.root, "app.pb") },
-                scope = ioScope,
-                corruptionHandler = ReplaceFileCorruptionHandler { AppPreferences.getDefaultInstance() },
-            )
+        val appPreferences = mockk<DataStore<AppPreferences>>()
+        coEvery { appPreferences.updateData(any()) } returns AppPreferences.getDefaultInstance()
         every { context.getSharedPreferences(any(), any()) } returns mockk<SharedPreferences>(relaxed = true)
         every { jellyfin.createApi(any(), any(), any(), any(), any()) } returns scopedApi
         every { scopedApi.userApi } returns userApi
@@ -168,7 +146,6 @@ class KidServerRepositoryTest {
 
     @After
     fun tearDown() {
-        ioScope.cancel()
         WholphinDispatchers.reset()
     }
 
@@ -185,9 +162,15 @@ class KidServerRepositoryTest {
             backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
                 repository.currentUserDtoFlow.drop(1).collect { events += "dto" }
             }
+            // The write that completes the switch waits until the published session was seen (a barrier, not timing)
+            val seen = CompletableDeferred<Unit>()
+            keyValue.beforeUpdate = { preview ->
+                if (preview[stringPreferencesKey("kids.sessionCeiling")] == "10") seen.await()
+            }
             backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
                 repository.current.drop(1).collect {
                     events += "current protected=${store.isProtected()} ceiling=${store.sessionCeiling()}"
+                    seen.complete(Unit)
                 }
             }
 

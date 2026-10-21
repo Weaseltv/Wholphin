@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -96,35 +97,61 @@ class KidSessionGateImpl
             purpose: UnlockPurpose,
         ): ParentUnlock? = validUnlock()?.takeIf { it.userRowId == parentRowId && it.purpose == purpose }
 
-        override suspend fun evaluate(target: JellyfinUser): GateDecision = evaluate(target) {}
+        override suspend fun evaluate(target: JellyfinUser): GateDecision = evaluation(target).decision
 
-        /** [evaluate], telling [onUnlock] about the unlock for this switch it saw */
-        private suspend fun evaluate(
-            target: JellyfinUser,
-            onUnlock: (ParentUnlock) -> Unit,
-        ): GateDecision {
+        /**
+         * A gate decision, the unlock for this switch it saw ([seen]) and the unlock the decision depends on
+         * ([grant]: an escalation allowed only by a parent's unlock)
+         */
+        private class Evaluation(
+            val decision: GateDecision,
+            val seen: ParentUnlock? = null,
+            val grant: ParentUnlock? = null,
+        )
+
+        private suspend fun evaluation(target: JellyfinUser): Evaluation {
             if (!BuildConfig.KID_PROFILES_ENABLED || !store.isProtected()) {
                 // Never admitted a kid, or protection explicitly turned off
-                return GateDecision.Allow
+                return Evaluation(GateDecision.Allow)
             }
             // Only an unlock granted for switching to this very profile counts
-            val unlock = validUnlock()?.takeIf { it.purpose == UnlockPurpose.Switch(target.rowId) }?.also(onUnlock)
+            val unlock = validUnlock()?.takeIf { it.purpose == UnlockPurpose.Switch(target.rowId) }
             if (target.profileKind == ProfileKind.ADULT && !target.hasPin) {
                 // A pinless adult is locked on a protected device, whatever the ceilings say. Its own
                 // (impossible) unlock doesn't count; another adult's does.
-                return if (unlock != null && unlock.userRowId != target.rowId) GateDecision.Allow else GateDecision.LockedAdult
+                return if (unlock != null && unlock.userRowId != target.rowId) {
+                    Evaluation(GateDecision.Allow, unlock, grant = unlock)
+                } else {
+                    Evaluation(GateDecision.LockedAdult, unlock)
+                }
             }
             if (target.profileCeiling.isAtMost(store.sessionCeiling())) {
-                return GateDecision.Allow
+                return Evaluation(GateDecision.Allow, unlock)
             }
-            return if (unlock != null) GateDecision.Allow else GateDecision.NeedsParentUnlock
+            return if (unlock != null) {
+                Evaluation(GateDecision.Allow, unlock, grant = unlock)
+            } else {
+                Evaluation(GateDecision.NeedsParentUnlock)
+            }
         }
 
         override suspend fun verifyParentPin(
             user: JellyfinUser,
             pin: String,
             purpose: UnlockPurpose?,
-        ): PinCheckResult = checkPin(user, pin, requireAdult = true, purpose = purpose)
+        ): PinCheckResult = checkPin(user, pin, requireAdult = true, purpose = purpose, admit = { it() })
+
+        /**
+         * [verifyParentPin] for a chooser flow (review round 4): a correct PIN's unlock is granted only through
+         * [admit], which runs the grant it is given only while the flow that asked is still the current one, so a
+         * prompt dismissed while its PIN was checked grants nothing. The attempt itself always counts.
+         */
+        suspend fun verifyParentPin(
+            user: JellyfinUser,
+            pin: String,
+            purpose: UnlockPurpose?,
+            admit: (grant: () -> Unit) -> Unit,
+        ): PinCheckResult = checkPin(user, pin, requireAdult = true, purpose = purpose, admit = admit)
 
         /**
          * Checks the PIN of any saved profile with the same device-wide backoff. Only an adult's correct PIN
@@ -133,45 +160,57 @@ class KidSessionGateImpl
         suspend fun verifyProfilePin(
             user: JellyfinUser,
             pin: String,
-        ): PinCheckResult = checkPin(user, pin, requireAdult = false, purpose = null)
+        ): PinCheckResult = checkPin(user, pin, requireAdult = false, purpose = null, admit = { it() })
 
         private suspend fun checkPin(
             user: JellyfinUser,
             pin: String,
             requireAdult: Boolean,
             purpose: UnlockPurpose?,
+            admit: (grant: () -> Unit) -> Unit,
         ): PinCheckResult =
             pinMutex.withLock {
-                val now = clock()
-                val backoff = store.pinBackoff()
-                if (backoff.lockedUntilMillis > now) {
-                    return@withLock PinCheckResult.LockedOut(backoff.lockedUntilMillis)
-                }
-                // Compare against the saved row, never a possibly stale copy held by a screen
-                val row = withContext(ioDispatcher) { serverDao.getUser(user.serverId, user.id) } ?: user
-                val isAdult = row.profileKind == ProfileKind.ADULT
-                val correct = row.hasPin && row.pin == pin && (isAdult || !requireAdult)
-                if (correct) {
-                    if (isAdult) {
-                        // Only a verified adult PIN clears the device-wide guess counter; a kid opening their
-                        // own profile must not wipe the failed parent guesses before it
-                        store.setPinBackoff(PinBackoff())
-                        grantUnlock(row, purpose)
-                    }
-                    PinCheckResult.Correct
-                } else {
-                    val failures = backoff.failures + 1
-                    if (failures >= MAX_ATTEMPTS) {
-                        val lockouts = backoff.lockouts + 1
-                        val lockedUntil = now + lockoutDuration(lockouts)
-                        store.setPinBackoff(PinBackoff(0, lockouts, lockedUntil))
-                        PinCheckResult.LockedOut(lockedUntil)
-                    } else {
-                        store.setPinBackoff(backoff.copy(failures = failures))
-                        PinCheckResult.Wrong(MAX_ATTEMPTS - failures)
-                    }
-                }
+                // A check that started always records its attempt, even if whoever asked has left meanwhile:
+                // dismissing a prompt never takes a guess off the backoff
+                withContext(NonCancellable) { checkPinLocked(user, pin, requireAdult, purpose, admit) }
             }
+
+        private suspend fun checkPinLocked(
+            user: JellyfinUser,
+            pin: String,
+            requireAdult: Boolean,
+            purpose: UnlockPurpose?,
+            admit: (grant: () -> Unit) -> Unit,
+        ): PinCheckResult {
+            val now = clock()
+            val backoff = store.pinBackoff()
+            if (backoff.lockedUntilMillis > now) {
+                return PinCheckResult.LockedOut(backoff.lockedUntilMillis)
+            }
+            // Compare against the saved row, never a possibly stale copy held by a screen
+            val row = withContext(ioDispatcher) { serverDao.getUser(user.serverId, user.id) } ?: user
+            val isAdult = row.profileKind == ProfileKind.ADULT
+            val correct = row.hasPin && row.pin == pin && (isAdult || !requireAdult)
+            if (correct) {
+                if (isAdult) {
+                    // Only a verified adult PIN clears the device-wide guess counter; a kid opening their
+                    // own profile must not wipe the failed parent guesses before it
+                    store.setPinBackoff(PinBackoff())
+                    admit { grantUnlock(row, purpose) }
+                }
+                return PinCheckResult.Correct
+            }
+            val failures = backoff.failures + 1
+            return if (failures >= MAX_ATTEMPTS) {
+                val lockouts = backoff.lockouts + 1
+                val lockedUntil = now + lockoutDuration(lockouts)
+                store.setPinBackoff(PinBackoff(0, lockouts, lockedUntil))
+                PinCheckResult.LockedOut(lockedUntil)
+            } else {
+                store.setPinBackoff(backoff.copy(failures = failures))
+                PinCheckResult.Wrong(MAX_ATTEMPTS - failures)
+            }
+        }
 
         override fun clearParentUnlock() {
             synchronized(unlockLock) {
@@ -218,10 +257,14 @@ class KidSessionGateImpl
          * A completed adult Quick Connect sign-in counts as parental authorization (plan 4.2). Also used for a
          * first PIN created in an adult's own session, but only while the device is not protected (plan 4.1).
          */
-        suspend fun grantUnlockForFreshAuth(user: JellyfinUser) {
+        suspend fun grantUnlockForFreshAuth(
+            user: JellyfinUser,
+            admit: (grant: () -> Unit) -> Unit = { it() },
+        ) {
             if (BuildConfig.KID_PROFILES_ENABLED && user.profileKind == ProfileKind.ADULT) {
                 pinMutex.withLock { store.setPinBackoff(PinBackoff()) }
-                grantUnlock(user, null)
+                // Only while the chooser flow that signed in is still current (see [verifyParentPin])
+                admit { grantUnlock(user, null) }
             }
         }
 
@@ -276,22 +319,39 @@ class KidSessionGateImpl
         /**
          * Switches to a saved profile through the gate. Throws [ProfileGateException] when refused, before
          * anything is published. The gate is checked again with the freshly fetched policy, so a level raised
-         * on the server since the row was saved can't slip through. The [ParentUnlock] granted for this switch is
-         * used up, whether the switch succeeds or fails, so it can't carry over to another profile; an unlock
-         * granted meanwhile for another selection is left alone, even when this switch ends late (cancelled).
+         * on the server since the row was saved can't slip through. An escalation allowed only by a parent's unlock
+         * is checked a last time in the publishing step itself (review round 4): if that unlock expired or was
+         * replaced while the switch was persisted, nothing is published. [authorize] (eg the chooser flow's own
+         * check) runs in that same step. The [ParentUnlock] granted for this switch is used up, whether the switch
+         * succeeds or fails, so it can't carry over to another profile; an unlock granted meanwhile for another
+         * selection is left alone, even when this switch ends late (cancelled).
          */
         suspend fun switchTo(
             server: JellyfinServer,
             user: JellyfinUser,
+            authorize: ((CurrentUser) -> Unit)? = null,
         ): CurrentUser {
             val owned = mutableSetOf<ParentUnlock>()
             try {
-                val decision = evaluate(user) { owned += it }
-                if (decision != GateDecision.Allow) throw ProfileGateException(decision)
-                return serverRepository.changeUser(server, user, beforePublish = { refreshed ->
-                    val again = evaluate(refreshed) { owned += it }
-                    if (again != GateDecision.Allow) throw ProfileGateException(again)
-                })
+                val first = evaluation(user)
+                first.seen?.let(owned::add)
+                if (first.decision != GateDecision.Allow) throw ProfileGateException(first.decision)
+                // The unlock the final gate check relied on, if it allowed an escalation
+                var grant: ParentUnlock? = null
+                return serverRepository.changeUser(
+                    server,
+                    user,
+                    beforePublish = { refreshed ->
+                        val again = evaluation(refreshed)
+                        again.seen?.let(owned::add)
+                        if (again.decision != GateDecision.Allow) throw ProfileGateException(again.decision)
+                        grant = again.grant
+                    },
+                    authorize = { published ->
+                        grant?.let { requireUnlock(it) }
+                        authorize?.invoke(published)
+                    },
+                )
             } finally {
                 owned.forEach { clearParentUnlock(it) }
             }

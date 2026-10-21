@@ -93,19 +93,19 @@ class ChooserSelectionTest {
             // ...while the second pick is already switching
             coEvery { gate.evaluate(olderKid) } returns GateDecision.Allow
             val newerSwitch = CompletableDeferred<Unit>()
-            coEvery { gate.switchTo(server, olderKid) } coAnswers {
+            coEvery { gate.switchTo(server, olderKid, any()) } coAnswers {
                 newerSwitch.await()
                 CurrentUser(server, olderKid)
             }
-            coEvery { gate.switchTo(server, kid) } returns CurrentUser(server, kid)
+            coEvery { gate.switchTo(server, kid, any()) } returns CurrentUser(server, kid)
 
             viewModel.onProfileSelected(kid)
             viewModel.onProfileSelected(olderKid)
             olderGate.complete(GateDecision.Allow)
             newerSwitch.complete(Unit)
 
-            coVerify(exactly = 0) { gate.switchTo(server, kid) }
-            coVerify(exactly = 0) { chooserLock.navigateAfterSwitch(CurrentUser(server, kid)) }
-            coVerify(exactly = 1) { chooserLock.navigateAfterSwitch(CurrentUser(server, olderKid)) }
+            coVerify(exactly = 0) { gate.switchTo(server, kid, any()) }
+            coVerify(exactly = 0) { chooserLock.navigateAfterSwitch(CurrentUser(server, kid), any()) }
+            coVerify(exactly = 1) { chooserLock.navigateAfterSwitch(CurrentUser(server, olderKid), any()) }
         }
 }

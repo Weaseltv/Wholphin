@@ -70,6 +70,9 @@ class ServerRepository
         private var _current = MutableStateFlow<CurrentUser?>(null)
         val current: StateFlow<CurrentUser?> = _current
 
+        /** The session the last [assignSession] published; a policy refresh of it doesn't replace it */
+        private var publishedSession: CurrentUser? = null
+
         private var _currentUserDto = MutableStateFlow<UserDto?>(null)
         val currentUserDto: UserDto? get() = _currentUserDto.value
         val currentUserDtoFlow: StateFlow<UserDto?> get() = _currentUserDto
@@ -124,6 +127,7 @@ class ServerRepository
             apiClient.update(baseUrl = baseUrl, accessToken = current?.user?.accessToken)
             _currentUserDto.value = userDto
             _current.value = current
+            publishedSession = current
         }
 
         /**
@@ -135,13 +139,14 @@ class ServerRepository
          * the refreshed policy columns of an already saved profile are still recorded. [beforePublish] runs under the
          * session lock that serializes every switch, so its gate check holds until the switch is published.
          * [authorize] runs in the very step that publishes, after the switch was persisted, and may throw to refuse it
-         * (eg an unlock that expired meanwhile): nothing is published and the journalled switch is aborted.
+         * (eg an unlock that expired meanwhile, or a chooser flow the user left): nothing is published and the
+         * journalled switch is aborted. It is given the session about to be published, the one this returns.
          */
         suspend fun changeUser(
             server: JellyfinServer,
             user: JellyfinUser,
             beforePublish: (suspend (JellyfinUser) -> Unit)? = null,
-            authorize: (() -> Unit)? = null,
+            authorize: ((CurrentUser) -> Unit)? = null,
         ): CurrentUser =
             withContext(ioDispatcher) {
                 if (server.id != user.serverId) {
@@ -216,7 +221,7 @@ class ServerRepository
             server: JellyfinServer,
             user: JellyfinUser,
             userDto: UserDto,
-            authorize: (() -> Unit)?,
+            authorize: ((CurrentUser) -> Unit)?,
         ): CurrentUser {
             val kidProfiles = BuildConfig.KID_PROFILES_ENABLED
             // Kid profiles: protection is on before a kid row is admitted, and the switch is journalled so an
@@ -237,7 +242,7 @@ class ServerRepository
                 val currentUser = CurrentUser(server, savedUser)
                 commitSession {
                     // No suspension between this last authorization check and publication (plan 4.1, 4.3)
-                    authorize?.invoke()
+                    authorize?.invoke(currentUser)
                     // [published] records that the session changed even if a cancellation is delivered on the way back
                     assignSession(currentUser, userDto)
                     published = currentUser
@@ -343,6 +348,21 @@ class ServerRepository
             }
         }
 
+        /**
+         * Kid profiles: withdraws [published], a session a chooser flow published but that flow was left before it
+         * navigated into it (review round 4). Ends it like [endSessionForChooser], but only while [published] is still
+         * the session that was published last; any later session is left alone.
+         */
+        suspend fun endSessionForChooser(published: CurrentUser) {
+            sessionMutex.withLock {
+                val ended =
+                    commitSession {
+                        (publishedSession === published && _current.value != null).also { if (it) assignSession(null, null) }
+                    }
+                if (ended) clearSavedSession(clearServer = true)
+            }
+        }
+
         /** Clears the saved current profile (and server); the caller holds [sessionMutex] */
         private suspend fun clearSavedSession(clearServer: Boolean) {
             userPreferencesDataStore.updateData {
@@ -365,7 +385,7 @@ class ServerRepository
             displayName: String? = null,
             newPin: String? = null,
             beforePublish: (suspend (JellyfinUser) -> Unit)? = null,
-            authorize: (() -> Unit)? = null,
+            authorize: ((CurrentUser) -> Unit)? = null,
         ) = withContext(ioDispatcher) {
             val accessToken = authenticationResult.accessToken
             if (accessToken != null) {
@@ -427,11 +447,19 @@ class ServerRepository
             }
         }
 
-        suspend fun removeUser(user: JellyfinUser) {
+        /**
+         * Removes [user] from this TV, ending the session if it is theirs. [authorize] runs first in the coordinator's
+         * main-thread step and may throw to refuse the removal (kid profiles: the chooser flow that asked was left).
+         */
+        suspend fun removeUser(
+            user: JellyfinUser,
+            authorize: (() -> Unit)? = null,
+        ) {
             sessionMutex.withLock {
                 // Ends the session only if it still is this user's
                 val ended =
                     commitSession {
+                        authorize?.invoke()
                         (_current.value?.user?.id == user.id).also { if (it) assignSession(null, null) }
                     }
                 if (ended) clearSavedSession(clearServer = false)
@@ -542,11 +570,17 @@ class ServerRepository
          * Update [currentUserDto] with the specified [UserDto]
          *
          * This will only update if the [UserDto] is for the [currentUser] and replaces that same user's [UserDto], so a
-         * late refresh never lands over a newer session's policy (or an ended session)
+         * late refresh never lands over a newer session's policy (or an ended session). Goes through the session
+         * coordinator (review round 4): the same-user check and the update are one main-thread step under the
+         * session lock, so they can't straddle a switch.
          */
-        fun updateUserDto(userDto: UserDto) {
-            _currentUserDto.update {
-                if (currentUser?.id == userDto.id && it?.id == userDto.id) userDto else it
+        suspend fun updateUserDto(userDto: UserDto) {
+            sessionMutex.withLock {
+                commitSession {
+                    _currentUserDto.update {
+                        if (_current.value?.user?.id == userDto.id && it?.id == userDto.id) userDto else it
+                    }
+                }
             }
         }
 

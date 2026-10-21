@@ -364,6 +364,53 @@ class KidSessionCoordinatorTest {
             assertEquals(UnlockPurpose.Switch(teen.rowId), gate.parentUnlock.value?.purpose)
         }
 
+    @Test
+    fun `an escalation whose unlock expires while it is persisted publishes nothing`() =
+        runBlocking {
+            protect(ProfileCeiling.Rating(10))
+            switchTo(kid)
+            val gate = gate(ioScope)
+            assertEquals(PinCheckResult.Correct, gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(olderKid.rowId)))
+            coEvery { userApi.getCurrentUser() } returns successResponse(dto(olderKid))
+            // Past the fresh gate check: the five minutes run out while the older kid's row is saved
+            every { serverDao.addOrUpdateUser(any()) } answers {
+                now += KidSessionGateImpl.UNLOCK_DURATION.inWholeMilliseconds
+                firstArg()
+            }
+
+            assertRefused { gate.switchTo(server, olderKid) }
+
+            assertEquals(kid.id, repository.currentUser?.id)
+            assertFalse(olderKid.accessToken in tokens)
+            // The journalled switch was aborted: the kid's ceiling, not the older kid's (nor unknown)
+            assertEquals(ProfileCeiling.Rating(10), store.sessionCeiling())
+        }
+
+    @Test
+    fun `a user update lands in the coordinator's main-thread step`() =
+        runBlocking {
+            switchTo(kid)
+            val threads = Collections.synchronizedList(mutableListOf<String>())
+            val seen = CompletableDeferred<Unit>()
+            val collector =
+                ioScope.launch(Dispatchers.Unconfined) {
+                    repository.currentUserDtoFlow.collect {
+                        if (it?.name == "renamed") {
+                            // Without the coroutine debug suffix
+                            threads += Thread.currentThread().name.substringBefore(" @")
+                            seen.complete(Unit)
+                        }
+                    }
+                }
+
+            // The websocket's user-updated message, off the main thread
+            withContext(Dispatchers.IO) { repository.updateUserDto(dto(kid).copy(name = "renamed")) }
+            seen.await()
+            collector.cancel()
+
+            assertEquals(listOf("test-main"), threads)
+        }
+
     private companion object {
         const val WAIT_MS = 500L
     }
