@@ -164,7 +164,8 @@ class ServerRepository
                 val currentUser = CurrentUser(updatedServer, updatedUser)
                 apiClient.update(baseUrl = updatedServer.url, accessToken = updatedUser.accessToken)
                 withContext(WholphinDispatchers.Main) {
-                    // The policy must be visible before the session (in-memory Seerr guard)
+                    // WeaselFin: the user's policy goes out first, so anything that reacts to
+                    // the new user (the Seerr kid guard) already sees that user's policy.
                     _currentUserDto.value = userDto
                     _current.value = currentUser
                 }

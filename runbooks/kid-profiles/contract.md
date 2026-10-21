@@ -1,6 +1,9 @@
-# Kid profiles — frozen TV <-> website contract (v1)
+# Kid profiles — frozen TV <-> website contract (v1.2)
 
-Status: **FROZEN 2026-10-21** by the kid-profiles orchestrator. Identical copies live in
+Status: **FROZEN 2026-10-21** by the kid-profiles orchestrator. v1.1 (same day) only clarifies
+website-side details found while building tracks A and B; nothing the TV sends or reads changed.
+v1.2 (same day) applies the Phase 0 result (Jellyfin 12.2.0): `MaxParentalSubRating` is 1 at
+every level; null behaves like 0 and hid all TV-MA/NC-17 from Teens. TV behaviour unchanged. Identical copies live in
 `Wholphin/runbooks/kid-profiles/contract.md` and `weaseltv-platform/docs/kid-profiles/contract.md`. Tracks build to this
 document. Changes go through the orchestrator only; a change bumps the version line above and
 is made in both repos in the same step.
@@ -12,12 +15,13 @@ avatars (Notion, 2026-10-12). Section numbers below refer to that plan.
 
 | Wire id (`level`) | Label (TV and portal) | Description shown | `MaxParentalRating` | `MaxParentalSubRating` | TV ceiling |
 |---|---|---|---|---|---|
-| `kids` | Kids | Up to PG and TV-PG | 10 | `null` | 10 |
-| `older_kids` | Older kids | Up to PG-13 and TV-14 | 14 | `null` | 14 |
-| `teens` | Teens | Up to R and TV-MA | 17 | `null` | 17 |
+| `kids` | Kids | Up to PG and TV-PG | 10 | 1 | 10 |
+| `older_kids` | Older kids | Up to PG-13 and TV-14 | 14 | 1 | 14 |
+| `teens` | Teens | Up to R and TV-MA | 17 | 1 | 17 |
 
-- Values are provisional until Phase 0 confirms them on the live 12.1 server; Phase 0 may
-  change the numbers, never the wire ids.
+- Confirmed by Phase 0 on the live server (Jellyfin **12.2.0**, 2026-10-21; see
+  `runbooks/kid-profiles/phase0-results.md` in Wholphin). Numbers may change only through the
+  orchestrator, never the wire ids.
 - **Kid signal (TV):** a Jellyfin user is a kid iff `UserDto.policy.maxParentalRating != null`.
   Its ceiling is that value. Adults have `null` (the website's member builder sets it to
   `null` explicitly, plan 3.3). The TV never infers the level from the name or from the
@@ -27,7 +31,7 @@ avatars (Notion, 2026-10-12). Section numbers below refer to that plan.
 
 ### 1.1 Kid policy fields (website writes, then reads back and verifies)
 Starting from `weaselPlexMemberPolicy(current, folderIds)` plus member configuration:
-`MaxParentalRating` (table above), `MaxParentalSubRating: null`,
+`MaxParentalRating` and `MaxParentalSubRating` (table above),
 `BlockUnratedItems: ["Movie","Series","Trailer","Book","ChannelContent","LiveTvChannel","LiveTvProgram","Other"]`,
 `EnableLiveTvAccess: false`, `EnableLiveTvManagement: false`, `SyncPlayAccess: "None"`,
 `EnableContentDeletion: false`, `IsAdministrator: false`, `IsDisabled: false` (unless the
@@ -75,14 +79,14 @@ Read-back must verify `MaxParentalRating`, `MaxParentalSubRating`, `BlockUnrated
 | Scope | Limit | Notes |
 |---|---|---|
 | Per client IP, whole family | 30 / minute | pre-auth |
-| Per token hash (sha256), whole family | 60 / 10 minutes | pre-auth |
+| Per token (keyed HMAC-SHA256 digest), whole family | 60 / 10 minutes | pre-auth |
 | Create, per account | 10 / hour | after auth |
 | Connect, per account | 5 / 10 minutes | after auth, mirrors existing Quick Connect |
 
 ### 3.2 Error codes
 | Status | `title` | Meaning | TV behaviour |
 |---|---|---|---|
-| 400 | `INVALID_REQUEST` | Body failed validation (name length/characters, level) | Show inline form error |
+| 400 | `INVALID_REQUEST` | Body failed validation (name length/characters, level), body over 1 KiB, wrong content type, or a query string | Show inline form error |
 | 400 | `INVALID_JSON` | Malformed JSON | Bug; generic error |
 | 400 | `INVALID_IDEMPOTENCY_KEY` | Missing/invalid key on create | Bug; generic error |
 | 400 | `QUICK_CONNECT_INVALID_CODE` | Code unknown or expired | Re-initiate Quick Connect, retry connect once |
@@ -146,7 +150,8 @@ Connect route). No idempotency key (authorizing an already-used code returns
 - The website authorizes the Quick Connect code **as the kid** (only `active` kids) under the
   same request-row lock as the existing Quick Connect helper.
 - `200 {"data":{"authorized":true,"kid":Kid}}`.
-- Errors: 400 `QUICK_CONNECT_INVALID_CODE`, 404 `KID_NOT_FOUND`, 409 `KID_NOT_ACTIVE`,
+- Errors: 400 `QUICK_CONNECT_INVALID_CODE` (also for a malformed connect body or a query
+  string, mirroring portal Quick Connect), 404 `KID_NOT_FOUND`, 409 `KID_NOT_ACTIVE`,
   403, 401, 429, 503.
 
 ### 5.4 TV call sequence (add kid, plan 4.3)
@@ -217,4 +222,9 @@ rows not `deleting`), `level`, `state` (`provisioning|active|disabled|deleting`)
   implementing the frozen `SeerrUserPort` in `src/seerr-port.ts`), its env/credential schema,
   and the lifecycle cascades (revoke, reinstate, sign-out-everywhere, account deletion). B calls A's kid policy
   builder and lock helper; until A lands, B codes against those names and A's PR defines them.
+- Website-only error: `503 WEASELPLEX_KIDS_CLEANUP_PENDING` (staff account deletion while kid
+  provider deletes are still being retried). TV routes never return it.
+- `last_error` holds short machine codes only (e.g. `provisioning_abandoned`), never provider
+  messages or secrets.
+- Audit actions use the `weaselplex.kid.*` prefix.
 - Schema changes go through the orchestrator.
