@@ -67,6 +67,17 @@ class FakeKidSessionGate : KidSessionGate {
         return result
     }
 
+    /** [checkOwnPin] calls; they never grant an unlock */
+    val ownPinChecks = mutableListOf<Pair<JellyfinUser, String>>()
+
+    override suspend fun checkOwnPin(
+        user: JellyfinUser,
+        pin: String,
+    ): PinCheckResult {
+        ownPinChecks += user to pin
+        return pinResults.removeFirstOrNull() ?: if (user.pin == pin) PinCheckResult.Correct else PinCheckResult.Wrong(3)
+    }
+
     override fun validUnlockFor(
         parentRowId: Int,
         purpose: UnlockPurpose,

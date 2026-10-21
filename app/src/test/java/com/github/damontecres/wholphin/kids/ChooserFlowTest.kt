@@ -323,6 +323,35 @@ class ChooserFlowTest {
             assertTrue(navigated.isEmpty())
         }
 
+    /** The switch to [user] reaches its publishing step only once [requests] completes */
+    private fun switchHeldUntil(
+        user: JellyfinUser,
+        requests: CompletableDeferred<Unit>,
+    ) {
+        coEvery { gate.switchTo(server, user, any()) } coAnswers {
+            withContext(NonCancellable) { requests.await() }
+            publish(CurrentUser(server, user), thirdArg())
+        }
+    }
+
+    @Test
+    fun `opening Add kid or Add User while a pick is still switching never publishes or navigates behind it`() =
+        runTest(dispatcher) {
+            val requests = CompletableDeferred<Unit>()
+            switchHeldUntil(olderKid, requests)
+            viewModel.onProfileSelected(olderKid)
+            var unlocksCleared = 0
+            every { gate.clearParentUnlock() } answers { unlocksCleared++ }
+
+            // What SwitchUserContent calls before either dialog shows
+            viewModel.leaveForOtherAction()
+            requests.complete(Unit)
+
+            assertTrue(published.isEmpty())
+            assertTrue(navigated.isEmpty())
+            assertEquals("the left pick's unlock goes with it", 1, unlocksCleared)
+        }
+
     @Test
     fun `the current flow still publishes, grants and navigates`() =
         runTest(dispatcher) {

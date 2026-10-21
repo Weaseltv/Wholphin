@@ -38,6 +38,8 @@ import com.github.damontecres.wholphin.util.LoadingState
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -101,20 +103,52 @@ class PreferencesViewModel
         }
 
         /**
+         * The "Turn off kid protection" PIN submission in progress (review round 5), or none; guarded by
+         * [turnOffLock]. Dismissing the prompt leaves it: it is cancelled, grants no unlock and turns nothing off.
+         */
+        private var turnOffAttempt: Job? = null
+        private val turnOffLock = Any()
+
+        private fun isCurrentTurnOff(attempt: Job): Boolean = synchronized(turnOffLock) { turnOffAttempt === attempt }
+
+        /**
          * "Turn off kid protection on this TV": the adult's PIN gives the [com.github.damontecres.wholphin.kids.ParentUnlock]
-         * it needs
+         * it needs, granted only while this submission is still the current one, and checked again right where
+         * protection is cleared. A later submission replaces an earlier one.
          */
         fun turnOffKidProtection(
             user: JellyfinUser,
             pin: String,
             onResult: (PinCheckResult, Boolean) -> Unit,
         ) {
-            viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
-                val result = kidSessionGate.verifyParentPin(user, pin, UnlockPurpose.TurnOffProtection)
-                val turnedOff = result == PinCheckResult.Correct && kidSessionGate.turnOffProtection()
-                kidSessionGate.clearParentUnlock()
-                refreshKidProtection()
-                withContext(WholphinDispatchers.Main) { onResult(result, turnedOff) }
+            synchronized(turnOffLock) {
+                turnOffAttempt?.cancel()
+                val attempt =
+                    viewModelScope.launchIO(ExceptionHandler(autoToast = true), start = CoroutineStart.LAZY) {
+                        val self = coroutineContext[Job]!!
+                        val result =
+                            kidSessionGate.verifyParentPin(user, pin, UnlockPurpose.TurnOffProtection) { grant ->
+                                synchronized(turnOffLock) { if (turnOffAttempt === self) grant() }
+                            }
+                        val turnedOff =
+                            result == PinCheckResult.Correct &&
+                                isCurrentTurnOff(self) &&
+                                kidSessionGate.turnOffProtection { isCurrentTurnOff(self) }
+                        kidSessionGate.clearParentUnlock(UnlockPurpose.TurnOffProtection)
+                        refreshKidProtection()
+                        withContext(WholphinDispatchers.Main) { if (isCurrentTurnOff(self)) onResult(result, turnedOff) }
+                    }
+                turnOffAttempt = attempt
+                attempt
+            }.start()
+        }
+
+        /** The "Turn off kid protection" prompt was dismissed: a PIN still being checked turns nothing off */
+        fun cancelTurnOffKidProtection() {
+            synchronized(turnOffLock) {
+                turnOffAttempt?.cancel()
+                turnOffAttempt = null
+                kidSessionGate.clearParentUnlock(UnlockPurpose.TurnOffProtection)
             }
         }
 

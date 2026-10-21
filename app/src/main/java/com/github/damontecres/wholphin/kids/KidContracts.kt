@@ -122,6 +122,15 @@ interface KidSessionGate {
     ): PinCheckResult
 
     /**
+     * Checks [user]'s own PIN with the same attempt backoff but grants no [ParentUnlock], whatever the result: a profile
+     * proving it is its owner, eg before changing its picture (review round 5, additive)
+     */
+    suspend fun checkOwnPin(
+        user: JellyfinUser,
+        pin: String,
+    ): PinCheckResult
+
+    /**
      * The current [ParentUnlock] if [parentRowId] granted it for [purpose] and it hasn't expired, else null
      * (review round 1, additive)
      */

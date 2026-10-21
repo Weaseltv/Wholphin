@@ -720,6 +720,18 @@ class SwitchUserViewModel
             }
         }
 
+        /**
+         * Add kid or Add User is opening (review round 5): the flow in progress is left first, together with any
+         * unlock it holds, so a slow pick can't publish or navigate behind that dialog. Called before it shows.
+         */
+        fun leaveForOtherAction() {
+            if (!BuildConfig.KID_PROFILES_ENABLED) return
+            synchronized(flowLock) {
+                leaveFlowLocked()
+                kidSessionGate.clearParentUnlock()
+            }
+        }
+
         fun clearSwitchError() {
             _state.update { it.copy(switchError = null) }
         }

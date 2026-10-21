@@ -330,6 +330,48 @@ class KidSessionGateTest {
         }
 
     @Test
+    fun `turning protection off rechecks its prompt in the write that clears it`() =
+        runTest {
+            protect(ProfileCeiling.Rating(10))
+            every { serverDao.countKidUsers() } returns 0
+            val gate = gate()
+            gate.verifyParentPin(parent, "1234", UnlockPurpose.TurnOffProtection)
+            var promptOpen = true
+            // The Settings prompt is dismissed while the write that clears protection is pending
+            dataStore.beforeUpdate = { promptOpen = false }
+
+            assertFalse(gate.turnOffProtection { promptOpen })
+
+            assertTrue(store.isProtected())
+            assertEquals(ProfileCeiling.Rating(10), store.sessionCeiling())
+            assertNull("the dismissed prompt's unlock is spent", gate.parentUnlock.value)
+        }
+
+    @Test
+    fun `checking a profile's own PIN grants no unlock`() =
+        runTest {
+            protect(ProfileCeiling.Rating(10))
+            val gate = gate()
+
+            assertEquals(PinCheckResult.Correct, gate.checkOwnPin(parent, "1234"))
+            assertNull(gate.parentUnlock.value)
+            assertEquals(GateDecision.NeedsParentUnlock, gate.evaluate(kid14))
+            // A kid with a PIN proves they own their profile the same way
+            assertEquals(PinCheckResult.Correct, gate.checkOwnPin(kid10WithPin, "5555"))
+            assertNull(gate.parentUnlock.value)
+        }
+
+    @Test
+    fun `a wrong own PIN counts toward the device-wide backoff`() =
+        runTest {
+            val gate = gate()
+            repeat(KidSessionGateImpl.MAX_ATTEMPTS - 1) { gate.checkOwnPin(parent, "0000") }
+
+            assertTrue(gate.checkOwnPin(parent, "0000") is PinCheckResult.LockedOut)
+            assertTrue(gate.verifyParentPin(parent, "1234") is PinCheckResult.LockedOut)
+        }
+
+    @Test
     fun `removing kid rows never clears protection or the ceiling`() =
         runTest {
             protect(ProfileCeiling.Rating(10))
