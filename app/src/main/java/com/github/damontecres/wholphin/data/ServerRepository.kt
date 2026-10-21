@@ -4,8 +4,14 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
 import androidx.datastore.core.DataStore
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
+import com.github.damontecres.wholphin.data.model.PolicyState
+import com.github.damontecres.wholphin.kids.KidProtectionStore
+import com.github.damontecres.wholphin.kids.ProfileKind
+import com.github.damontecres.wholphin.kids.profileCeiling
+import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.services.hilt.IoDispatcher
 import com.github.damontecres.wholphin.ui.toServerString
@@ -49,6 +55,7 @@ class ServerRepository
         val apiClient: ApiClient,
         val userPreferencesDataStore: DataStore<AppPreferences>,
         @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
+        private val kidProtectionStore: KidProtectionStore,
     ) {
         private var _current = MutableStateFlow<CurrentUser?>(null)
         val current: StateFlow<CurrentUser?> = _current
@@ -88,33 +95,64 @@ class ServerRepository
 
         /**
          * Saves the server & User to the app database and updates the [ApiClient] to use this server & user
+         *
+         * The user is fetched with a client scoped to this call, so the shared [ApiClient] and [current] only
+         * change once the switch completes. [beforePublish] sees the user with its freshly fetched server policy
+         * and may throw (eg [com.github.damontecres.wholphin.kids.ProfileGateException]) to abort the switch;
+         * the refreshed policy columns of an already saved profile are still recorded.
          */
         suspend fun changeUser(
             server: JellyfinServer,
             user: JellyfinUser,
+            beforePublish: (suspend (JellyfinUser) -> Unit)? = null,
         ): CurrentUser =
             withContext(ioDispatcher) {
                 if (server.id != user.serverId) {
                     throw IllegalStateException("User is not part of the server")
                 }
                 Timber.v("Changing user to ${user.name} on ${server.url}")
-                apiClient.update(baseUrl = server.url, accessToken = user.accessToken)
-                val userDto by apiClient.userApi.getCurrentUser()
+                // Same client & device identity as the shared client, so the server sees one device
+                val scopedApi =
+                    jellyfin.createApi(
+                        server.url,
+                        user.accessToken,
+                        apiClient.clientInfo,
+                        apiClient.deviceInfo,
+                        apiClient.httpClientOptions,
+                    )
+                val userDto by scopedApi.userApi.getCurrentUser()
                 val updatedServer =
                     try {
-                        val sysInfo by apiClient.systemApi.getPublicSystemInfo()
+                        val sysInfo by scopedApi.systemApi.getPublicSystemInfo()
                         server.copy(name = sysInfo.serverName, version = sysInfo.version)
                     } catch (ex: Exception) {
                         Timber.w(ex, "Exception fetching public system info")
                         server
                     }
                 var updatedUser =
-                    user.copy(
-                        id = userDto.id,
-                        name = userDto.name,
-                    )
+                    user
+                        .copy(
+                            id = userDto.id,
+                            name = userDto.name,
+                        ).withPolicyOf(userDto)
+                if (beforePublish != null) {
+                    try {
+                        beforePublish.invoke(updatedUser)
+                    } catch (ex: Exception) {
+                        if (updatedUser.rowId > 0) {
+                            serverDao.updateUserPolicy(
+                                updatedUser.rowId,
+                                updatedUser.maxParentalRating,
+                                updatedUser.policyState,
+                            )
+                        }
+                        throw ex
+                    }
+                }
                 serverDao.addOrUpdateServer(updatedServer)
                 updatedUser = serverDao.addOrUpdateUser(updatedUser)
+                // Kid profiles: protection and the session ceiling are persisted before the session is published
+                recordSessionCeiling(updatedUser)
                 userPreferencesDataStore.updateData {
                     it
                         .toBuilder()
@@ -124,9 +162,11 @@ class ServerRepository
                         }.build()
                 }
                 val currentUser = CurrentUser(updatedServer, updatedUser)
+                apiClient.update(baseUrl = updatedServer.url, accessToken = updatedUser.accessToken)
                 withContext(WholphinDispatchers.Main) {
-                    _current.value = currentUser
+                    // The policy must be visible before the session (in-memory Seerr guard)
                     _currentUserDto.value = userDto
+                    _current.value = currentUser
                 }
                 getServerSharedPreferences(context).edit(true) {
                     putString(SERVER_URL_KEY, updatedServer.url)
@@ -160,7 +200,15 @@ class ServerRepository
                         baseUrl = current.server.url,
                         accessToken = current.user.accessToken,
                     )
-                    return current
+                    if (BuildConfig.KID_PROFILES_ENABLED) {
+                        try {
+                            updateUserDto()
+                        } catch (ex: Exception) {
+                            // Keep the cached policy columns
+                            Timber.w(ex, "Could not refresh the current user's policy")
+                        }
+                    }
+                    return _current.value ?: current
                 } else {
                     val user = serverAndUsers.users.firstOrNull { it.id == userId }
                     if (user != null) {
@@ -181,12 +229,28 @@ class ServerRepository
         }
 
         /**
+         * Kid profiles chooser teardown (plan 4.1): ends the in-memory session so account-bound work keyed on
+         * [current] is cancelled and the shared [ApiClient] holds no token while the profile screen shows.
+         * Persisted state (saved profiles, protection, session ceiling) is untouched.
+         */
+        suspend fun endSessionForChooser() {
+            withContext(WholphinDispatchers.Main) {
+                _current.value = null
+                _currentUserDto.value = null
+            }
+            apiClient.update(accessToken = null)
+        }
+
+        /**
          * Given a successful [AuthenticationResult], switch to the user that just authenticated
          */
         suspend fun changeUser(
             serverUrl: String,
             authenticationResult: AuthenticationResult,
             existingUser: JellyfinUser?,
+            displayName: String? = null,
+            newPin: String? = null,
+            beforePublish: (suspend (JellyfinUser) -> Unit)? = null,
         ) = withContext(ioDispatcher) {
             val accessToken = authenticationResult.accessToken
             if (accessToken != null) {
@@ -201,15 +265,25 @@ class ServerRepository
                         )
                     }
                 if (server != null) {
+                    val savedUser =
+                        existingUser
+                            ?: if (BuildConfig.KID_PROFILES_ENABLED && authedUser != null) {
+                                // Signing a saved profile in again via Add User keeps its PIN and settings
+                                serverDao.getUser(server.id, authedUser.id)
+                            } else {
+                                null
+                            }
                     val user =
                         authedUser?.let {
-                            if (existingUser != null) {
+                            if (savedUser != null) {
                                 Timber.d("Re-using existing user")
-                                existingUser.copy(
-                                    // If the server authenticated via the server, always remove the PIN
-                                    pin = null,
+                                savedUser.copy(
+                                    // Upstream: authenticating via the server always removes the PIN.
+                                    // Kid profiles keep it, so re-auth can't strip a parent's protection.
+                                    pin = newPin ?: if (BuildConfig.KID_PROFILES_ENABLED) savedUser.pin else null,
                                     accessToken = accessToken,
                                     lastUsed = ZonedDateTime.now(),
+                                    displayName = displayName ?: savedUser.displayName,
                                 )
                             } else {
                                 Timber.d("Creating new user")
@@ -218,12 +292,14 @@ class ServerRepository
                                     name = it.name,
                                     serverId = server.id,
                                     accessToken = accessToken,
+                                    pin = newPin,
                                     lastUsed = ZonedDateTime.now(),
+                                    displayName = displayName,
                                 )
                             }
                         }
                     if (user != null) {
-                        return@withContext changeUser(server, user)
+                        return@withContext changeUser(server, user, beforePublish)
                     } else {
                         throw IllegalArgumentException("Authentication result's user was null")
                     }
@@ -290,6 +366,10 @@ class ServerRepository
             pin: String?,
             requireLogin: Boolean,
         ) {
+            if (BuildConfig.KID_PROFILES_ENABLED && user.hasPin && pin.isNullOrBlank() && kidProtectionStore.isProtected()) {
+                // Plan 4.2: PIN removal is blocked on a protected device
+                throw IllegalStateException("The PIN can't be removed while kid protection is on")
+            }
             val newUser = user.copy(pin = pin, requireLogin = requireLogin)
             val updatedUser = serverDao.addOrUpdateUser(newUser)
             val cur = current.value
@@ -319,6 +399,40 @@ class ServerRepository
         suspend fun updateUserDto() {
             val userDto by apiClient.userApi.getCurrentUser()
             updateUserDto(userDto)
+            if (BuildConfig.KID_PROFILES_ENABLED) {
+                refreshCurrentPolicy(userDto)
+            }
+        }
+
+        /**
+         * Kid profiles: record a freshly fetched policy of the current user in Room (and the session ceiling,
+         * so a level changed on the portal applies to this session)
+         */
+        private suspend fun refreshCurrentPolicy(userDto: UserDto) {
+            if (userDto.policy == null) return
+            val cur = _current.value ?: return
+            if (cur.user.id != userDto.id) return
+            val refreshed = cur.user.withPolicyOf(userDto)
+            if (refreshed.policyState == cur.user.policyState && refreshed.maxParentalRating == cur.user.maxParentalRating) {
+                return
+            }
+            withContext(ioDispatcher) {
+                serverDao.updateUserPolicy(refreshed.rowId, refreshed.maxParentalRating, refreshed.policyState)
+            }
+            recordSessionCeiling(refreshed)
+            withContext(WholphinDispatchers.Main) {
+                _current.update { if (it?.user?.id == refreshed.id) it.copy(user = refreshed) else it }
+            }
+        }
+
+        private suspend fun recordSessionCeiling(user: JellyfinUser) {
+            if (!BuildConfig.KID_PROFILES_ENABLED) return
+            val ceiling = user.profileCeiling
+            if (user.profileKind != ProfileKind.ADULT) {
+                // First kid (or a profile we can't classify) admitted: this TV is protected from now on
+                kidProtectionStore.markProtected(ceiling)
+            }
+            kidProtectionStore.setSessionCeiling(ceiling)
         }
 
         /**
@@ -343,6 +457,18 @@ class ServerRepository
             const val ACCESS_TOKEN_KEY = "current.accessToken"
         }
     }
+
+/**
+ * The saved profile updated with the server policy in [userDto]. A missing policy keeps the cached values.
+ */
+fun JellyfinUser.withPolicyOf(userDto: UserDto): JellyfinUser {
+    val policy = userDto.policy ?: return this
+    val maxRating = policy.maxParentalRating
+    return copy(
+        maxParentalRating = maxRating,
+        policyState = if (maxRating != null) PolicyState.KID else PolicyState.ADULT,
+    )
+}
 
 @Serializable
 data class CurrentUser(
