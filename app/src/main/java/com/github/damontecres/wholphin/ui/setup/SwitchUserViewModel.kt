@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.ui.setup
 
 import android.content.Context
+import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.damontecres.wholphin.BuildConfig
@@ -302,7 +303,8 @@ class SwitchUserViewModel
          * authorization for its target (plan 4.2), but on a protected device an adult without a PIN must
          * set one before anything is published (cancel = no change).
          */
-        private suspend fun finishFreshAuth(
+        @VisibleForTesting
+        internal suspend fun finishFreshAuth(
             serverUrl: String,
             authenticationResult: AuthenticationResult,
             existingUser: JellyfinUser?,

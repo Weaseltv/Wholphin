@@ -36,13 +36,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assume
 import org.junit.Before
 import org.junit.Test
-import org.jellyfin.sdk.Jellyfin
-import org.jellyfin.sdk.api.client.ApiClient
-import org.jellyfin.sdk.api.client.Response
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
-import org.jellyfin.sdk.api.client.extensions.userApi
-import org.jellyfin.sdk.api.operations.UserApi
-import org.jellyfin.sdk.model.api.AuthenticateUserByName
 import org.jellyfin.sdk.model.api.AuthenticationResult
 import org.jellyfin.sdk.model.api.UserDto
 import org.jellyfin.sdk.model.api.UserPolicy
@@ -58,7 +52,6 @@ class ChooserGateViewModelTest {
     private val gate = mockk<KidSessionGateImpl>(relaxed = true)
     private val store = mockk<KidProtectionStore>()
     private val chooserLock = mockk<ProfileChooserLock>(relaxed = true)
-    private val jellyfin = mockk<Jellyfin>(relaxed = true)
 
     private val serverId = UUID.randomUUID()
     private val server = server(serverId)
@@ -99,7 +92,7 @@ class ChooserGateViewModelTest {
         viewModel =
             SwitchUserViewModel(
                 context = context,
-                jellyfin = jellyfin,
+                jellyfin = mockk(relaxed = true),
                 serverRepository = serverRepository,
                 serverDao = serverDao,
                 navigationManager = mockk(relaxed = true),
@@ -229,13 +222,8 @@ class ChooserGateViewModelTest {
                     accessToken = "adult-token",
                     serverId = serverId.toServerString(),
                 )
-            val api = mockk<ApiClient>()
-            val userApi = mockk<UserApi>()
-            every { jellyfin.createApi(any(), any(), any(), any(), any()) } returns api
-            every { api.userApi } returns userApi
-            coEvery { userApi.authenticateUserByName(any<AuthenticateUserByName>()) } returns Response(auth, 200, emptyMap())
 
-            viewModel.login(server, kidWithPin, "adult", "secret")
+            viewModel.finishFreshAuth(server.url, auth, existingUser = kidWithPin)
 
             val pending = viewModel.state.value.pendingPinSetup
             assertNotNull("the new adult must set their own PIN first", pending)
