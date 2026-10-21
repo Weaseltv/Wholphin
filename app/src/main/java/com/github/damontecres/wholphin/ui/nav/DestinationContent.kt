@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.ui.nav
 
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
@@ -11,6 +12,7 @@ import com.github.damontecres.wholphin.data.filter.DefaultForStudiosFilterOption
 import com.github.damontecres.wholphin.data.model.SeerrItemType
 import com.github.damontecres.wholphin.preferences.PlayerBackend
 import com.github.damontecres.wholphin.preferences.UserPreferences
+import com.github.damontecres.wholphin.ui.avatars.ProfilePicturePage
 import com.github.damontecres.wholphin.ui.components.ItemGrid
 import com.github.damontecres.wholphin.ui.components.LicenseInfo
 import com.github.damontecres.wholphin.ui.data.MovieSortOptions
@@ -134,6 +136,11 @@ fun DestinationContent(
 
         Destination.UserAppPreferences -> {
             UserProfilePreferencesPage(modifier)
+        }
+
+        Destination.ProfilePicture -> {
+            val back = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
+            ProfilePicturePage(onDone = { back?.onBackPressed() }, modifier = modifier)
         }
 
         is Destination.SeriesOverview -> {
