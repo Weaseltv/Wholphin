@@ -16,9 +16,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /*
- * Day-0 placeholders so tracks C and D compile against KidContracts.kt independently.
- * Track C replaces StubKidSessionGate; track D replaces StubKidProfilesApi. Delete each stub
- * (and its @Binds) when the real implementation lands.
+ * Day-0 placeholder so tracks C and D compile against KidContracts.kt independently.
+ * Track C replaces StubKidSessionGate; delete it (and its @Binds) when the real gate lands.
+ * Track D's KidProfilesHttpApi replaced StubKidProfilesApi.
  */
 
 @Singleton
@@ -51,38 +51,9 @@ class StubKidSessionGate
         ): CurrentUser = serverRepository.changeUser(serverUrl, authenticationResult, null)
     }
 
-@Singleton
-class StubKidProfilesApi
-    @Inject
-    constructor() : KidProfilesApi {
-        private val unavailable = KidApiResult.Problem(404, "WEASELPLEX_KIDS_UNAVAILABLE")
-
-        override suspend fun list(parentAccessToken: String) = unavailable
-
-        override suspend fun create(
-            parentAccessToken: String,
-            idempotencyKey: String,
-            displayName: String,
-            level: KidLevel,
-        ) = unavailable
-
-        override suspend fun connect(
-            parentAccessToken: String,
-            kidId: String,
-            quickConnectCode: String,
-        ) = unavailable
-    }
-
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class KidSessionGateStubModule {
     @Binds
     abstract fun kidSessionGate(impl: StubKidSessionGate): KidSessionGate
-}
-
-@Module
-@InstallIn(SingletonComponent::class)
-abstract class KidProfilesApiStubModule {
-    @Binds
-    abstract fun kidProfilesApi(impl: StubKidProfilesApi): KidProfilesApi
 }
