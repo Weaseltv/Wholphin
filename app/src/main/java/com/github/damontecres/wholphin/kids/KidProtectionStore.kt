@@ -128,7 +128,9 @@ class KidProtectionStore
             internal fun encodeCeiling(ceiling: ProfileCeiling): String =
                 when (ceiling) {
                     is ProfileCeiling.Rating -> ceiling.maxParentalRating.toString()
+
                     ProfileCeiling.Unlimited -> UNLIMITED
+
                     // Never stored on purpose, but reads back as unknown either way
                     ProfileCeiling.Unknown -> "unknown"
                 }

@@ -116,7 +116,9 @@ class ServerRepositoryTest {
         coEvery { mockJellyfinServerDao.addOrUpdateUser(user) } returns user
         every { mockApiClient.clientInfo } returns ClientInfo("Wholphin test", "0.0.1")
         every { mockApiClient.deviceInfo } returns DeviceInfo("Wholphin test ID", "Wholphin test device")
-        every { mockApiClient.httpClientOptions } returns org.jellyfin.sdk.api.client.HttpClientOptions()
+        every { mockApiClient.httpClientOptions } returns
+            org.jellyfin.sdk.api.client
+                .HttpClientOptions()
         every { mockApiClient.update(any(), any(), any(), any()) } just Runs
     }
 

@@ -38,7 +38,8 @@ class KidWorkerSessionTest {
                     .build()
         }
 
-    private fun latestNextUpWorker() = LatestNextUpWorker(mockk(relaxed = true), params(), serverRepository, mockk(relaxed = true), latestNextUpService)
+    private fun latestNextUpWorker() =
+        LatestNextUpWorker(mockk(relaxed = true), params(), serverRepository, mockk(relaxed = true), latestNextUpService)
 
     private fun tvProviderWorker() =
         TvProviderWorker(

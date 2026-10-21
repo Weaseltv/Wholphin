@@ -28,6 +28,10 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import org.jellyfin.sdk.api.client.exception.InvalidStatusException
+import org.jellyfin.sdk.model.api.AuthenticationResult
+import org.jellyfin.sdk.model.api.UserDto
+import org.jellyfin.sdk.model.api.UserPolicy
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -36,10 +40,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Assume
 import org.junit.Before
 import org.junit.Test
-import org.jellyfin.sdk.api.client.exception.InvalidStatusException
-import org.jellyfin.sdk.model.api.AuthenticationResult
-import org.jellyfin.sdk.model.api.UserDto
-import org.jellyfin.sdk.model.api.UserPolicy
 import java.util.UUID
 
 /** The chooser's use of the gate: adult lockout, PIN prompts, long-press delete rules (plan 4.2) */
@@ -244,7 +244,11 @@ class ChooserGateViewModelTest {
             viewModel.submitPin("1234")
 
             coVerify { gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(olderKid.rowId)) }
-            assertEquals(olderKid, viewModel.state.value.switchError?.user)
+            assertEquals(
+                olderKid,
+                viewModel.state.value.switchError
+                    ?.user,
+            )
             verify(exactly = 2) { gate.clearParentUnlock() }
 
             // The sign-in dialog that follows is dismissed

@@ -221,8 +221,7 @@ class LatestNextUpService
 
         /**
          * Check if user has watched a series since removing it
-         */
-        /**
+         *
          * @param stillValid checked before writing; false drops the result (kid profiles: the session changed)
          */
         suspend fun updateRemovedFromNextUp(

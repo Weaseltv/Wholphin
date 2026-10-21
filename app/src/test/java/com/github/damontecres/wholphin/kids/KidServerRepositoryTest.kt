@@ -337,6 +337,7 @@ class KidServerRepositoryTest {
             coEvery { userApi.getCurrentUser() } returns successResponse(userDto(adult.id, null))
             // What a restart would read if the process died at each step of the switch
             val seenOnRestart = mutableListOf<ProfileCeiling>()
+
             fun snapshot() = runBlocking { seenOnRestart += KidProtectionStore(keyValue).sessionCeiling() }
             every { serverDao.addOrUpdateUser(any()) } answers {
                 snapshot()

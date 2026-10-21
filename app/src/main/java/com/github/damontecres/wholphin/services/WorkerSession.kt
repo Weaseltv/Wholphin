@@ -32,6 +32,5 @@ internal object WorkerSession {
         serverRepository: ServerRepository,
         serverId: UUID,
         userId: UUID,
-    ): Boolean =
-        serverRepository.current.value?.let { it.server.id == serverId && it.user.id == userId } == true
+    ): Boolean = serverRepository.current.value?.let { it.server.id == serverId && it.user.id == userId } == true
 }

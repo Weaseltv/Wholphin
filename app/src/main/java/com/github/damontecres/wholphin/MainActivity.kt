@@ -762,7 +762,10 @@ class MainActivityViewModel
         fun lockToChooser() {
             viewModelScope.launchDefault {
                 mutex.withLock {
-                    val serverId = serverRepository.current.value?.server?.id ?: profileChooserLock.lastProfile?.server?.id
+                    val serverId =
+                        serverRepository.current.value
+                            ?.server
+                            ?.id ?: profileChooserLock.lastProfile?.server?.id
                     showChooser(serverId)
                 }
             }
