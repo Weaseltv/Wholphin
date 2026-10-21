@@ -34,11 +34,17 @@ class IntentService
                 (action == Intent.ACTION_MAIN || action.isNullOrBlank())
         }
 
-        /** The profile an intent names, if any (launcher tiles carry none) */
-        fun intentUserId(intent: Intent): java.util.UUID? = intent.getStringParam(INTENT_USER_ID)?.toUUIDOrNull()
-
-        /** The server an intent names, if any */
-        fun intentServerId(intent: Intent): java.util.UUID? = intent.getStringParam(INTENT_SERVER_ID)?.toUUIDOrNull()
+        /**
+         * The profile an intent targets (plan 4.5). Only a complete server + user pair counts; launcher tiles carry
+         * none, and a server or user id on its own is ignored. The one routine for both the chooser's profile count
+         * ([com.github.damontecres.wholphin.MainActivity]) and the restore in [prepare], so the two always agree
+         * on which server's profiles apply: an unpaired server id falls back to the saved one in both.
+         */
+        fun intentTarget(intent: Intent): IntentTarget? {
+            val serverId = intent.getStringParam(INTENT_SERVER_ID)?.toUUIDOrNull()
+            val userId = intent.getStringParam(INTENT_USER_ID)?.toUUIDOrNull()
+            return if (serverId != null && userId != null) IntentTarget(serverId, userId) else null
+        }
 
         /**
          * @param sessionReady the intent's profile is already the current session (a held launcher tile continued
@@ -147,7 +153,7 @@ class IntentService
             val userId = intent.getStringParam(INTENT_USER_ID)?.toUUIDOrNull()
             val serverId = intent.getStringParam(INTENT_SERVER_ID)?.toUUIDOrNull()
             if (BuildConfig.KID_PROFILES_ENABLED) {
-                return prepareGated(appPrefs.signInAutomatically, serverId, userId, appPrefs.currentServerId, appPrefs.currentUserId)
+                return prepareGated(appPrefs.signInAutomatically, intentTarget(intent), appPrefs.currentServerId, appPrefs.currentUserId)
             }
             return if (userId != null && serverId != null) {
                 Timber.v("Intent switches user")
@@ -193,16 +199,15 @@ class IntentService
          */
         private suspend fun prepareGated(
             signInAutomatically: Boolean,
-            intentServerId: java.util.UUID?,
-            intentUserId: java.util.UUID?,
+            target: IntentTarget?,
             lastServerId: String?,
             lastUserId: String?,
         ): IntentResult? {
             val current = serverRepository.current.value
             val (serverId, userId) =
-                if (intentUserId != null && intentServerId != null) {
+                if (target != null) {
                     Timber.v("Intent switches user")
-                    intentServerId to intentUserId
+                    target.serverId to target.userId
                 } else {
                     if (!signInAutomatically || current?.user?.isProtected == true) {
                         return IntentResult.Error("Auto sign-in not enabled or user is protected")
@@ -332,3 +337,9 @@ sealed interface IntentResult {
         val addHomeToBackStack: Boolean = true,
     ) : IntentResult
 }
+
+/** A deep link's target profile, see [IntentService.intentTarget] */
+data class IntentTarget(
+    val serverId: java.util.UUID,
+    val userId: java.util.UUID,
+)
