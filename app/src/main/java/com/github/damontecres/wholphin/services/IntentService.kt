@@ -4,6 +4,7 @@ import android.app.SearchManager
 import android.content.Intent
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.data.isIdentity
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.kids.GateDecision
 import com.github.damontecres.wholphin.kids.KidSessionGateImpl
@@ -225,10 +226,9 @@ class IntentService
             if (user.isProtected) {
                 return IntentResult.Error("Cannot switch to specified user")
             }
-            if (current != null && current.server.id == serverId && current.user.id == userId) {
-                // Already this profile's session
-                serverRepository.restoreSession(serverId, userId)
-                return null
+            if (current.isIdentity(serverId, userId)) {
+                // Already this profile's session, if it still is once the session lock is held; else gated below
+                if (serverRepository.restoreCurrentSession(serverId, userId) != null) return null
             }
             if (kidSessionGate.evaluate(user) != GateDecision.Allow) {
                 return IntentResult.Error("Cannot switch to specified user")

@@ -60,7 +60,11 @@ class ServerRepository
         @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
         private val kidProtectionStore: KidProtectionStore,
     ) {
-        /** Serializes every switch of the session (plan 4.1, 4.2); see [changeUser] */
+        /**
+         * The session coordinator's lock (plan 4.1, 4.2). Every change of the shared [ApiClient]'s credentials,
+         * [current] and [currentUserDto] holds it, and lands in one non-suspending [commitSession] step, so a session
+         * change never interleaves with another one. Network calls stay outside it.
+         */
         private val sessionMutex = Mutex()
 
         private var _current = MutableStateFlow<CurrentUser?>(null)
@@ -95,8 +99,31 @@ class ServerRepository
             withContext(ioDispatcher) {
                 serverDao.addOrUpdateServer(server)
             }
-            apiClient.update(baseUrl = server.url, accessToken = null)
-            _current.value = null
+            sessionMutex.withLock {
+                commitSession { assignSession(null, null, baseUrl = server.url) }
+            }
+        }
+
+        /**
+         * The one step that changes the session (plan 4.1, 4.2); the caller holds [sessionMutex]. [step] runs on the
+         * main thread without suspending, so it sees the session as it is right then: it revalidates whatever it
+         * depends on there, and the shared client's token, [currentUserDto] and [current] change together.
+         */
+        private suspend fun <T> commitSession(step: () -> T): T = withContext(WholphinDispatchers.Main) { step() }
+
+        /**
+         * Sets the shared client's credentials and the session together; only called inside a [commitSession] step.
+         * WeaselFin: the user's policy goes out first, so anything that reacts to the new user (the Seerr kid guard)
+         * already sees that user's policy.
+         */
+        private fun assignSession(
+            current: CurrentUser?,
+            userDto: UserDto?,
+            baseUrl: String? = current?.server?.url ?: apiClient.baseUrl,
+        ) {
+            apiClient.update(baseUrl = baseUrl, accessToken = current?.user?.accessToken)
+            _currentUserDto.value = userDto
+            _current.value = current
         }
 
         /**
@@ -107,11 +134,14 @@ class ServerRepository
          * and may throw (eg [com.github.damontecres.wholphin.kids.ProfileGateException]) to abort the switch;
          * the refreshed policy columns of an already saved profile are still recorded. [beforePublish] runs under the
          * session lock that serializes every switch, so its gate check holds until the switch is published.
+         * [authorize] runs in the very step that publishes, after the switch was persisted, and may throw to refuse it
+         * (eg an unlock that expired meanwhile): nothing is published and the journalled switch is aborted.
          */
         suspend fun changeUser(
             server: JellyfinServer,
             user: JellyfinUser,
             beforePublish: (suspend (JellyfinUser) -> Unit)? = null,
+            authorize: (() -> Unit)? = null,
         ): CurrentUser =
             withContext(ioDispatcher) {
                 if (server.id != user.serverId) {
@@ -165,7 +195,7 @@ class ServerRepository
                                 throw ex
                             }
                         }
-                        publishSwitch(updatedServer, updatedUser, userDto).also {
+                        publishSwitch(updatedServer, updatedUser, userDto, authorize).also {
                             getServerSharedPreferences(context).edit(true) {
                                 putString(SERVER_URL_KEY, updatedServer.url)
                                 putString(ACCESS_TOKEN_KEY, it.user.accessToken)
@@ -179,12 +209,14 @@ class ServerRepository
          * Saves and publishes a switch that passed the gate; the caller holds [sessionMutex]. Kid profiles: the
          * switch is journalled first, and whether it ends completed (destination's ceiling) or aborted (previous
          * ceiling) depends only on whether [current] was actually published, never on how the dispatcher returned:
-         * a cancellation that lands after publication still completes it (plan 4.2).
+         * a cancellation that lands after publication still completes it (plan 4.2). [authorize] is checked in the
+         * publishing step itself; if it throws, nothing is published and the switch is aborted.
          */
         private suspend fun publishSwitch(
             server: JellyfinServer,
             user: JellyfinUser,
             userDto: UserDto,
+            authorize: (() -> Unit)?,
         ): CurrentUser {
             val kidProfiles = BuildConfig.KID_PROFILES_ENABLED
             // Kid profiles: protection is on before a kid row is admitted, and the switch is journalled so an
@@ -203,14 +235,11 @@ class ServerRepository
                         }.build()
                 }
                 val currentUser = CurrentUser(server, savedUser)
-                withContext(WholphinDispatchers.Main) {
-                    // One non-suspending step: the shared client's token and the session change together, and
-                    // [published] records that they did even if a cancellation is delivered on the way back.
-                    // WeaselFin: the user's policy goes out first, so anything that reacts to the new user (the
-                    // Seerr kid guard) already sees that user's policy.
-                    apiClient.update(baseUrl = server.url, accessToken = savedUser.accessToken)
-                    _currentUserDto.value = userDto
-                    _current.value = currentUser
+                commitSession {
+                    // No suspension between this last authorization check and publication (plan 4.1, 4.3)
+                    authorize?.invoke()
+                    // [published] records that the session changed even if a cancellation is delivered on the way back
+                    assignSession(currentUser, userDto)
                     published = currentUser
                 }
             } catch (ex: Throwable) {
@@ -246,38 +275,50 @@ class ServerRepository
             userId: UUID?,
         ): CurrentUser? {
             if (serverId == null || userId == null) {
-                _current.value = null
+                sessionMutex.withLock { commitSession { assignSession(null, null) } }
                 return null
             }
             val serverAndUsers =
                 withContext(ioDispatcher) {
                     serverDao.getServer(serverId)
+                } ?: return null
+            if (_current.value.isIdentity(serverId, userId)) {
+                restoreCurrentSession(serverId, userId)?.let { return it }
+                // Kid profiles: another session was published meanwhile; never fall back to an ungated switch
+                if (BuildConfig.KID_PROFILES_ENABLED) return null
+            }
+            val user = serverAndUsers.users.firstOrNull { it.id == userId } ?: return null
+            return changeUser(serverAndUsers.server, user)
+        }
+
+        /**
+         * The restore shortcut: re-applies the current session's credentials to the shared [ApiClient] if
+         * [serverId]/[userId] is still the current session once the session lock is held, then (kid profiles)
+         * refreshes its policy outside the lock.
+         *
+         * @return the session, or null (nothing changed) if another session was published meanwhile
+         */
+        suspend fun restoreCurrentSession(
+            serverId: UUID,
+            userId: UUID,
+        ): CurrentUser? {
+            sessionMutex.withLock {
+                commitSession {
+                    _current.value?.takeIf { it.isIdentity(serverId, userId) }?.also {
+                        Timber.v("Restoring session for current user, so shortcut")
+                        apiClient.update(baseUrl = it.server.url, accessToken = it.user.accessToken)
+                    }
                 }
-            if (serverAndUsers != null) {
-                val current = _current.value
-                if (current != null && current.server.id == serverId && current.user.id == userId) {
-                    Timber.v("Restoring session for current user, so shortcut")
-                    apiClient.update(
-                        baseUrl = current.server.url,
-                        accessToken = current.user.accessToken,
-                    )
-                    if (BuildConfig.KID_PROFILES_ENABLED) {
-                        try {
-                            updateUserDto()
-                        } catch (ex: Exception) {
-                            // Keep the cached policy columns
-                            Timber.w(ex, "Could not refresh the current user's policy")
-                        }
-                    }
-                    return _current.value ?: current
-                } else {
-                    val user = serverAndUsers.users.firstOrNull { it.id == userId }
-                    if (user != null) {
-                        return changeUser(serverAndUsers.server, user)
-                    }
+            } ?: return null
+            if (BuildConfig.KID_PROFILES_ENABLED) {
+                try {
+                    updateUserDto()
+                } catch (ex: Exception) {
+                    // Keep the cached policy columns
+                    Timber.w(ex, "Could not refresh the current user's policy")
                 }
             }
-            return null
+            return _current.value?.takeIf { it.isIdentity(serverId, userId) }
         }
 
         suspend fun fetchLastUsedServer(serverId: UUID?): JellyfinServer? =
@@ -285,21 +326,33 @@ class ServerRepository
                 serverId?.let { serverDao.getServer(serverId)?.server }
             }
 
-        fun closeSession() {
-            _current.value = null
-        }
-
         /**
          * Kid profiles chooser teardown (plan 4.1): ends the in-memory session so account-bound work keyed on
          * [current] is cancelled and the shared [ApiClient] holds no token while the profile screen shows.
-         * Persisted state (saved profiles, protection, session ceiling) is untouched.
+         * The saved current profile is cleared too (like [switchServerOrUser]); saved profiles, protection and the
+         * session ceiling are untouched. A session published after this was called is left alone.
          */
         suspend fun endSessionForChooser() {
-            withContext(WholphinDispatchers.Main) {
-                _current.value = null
-                _currentUserDto.value = null
+            val ending = _current.value
+            sessionMutex.withLock {
+                val ended =
+                    commitSession {
+                        _current.value.isSameIdentity(ending).also { if (it) assignSession(null, null) }
+                    }
+                if (ended) clearSavedSession(clearServer = true)
             }
-            apiClient.update(accessToken = null)
+        }
+
+        /** Clears the saved current profile (and server); the caller holds [sessionMutex] */
+        private suspend fun clearSavedSession(clearServer: Boolean) {
+            userPreferencesDataStore.updateData {
+                it
+                    .toBuilder()
+                    .apply {
+                        if (clearServer) currentServerId = ""
+                        currentUserId = ""
+                    }.build()
+            }
         }
 
         /**
@@ -312,6 +365,7 @@ class ServerRepository
             displayName: String? = null,
             newPin: String? = null,
             beforePublish: (suspend (JellyfinUser) -> Unit)? = null,
+            authorize: (() -> Unit)? = null,
         ) = withContext(ioDispatcher) {
             val accessToken = authenticationResult.accessToken
             if (accessToken != null) {
@@ -361,7 +415,7 @@ class ServerRepository
                             }
                         }
                     if (user != null) {
-                        return@withContext changeUser(server, user, beforePublish)
+                        return@withContext changeUser(server, user, beforePublish, authorize)
                     } else {
                         throw IllegalArgumentException("Authentication result's user was null")
                     }
@@ -374,18 +428,13 @@ class ServerRepository
         }
 
         suspend fun removeUser(user: JellyfinUser) {
-            if (current.value?.user?.id == user.id) {
-                withContext(WholphinDispatchers.Main) {
-                    _current.value = null
-                }
-                userPreferencesDataStore.updateData {
-                    it
-                        .toBuilder()
-                        .apply {
-                            currentUserId = ""
-                        }.build()
-                }
-                apiClient.update(accessToken = null)
+            sessionMutex.withLock {
+                // Ends the session only if it still is this user's
+                val ended =
+                    commitSession {
+                        (_current.value?.user?.id == user.id).also { if (it) assignSession(null, null) }
+                    }
+                if (ended) clearSavedSession(clearServer = false)
             }
             withContext(ioDispatcher) {
                 serverDao.deleteUser(user.serverId, user.id)
@@ -393,19 +442,12 @@ class ServerRepository
         }
 
         suspend fun removeServer(server: JellyfinServer) {
-            if (current.value?.server?.id == server.id) {
-                withContext(WholphinDispatchers.Main) {
-                    _current.value = null
-                }
-                userPreferencesDataStore.updateData {
-                    it
-                        .toBuilder()
-                        .apply {
-                            currentServerId = ""
-                            currentUserId = ""
-                        }.build()
-                }
-                apiClient.update(baseUrl = null, accessToken = null)
+            sessionMutex.withLock {
+                val ended =
+                    commitSession {
+                        (_current.value?.server?.id == server.id).also { if (it) assignSession(null, null, baseUrl = null) }
+                    }
+                if (ended) clearSavedSession(clearServer = true)
             }
             withContext(ioDispatcher) {
                 serverDao.deleteServer(server.id)
@@ -413,13 +455,10 @@ class ServerRepository
         }
 
         suspend fun switchServerOrUser() {
-            userPreferencesDataStore.updateData {
-                it
-                    .toBuilder()
-                    .apply {
-                        currentServerId = ""
-                        currentUserId = ""
-                    }.build()
+            val leaving = _current.value
+            sessionMutex.withLock {
+                // A session published after this was called keeps its saved pointer
+                if (_current.value.isSameIdentity(leaving)) clearSavedSession(clearServer = true)
             }
         }
 
@@ -434,12 +473,10 @@ class ServerRepository
             }
             val newUser = user.copy(pin = pin, requireLogin = requireLogin)
             val updatedUser = serverDao.addOrUpdateUser(newUser)
-            val cur = current.value
-            if (cur?.user?.id == updatedUser.id && cur.server?.id == user.serverId) {
-                // Updating current user, so push out the change
-                current.value?.let {
-                    val newCurrent = it.copy(user = updatedUser)
-                    _current.value = newCurrent
+            sessionMutex.withLock {
+                commitSession {
+                    // Updating current user, so push out the change
+                    _current.update { if (it.isIdentity(user.serverId, updatedUser.id)) it?.copy(user = updatedUser) else it }
                 }
             }
         }
@@ -485,7 +522,7 @@ class ServerRepository
                 withContext(ioDispatcher) {
                     serverDao.updateUserPolicy(refreshed.rowId, refreshed.maxParentalRating, refreshed.policyState)
                 }
-                withContext(WholphinDispatchers.Main) {
+                commitSession {
                     _current.update { if (it?.user?.id == refreshed.id) it.copy(user = refreshed) else it }
                 }
             }
@@ -504,11 +541,12 @@ class ServerRepository
         /**
          * Update [currentUserDto] with the specified [UserDto]
          *
-         * This will only update if the [UserDto] is for the [currentUser]
+         * This will only update if the [UserDto] is for the [currentUser] and replaces that same user's [UserDto], so a
+         * late refresh never lands over a newer session's policy (or an ended session)
          */
         fun updateUserDto(userDto: UserDto) {
             _currentUserDto.update {
-                if (currentUser?.id == userDto.id) userDto else it
+                if (currentUser?.id == userDto.id && it?.id == userDto.id) userDto else it
             }
         }
 
@@ -531,6 +569,16 @@ fun JellyfinUser?.ifSameIdentity(
     serverId: UUID?,
     userId: UUID?,
 ): JellyfinUser? = this?.takeIf { serverId != null && userId != null && it.serverId == serverId && it.id == userId }
+
+/** Whether [this] session is [serverId]/[userId]'s */
+fun CurrentUser?.isIdentity(
+    serverId: UUID,
+    userId: UUID,
+): Boolean = this != null && server.id == serverId && user.id == userId
+
+/** Whether [this] and [other] are the same profile's session, or both no session */
+fun CurrentUser?.isSameIdentity(other: CurrentUser?): Boolean =
+    if (this == null || other == null) this == other else isIdentity(other.server.id, other.user.id)
 
 /**
  * The saved profile updated with the server policy in [userDto]. A missing policy keeps the cached values.
