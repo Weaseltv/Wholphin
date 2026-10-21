@@ -1,6 +1,7 @@
-# Kid profiles — frozen TV <-> website contract (v1)
+# Kid profiles — frozen TV <-> website contract (v1.1)
 
-Status: **FROZEN 2026-10-21** by the kid-profiles orchestrator. Identical copies live in
+Status: **FROZEN 2026-10-21** by the kid-profiles orchestrator. v1.1 (same day) only clarifies
+website-side details found while building tracks A and B; nothing the TV sends or reads changed. Identical copies live in
 `Wholphin/runbooks/kid-profiles/contract.md` and `weaseltv-platform/docs/kid-profiles/contract.md`. Tracks build to this
 document. Changes go through the orchestrator only; a change bumps the version line above and
 is made in both repos in the same step.
@@ -75,14 +76,14 @@ Read-back must verify `MaxParentalRating`, `MaxParentalSubRating`, `BlockUnrated
 | Scope | Limit | Notes |
 |---|---|---|
 | Per client IP, whole family | 30 / minute | pre-auth |
-| Per token hash (sha256), whole family | 60 / 10 minutes | pre-auth |
+| Per token (keyed HMAC-SHA256 digest), whole family | 60 / 10 minutes | pre-auth |
 | Create, per account | 10 / hour | after auth |
 | Connect, per account | 5 / 10 minutes | after auth, mirrors existing Quick Connect |
 
 ### 3.2 Error codes
 | Status | `title` | Meaning | TV behaviour |
 |---|---|---|---|
-| 400 | `INVALID_REQUEST` | Body failed validation (name length/characters, level) | Show inline form error |
+| 400 | `INVALID_REQUEST` | Body failed validation (name length/characters, level), body over 1 KiB, wrong content type, or a query string | Show inline form error |
 | 400 | `INVALID_JSON` | Malformed JSON | Bug; generic error |
 | 400 | `INVALID_IDEMPOTENCY_KEY` | Missing/invalid key on create | Bug; generic error |
 | 400 | `QUICK_CONNECT_INVALID_CODE` | Code unknown or expired | Re-initiate Quick Connect, retry connect once |
@@ -146,7 +147,8 @@ Connect route). No idempotency key (authorizing an already-used code returns
 - The website authorizes the Quick Connect code **as the kid** (only `active` kids) under the
   same request-row lock as the existing Quick Connect helper.
 - `200 {"data":{"authorized":true,"kid":Kid}}`.
-- Errors: 400 `QUICK_CONNECT_INVALID_CODE`, 404 `KID_NOT_FOUND`, 409 `KID_NOT_ACTIVE`,
+- Errors: 400 `QUICK_CONNECT_INVALID_CODE` (also for a malformed connect body or a query
+  string, mirroring portal Quick Connect), 404 `KID_NOT_FOUND`, 409 `KID_NOT_ACTIVE`,
   403, 401, 429, 503.
 
 ### 5.4 TV call sequence (add kid, plan 4.3)
@@ -217,4 +219,9 @@ rows not `deleting`), `level`, `state` (`provisioning|active|disabled|deleting`)
   implementing the frozen `SeerrUserPort` in `src/seerr-port.ts`), its env/credential schema,
   and the lifecycle cascades (revoke, reinstate, sign-out-everywhere, account deletion). B calls A's kid policy
   builder and lock helper; until A lands, B codes against those names and A's PR defines them.
+- Website-only error: `503 WEASELPLEX_KIDS_CLEANUP_PENDING` (staff account deletion while kid
+  provider deletes are still being retried). TV routes never return it.
+- `last_error` holds short machine codes only (e.g. `provisioning_abandoned`), never provider
+  messages or secrets.
+- Audit actions use the `weaselplex.kid.*` prefix.
 - Schema changes go through the orchestrator.
