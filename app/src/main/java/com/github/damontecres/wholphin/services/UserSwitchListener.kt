@@ -15,6 +15,7 @@ import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import dagger.hilt.android.qualifiers.ActivityContext
 import dagger.hilt.android.scopes.ActivityScoped
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
@@ -52,7 +53,9 @@ class UserSwitchListener
                 )
             }
             context.lifecycleScope.launchDefault {
-                serverRepository.currentUserFlow.collect { user ->
+                // collectLatest: a newer session (or the chooser teardown) cancels the previous user's
+                // in-flight Seerr connect and home settings load, so their late results are dropped
+                serverRepository.currentUserFlow.collectLatest { user ->
                     Timber.d("New user")
                     seerrServerRepository.clear()
                     homeSettingsService.currentSettings.update { HomePageResolvedSettings.EMPTY }

@@ -222,7 +222,13 @@ class LatestNextUpService
         /**
          * Check if user has watched a series since removing it
          */
-        suspend fun updateRemovedFromNextUp(userId: UUID) {
+        /**
+         * @param stillValid checked before writing; false drops the result (kid profiles: the session changed)
+         */
+        suspend fun updateRemovedFromNextUp(
+            userId: UUID,
+            stillValid: () -> Boolean = { true },
+        ) {
             val removed = getRemovedFromNextUp(userId)
             val newRemoved = removed.toMutableMap()
             var changed = false
@@ -253,7 +259,7 @@ class LatestNextUpService
                     changed = true
                 }
             }
-            if (changed) {
+            if (changed && stillValid()) {
                 displayPreferencesService.updateDisplayPreferences(userId) {
                     put(
                         REMOVED_KEY,

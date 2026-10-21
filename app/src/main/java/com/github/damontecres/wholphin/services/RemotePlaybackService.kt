@@ -7,6 +7,7 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.TrackIndex
+import com.github.damontecres.wholphin.kids.ProfileChooserLock
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.preferences.PreferenceScreenOption
 import com.github.damontecres.wholphin.ui.showToast
@@ -47,6 +48,7 @@ class RemotePlaybackService
         private val userPreferencesService: UserPreferencesService,
         private val activePlaybackRegistry: ActivePlaybackRegistry,
         private val volumeService: VolumeService,
+        private val profileChooserLock: ProfileChooserLock,
     ) {
         /**
          * Whether the user allows other devices to start & control playback on this device
@@ -74,6 +76,9 @@ class RemotePlaybackService
                 supportsPersistentIdentifier = true,
             )
 
+        /** Kid profiles (plan 4.5): Play On is refused while the profile screen lock is up */
+        fun isPlayOnLocked(): Boolean = profileChooserLock.isPlayOnLocked()
+
         private val inApp: Boolean
             get() = setupNavigationManager.backStack.firstOrNull() is SetupDestination.AppContent
 
@@ -84,6 +89,14 @@ class RemotePlaybackService
         suspend fun onPlayRequest(request: PlayRequest) {
             if (!isEnabled()) {
                 Timber.i("Ignoring remote play request, remote control is disabled")
+                return
+            }
+            if (profileChooserLock.isPlayOnLocked()) {
+                // Kid profiles (plan 4.5): only while a profile is actively in use
+                Timber.w("Ignoring remote play request, the profile screen lock is up")
+                withContext(WholphinDispatchers.Main) {
+                    showToast(context, context.getString(R.string.remote_play_locked))
+                }
                 return
             }
             val current = serverRepository.current.value
@@ -143,6 +156,10 @@ class RemotePlaybackService
          * @return the intent or null if nobody is signed in or the request has no items
          */
         fun createLaunchIntent(request: PlayRequest): Intent? {
+            if (profileChooserLock.isPlayOnLocked()) {
+                Timber.w("Not launching remote play, the profile screen lock is up")
+                return null
+            }
             val current = serverRepository.current.value ?: return null
             val params = PlayRequestMapper.toIntentParams(request) ?: return null
             return Intent(context, MainActivity::class.java).apply {

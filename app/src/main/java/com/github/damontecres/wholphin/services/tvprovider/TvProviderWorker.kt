@@ -17,6 +17,7 @@ import androidx.tvprovider.media.tv.TvContractCompat.WatchNextPrograms
 import androidx.tvprovider.media.tv.WatchNextProgram
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.MainActivity
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ServerRepository
@@ -26,6 +27,7 @@ import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.services.ImageUrlService
 import com.github.damontecres.wholphin.services.IntentService
 import com.github.damontecres.wholphin.services.LatestNextUpService
+import com.github.damontecres.wholphin.services.WorkerSession
 import com.github.damontecres.wholphin.ui.SlimItemFields
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -68,7 +70,9 @@ class TvProviderWorker
             val userId =
                 inputData.getString(PARAM_USER_ID)?.toUUIDOrNull() ?: return Result.failure()
 
-            if (api.baseUrl.isNullOrBlank() || api.accessToken.isNullOrBlank()) {
+            if (BuildConfig.KID_PROFILES_ENABLED) {
+                WorkerSession.check(serverRepository, serverId, userId)?.let { return it }
+            } else if (api.baseUrl.isNullOrBlank() || api.accessToken.isNullOrBlank()) {
                 // Not active
                 var currentUser = serverRepository.current.value
                 if (currentUser == null) {
@@ -88,6 +92,10 @@ class TvProviderWorker
                         prefs.homePagePreferences.enableRewatchingNextUp,
                         prefs.homePagePreferences.maxDaysNextUp,
                     )
+                if (BuildConfig.KID_PROFILES_ENABLED) {
+                    // Don't put another profile's items on the launcher
+                    WorkerSession.check(serverRepository, serverId, userId)?.let { return it }
+                }
                 val potentialItemsToAddIds = potentialItemsToAdd.map { it.id.toString() }
 
                 Timber.v("potentialItemsToAddIds=%s", potentialItemsToAddIds)
@@ -136,6 +144,9 @@ class TvProviderWorker
                     )
                 Timber.v("Added %s", addedCount)
 
+                if (BuildConfig.KID_PROFILES_ENABLED) {
+                    WorkerSession.check(serverRepository, serverId, userId)?.let { return it }
+                }
                 addOtherChannels()
 
                 Timber.d("Completed successfully")

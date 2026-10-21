@@ -9,6 +9,7 @@ import androidx.room.Update
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinServerUsers
 import com.github.damontecres.wholphin.data.model.JellyfinUser
+import com.github.damontecres.wholphin.data.model.PolicyState
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 
@@ -62,6 +63,24 @@ interface JellyfinServerDao {
         serverId: UUID,
         userId: UUID,
     ): Flow<JellyfinUser?>
+
+    /** Kid profiles: refresh only the server-policy columns of a saved profile */
+    @Query("UPDATE users SET maxParentalRating = :maxParentalRating, policyState = :policyState WHERE rowId = :rowId")
+    fun updateUserPolicy(
+        rowId: Int,
+        maxParentalRating: Int?,
+        policyState: PolicyState,
+    )
+
+    @Query("SELECT * FROM users WHERE serverId = :serverId")
+    fun getUsersFlow(serverId: UUID): Flow<List<JellyfinUser>>
+
+    @Query("SELECT COUNT(*) FROM users WHERE serverId = :serverId")
+    fun countUsers(serverId: UUID): Int
+
+    /** Kid profiles: saved rows the server policy marked as kids (any server) */
+    @Query("SELECT COUNT(*) FROM users WHERE policyState = 'kid'")
+    fun countKidUsers(): Int
 
     @Query("DELETE FROM servers WHERE id = :serverId")
     fun deleteServer(serverId: UUID)

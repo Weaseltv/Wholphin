@@ -27,12 +27,19 @@ enum class ProfileProtection {
     LOGIN,
 }
 
+/**
+ * @param allowRemove false on a kid-protected TV: entering the current PIN leads to choosing a new one
+ * instead of removing it (plan 4.2)
+ * @param checkWholePin kid profiles: compare the current PIN once confirmed instead of per keystroke
+ */
 @Composable
 fun SetPinFlow(
     currentPin: String?,
     onAddPin: (String) -> Unit,
     onRemovePin: () -> Unit,
     onDismissRequest: () -> Unit,
+    allowRemove: Boolean = true,
+    checkWholePin: Boolean = false,
 ) {
     val context = LocalContext.current
     var flowState by
@@ -47,12 +54,32 @@ fun SetPinFlow(
         ) {
             when (state) {
                 PinFlowState.ENTER_PIN_TO_REMOVE -> {
+                    val onCorrect: () -> Unit = {
+                        if (allowRemove) {
+                            onRemovePin.invoke()
+                        } else {
+                            flowState = PinFlowState.ENTER_PIN
+                        }
+                    }
                     PinEntryCreate(
                         title = R.string.enter_pin,
                         onTextChange = {
-                            if (it == currentPin) onRemovePin.invoke()
+                            if (!checkWholePin && it == currentPin) onCorrect()
                         },
-                        onConfirm = null,
+                        onConfirm =
+                            if (checkWholePin) {
+                                {
+                                    if (it == currentPin) {
+                                        onCorrect()
+                                    } else {
+                                        Toast
+                                            .makeText(context, context.getString(R.string.incorrect), Toast.LENGTH_SHORT)
+                                            .show()
+                                    }
+                                }
+                            } else {
+                                null
+                            },
                         modifier = Modifier.padding(16.dp),
                     )
                 }

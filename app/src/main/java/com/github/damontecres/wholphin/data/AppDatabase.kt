@@ -16,6 +16,7 @@ import com.github.damontecres.wholphin.data.model.LibraryDisplayInfo
 import com.github.damontecres.wholphin.data.model.NavDrawerPinnedItem
 import com.github.damontecres.wholphin.data.model.PlaybackEffect
 import com.github.damontecres.wholphin.data.model.PlaybackLanguageChoice
+import com.github.damontecres.wholphin.data.model.PolicyState
 import com.github.damontecres.wholphin.data.model.RememberedTab
 import com.github.damontecres.wholphin.data.model.SeerrServer
 import com.github.damontecres.wholphin.data.model.SeerrUser
@@ -51,7 +52,7 @@ import java.util.UUID
         SeerrUser::class,
         RememberedTab::class,
     ],
-    version = 36,
+    version = 37,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(3, 4),
@@ -140,6 +141,12 @@ class Converters {
         }
 
     @TypeConverter
+    fun convertPolicyState(state: PolicyState): String = state.dbValue
+
+    @TypeConverter
+    fun convertPolicyState(state: String): PolicyState = PolicyState.fromDbValue(state)
+
+    @TypeConverter
     fun convertToString(dateTime: ZonedDateTime): String = DateTimeFormatter.ISO_ZONED_DATE_TIME.format(dateTime)
 
     @TypeConverter
@@ -162,6 +169,20 @@ class ZonedDateTimeSerializer : KSerializer<ZonedDateTime> {
 }
 
 object Migrations {
+    /**
+     * Kid profiles: the server-policy columns the session gate reads before restoring a profile.
+     * Existing rows start as `unknown` (treated as a kid with the lowest ceiling until the next
+     * sign-in refreshes them).
+     */
+    val Migrate36to37 =
+        object : Migration(36, 37) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE users ADD COLUMN maxParentalRating INTEGER DEFAULT NULL")
+                db.execSQL("ALTER TABLE users ADD COLUMN policyState TEXT NOT NULL DEFAULT 'unknown'")
+                db.execSQL("ALTER TABLE users ADD COLUMN displayName TEXT DEFAULT NULL")
+            }
+        }
+
     val Migrate35to36 =
         object : Migration(35, 36) {
             override fun migrate(db: SupportSQLiteDatabase) {

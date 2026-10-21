@@ -53,6 +53,8 @@ fun MainContent(
     screensaverService: ScreensaverService,
     updateChecker: UpdateChecker,
     modifier: Modifier = Modifier,
+    // Kid profiles (plan 4.5): also hide the profile's screen on stop when the profile screen will show on return
+    hideContentOnStop: () -> Boolean = { false },
 ) {
     val preferences by rememberUpdatedState(userPreferences)
     Surface(
@@ -114,7 +116,7 @@ fun MainContent(
                                     mutableStateOf(true)
                                 }
                                 LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
-                                    if (!userPreferences.appPreferences.signInAutomatically) {
+                                    if (!userPreferences.appPreferences.signInAutomatically || hideContentOnStop()) {
                                         showContent = false
                                     }
                                 }
