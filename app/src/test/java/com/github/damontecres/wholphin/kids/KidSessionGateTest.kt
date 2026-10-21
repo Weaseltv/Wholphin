@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import org.jellyfin.sdk.api.client.exception.InvalidStatusException
+import org.jellyfin.sdk.model.api.AuthenticationResult
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -149,7 +151,7 @@ class KidSessionGateTest {
             val gate = gate()
             assertEquals(GateDecision.LockedAdult, gate.evaluate(pinlessAdult))
             // Another adult's unlock opens it
-            assertEquals(PinCheckResult.Correct, gate.verifyParentPin(parent, "1234"))
+            assertEquals(PinCheckResult.Correct, gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(pinlessAdult.rowId)))
             assertEquals(GateDecision.Allow, gate.evaluate(pinlessAdult))
             gate.clearParentUnlock()
             assertEquals(GateDecision.LockedAdult, gate.evaluate(pinlessAdult))
@@ -157,6 +159,56 @@ class KidSessionGateTest {
             current.value = null
             assertNull(gate.restoreGated(serverId, pinlessAdult.id))
             coVerify(exactly = 0) { serverRepository.changeUser(any(), any<JellyfinUser>(), any()) }
+        }
+
+    @Test
+    fun `a parent unlock opens only the switch it was granted for`() =
+        runTest {
+            protect(ProfileCeiling.Rating(10))
+            val gate = gate()
+            assertEquals(PinCheckResult.Correct, gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(kid14.rowId)))
+            assertEquals(GateDecision.Allow, gate.evaluate(kid14))
+            assertEquals(GateDecision.LockedAdult, gate.evaluate(pinlessAdult))
+            assertEquals(GateDecision.NeedsParentUnlock, gate.evaluate(unknown))
+            // Unbound, or bound to another action: opens no switch
+            gate.verifyParentPin(parent, "1234")
+            assertEquals(GateDecision.NeedsParentUnlock, gate.evaluate(kid14))
+            gate.verifyParentPin(parent, "1234", UnlockPurpose.AddKid)
+            assertEquals(GateDecision.NeedsParentUnlock, gate.evaluate(kid14))
+        }
+
+    @Test
+    fun `a failed authorized switch leaves no unlock for another profile`() =
+        runTest {
+            protect(ProfileCeiling.Rating(10))
+            val gate = gate()
+            gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(kid14.rowId))
+            // The older kid's saved token has expired
+            coEvery { serverRepository.changeUser(any(), any<JellyfinUser>(), any()) } throws InvalidStatusException(401)
+            try {
+                gate.switchTo(server(serverId), kid14)
+                error("should have failed")
+            } catch (_: InvalidStatusException) {
+            }
+            assertNull(gate.parentUnlock.value)
+            // Quick Connect dismissed, then a different pinless adult picked: still locked
+            assertEquals(GateDecision.LockedAdult, gate.evaluate(pinlessAdult))
+        }
+
+    @Test
+    fun `only the add-kid flow under a parent unlock signs a kid in`() =
+        runTest {
+            protect(ProfileCeiling.Unlimited)
+            val gate = gate()
+            val auth = AuthenticationResult(accessToken = "kid-token", serverId = serverId.toString())
+            gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(kid14.rowId))
+            try {
+                gate.signInKid("https://media.example", auth, "Emma")
+                error("should have been refused")
+            } catch (ex: ProfileGateException) {
+                assertEquals(GateDecision.NeedsParentUnlock, ex.decision)
+            }
+            coVerify(exactly = 0) { serverRepository.changeUser(any<String>(), any(), any(), any(), any(), any()) }
         }
 
     @Test
@@ -178,7 +230,7 @@ class KidSessionGateTest {
         runTest {
             protect(ProfileCeiling.Rating(10))
             val gate = gate()
-            assertEquals(PinCheckResult.Correct, gate.verifyParentPin(parent, "1234"))
+            assertEquals(PinCheckResult.Correct, gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(kid14.rowId)))
             assertNotNull(gate.parentUnlock.value)
             assertEquals(GateDecision.Allow, gate.evaluate(kid14))
             // Dismissed before switching
@@ -192,7 +244,7 @@ class KidSessionGateTest {
         runTest {
             protect(ProfileCeiling.Rating(10))
             val gate = gate()
-            gate.verifyParentPin(parent, "1234")
+            gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(kid14.rowId))
             now += KidSessionGateImpl.UNLOCK_DURATION.inWholeMilliseconds - 1
             assertEquals(GateDecision.Allow, gate.evaluate(kid14))
             now += 1
@@ -275,13 +327,16 @@ class KidSessionGateTest {
             protect(ProfileCeiling.Rating(10))
             val gate = gate()
             assertFalse(gate.turnOffProtection())
-            gate.verifyParentPin(parent, "1234")
+            gate.verifyParentPin(parent, "1234", UnlockPurpose.TurnOffProtection)
             // Kid rows remain
             assertFalse(gate.turnOffProtection())
             assertTrue(store.isProtected())
 
             every { serverDao.countKidUsers() } returns 0
-            gate.verifyParentPin(parent, "1234")
+            // An unlock granted for something else doesn't count
+            gate.verifyParentPin(parent, "1234", UnlockPurpose.AddKid)
+            assertFalse(gate.turnOffProtection())
+            gate.verifyParentPin(parent, "1234", UnlockPurpose.TurnOffProtection)
             assertTrue(gate.turnOffProtection())
             assertFalse(store.isProtected())
             assertEquals(GateDecision.Allow, gate.evaluate(pinlessAdult))

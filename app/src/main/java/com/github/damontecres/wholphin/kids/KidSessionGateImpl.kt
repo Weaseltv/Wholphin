@@ -87,12 +87,18 @@ class KidSessionGateImpl
             return unlock
         }
 
+        override fun validUnlockFor(
+            parentRowId: Int,
+            purpose: UnlockPurpose,
+        ): ParentUnlock? = validUnlock()?.takeIf { it.userRowId == parentRowId && it.purpose == purpose }
+
         override suspend fun evaluate(target: JellyfinUser): GateDecision {
             if (!BuildConfig.KID_PROFILES_ENABLED || !store.isProtected()) {
                 // Never admitted a kid, or protection explicitly turned off
                 return GateDecision.Allow
             }
-            val unlock = validUnlock()
+            // Only an unlock granted for switching to this very profile counts
+            val unlock = validUnlock()?.takeIf { it.purpose == UnlockPurpose.Switch(target.rowId) }
             if (target.profileKind == ProfileKind.ADULT && !target.hasPin) {
                 // A pinless adult is locked on a protected device, whatever the ceilings say. Its own
                 // (impossible) unlock doesn't count; another adult's does.
@@ -107,7 +113,8 @@ class KidSessionGateImpl
         override suspend fun verifyParentPin(
             user: JellyfinUser,
             pin: String,
-        ): PinCheckResult = checkPin(user, pin, requireAdult = true)
+            purpose: UnlockPurpose?,
+        ): PinCheckResult = checkPin(user, pin, requireAdult = true, purpose = purpose)
 
         /**
          * Checks the PIN of any saved profile with the same device-wide backoff. Only an adult's correct PIN
@@ -116,12 +123,13 @@ class KidSessionGateImpl
         suspend fun verifyProfilePin(
             user: JellyfinUser,
             pin: String,
-        ): PinCheckResult = checkPin(user, pin, requireAdult = false)
+        ): PinCheckResult = checkPin(user, pin, requireAdult = false, purpose = null)
 
         private suspend fun checkPin(
             user: JellyfinUser,
             pin: String,
             requireAdult: Boolean,
+            purpose: UnlockPurpose?,
         ): PinCheckResult =
             pinMutex.withLock {
                 val now = clock()
@@ -138,7 +146,7 @@ class KidSessionGateImpl
                         // Only a verified adult PIN clears the device-wide guess counter; a kid opening their
                         // own profile must not wipe the failed parent guesses before it
                         store.setPinBackoff(PinBackoff())
-                        grantUnlock(row)
+                        grantUnlock(row, purpose)
                     }
                     PinCheckResult.Correct
                 } else {
@@ -161,8 +169,11 @@ class KidSessionGateImpl
             _parentUnlock.value = null
         }
 
-        private fun grantUnlock(user: JellyfinUser) {
-            val unlock = ParentUnlock(user.rowId, clock())
+        private fun grantUnlock(
+            user: JellyfinUser,
+            purpose: UnlockPurpose?,
+        ) {
+            val unlock = ParentUnlock(user.rowId, clock(), purpose)
             _parentUnlock.value = unlock
             unlockExpiryJob?.cancel()
             unlockExpiryJob =
@@ -179,13 +190,13 @@ class KidSessionGateImpl
         suspend fun grantUnlockForFreshAuth(user: JellyfinUser) {
             if (BuildConfig.KID_PROFILES_ENABLED && user.profileKind == ProfileKind.ADULT) {
                 pinMutex.withLock { store.setPinBackoff(PinBackoff()) }
-                grantUnlock(user)
+                grantUnlock(user, null)
             }
         }
 
         suspend fun grantUnlockForFirstPin(user: JellyfinUser) {
             if (BuildConfig.KID_PROFILES_ENABLED && user.profileKind == ProfileKind.ADULT && !store.isProtected()) {
-                grantUnlock(user)
+                grantUnlock(user, null)
             }
         }
 
@@ -194,6 +205,10 @@ class KidSessionGateImpl
             authenticationResult: AuthenticationResult,
             displayName: String?,
         ): CurrentUser {
+            if (BuildConfig.KID_PROFILES_ENABLED && validUnlock()?.purpose != UnlockPurpose.AddKid) {
+                // Only the add-kid flow, under a parent's unexpired unlock, signs a kid in
+                throw ProfileGateException(GateDecision.NeedsParentUnlock)
+            }
             // changeUser persists kid protection and the kid's ceiling before publishing (plan 4.2)
             val current =
                 serverRepository.changeUser(
@@ -214,21 +229,23 @@ class KidSessionGateImpl
         /**
          * Switches to a saved profile through the gate. Throws [ProfileGateException] when refused, before
          * anything is published. The gate is checked again with the freshly fetched policy, so a level raised
-         * on the server since the row was saved can't slip through. A granted [ParentUnlock] is used up.
+         * on the server since the row was saved can't slip through. A granted [ParentUnlock] is used up, whether
+         * the switch succeeds or fails, so it can't carry over to another profile.
          */
         suspend fun switchTo(
             server: JellyfinServer,
             user: JellyfinUser,
         ): CurrentUser {
-            val decision = evaluate(user)
-            if (decision != GateDecision.Allow) throw ProfileGateException(decision)
-            val current =
-                serverRepository.changeUser(server, user) { refreshed ->
+            try {
+                val decision = evaluate(user)
+                if (decision != GateDecision.Allow) throw ProfileGateException(decision)
+                return serverRepository.changeUser(server, user) { refreshed ->
                     val again = evaluate(refreshed)
                     if (again != GateDecision.Allow) throw ProfileGateException(again)
                 }
-            clearParentUnlock()
-            return current
+            } finally {
+                clearParentUnlock()
+            }
         }
 
         /**
@@ -266,7 +283,7 @@ class KidSessionGateImpl
          * @return whether protection was turned off
          */
         suspend fun turnOffProtection(): Boolean {
-            if (validUnlock() == null) return false
+            if (validUnlock()?.purpose != UnlockPurpose.TurnOffProtection) return false
             if (withContext(ioDispatcher) { serverDao.countKidUsers() } > 0) return false
             store.clearProtection()
             clearParentUnlock()

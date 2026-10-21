@@ -18,6 +18,7 @@ import com.github.damontecres.wholphin.kids.PinCheckResult
 import com.github.damontecres.wholphin.kids.ProfileChooserLock
 import com.github.damontecres.wholphin.kids.ProfileGateException
 import com.github.damontecres.wholphin.kids.ProfileKind
+import com.github.damontecres.wholphin.kids.UnlockPurpose
 import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.services.ImageUrlService
 import com.github.damontecres.wholphin.services.NavigationManager
@@ -269,6 +270,10 @@ class SwitchUserViewModel
 
         fun cancelQuickConnect() {
             quickConnectJob?.cancel()
+            if (BuildConfig.KID_PROFILES_ENABLED) {
+                // The sign-in dialog was closed: an unlock for a switch that sent us there is spent
+                kidSessionGate.clearParentUnlock()
+            }
             _state.update {
                 it.copy(
                     quickConnectStatus = null,
@@ -363,6 +368,8 @@ class SwitchUserViewModel
          */
         fun onProfileSelected(user: JellyfinUser) {
             viewModelScope.launchIO {
+                // A new pick starts without any earlier unlock
+                kidSessionGate.clearParentUnlock()
                 if (user.hasPin) {
                     showPrompt(ChooserPrompt.Pin(target = user, pinOwner = user, purpose = PinPurpose.SWITCH))
                 } else {
@@ -376,6 +383,8 @@ class SwitchUserViewModel
                 GateDecision.Allow -> {
                     val result = trySwitchUser(user).await()
                     if (result is SwitchUserResult.Error) {
+                        // A failed switch spends the unlock: it must not open another profile later
+                        kidSessionGate.clearParentUnlock()
                         _state.update { it.copy(switchError = result.copy(user = user)) }
                     }
                 }
@@ -423,7 +432,13 @@ class SwitchUserViewModel
                 val owner = prompt.pinOwner
                 val result =
                     if (owner.profileKind == ProfileKind.ADULT) {
-                        kidSessionGate.verifyParentPin(owner, pin)
+                        // The unlock is bound to this target and action only
+                        val purpose =
+                            when (prompt.purpose) {
+                                PinPurpose.SWITCH -> UnlockPurpose.Switch(prompt.target.rowId)
+                                PinPurpose.DELETE -> UnlockPurpose.Remove(prompt.target.rowId)
+                            }
+                        kidSessionGate.verifyParentPin(owner, pin, purpose)
                     } else {
                         kidSessionGate.verifyProfilePin(owner, pin)
                     }

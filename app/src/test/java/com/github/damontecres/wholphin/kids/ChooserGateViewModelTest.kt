@@ -39,6 +39,7 @@ import org.junit.Test
 import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.Response
+import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.api.operations.UserApi
 import org.jellyfin.sdk.model.api.AuthenticateUserByName
@@ -142,7 +143,7 @@ class ChooserGateViewModelTest {
             assertEquals(parent, p.pinOwner)
             assertTrue(p.isParentPin)
 
-            coEvery { gate.verifyParentPin(parent, "0000") } returns PinCheckResult.Wrong(4)
+            coEvery { gate.verifyParentPin(parent, "0000", any()) } returns PinCheckResult.Wrong(4)
             viewModel.submitPin("0000")
             assertTrue((prompt as ChooserPrompt.Pin).message != null)
 
@@ -179,7 +180,7 @@ class ChooserGateViewModelTest {
             assertEquals(PinPurpose.DELETE, p.purpose)
             assertEquals(parent, p.pinOwner)
 
-            coEvery { gate.verifyParentPin(parent, "1234") } returns PinCheckResult.Correct
+            coEvery { gate.verifyParentPin(parent, "1234", any()) } returns PinCheckResult.Correct
             viewModel.submitPin("1234")
             coVerify(exactly = 1) { serverRepository.removeUser(parent) }
         }
@@ -194,7 +195,7 @@ class ChooserGateViewModelTest {
             assertEquals(PinPurpose.DELETE, pick.purpose)
 
             viewModel.pickParent(parent)
-            coEvery { gate.verifyParentPin(parent, "1234") } returns PinCheckResult.Correct
+            coEvery { gate.verifyParentPin(parent, "1234", any()) } returns PinCheckResult.Correct
             viewModel.submitPin("1234")
             coVerify(exactly = 1) { serverRepository.removeUser(pinlessAdult) }
         }
@@ -240,5 +241,36 @@ class ChooserGateViewModelTest {
             assertNotNull("the new adult must set their own PIN first", pending)
             assertNull(pending!!.existingUser)
             coVerify(exactly = 0) { serverRepository.changeUser(any<String>(), any(), any(), any(), any(), any()) }
+        }
+
+    @Test
+    fun `a failed authorized switch drops the unlock, and so does closing the sign-in dialog`() =
+        runTest(dispatcher) {
+            coEvery { gate.evaluate(olderKid) } returns GateDecision.NeedsParentUnlock andThen GateDecision.Allow
+            viewModel.onProfileSelected(olderKid)
+            verify(exactly = 1) { gate.clearParentUnlock() }
+
+            coEvery { gate.verifyParentPin(parent, "1234", any()) } returns PinCheckResult.Correct
+            // The older kid's saved token has expired
+            coEvery { gate.switchTo(server, olderKid) } throws InvalidStatusException(401)
+            viewModel.submitPin("1234")
+
+            coVerify { gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(olderKid.rowId)) }
+            assertEquals(olderKid, viewModel.state.value.switchError?.user)
+            verify(exactly = 2) { gate.clearParentUnlock() }
+
+            // The sign-in dialog that follows is dismissed
+            viewModel.cancelQuickConnect()
+            verify(exactly = 3) { gate.clearParentUnlock() }
+        }
+
+    @Test
+    fun `a delete PIN is bound to deleting that profile`() =
+        runTest(dispatcher) {
+            viewModel.removeUser(pinlessAdult)
+            viewModel.pickParent(parent)
+            coEvery { gate.verifyParentPin(parent, "1234", any()) } returns PinCheckResult.Correct
+            viewModel.submitPin("1234")
+            coVerify { gate.verifyParentPin(parent, "1234", UnlockPurpose.Remove(pinlessAdult.rowId)) }
         }
 }

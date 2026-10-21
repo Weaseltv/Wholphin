@@ -44,6 +44,9 @@ class FakeKidSessionGate : KidSessionGate {
     val signedIn = mutableListOf<Pair<AuthenticationResult, String?>>()
     var clearCount = 0
 
+    /** Clock for unlock expiry; tests move it forward */
+    var now = 0L
+
     override fun profileKind(user: JellyfinUser) = kinds[user.id] ?: ProfileKind.ADULT
 
     override fun ceilingOf(user: JellyfinUser): ProfileCeiling = ProfileCeiling.Unlimited
@@ -53,12 +56,23 @@ class FakeKidSessionGate : KidSessionGate {
     override suspend fun verifyParentPin(
         user: JellyfinUser,
         pin: String,
+        purpose: UnlockPurpose?,
     ): PinCheckResult {
         verified += user to pin
         val result = pinResults.removeFirstOrNull() ?: if (user.pin == pin) PinCheckResult.Correct else PinCheckResult.Wrong(3)
-        if (result == PinCheckResult.Correct) parentUnlock.value = ParentUnlock(user.rowId, 0L)
+        if (result == PinCheckResult.Correct) parentUnlock.value = ParentUnlock(user.rowId, now, purpose)
         return result
     }
+
+    override fun validUnlockFor(
+        parentRowId: Int,
+        purpose: UnlockPurpose,
+    ): ParentUnlock? =
+        parentUnlock.value?.takeIf {
+            it.userRowId == parentRowId &&
+                it.purpose == purpose &&
+                now - it.atMillis < KidSessionGateImpl.UNLOCK_DURATION.inWholeMilliseconds
+        }
 
     override fun clearParentUnlock() {
         clearCount++
