@@ -244,7 +244,7 @@ class KidServerRepositoryTest {
             store.setSessionCeiling(ProfileCeiling.Rating(10))
 
             try {
-                repository.changeUser(server, kid) { throw ProfileGateException(GateDecision.NeedsParentUnlock) }
+                repository.changeUser(server, kid, beforePublish = { throw ProfileGateException(GateDecision.NeedsParentUnlock) })
                 error("should have thrown")
             } catch (_: ProfileGateException) {
             }

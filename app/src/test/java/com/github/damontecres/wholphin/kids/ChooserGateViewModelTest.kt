@@ -232,7 +232,7 @@ class ChooserGateViewModelTest {
             val pending = viewModel.state.value.pendingPinSetup
             assertNotNull("the new adult must set their own PIN first", pending)
             assertNull(pending!!.existingUser)
-            coVerify(exactly = 0) { serverRepository.changeUser(any<String>(), any(), any(), any(), any(), any()) }
+            coVerify(exactly = 0) { serverRepository.changeUser(any<String>(), any(), any(), any(), any(), any(), any()) }
         }
 
     @Test
@@ -253,11 +253,13 @@ class ChooserGateViewModelTest {
                 viewModel.state.value.switchError
                     ?.user,
             )
-            verify(exactly = 2) { gate.clearParentUnlock() }
+            // Only the failed switch's own unlock is spent, never one granted for another selection
+            verify(exactly = 1) { gate.clearParentUnlock(UnlockPurpose.Switch(olderKid.rowId)) }
+            verify(exactly = 1) { gate.clearParentUnlock() }
 
             // The sign-in dialog that follows is dismissed
             viewModel.cancelQuickConnect()
-            verify(exactly = 3) { gate.clearParentUnlock() }
+            verify(exactly = 2) { gate.clearParentUnlock() }
         }
 
     @Test

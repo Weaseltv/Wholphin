@@ -74,6 +74,10 @@ class IntentServiceTest {
         coEvery { kidSessionGate.restoreGated(any(), any()) } coAnswers {
             serverRepository.restoreSession(firstArg(), secondArg())
         }
+        // ...and the restore shortcut for the current profile too
+        coEvery { serverRepository.restoreCurrentSession(any(), any()) } coAnswers {
+            serverRepository.restoreSession(firstArg(), secondArg())
+        }
     }
 
     private fun setupPreferences(block: AppPreferences.Builder.() -> Unit) {

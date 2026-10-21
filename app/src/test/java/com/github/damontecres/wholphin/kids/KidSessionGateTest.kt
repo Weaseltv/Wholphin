@@ -208,7 +208,7 @@ class KidSessionGateTest {
             } catch (ex: ProfileGateException) {
                 assertEquals(GateDecision.NeedsParentUnlock, ex.decision)
             }
-            coVerify(exactly = 0) { serverRepository.changeUser(any<String>(), any(), any(), any(), any(), any()) }
+            coVerify(exactly = 0) { serverRepository.changeUser(any<String>(), any(), any(), any(), any(), any(), any()) }
         }
 
     @Test
@@ -383,7 +383,7 @@ class KidSessionGateTest {
             val beforePublish = io.mockk.slot<suspend (JellyfinUser) -> Unit>()
             var published = false
             coEvery {
-                serverRepository.changeUser(any<String>(), any(), any(), any(), any(), capture(beforePublish))
+                serverRepository.changeUser(any<String>(), any(), any(), any(), any(), capture(beforePublish), any())
             } coAnswers {
                 // The sign-in's network calls cross the expiry, then the fresh kid is about to be published
                 now += 2
@@ -409,7 +409,7 @@ class KidSessionGateTest {
             gate.verifyParentPin(parent, "1234", UnlockPurpose.AddKid)
             val beforePublish = io.mockk.slot<suspend (JellyfinUser) -> Unit>()
             coEvery {
-                serverRepository.changeUser(any<String>(), any(), any(), any(), any(), capture(beforePublish))
+                serverRepository.changeUser(any<String>(), any(), any(), any(), any(), capture(beforePublish), any())
             } coAnswers {
                 // Meanwhile the unlock was spent on something else
                 now += 1
@@ -434,7 +434,7 @@ class KidSessionGateTest {
             gate.verifyParentPin(parent, "1234", UnlockPurpose.AddKid)
             val beforePublish = io.mockk.slot<suspend (JellyfinUser) -> Unit>()
             coEvery {
-                serverRepository.changeUser(any<String>(), any(), any(), any(), any(), capture(beforePublish))
+                serverRepository.changeUser(any<String>(), any(), any(), any(), any(), capture(beforePublish), any())
             } coAnswers {
                 beforePublish.captured.invoke(kid10)
                 CurrentUser(server(serverId), kid10)

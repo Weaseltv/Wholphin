@@ -4,6 +4,7 @@ import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.JellyfinServerDao
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.data.isIdentity
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.services.hilt.DefaultCoroutineScope
@@ -60,6 +61,9 @@ class KidSessionGateImpl
         internal var clock: () -> Long = System::currentTimeMillis
 
         private val pinMutex = Mutex()
+
+        /** Guards granting and clearing the unlock, so clearing one particular unlock never takes a newer one */
+        private val unlockLock = Any()
         private var unlockExpiryJob: Job? = null
 
         override val isKidSession: StateFlow<Boolean> =
@@ -92,13 +96,19 @@ class KidSessionGateImpl
             purpose: UnlockPurpose,
         ): ParentUnlock? = validUnlock()?.takeIf { it.userRowId == parentRowId && it.purpose == purpose }
 
-        override suspend fun evaluate(target: JellyfinUser): GateDecision {
+        override suspend fun evaluate(target: JellyfinUser): GateDecision = evaluate(target) {}
+
+        /** [evaluate], telling [onUnlock] about the unlock for this switch it saw */
+        private suspend fun evaluate(
+            target: JellyfinUser,
+            onUnlock: (ParentUnlock) -> Unit,
+        ): GateDecision {
             if (!BuildConfig.KID_PROFILES_ENABLED || !store.isProtected()) {
                 // Never admitted a kid, or protection explicitly turned off
                 return GateDecision.Allow
             }
             // Only an unlock granted for switching to this very profile counts
-            val unlock = validUnlock()?.takeIf { it.purpose == UnlockPurpose.Switch(target.rowId) }
+            val unlock = validUnlock()?.takeIf { it.purpose == UnlockPurpose.Switch(target.rowId) }?.also(onUnlock)
             if (target.profileKind == ProfileKind.ADULT && !target.hasPin) {
                 // A pinless adult is locked on a protected device, whatever the ceilings say. Its own
                 // (impossible) unlock doesn't count; another adult's does.
@@ -164,9 +174,28 @@ class KidSessionGateImpl
             }
 
         override fun clearParentUnlock() {
-            unlockExpiryJob?.cancel()
-            unlockExpiryJob = null
-            _parentUnlock.value = null
+            synchronized(unlockLock) {
+                unlockExpiryJob?.cancel()
+                unlockExpiryJob = null
+                _parentUnlock.value = null
+            }
+        }
+
+        /**
+         * Clears the unlock only if it is [unlock] itself (the same grant), so an operation spends just the
+         * authorization it owns, never one granted meanwhile for a newer selection (review round 3)
+         */
+        fun clearParentUnlock(unlock: ParentUnlock) {
+            synchronized(unlockLock) {
+                if (_parentUnlock.value === unlock) clearParentUnlock()
+            }
+        }
+
+        /** Clears the unlock only if it was granted for [purpose] */
+        fun clearParentUnlock(purpose: UnlockPurpose) {
+            synchronized(unlockLock) {
+                if (_parentUnlock.value?.purpose == purpose) clearParentUnlock()
+            }
         }
 
         private fun grantUnlock(
@@ -174,13 +203,15 @@ class KidSessionGateImpl
             purpose: UnlockPurpose?,
         ) {
             val unlock = ParentUnlock(user.rowId, clock(), purpose)
-            _parentUnlock.value = unlock
-            unlockExpiryJob?.cancel()
-            unlockExpiryJob =
-                scope.launch {
-                    delay(UNLOCK_DURATION)
-                    _parentUnlock.compareAndSet(unlock, null)
-                }
+            synchronized(unlockLock) {
+                _parentUnlock.value = unlock
+                unlockExpiryJob?.cancel()
+                unlockExpiryJob =
+                    scope.launch {
+                        delay(UNLOCK_DURATION)
+                        _parentUnlock.compareAndSet(unlock, null)
+                    }
+            }
         }
 
         /**
@@ -222,36 +253,47 @@ class KidSessionGateImpl
                         if (user.profileKind == ProfileKind.ADULT) {
                             throw IllegalStateException("signInKid was given an adult")
                         }
-                        if (BuildConfig.KID_PROFILES_ENABLED && validUnlock() != unlock) {
-                            // The unlock expired (or was replaced/cleared) during the sign-in's network calls:
-                            // publish nothing, the flow asks for the parent's PIN again (plan 4.1, 4.3)
-                            throw ProfileGateException(GateDecision.NeedsParentUnlock)
-                        }
+                        requireUnlock(unlock)
                     },
+                    // Checked again in the publishing step itself, after the switch was persisted: an unlock that
+                    // runs out while it is journalled, saved or dispatched to the main thread still publishes nothing
+                    authorize = { requireUnlock(unlock) },
                 )
             clearParentUnlock()
             return current
         }
 
         /**
+         * The unlock expired (or was replaced/cleared) since [unlock] started a sign-in: publish nothing, the flow
+         * asks for the parent's PIN again (plan 4.1, 4.3). Doesn't suspend, so it can run in the publishing step.
+         */
+        private fun requireUnlock(unlock: ParentUnlock?) {
+            if (BuildConfig.KID_PROFILES_ENABLED && validUnlock() != unlock) {
+                throw ProfileGateException(GateDecision.NeedsParentUnlock)
+            }
+        }
+
+        /**
          * Switches to a saved profile through the gate. Throws [ProfileGateException] when refused, before
          * anything is published. The gate is checked again with the freshly fetched policy, so a level raised
-         * on the server since the row was saved can't slip through. A granted [ParentUnlock] is used up, whether
-         * the switch succeeds or fails, so it can't carry over to another profile.
+         * on the server since the row was saved can't slip through. The [ParentUnlock] granted for this switch is
+         * used up, whether the switch succeeds or fails, so it can't carry over to another profile; an unlock
+         * granted meanwhile for another selection is left alone, even when this switch ends late (cancelled).
          */
         suspend fun switchTo(
             server: JellyfinServer,
             user: JellyfinUser,
         ): CurrentUser {
+            val owned = mutableSetOf<ParentUnlock>()
             try {
-                val decision = evaluate(user)
+                val decision = evaluate(user) { owned += it }
                 if (decision != GateDecision.Allow) throw ProfileGateException(decision)
-                return serverRepository.changeUser(server, user) { refreshed ->
-                    val again = evaluate(refreshed)
+                return serverRepository.changeUser(server, user, beforePublish = { refreshed ->
+                    val again = evaluate(refreshed) { owned += it }
                     if (again != GateDecision.Allow) throw ProfileGateException(again)
-                }
+                })
             } finally {
-                clearParentUnlock()
+                owned.forEach { clearParentUnlock(it) }
             }
         }
 
@@ -266,9 +308,10 @@ class KidSessionGateImpl
             userId: UUID?,
         ): CurrentUser? {
             if (serverId == null || userId == null) return null
-            val current = serverRepository.current.value
-            if (current != null && current.server.id == serverId && current.user.id == userId) {
-                return serverRepository.restoreSession(serverId, userId)
+            if (serverRepository.current.value.isIdentity(serverId, userId)) {
+                // Still this profile's session once the session lock is held: just its credentials again
+                serverRepository.restoreCurrentSession(serverId, userId)?.let { return it }
+                // Another session was published meanwhile: this profile is restored gated, like any other
             }
             val serverUsers = withContext(ioDispatcher) { serverDao.getServer(serverId) } ?: return null
             val row = serverUsers.users.firstOrNull { it.id == userId } ?: return null
