@@ -213,9 +213,8 @@ rows not `deleting`), `level`, `state` (`provisioning|active|disabled|deleting`)
 - **Track A** owns create/connect/list/update/delete, the TV token adapter, the kid policy
   builder (`weaselPlexKidPolicy(current, folderIds, level)` in
   `packages/provider-adapters/src/media-server-policy.ts`), and the per-account lock helper.
-- **Track B** owns the Seerr admin adapter (`packages/provider-adapters/src/seerr.ts`, port
-  `SeerrUserPort { importJellyfinUser(mediaUserId) -> {seerrUserId}, setPermissions(seerrUserId, 0),
-  deleteUser(seerrUserId) -> "deleted"|"gone" }`), its env/credential schema, and the lifecycle
-  cascades (revoke, reinstate, sign-out-everywhere, account deletion). B calls A's kid policy
+- **Track B** owns the Seerr admin adapter (`packages/provider-adapters/src/seerr.ts`,
+  implementing the frozen `SeerrUserPort` in `src/seerr-port.ts`), its env/credential schema,
+  and the lifecycle cascades (revoke, reinstate, sign-out-everywhere, account deletion). B calls A's kid policy
   builder and lock helper; until A lands, B codes against those names and A's PR defines them.
 - Schema changes go through the orchestrator.
