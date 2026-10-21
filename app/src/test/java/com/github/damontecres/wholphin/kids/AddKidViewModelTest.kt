@@ -419,4 +419,67 @@ class AddKidViewModelTest {
             assertEquals(null, gate.parentUnlock.value)
             assertTrue(gate.clearCount > 0)
         }
+
+    private val unlockExpiry = KidSessionGateImpl.UNLOCK_DURATION.inWholeMilliseconds
+
+    @Test
+    fun `an expired parent unlock goes back to the PIN before creating`() =
+        test {
+            fillForm()
+            gate.now += unlockExpiry
+            viewModel.pickPicture(null)
+            advanceUntilIdle()
+            assertEquals(AddKidStep.EnterPin(mom), step)
+            assertTrue(api.createCalls.isEmpty())
+        }
+
+    @Test
+    fun `an expired parent unlock goes back to the PIN before connecting`() =
+        test {
+            api.listResults += KidApiResult.Ok(KidList(listOf(testKid("Emma")), 5))
+            unlockMom()
+            gate.now += unlockExpiry
+            viewModel.signInExisting(testKid("Emma"))
+            advanceUntilIdle()
+            assertEquals(AddKidStep.EnterPin(mom), step)
+            assertTrue(api.connectCalls.isEmpty())
+            assertEquals(0, quickConnect.initiated)
+        }
+
+    @Test
+    fun `an unlock expiring while the code is approved stops before the kid signs in`() =
+        test {
+            api.listResults += KidApiResult.Ok(KidList(listOf(testKid("Emma")), 5))
+            unlockMom()
+            quickConnect.onPoll = { gate.now += unlockExpiry }
+            viewModel.signInExisting(testKid("Emma"))
+            advanceUntilIdle()
+            assertEquals(AddKidStep.EnterPin(mom), step)
+            assertTrue(gate.signedIn.isEmpty())
+        }
+
+    @Test
+    fun `an unlock for another parent or action doesn't count`() =
+        test {
+            val dad = testUser("Dad", pin = "9")
+            api.listResults += KidApiResult.Ok(KidList(listOf(testKid("Emma")), 5))
+            unlockMom()
+            gate.parentUnlock.value = ParentUnlock(dad.rowId, gate.now, UnlockPurpose.AddKid)
+            viewModel.signInExisting(testKid("Emma"))
+            advanceUntilIdle()
+            assertEquals(AddKidStep.EnterPin(mom), step)
+
+            gate.parentUnlock.value = ParentUnlock(mom.rowId, gate.now, UnlockPurpose.Switch(dad.rowId))
+            viewModel.signInExisting(testKid("Emma"))
+            advanceUntilIdle()
+            assertEquals(AddKidStep.EnterPin(mom), step)
+            assertTrue(api.connectCalls.isEmpty())
+        }
+
+    @Test
+    fun `the parent PIN unlocks the add-kid flow only`() =
+        test {
+            unlockMom()
+            assertEquals(UnlockPurpose.AddKid, gate.parentUnlock.value?.purpose)
+        }
 }

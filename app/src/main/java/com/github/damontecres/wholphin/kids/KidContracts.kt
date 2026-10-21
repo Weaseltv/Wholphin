@@ -42,11 +42,34 @@ sealed interface ProfileCeiling {
 /** Classification of a saved profile, from the server policy (contract section 1). */
 enum class ProfileKind { ADULT, KID, UNKNOWN }
 
-/** Short-lived parental authorization (plan 4.1). */
+/**
+ * Short-lived parental authorization (plan 4.1). [purpose] binds it to the one action it was granted for;
+ * an unlock without one authorizes nothing that checks a purpose (review round 1, additive).
+ */
 data class ParentUnlock(
     val userRowId: Int,
     val atMillis: Long,
+    val purpose: UnlockPurpose? = null,
 )
+
+/** The single action a [ParentUnlock] authorizes (review round 1, additive) */
+sealed interface UnlockPurpose {
+    /** Switching to the saved profile with [targetRowId] */
+    data class Switch(
+        val targetRowId: Int,
+    ) : UnlockPurpose
+
+    /** Removing the saved profile with [targetRowId] from this TV */
+    data class Remove(
+        val targetRowId: Int,
+    ) : UnlockPurpose
+
+    /** The chooser's add-kid flow (plan 4.3) */
+    data object AddKid : UnlockPurpose
+
+    /** "Turn off kid protection on this TV" (plan 4.2) */
+    data object TurnOffProtection : UnlockPurpose
+}
 
 /** Result of evaluating a switch to [target] through the single switch gate (plan 4.2). */
 sealed interface GateDecision {
@@ -88,11 +111,24 @@ interface KidSessionGate {
 
     suspend fun evaluate(target: JellyfinUser): GateDecision
 
-    /** Checks [pin] for an adult [user] with attempt backoff; [PinCheckResult.Correct] grants a [ParentUnlock]. */
+    /**
+     * Checks [pin] for an adult [user] with attempt backoff; [PinCheckResult.Correct] grants a [ParentUnlock]
+     * bound to [purpose].
+     */
     suspend fun verifyParentPin(
         user: JellyfinUser,
         pin: String,
+        purpose: UnlockPurpose? = null,
     ): PinCheckResult
+
+    /**
+     * The current [ParentUnlock] if [parentRowId] granted it for [purpose] and it hasn't expired, else null
+     * (review round 1, additive)
+     */
+    fun validUnlockFor(
+        parentRowId: Int,
+        purpose: UnlockPurpose,
+    ): ParentUnlock?
 
     fun clearParentUnlock()
 

@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.kids
 
 import android.content.Intent
+import android.net.Uri
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.JellyfinServerDao
@@ -99,6 +100,20 @@ class ProfileChooserLock
         suspend fun appliesTo(serverId: UUID?): Boolean {
             if (!enabled || serverId == null) return false
             return withContext(ioDispatcher) { serverDao.countUsers(serverId) } > 1
+        }
+
+        /**
+         * The server a start or deep link is about when neither the session nor the saved current ids name one
+         * (the chooser cleared them, then the process died): the build's pinned server, else the only saved one
+         */
+        suspend fun fallbackServerId(): UUID? {
+            val servers = withContext(ioDispatcher) { serverDao.getServers() }.map { it.server }
+            val pinnedUrl = BuildConfig.DEFAULT_SERVER_URL
+            if (pinnedUrl.isNotBlank()) {
+                val pinnedHost = Uri.parse(pinnedUrl).host
+                servers.firstOrNull { Uri.parse(it.url).host.equals(pinnedHost, ignoreCase = true) }?.let { return it.id }
+            }
+            return servers.singleOrNull()?.id
         }
 
         /** MainActivity is about to start one of the app's own activities (trailer, voice search, installer...) */

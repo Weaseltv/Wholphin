@@ -37,6 +37,9 @@ class IntentService
         /** The profile an intent names, if any (launcher tiles carry none) */
         fun intentUserId(intent: Intent): java.util.UUID? = intent.getStringParam(INTENT_USER_ID)?.toUUIDOrNull()
 
+        /** The server an intent names, if any */
+        fun intentServerId(intent: Intent): java.util.UUID? = intent.getStringParam(INTENT_SERVER_ID)?.toUUIDOrNull()
+
         /**
          * @param sessionReady the intent's profile is already the current session (a held launcher tile continued
          * after that profile was picked on the chooser), so no profile is restored

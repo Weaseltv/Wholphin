@@ -24,6 +24,7 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -45,8 +46,9 @@ import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonUpper
 
 /**
- * @param onSubmit kid profiles: called with the whole PIN once [submitLength] keys were entered, then the
- * input clears; the caller checks it (with attempt backoff) instead of a per-keystroke compare
+ * @param onSubmit kid profiles: called with the whole PIN when OK/Enter is pressed, then the input clears; the
+ * caller checks it (with attempt backoff) instead of a per-keystroke compare. Never submitted at the saved PIN's
+ * length, which would give the length away.
  * @param title shown instead of "Enter PIN" (eg whose PIN is asked for)
  * @param message a line under the dots (wrong PIN, locked out)
  * @param serverAuthRemovesPin shows the "will remove PIN" note under the server sign-in button
@@ -57,7 +59,6 @@ fun PinEntry(
     onClickServerAuth: () -> Unit,
     modifier: Modifier = Modifier,
     onSubmit: ((String) -> Unit)? = null,
-    submitLength: Int? = null,
     title: String? = null,
     message: String? = null,
     serverAuthRemovesPin: Boolean = true,
@@ -83,6 +84,14 @@ fun PinEntry(
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             )
         }
+        if (onSubmit != null) {
+            Text(
+                text = stringResource(R.string.press_enter_to_confirm),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
+        }
 
         TextButton(
             onClick = onClickServerAuth,
@@ -91,7 +100,19 @@ fun PinEntry(
                 Modifier
                     .align(Alignment.CenterHorizontally)
                     .keepFocusedItemVisible()
-                    .onKeyEvent {
+                    .onPreviewKeyEvent {
+                        // With a PIN typed, OK submits it; with nothing typed, OK is the server sign-in button
+                        if (onSubmit != null && input.isNotEmpty() && isEnterKey(it)) {
+                            if (it.type == KeyEventType.KeyUp) {
+                                val pin = input
+                                input = ""
+                                onSubmit.invoke(pin)
+                            }
+                            true
+                        } else {
+                            false
+                        }
+                    }.onKeyEvent {
                         if (it.type == KeyEventType.KeyUp) {
                             var str = input
                             str +=
@@ -113,12 +134,7 @@ fun PinEntry(
                                     else -> return@onKeyEvent false
                                 }
                             onTextChange.invoke(str)
-                            if (onSubmit != null && submitLength != null && str.length >= submitLength) {
-                                input = ""
-                                onSubmit.invoke(str)
-                            } else {
-                                input = str
-                            }
+                            input = str
                             return@onKeyEvent true
                         } else {
                             return@onKeyEvent false
@@ -294,7 +310,6 @@ fun PinEntryDialog(
     onTextChange: (String) -> Unit,
     onClickServerAuth: () -> Unit,
     onSubmit: ((String) -> Unit)? = null,
-    submitLength: Int? = null,
     title: String? = null,
     message: String? = null,
     serverAuthRemovesPin: Boolean = true,
@@ -306,7 +321,6 @@ fun PinEntryDialog(
             onTextChange = onTextChange,
             onClickServerAuth = onClickServerAuth,
             onSubmit = onSubmit,
-            submitLength = submitLength,
             title = title,
             message = message,
             serverAuthRemovesPin = serverAuthRemovesPin,

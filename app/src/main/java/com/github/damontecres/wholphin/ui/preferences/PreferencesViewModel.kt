@@ -19,6 +19,7 @@ import com.github.damontecres.wholphin.kids.KidSessionGateImpl
 import com.github.damontecres.wholphin.kids.PinCheckResult
 import com.github.damontecres.wholphin.kids.ProfileChooserLock
 import com.github.damontecres.wholphin.kids.ProfileKind
+import com.github.damontecres.wholphin.kids.UnlockPurpose
 import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.resetSubtitles
@@ -109,7 +110,7 @@ class PreferencesViewModel
             onResult: (PinCheckResult, Boolean) -> Unit,
         ) {
             viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
-                val result = kidSessionGate.verifyParentPin(user, pin)
+                val result = kidSessionGate.verifyParentPin(user, pin, UnlockPurpose.TurnOffProtection)
                 val turnedOff = result == PinCheckResult.Correct && kidSessionGate.turnOffProtection()
                 kidSessionGate.clearParentUnlock()
                 refreshKidProtection()

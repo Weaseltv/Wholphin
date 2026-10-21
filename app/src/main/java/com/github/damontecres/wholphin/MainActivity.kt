@@ -654,10 +654,14 @@ class MainActivityViewModel
         ) {
             val prefs = preferences.data.firstOrNull() ?: AppPreferences.getDefaultInstance()
             val current = serverRepository.current.value
+            // A deep link's own server first; after the chooser cleared the saved ids and the process died, the
+            // pinned (or only) server, so the profile count, and with it the chooser-first rule, still applies
             val serverId =
-                current?.server?.id
+                intent?.let { intentService.intentServerId(it) }
+                    ?: current?.server?.id
                     ?: prefs.currentServerId?.toUUIDOrNull()
                     ?: profileChooserLock.lastProfile?.server?.id
+                    ?: profileChooserLock.fallbackServerId()
             val multiProfile = profileChooserLock.appliesTo(serverId)
 
             if (intent != null && !intentService.isNormalLaunch(intent)) {
@@ -758,7 +762,10 @@ class MainActivityViewModel
         fun lockToChooser() {
             viewModelScope.launchDefault {
                 mutex.withLock {
-                    val serverId = serverRepository.current.value?.server?.id ?: profileChooserLock.lastProfile?.server?.id
+                    val serverId =
+                        serverRepository.current.value
+                            ?.server
+                            ?.id ?: profileChooserLock.lastProfile?.server?.id
                     showChooser(serverId)
                 }
             }

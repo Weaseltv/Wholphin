@@ -11,6 +11,7 @@ import com.github.damontecres.wholphin.test.server
 import com.github.damontecres.wholphin.ui.setup.ChooserPrompt
 import com.github.damontecres.wholphin.ui.setup.PinPurpose
 import com.github.damontecres.wholphin.ui.setup.SwitchUserViewModel
+import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import com.github.damontecres.wholphin.util.configure
 import com.github.damontecres.wholphin.util.reset
@@ -27,8 +28,13 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import org.jellyfin.sdk.api.client.exception.InvalidStatusException
+import org.jellyfin.sdk.model.api.AuthenticationResult
+import org.jellyfin.sdk.model.api.UserDto
+import org.jellyfin.sdk.model.api.UserPolicy
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume
@@ -70,6 +76,7 @@ class ChooserGateViewModelTest {
     private val pinlessAdult = profile(2, PolicyState.ADULT)
     private val kid = profile(3, PolicyState.KID, 10)
     private val olderKid = profile(4, PolicyState.KID, 14)
+    private val kidWithPin = profile(5, PolicyState.KID, 10, pin = "5555")
 
     private lateinit var viewModel: SwitchUserViewModel
 
@@ -79,7 +86,7 @@ class ChooserGateViewModelTest {
         Dispatchers.setMain(dispatcher)
         WholphinDispatchers.configure(dispatcher)
         every { serverDao.getServer(serverId) } returns
-            JellyfinServerUsers(server, listOf(parent, pinlessAdult, kid, olderKid))
+            JellyfinServerUsers(server, listOf(parent, pinlessAdult, kid, olderKid, kidWithPin))
         coEvery { store.isProtected() } returns true
         coEvery { serverRepository.removeUser(any()) } just runs
         viewModel =
@@ -129,7 +136,7 @@ class ChooserGateViewModelTest {
             assertEquals(parent, p.pinOwner)
             assertTrue(p.isParentPin)
 
-            coEvery { gate.verifyParentPin(parent, "0000") } returns PinCheckResult.Wrong(4)
+            coEvery { gate.verifyParentPin(parent, "0000", any()) } returns PinCheckResult.Wrong(4)
             viewModel.submitPin("0000")
             assertTrue((prompt as ChooserPrompt.Pin).message != null)
 
@@ -166,7 +173,7 @@ class ChooserGateViewModelTest {
             assertEquals(PinPurpose.DELETE, p.purpose)
             assertEquals(parent, p.pinOwner)
 
-            coEvery { gate.verifyParentPin(parent, "1234") } returns PinCheckResult.Correct
+            coEvery { gate.verifyParentPin(parent, "1234", any()) } returns PinCheckResult.Correct
             viewModel.submitPin("1234")
             coVerify(exactly = 1) { serverRepository.removeUser(parent) }
         }
@@ -181,7 +188,7 @@ class ChooserGateViewModelTest {
             assertEquals(PinPurpose.DELETE, pick.purpose)
 
             viewModel.pickParent(parent)
-            coEvery { gate.verifyParentPin(parent, "1234") } returns PinCheckResult.Correct
+            coEvery { gate.verifyParentPin(parent, "1234", any()) } returns PinCheckResult.Correct
             viewModel.submitPin("1234")
             coVerify(exactly = 1) { serverRepository.removeUser(pinlessAdult) }
         }
@@ -192,5 +199,70 @@ class ChooserGateViewModelTest {
             coEvery { store.isProtected() } returns false
             viewModel.removeUser(pinlessAdult)
             coVerify(exactly = 1) { serverRepository.removeUser(pinlessAdult) }
+        }
+
+    @Test
+    fun `server sign-in as a new adult from a PIN kid's prompt needs the adult's own PIN`() =
+        runTest(dispatcher) {
+            // The kid was picked, then "use server sign-in" was approved by an adult not saved on this TV
+            val adultId = UUID.randomUUID()
+            every { serverDao.getUser(serverId, adultId) } returns null
+            every { serverDao.getUser(serverId, kidWithPin.id) } returns kidWithPin
+            val auth =
+                AuthenticationResult(
+                    user =
+                        UserDto(
+                            id = adultId,
+                            name = "new adult",
+                            hasPassword = false,
+                            hasConfiguredPassword = false,
+                            hasConfiguredEasyPassword = false,
+                            policy = mockk<UserPolicy> { every { maxParentalRating } returns null },
+                        ),
+                    accessToken = "adult-token",
+                    serverId = serverId.toServerString(),
+                )
+
+            viewModel.finishFreshAuth(server.url, auth, existingUser = kidWithPin)
+
+            val pending = viewModel.state.value.pendingPinSetup
+            assertNotNull("the new adult must set their own PIN first", pending)
+            assertNull(pending!!.existingUser)
+            coVerify(exactly = 0) { serverRepository.changeUser(any<String>(), any(), any(), any(), any(), any()) }
+        }
+
+    @Test
+    fun `a failed authorized switch drops the unlock, and so does closing the sign-in dialog`() =
+        runTest(dispatcher) {
+            coEvery { gate.evaluate(olderKid) } returns GateDecision.NeedsParentUnlock andThen GateDecision.Allow
+            viewModel.onProfileSelected(olderKid)
+            verify(exactly = 1) { gate.clearParentUnlock() }
+
+            coEvery { gate.verifyParentPin(parent, "1234", any()) } returns PinCheckResult.Correct
+            // The older kid's saved token has expired
+            coEvery { gate.switchTo(server, olderKid) } throws InvalidStatusException(401)
+            viewModel.submitPin("1234")
+
+            coVerify { gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(olderKid.rowId)) }
+            assertEquals(
+                olderKid,
+                viewModel.state.value.switchError
+                    ?.user,
+            )
+            verify(exactly = 2) { gate.clearParentUnlock() }
+
+            // The sign-in dialog that follows is dismissed
+            viewModel.cancelQuickConnect()
+            verify(exactly = 3) { gate.clearParentUnlock() }
+        }
+
+    @Test
+    fun `a delete PIN is bound to deleting that profile`() =
+        runTest(dispatcher) {
+            viewModel.removeUser(pinlessAdult)
+            viewModel.pickParent(parent)
+            coEvery { gate.verifyParentPin(parent, "1234", any()) } returns PinCheckResult.Correct
+            viewModel.submitPin("1234")
+            coVerify { gate.verifyParentPin(parent, "1234", UnlockPurpose.Remove(pinlessAdult.rowId)) }
         }
 }

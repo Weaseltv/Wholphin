@@ -33,10 +33,44 @@ class KidProtectionStore
         suspend fun isProtected(): Boolean = isProtected.first()
 
         /**
-         * The ceiling of the last profile a switch completed to. A missing key reads as
-         * [ProfileCeiling.Unknown], which the gate treats as gated.
+         * The ceiling of the last profile a switch completed to. A missing key, or a switch that began but never
+         * completed (process death mid-switch), reads as [ProfileCeiling.Unknown], which the gate treats as gated.
          */
-        suspend fun sessionCeiling(): ProfileCeiling = decodeCeiling(dataStore.data.first()[KEY_SESSION_CEILING])
+        suspend fun sessionCeiling(): ProfileCeiling {
+            val prefs = dataStore.data.first()
+            if (prefs[KEY_SWITCH_PENDING] == true) return ProfileCeiling.Unknown
+            return decodeCeiling(prefs[KEY_SESSION_CEILING])
+        }
+
+        /**
+         * Journals a switch about to be published: until [completeSwitch] or [abortSwitch] the session ceiling
+         * reads as unknown, so an interruption never leaves the destination's (possibly higher) ceiling behind.
+         * [protect] sets the protection flag in the same write, before a kid row is admitted.
+         */
+        suspend fun beginSwitch(protect: Boolean) {
+            dataStore.edit {
+                it[KEY_SWITCH_PENDING] = true
+                if (protect) it[KEY_PROTECTION] = true
+            }
+        }
+
+        /** The switch was published: [ceiling], the destination's, is the session ceiling from now on */
+        suspend fun completeSwitch(ceiling: ProfileCeiling) {
+            dataStore.edit {
+                it[KEY_SESSION_CEILING] = encodeCeiling(ceiling)
+                it.remove(KEY_SWITCH_PENDING)
+            }
+        }
+
+        /** The switch failed before anything was published: the previous session ceiling still applies */
+        suspend fun abortSwitch() {
+            dataStore.edit { it.remove(KEY_SWITCH_PENDING) }
+        }
+
+        /** Sets just the protection flag (a kid row is about to be written); a missing ceiling stays unknown */
+        suspend fun protect() {
+            dataStore.edit { it[KEY_PROTECTION] = true }
+        }
 
         suspend fun setSessionCeiling(ceiling: ProfileCeiling) {
             dataStore.edit { it[KEY_SESSION_CEILING] = encodeCeiling(ceiling) }
@@ -60,6 +94,7 @@ class KidProtectionStore
             dataStore.edit {
                 it.remove(KEY_PROTECTION)
                 it.remove(KEY_SESSION_CEILING)
+                it.remove(KEY_SWITCH_PENDING)
             }
         }
 
@@ -83,6 +118,7 @@ class KidProtectionStore
         companion object {
             private val KEY_PROTECTION = booleanPreferencesKey("kids.protection")
             private val KEY_SESSION_CEILING = stringPreferencesKey("kids.sessionCeiling")
+            private val KEY_SWITCH_PENDING = booleanPreferencesKey("kids.switchPending")
             private val KEY_PIN_FAILURES = intPreferencesKey("kids.pin.failures")
             private val KEY_PIN_LOCKOUTS = intPreferencesKey("kids.pin.lockouts")
             private val KEY_PIN_LOCKED_UNTIL = longPreferencesKey("kids.pin.lockedUntil")
@@ -92,7 +128,9 @@ class KidProtectionStore
             internal fun encodeCeiling(ceiling: ProfileCeiling): String =
                 when (ceiling) {
                     is ProfileCeiling.Rating -> ceiling.maxParentalRating.toString()
+
                     ProfileCeiling.Unlimited -> UNLIMITED
+
                     // Never stored on purpose, but reads back as unknown either way
                     ProfileCeiling.Unknown -> "unknown"
                 }

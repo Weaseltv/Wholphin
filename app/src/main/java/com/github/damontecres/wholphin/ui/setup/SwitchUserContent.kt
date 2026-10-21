@@ -538,7 +538,6 @@ fun SwitchUserContent(
                 },
                 onTextChange = {},
                 onSubmit = viewModel::submitPin,
-                submitLength = prompt.pinOwner.pin?.length,
                 title =
                     if (prompt.isParentPin) {
                         stringResource(R.string.kid_parent_pin_title, prompt.pinOwner.shownName.orEmpty())

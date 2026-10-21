@@ -852,7 +852,6 @@ fun PreferencesContent(
                             }
                         }
                     },
-                    submitLength = user.pin?.length,
                     title = stringResource(R.string.kid_turn_off_protection),
                     message = turnOffProtectionMessage,
                     serverAuthRemovesPin = false,

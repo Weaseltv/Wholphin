@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.ui.setup
 
 import android.content.Context
+import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.damontecres.wholphin.BuildConfig
@@ -8,6 +9,7 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.WholphinApplication
 import com.github.damontecres.wholphin.data.JellyfinServerDao
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.data.ifSameIdentity
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.kids.GateDecision
@@ -17,6 +19,7 @@ import com.github.damontecres.wholphin.kids.PinCheckResult
 import com.github.damontecres.wholphin.kids.ProfileChooserLock
 import com.github.damontecres.wholphin.kids.ProfileGateException
 import com.github.damontecres.wholphin.kids.ProfileKind
+import com.github.damontecres.wholphin.kids.UnlockPurpose
 import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.services.ImageUrlService
 import com.github.damontecres.wholphin.services.NavigationManager
@@ -52,6 +55,7 @@ import org.jellyfin.sdk.model.ServerVersion
 import org.jellyfin.sdk.model.api.AuthenticationResult
 import org.jellyfin.sdk.model.api.QuickConnectDto
 import org.jellyfin.sdk.model.api.QuickConnectResult
+import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
 import kotlin.time.Duration.Companion.seconds
 
@@ -267,6 +271,10 @@ class SwitchUserViewModel
 
         fun cancelQuickConnect() {
             quickConnectJob?.cancel()
+            if (BuildConfig.KID_PROFILES_ENABLED) {
+                // The sign-in dialog was closed: an unlock for a switch that sent us there is spent
+                kidSessionGate.clearParentUnlock()
+            }
             _state.update {
                 it.copy(
                     quickConnectStatus = null,
@@ -295,7 +303,8 @@ class SwitchUserViewModel
          * authorization for its target (plan 4.2), but on a protected device an adult without a PIN must
          * set one before anything is published (cancel = no change).
          */
-        private suspend fun finishFreshAuth(
+        @VisibleForTesting
+        internal suspend fun finishFreshAuth(
             serverUrl: String,
             authenticationResult: AuthenticationResult,
             existingUser: JellyfinUser?,
@@ -308,17 +317,20 @@ class SwitchUserViewModel
             val authedUser = authenticationResult.user
             val policy = authedUser?.policy
             val isAdult = policy != null && policy.maxParentalRating == null
-            val savedPin =
-                existingUser?.pin
-                    ?: authedUser?.let { withContext(WholphinDispatchers.IO) { serverDao.getUser(server.id, it.id) } }?.pin
-            if (isAdult && savedPin.isNullOrBlank() && kidProtectionStore.isProtected()) {
+            // The profile picked on the chooser counts only if it is the identity that just authenticated;
+            // otherwise that identity's own saved row (or none), so nobody inherits another profile's PIN
+            val serverId = authenticationResult.serverId?.toUUIDOrNull() ?: server.id
+            val savedUser =
+                existingUser.ifSameIdentity(serverId, authedUser?.id)
+                    ?: authedUser?.let { withContext(WholphinDispatchers.IO) { serverDao.getUser(serverId, it.id) } }
+            if (isAdult && savedUser?.pin.isNullOrBlank() && kidProtectionStore.isProtected()) {
                 Timber.i("Adult without a PIN on a protected device: PIN setup before sign-in")
                 _state.update {
-                    it.copy(pendingPinSetup = PendingPinSetup(serverUrl, authenticationResult, existingUser))
+                    it.copy(pendingPinSetup = PendingPinSetup(serverUrl, authenticationResult, savedUser))
                 }
                 return
             }
-            completeFreshAuth(serverUrl, authenticationResult, existingUser, null)
+            completeFreshAuth(serverUrl, authenticationResult, savedUser, null)
         }
 
         private suspend fun completeFreshAuth(
@@ -358,6 +370,8 @@ class SwitchUserViewModel
          */
         fun onProfileSelected(user: JellyfinUser) {
             viewModelScope.launchIO {
+                // A new pick starts without any earlier unlock
+                kidSessionGate.clearParentUnlock()
                 if (user.hasPin) {
                     showPrompt(ChooserPrompt.Pin(target = user, pinOwner = user, purpose = PinPurpose.SWITCH))
                 } else {
@@ -371,6 +385,8 @@ class SwitchUserViewModel
                 GateDecision.Allow -> {
                     val result = trySwitchUser(user).await()
                     if (result is SwitchUserResult.Error) {
+                        // A failed switch spends the unlock: it must not open another profile later
+                        kidSessionGate.clearParentUnlock()
                         _state.update { it.copy(switchError = result.copy(user = user)) }
                     }
                 }
@@ -418,7 +434,13 @@ class SwitchUserViewModel
                 val owner = prompt.pinOwner
                 val result =
                     if (owner.profileKind == ProfileKind.ADULT) {
-                        kidSessionGate.verifyParentPin(owner, pin)
+                        // The unlock is bound to this target and action only
+                        val purpose =
+                            when (prompt.purpose) {
+                                PinPurpose.SWITCH -> UnlockPurpose.Switch(prompt.target.rowId)
+                                PinPurpose.DELETE -> UnlockPurpose.Remove(prompt.target.rowId)
+                            }
+                        kidSessionGate.verifyParentPin(owner, pin, purpose)
                     } else {
                         kidSessionGate.verifyProfilePin(owner, pin)
                     }

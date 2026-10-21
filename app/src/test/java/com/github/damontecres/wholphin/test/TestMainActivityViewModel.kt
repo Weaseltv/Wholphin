@@ -102,6 +102,8 @@ class TestMainActivityViewModel {
         every { profileChooserLock.lastProfile } returns null
         coEvery { kidSessionGate.restoreGated(any(), any()) } returns null
         every { intentService.isNormalLaunch(any()) } returns false
+        every { intentService.intentServerId(any()) } returns null
+        coEvery { profileChooserLock.fallbackServerId() } returns null
         coEvery { serverDao.getServer(serverId) } returns
             JellyfinServerUsers(
                 currentUser.server,
@@ -547,6 +549,48 @@ class TestMainActivityViewModel {
 
             coVerify(exactly = 0) { intentService.parseIntent(any(), any()) }
             verify(exactly = 1) { profileChooserLock.hold(intent, userId) }
+            val last = capturedDestinations().last()
+            assertTrue("destination is ${last::class}", last is SetupDestination.UserList)
+        }
+
+    @Test
+    fun `Chooser lock - a deep link after the chooser and a process death still opens the chooser`() =
+        runTest(testDispatcher) {
+            assumeKidProfiles()
+            // The chooser cleared the saved current ids, then the process died: no session, no last profile
+            setupPreferences { signInAutomatically = true }
+            every { serverRepository.current } returns MutableStateFlow(null)
+            coEvery { profileChooserLock.appliesTo(serverId) } returns true
+            val intent = Intent()
+            every { intentService.intentServerId(intent) } returns serverId
+            every { intentService.intentUserId(intent) } returns userId
+
+            viewModel.appStart(intent)
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { intentService.parseIntent(any(), any()) }
+            coVerify(exactly = 0) { kidSessionGate.restoreGated(any(), any()) }
+            verify(exactly = 1) { profileChooserLock.hold(intent, userId) }
+            val last = capturedDestinations().last()
+            assertTrue("destination is ${last::class}", last is SetupDestination.UserList)
+        }
+
+    @Test
+    fun `Chooser lock - a launcher tile without a server uses the pinned server's profile count`() =
+        runTest(testDispatcher) {
+            assumeKidProfiles()
+            setupPreferences { signInAutomatically = true }
+            every { serverRepository.current } returns MutableStateFlow(null)
+            coEvery { profileChooserLock.fallbackServerId() } returns serverId
+            coEvery { profileChooserLock.appliesTo(serverId) } returns true
+            val intent = Intent()
+            every { intentService.intentUserId(intent) } returns null
+
+            viewModel.appStart(intent)
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { intentService.parseIntent(any(), any()) }
+            verify(exactly = 1) { profileChooserLock.hold(intent, null) }
             val last = capturedDestinations().last()
             assertTrue("destination is ${last::class}", last is SetupDestination.UserList)
         }

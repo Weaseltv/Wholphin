@@ -54,8 +54,7 @@ class SuggestionsWorker
         private fun sessionChangedResult(
             serverId: UUID,
             userId: UUID,
-        ): Result? =
-            if (BuildConfig.KID_PROFILES_ENABLED) WorkerSession.check(serverRepository, serverId, userId) else null
+        ): Result? = if (BuildConfig.KID_PROFILES_ENABLED) WorkerSession.check(serverRepository, serverId, userId) else null
 
         override suspend fun doWork(): Result {
             val serverId = inputData.getString(PARAM_SERVER_ID)?.toUUIDOrNull() ?: return Result.failure()
