@@ -159,7 +159,7 @@ class ProfileChooserLock
             if (held != null && held.ownerUserId == current.user.id) {
                 val result =
                     try {
-                        intentService.get().parseIntent(held.intent)
+                        intentService.get().parseIntent(held.intent, sessionReady = true)
                     } catch (ex: Exception) {
                         Timber.w(ex, "Could not continue the held intent")
                         null

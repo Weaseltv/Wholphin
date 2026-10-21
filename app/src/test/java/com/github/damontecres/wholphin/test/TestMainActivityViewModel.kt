@@ -545,7 +545,7 @@ class TestMainActivityViewModel {
             viewModel.appStart(intent)
             advanceUntilIdle()
 
-            coVerify(exactly = 0) { intentService.parseIntent(any()) }
+            coVerify(exactly = 0) { intentService.parseIntent(any(), any()) }
             verify(exactly = 1) { profileChooserLock.hold(intent, userId) }
             val last = capturedDestinations().last()
             assertTrue("destination is ${last::class}", last is SetupDestination.UserList)

@@ -139,7 +139,7 @@ class ProfileChooserLockTest {
         runTest(UnconfinedTestDispatcher()) {
             val lock = lock(profiles = 2)
             val intent = Intent()
-            coEvery { intentService.parseIntent(intent) } returns
+            coEvery { intentService.parseIntent(intent, true) } returns
                 IntentResult.Target(listOf(Destination.Favorites), addHomeToBackStack = false)
             val backStack = mutableListOf<Destination>()
             every { navigationManager.backStack } returns backStack
@@ -148,14 +148,14 @@ class ProfileChooserLockTest {
             lock.hold(intent, ownerUserId = userId)
             val sibling = currentUser(serverId, UUID.randomUUID())
             lock.navigateAfterSwitch(sibling)
-            coVerify(exactly = 0) { intentService.parseIntent(any()) }
+            coVerify(exactly = 0) { intentService.parseIntent(any(), any()) }
             verify { setupNavigationManager.navigateTo(SetupDestination.AppContent(sibling)) }
             assertTrue(backStack.isEmpty())
 
             // The owner was picked: the tile opens
             lock.hold(intent, ownerUserId = userId)
             lock.navigateAfterSwitch(current.value!!)
-            coVerify(exactly = 1) { intentService.parseIntent(intent) }
+            coVerify(exactly = 1) { intentService.parseIntent(intent, true) }
             assertTrue(backStack.contains(Destination.Favorites))
         }
 }

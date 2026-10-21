@@ -37,7 +37,14 @@ class IntentService
         /** The profile an intent names, if any (launcher tiles carry none) */
         fun intentUserId(intent: Intent): java.util.UUID? = intent.getStringParam(INTENT_USER_ID)?.toUUIDOrNull()
 
-        suspend fun parseIntent(intent: Intent): IntentResult {
+        /**
+         * @param sessionReady the intent's profile is already the current session (a held launcher tile continued
+         * after that profile was picked on the chooser), so no profile is restored
+         */
+        suspend fun parseIntent(
+            intent: Intent,
+            sessionReady: Boolean = false,
+        ): IntentResult {
             Timber.v("Parsing intent %s", intent)
             Timber.v("Intent extras: %s", intent.extras)
             Timber.v("Intent data: %s", intent.data)
@@ -47,7 +54,7 @@ class IntentService
                 return IntentResult.NoOp
             }
 
-            val result = prepare(intent)
+            val result = if (sessionReady) null else prepare(intent)
             if (result != null) {
                 return result
             }
