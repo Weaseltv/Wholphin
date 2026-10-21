@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -46,25 +47,57 @@ class KidProtectionStore
          * Journals a switch about to be published: until [completeSwitch] or [abortSwitch] the session ceiling
          * reads as unknown, so an interruption never leaves the destination's (possibly higher) ceiling behind.
          * [protect] sets the protection flag in the same write, before a kid row is admitted.
+         *
+         * @return the id of this switch; only its owner can complete or abort it
          */
-        suspend fun beginSwitch(protect: Boolean) {
+        suspend fun beginSwitch(protect: Boolean): String {
+            val switchId = UUID.randomUUID().toString()
             dataStore.edit {
                 it[KEY_SWITCH_PENDING] = true
+                it[KEY_SWITCH_ID] = switchId
                 if (protect) it[KEY_PROTECTION] = true
             }
+            return switchId
         }
 
-        /** The switch was published: [ceiling], the destination's, is the session ceiling from now on */
-        suspend fun completeSwitch(ceiling: ProfileCeiling) {
+        /**
+         * The switch [switchId] was published: [ceiling], the destination's, is the session ceiling from now on.
+         * A stale continuation of a switch that is no longer the journalled one changes nothing.
+         *
+         * @return whether [switchId] was the journalled switch
+         */
+        suspend fun completeSwitch(
+            switchId: String,
+            ceiling: ProfileCeiling,
+        ): Boolean {
+            var owned = false
             dataStore.edit {
-                it[KEY_SESSION_CEILING] = encodeCeiling(ceiling)
-                it.remove(KEY_SWITCH_PENDING)
+                if (it[KEY_SWITCH_ID] == switchId) {
+                    owned = true
+                    it[KEY_SESSION_CEILING] = encodeCeiling(ceiling)
+                    it.remove(KEY_SWITCH_PENDING)
+                    it.remove(KEY_SWITCH_ID)
+                }
             }
+            return owned
         }
 
-        /** The switch failed before anything was published: the previous session ceiling still applies */
-        suspend fun abortSwitch() {
-            dataStore.edit { it.remove(KEY_SWITCH_PENDING) }
+        /**
+         * The switch [switchId] failed before anything was published: the previous session ceiling still applies.
+         * Never ends a switch other than [switchId].
+         *
+         * @return whether [switchId] was the journalled switch
+         */
+        suspend fun abortSwitch(switchId: String): Boolean {
+            var owned = false
+            dataStore.edit {
+                if (it[KEY_SWITCH_ID] == switchId) {
+                    owned = true
+                    it.remove(KEY_SWITCH_PENDING)
+                    it.remove(KEY_SWITCH_ID)
+                }
+            }
+            return owned
         }
 
         /** Sets just the protection flag (a kid row is about to be written); a missing ceiling stays unknown */
@@ -95,6 +128,7 @@ class KidProtectionStore
                 it.remove(KEY_PROTECTION)
                 it.remove(KEY_SESSION_CEILING)
                 it.remove(KEY_SWITCH_PENDING)
+                it.remove(KEY_SWITCH_ID)
             }
         }
 
@@ -119,6 +153,7 @@ class KidProtectionStore
             private val KEY_PROTECTION = booleanPreferencesKey("kids.protection")
             private val KEY_SESSION_CEILING = stringPreferencesKey("kids.sessionCeiling")
             private val KEY_SWITCH_PENDING = booleanPreferencesKey("kids.switchPending")
+            private val KEY_SWITCH_ID = stringPreferencesKey("kids.switchId")
             private val KEY_PIN_FAILURES = intPreferencesKey("kids.pin.failures")
             private val KEY_PIN_LOCKOUTS = intPreferencesKey("kids.pin.lockouts")
             private val KEY_PIN_LOCKED_UNTIL = longPreferencesKey("kids.pin.lockedUntil")

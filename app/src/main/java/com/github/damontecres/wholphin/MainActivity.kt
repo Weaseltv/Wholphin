@@ -656,8 +656,10 @@ class MainActivityViewModel
             val current = serverRepository.current.value
             // A deep link's own server first; after the chooser cleared the saved ids and the process died, the
             // pinned (or only) server, so the profile count, and with it the chooser-first rule, still applies
+            // Same target resolution as IntentService's restore: only a complete server + user pair counts
+            val target = intent?.let { intentService.intentTarget(it) }
             val serverId =
-                intent?.let { intentService.intentServerId(it) }
+                target?.serverId
                     ?: current?.server?.id
                     ?: prefs.currentServerId?.toUUIDOrNull()
                     ?: profileChooserLock.lastProfile?.server?.id
@@ -668,7 +670,7 @@ class MainActivityViewModel
                 if (multiProfile) {
                     // Launcher tile / deep link: open the chooser holding the target (plan 4.5)
                     val owner =
-                        intentService.intentUserId(intent)
+                        target?.userId
                             ?: current?.user?.id
                             ?: prefs.currentUserId?.toUUIDOrNull()
                             ?: profileChooserLock.lastProfile?.user?.id

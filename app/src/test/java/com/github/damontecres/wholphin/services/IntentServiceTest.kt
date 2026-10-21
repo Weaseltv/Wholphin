@@ -402,4 +402,40 @@ class IntentServiceTest {
             coVerify(exactly = 0) { kidSessionGate.restoreGated(any(), any()) }
             coVerify(exactly = 0) { serverRepository.restoreSession(any(), any()) }
         }
+
+    @Test
+    fun `Chooser target - only a complete server and user pair is a deep link's target`() {
+        val unknownServer = UUID.randomUUID()
+        val serverOnly = Intent().apply { putExtra(IntentService.INTENT_SERVER_ID, unknownServer.toServerString()) }
+        val userOnly = Intent().apply { putExtra(IntentService.INTENT_USER_ID, userId.toServerString()) }
+        val both =
+            Intent().apply {
+                putExtra(IntentService.INTENT_SERVER_ID, serverId.toServerString())
+                putExtra(IntentService.INTENT_USER_ID, userId.toServerString())
+            }
+        assertNull(intentService.intentTarget(serverOnly))
+        assertNull(intentService.intentTarget(userOnly))
+        assertEquals(IntentTarget(serverId, userId), intentService.intentTarget(both))
+    }
+
+    @Test
+    fun `Gate - an unpaired server id falls back to the saved profile, like the chooser count`() =
+        runTest {
+            Assume.assumeTrue(BuildConfig.KID_PROFILES_ENABLED)
+            setupPreferences {
+                signInAutomatically = true
+                currentServerId = serverId.toServerString()
+                currentUserId = userId.toServerString()
+            }
+            every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(null)
+            coEvery { serverRepository.restoreSession(serverId, userId) } returns currentUser
+            val unknownServer = UUID.randomUUID()
+
+            val intent = Intent().apply { putExtra(IntentService.INTENT_SERVER_ID, unknownServer.toServerString()) }
+            assertNull(intentService.prepare(intent))
+
+            // The same server MainActivity counted profiles for: the saved one, never the intent's
+            coVerify(exactly = 1) { kidSessionGate.restoreGated(serverId, userId) }
+            coVerify(exactly = 0) { kidSessionGate.restoreGated(unknownServer, any()) }
+        }
 }

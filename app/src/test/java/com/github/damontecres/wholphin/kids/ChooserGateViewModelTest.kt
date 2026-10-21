@@ -2,6 +2,7 @@ package com.github.damontecres.wholphin.kids
 
 import android.content.Context
 import com.github.damontecres.wholphin.BuildConfig
+import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.JellyfinServerDao
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinServerUsers
@@ -22,12 +23,15 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.model.api.AuthenticationResult
 import org.jellyfin.sdk.model.api.UserDto
@@ -264,5 +268,25 @@ class ChooserGateViewModelTest {
             coEvery { gate.verifyParentPin(parent, "1234", any()) } returns PinCheckResult.Correct
             viewModel.submitPin("1234")
             coVerify { gate.verifyParentPin(parent, "1234", UnlockPurpose.Remove(pinlessAdult.rowId)) }
+        }
+
+    @Test
+    fun `a pick superseded by a newer one never navigates`() =
+        runTest(dispatcher) {
+            coEvery { gate.evaluate(any()) } returns GateDecision.Allow
+            val firstSwitch = CompletableDeferred<Unit>()
+            // The first switch finishes even though it is cancelled (publication can't be interrupted)
+            coEvery { gate.switchTo(server, kid) } coAnswers {
+                withContext(NonCancellable) { firstSwitch.await() }
+                CurrentUser(server, kid)
+            }
+            coEvery { gate.switchTo(server, olderKid) } returns CurrentUser(server, olderKid)
+
+            viewModel.onProfileSelected(kid)
+            viewModel.onProfileSelected(olderKid)
+            firstSwitch.complete(Unit)
+
+            coVerify(exactly = 1) { chooserLock.navigateAfterSwitch(CurrentUser(server, olderKid)) }
+            coVerify(exactly = 0) { chooserLock.navigateAfterSwitch(CurrentUser(server, kid)) }
         }
 }

@@ -19,6 +19,7 @@ import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.DeviceProfileService
 import com.github.damontecres.wholphin.services.IntentResult
 import com.github.damontecres.wholphin.services.IntentService
+import com.github.damontecres.wholphin.services.IntentTarget
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.SetupNavigationManager
@@ -102,7 +103,7 @@ class TestMainActivityViewModel {
         every { profileChooserLock.lastProfile } returns null
         coEvery { kidSessionGate.restoreGated(any(), any()) } returns null
         every { intentService.isNormalLaunch(any()) } returns false
-        every { intentService.intentServerId(any()) } returns null
+        every { intentService.intentTarget(any()) } returns null
         coEvery { profileChooserLock.fallbackServerId() } returns null
         coEvery { serverDao.getServer(serverId) } returns
             JellyfinServerUsers(
@@ -542,7 +543,7 @@ class TestMainActivityViewModel {
             setupMultiProfile()
             every { serverRepository.current } returns MutableStateFlow(currentUser)
             val intent = Intent()
-            every { intentService.intentUserId(intent) } returns null
+            every { intentService.intentTarget(intent) } returns null
 
             viewModel.appStart(intent)
             advanceUntilIdle()
@@ -562,8 +563,7 @@ class TestMainActivityViewModel {
             every { serverRepository.current } returns MutableStateFlow(null)
             coEvery { profileChooserLock.appliesTo(serverId) } returns true
             val intent = Intent()
-            every { intentService.intentServerId(intent) } returns serverId
-            every { intentService.intentUserId(intent) } returns userId
+            every { intentService.intentTarget(intent) } returns IntentTarget(serverId, userId)
 
             viewModel.appStart(intent)
             advanceUntilIdle()
@@ -584,7 +584,7 @@ class TestMainActivityViewModel {
             coEvery { profileChooserLock.fallbackServerId() } returns serverId
             coEvery { profileChooserLock.appliesTo(serverId) } returns true
             val intent = Intent()
-            every { intentService.intentUserId(intent) } returns null
+            every { intentService.intentTarget(intent) } returns null
 
             viewModel.appStart(intent)
             advanceUntilIdle()
@@ -612,6 +612,27 @@ class TestMainActivityViewModel {
             advanceUntilIdle()
 
             coVerify(exactly = 0) { serverRepository.restoreSession(any(), any()) }
+            val last = capturedDestinations().last()
+            assertTrue("destination is ${last::class}", last is SetupDestination.UserList)
+        }
+
+    @Test
+    fun `Chooser lock - a deep link with an unpaired server id counts the saved server's profiles`() =
+        runTest(testDispatcher) {
+            assumeKidProfiles()
+            // Multi-profile TV, cold start; the link names an unknown server and no profile
+            setupMultiProfile()
+            every { serverRepository.current } returns MutableStateFlow(null)
+            val intent = Intent()
+            // IntentService ignores an unpaired server id (IntentServiceTest), here and in its own restore
+            every { intentService.intentTarget(intent) } returns null
+
+            viewModel.appStart(intent)
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { intentService.parseIntent(any(), any()) }
+            coVerify(exactly = 0) { kidSessionGate.restoreGated(any(), any()) }
+            verify(exactly = 1) { profileChooserLock.hold(intent, userId) }
             val last = capturedDestinations().last()
             assertTrue("destination is ${last::class}", last is SetupDestination.UserList)
         }

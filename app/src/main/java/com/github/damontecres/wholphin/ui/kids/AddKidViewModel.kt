@@ -14,6 +14,7 @@ import com.github.damontecres.wholphin.kids.KidProfilesApi
 import com.github.damontecres.wholphin.kids.KidQuickConnect
 import com.github.damontecres.wholphin.kids.KidSessionGate
 import com.github.damontecres.wholphin.kids.PinCheckResult
+import com.github.damontecres.wholphin.kids.ProfileGateException
 import com.github.damontecres.wholphin.kids.ProfileKind
 import com.github.damontecres.wholphin.kids.UnlockPurpose
 import com.github.damontecres.wholphin.services.Avatar
@@ -368,6 +369,12 @@ class AddKidViewModel
                         gate.signInKid(server.url, auth, displayName)
                     } catch (ex: CancellationException) {
                         throw ex
+                    } catch (ex: ProfileGateException) {
+                        // The parent's unlock ran out while signing in: nothing was published, ask for the PIN again
+                        Timber.i("Kid sign-in refused: %s", ex.decision)
+                        val user = parent
+                        if (user != null) _step.value = AddKidStep.EnterPin(user) else fail(AddKidError.Generic, Retry.Connect(kid))
+                        return
                     } catch (ex: Exception) {
                         Timber.w(ex, "Kid sign-in failed")
                         return fail(AddKidError.Generic, Retry.Connect(kid))

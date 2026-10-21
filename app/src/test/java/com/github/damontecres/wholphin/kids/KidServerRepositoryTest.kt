@@ -7,6 +7,8 @@ import androidx.datastore.core.DataStoreFactory
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.stringPreferencesKey
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.JellyfinServerDao
@@ -28,16 +30,27 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.Response
@@ -365,10 +378,107 @@ class KidServerRepositoryTest {
         runTest {
             store.markProtected(ProfileCeiling.Rating(10))
             store.setSessionCeiling(ProfileCeiling.Rating(10))
-            store.beginSwitch(protect = false)
+            val switchId = store.beginSwitch(protect = false)
             assertEquals(ProfileCeiling.Unknown, KidProtectionStore(keyValue).sessionCeiling())
-            store.completeSwitch(ProfileCeiling.Rating(14))
+            store.completeSwitch(switchId, ProfileCeiling.Rating(14))
             assertEquals(ProfileCeiling.Rating(14), KidProtectionStore(keyValue).sessionCeiling())
+        }
+
+    @Test
+    fun `a stale switch continuation can't complete or abort the journalled switch`() =
+        runTest {
+            store.markProtected(ProfileCeiling.Rating(10))
+            store.setSessionCeiling(ProfileCeiling.Rating(10))
+            val stale = store.beginSwitch(protect = false)
+            val current = store.beginSwitch(protect = false)
+
+            assertFalse(store.completeSwitch(stale, ProfileCeiling.Rating(17)))
+            assertFalse(store.abortSwitch(stale))
+            // Still journalled for the current switch, and the stale ceiling was never written
+            assertEquals(ProfileCeiling.Unknown, store.sessionCeiling())
+            assertTrue(store.completeSwitch(current, ProfileCeiling.Rating(14)))
+            assertEquals(ProfileCeiling.Rating(14), store.sessionCeiling())
+        }
+
+    /** A repository whose every step (IO, Main, key-value and app DataStores) runs on the test scheduler */
+    private fun TestScope.scheduledRepository(keyValueStore: DataStore<Preferences>): ServerRepository {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val appPreferences = mockk<DataStore<AppPreferences>>()
+        coEvery { appPreferences.updateData(any()) } returns AppPreferences.getDefaultInstance()
+        return ServerRepository(
+            context,
+            jellyfin,
+            serverDao,
+            sharedApi,
+            appPreferences,
+            StandardTestDispatcher(testScheduler),
+            KidProtectionStore(keyValueStore),
+        )
+    }
+
+    @Test
+    fun `a cancellation delivered after publication still completes the switch with the destination's ceiling`() =
+        runTest {
+            val keyValueStore = FakePreferencesDataStore()
+            val store = KidProtectionStore(keyValueStore)
+            store.markProtected(ProfileCeiling.Unlimited)
+            store.setSessionCeiling(ProfileCeiling.Unlimited)
+            val repository = scheduledRepository(keyValueStore)
+            val kid = row(3)
+            coEvery { userApi.getCurrentUser() } returns successResponse(userDto(kid.id, 10))
+            lateinit var switch: Job
+            // The switch is cancelled the moment the kid is published, before it resumes off the main thread
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                repository.current.collect { if (it?.user?.id == kid.id) switch.cancel() }
+            }
+
+            switch = launch { repository.changeUser(server, kid) }
+            switch.join()
+
+            assertTrue(switch.isCancelled)
+            assertEquals(kid.id, repository.currentUser?.id)
+            // Not the previous unlimited ceiling: a 14+ sibling must still need a parent
+            assertEquals(ProfileCeiling.Rating(10), store.sessionCeiling())
+        }
+
+    @Test
+    fun `overlapping switches never commit one profile's session with another's ceiling`() =
+        runTest {
+            val keyValueStore = FakePreferencesDataStore()
+            val store = KidProtectionStore(keyValueStore)
+            store.markProtected(ProfileCeiling.Rating(14))
+            store.setSessionCeiling(ProfileCeiling.Rating(14))
+            val repository = scheduledRepository(keyValueStore)
+            val teens = row(7)
+            val kids = row(3)
+            coEvery { userApi.getCurrentUser() } returnsMany
+                listOf(successResponse(userDto(teens.id, 17)), successResponse(userDto(kids.id, 10)))
+            // The Teens switch's continuation after publishing is held back while the Kids switch runs
+            val releaseTeens = CompletableDeferred<Unit>()
+            keyValueStore.beforeUpdate = { preview ->
+                if (preview[stringPreferencesKey("kids.sessionCeiling")] == "17") releaseTeens.await()
+            }
+            val kidsGo = CompletableDeferred<Unit>()
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                repository.current.first { it?.user?.id == teens.id }
+                kidsGo.complete(Unit)
+            }
+
+            val teensSwitch = launch { repository.changeUser(server, teens) }
+            val kidsSwitch =
+                launch {
+                    kidsGo.await()
+                    repository.changeUser(server, kids)
+                }
+            advanceUntilIdle()
+            // The Teens session is out and its completion held: the switches overlap
+            assertTrue(kidsGo.isCompleted)
+            releaseTeens.complete(Unit)
+            teensSwitch.join()
+            kidsSwitch.join()
+
+            assertEquals(kids.id, repository.currentUser?.id)
+            assertEquals(ProfileCeiling.Rating(10), store.sessionCeiling())
         }
 
     @Test
@@ -410,4 +520,23 @@ class KidServerRepositoryTest {
             assertEquals(ProfileKind.KID, current.user.profileKind)
             assertEquals(ProfileCeiling.Rating(10), current.user.profileCeiling)
         }
+}
+
+/**
+ * In-memory key-value DataStore on the caller's dispatcher, so a test controls every step. [beforeUpdate] sees the
+ * result an edit would write and may suspend it before it is applied.
+ */
+class FakePreferencesDataStore : DataStore<Preferences> {
+    private val state = MutableStateFlow(emptyPreferences())
+    private val mutex = Mutex()
+    var beforeUpdate: suspend (Preferences) -> Unit = {}
+
+    override val data: Flow<Preferences> = state
+
+    override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences {
+        beforeUpdate(transform(state.value))
+        return mutex.withLock {
+            transform(state.value).also { state.value = it.toPreferences() }
+        }
+    }
 }
