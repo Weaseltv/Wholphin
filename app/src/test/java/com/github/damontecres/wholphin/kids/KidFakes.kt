@@ -47,6 +47,9 @@ class FakeKidSessionGate : KidSessionGate {
     /** Clock for unlock expiry; tests move it forward */
     var now = 0L
 
+    /** Thrown by [signInKid] instead of signing in, eg the real gate's refusal */
+    var signInFailure: Exception? = null
+
     override fun profileKind(user: JellyfinUser) = kinds[user.id] ?: ProfileKind.ADULT
 
     override fun ceilingOf(user: JellyfinUser): ProfileCeiling = ProfileCeiling.Unlimited
@@ -84,6 +87,7 @@ class FakeKidSessionGate : KidSessionGate {
         authenticationResult: AuthenticationResult,
         displayName: String?,
     ): CurrentUser {
+        signInFailure?.let { throw it }
         signedIn += authenticationResult to displayName
         val dto = authenticationResult.user!!
         return CurrentUser(

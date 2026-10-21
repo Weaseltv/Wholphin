@@ -482,4 +482,17 @@ class AddKidViewModelTest {
             unlockMom()
             assertEquals(UnlockPurpose.AddKid, gate.parentUnlock.value?.purpose)
         }
+
+    @Test
+    fun `a kid sign-in refused at publication goes back to the parent's PIN`() =
+        test {
+            api.listResults += KidApiResult.Ok(KidList(listOf(testKid("Emma")), 5))
+            unlockMom()
+            // The unlock ran out during the sign-in's network calls: the gate published nothing
+            gate.signInFailure = ProfileGateException(GateDecision.NeedsParentUnlock)
+            viewModel.signInExisting(testKid("Emma"))
+            advanceUntilIdle()
+            assertEquals(AddKidStep.EnterPin(mom), step)
+            verify(exactly = 0) { navigation.navigateTo(any()) }
+        }
 }

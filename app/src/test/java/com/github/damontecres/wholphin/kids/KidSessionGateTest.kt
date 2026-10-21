@@ -371,4 +371,77 @@ class KidSessionGateTest {
                 assertEquals(GateDecision.NeedsParentUnlock, ex.decision)
             }
         }
+
+    @Test
+    fun `a kid sign-in whose parent unlock expires during its network calls publishes nothing`() =
+        runTest {
+            protect(ProfileCeiling.Unlimited)
+            val gate = gate()
+            assertEquals(PinCheckResult.Correct, gate.verifyParentPin(parent, "1234", UnlockPurpose.AddKid))
+            // Started just before the five minutes are up
+            now += KidSessionGateImpl.UNLOCK_DURATION.inWholeMilliseconds - 1
+            val beforePublish = io.mockk.slot<suspend (JellyfinUser) -> Unit>()
+            var published = false
+            coEvery {
+                serverRepository.changeUser(any<String>(), any(), any(), any(), any(), capture(beforePublish))
+            } coAnswers {
+                // The sign-in's network calls cross the expiry, then the fresh kid is about to be published
+                now += 2
+                beforePublish.captured.invoke(kid10)
+                published = true
+                CurrentUser(server(serverId), kid10)
+            }
+            val auth = AuthenticationResult(accessToken = "kid-token", serverId = serverId.toString())
+            try {
+                gate.signInKid("https://media.example", auth, "Emma")
+                error("should have been refused")
+            } catch (ex: ProfileGateException) {
+                assertEquals(GateDecision.NeedsParentUnlock, ex.decision)
+            }
+            assertFalse(published)
+        }
+
+    @Test
+    fun `a kid sign-in whose unlock was replaced by another parent action publishes nothing`() =
+        runTest {
+            protect(ProfileCeiling.Unlimited)
+            val gate = gate()
+            gate.verifyParentPin(parent, "1234", UnlockPurpose.AddKid)
+            val beforePublish = io.mockk.slot<suspend (JellyfinUser) -> Unit>()
+            coEvery {
+                serverRepository.changeUser(any<String>(), any(), any(), any(), any(), capture(beforePublish))
+            } coAnswers {
+                // Meanwhile the unlock was spent on something else
+                now += 1
+                gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(kid14.rowId))
+                beforePublish.captured.invoke(kid10)
+                CurrentUser(server(serverId), kid10)
+            }
+            val auth = AuthenticationResult(accessToken = "kid-token", serverId = serverId.toString())
+            try {
+                gate.signInKid("https://media.example", auth, "Emma")
+                error("should have been refused")
+            } catch (ex: ProfileGateException) {
+                assertEquals(GateDecision.NeedsParentUnlock, ex.decision)
+            }
+        }
+
+    @Test
+    fun `a kid sign-in under a still valid unlock publishes`() =
+        runTest {
+            protect(ProfileCeiling.Unlimited)
+            val gate = gate()
+            gate.verifyParentPin(parent, "1234", UnlockPurpose.AddKid)
+            val beforePublish = io.mockk.slot<suspend (JellyfinUser) -> Unit>()
+            coEvery {
+                serverRepository.changeUser(any<String>(), any(), any(), any(), any(), capture(beforePublish))
+            } coAnswers {
+                beforePublish.captured.invoke(kid10)
+                CurrentUser(server(serverId), kid10)
+            }
+            val auth = AuthenticationResult(accessToken = "kid-token", serverId = serverId.toString())
+
+            assertEquals(kid10, gate.signInKid("https://media.example", auth, "Emma").user)
+            assertNull(gate.parentUnlock.value)
+        }
 }

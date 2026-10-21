@@ -205,7 +205,9 @@ class KidSessionGateImpl
             authenticationResult: AuthenticationResult,
             displayName: String?,
         ): CurrentUser {
-            if (BuildConfig.KID_PROFILES_ENABLED && validUnlock()?.purpose != UnlockPurpose.AddKid) {
+            // The unlock that started this sign-in; only that same unexpired add-kid unlock may publish it
+            val unlock = validUnlock()
+            if (BuildConfig.KID_PROFILES_ENABLED && unlock?.purpose != UnlockPurpose.AddKid) {
                 // Only the add-kid flow, under a parent's unexpired unlock, signs a kid in
                 throw ProfileGateException(GateDecision.NeedsParentUnlock)
             }
@@ -219,6 +221,11 @@ class KidSessionGateImpl
                     beforePublish = { user ->
                         if (user.profileKind == ProfileKind.ADULT) {
                             throw IllegalStateException("signInKid was given an adult")
+                        }
+                        if (BuildConfig.KID_PROFILES_ENABLED && validUnlock() != unlock) {
+                            // The unlock expired (or was replaced/cleared) during the sign-in's network calls:
+                            // publish nothing, the flow asks for the parent's PIN again (plan 4.1, 4.3)
+                            throw ProfileGateException(GateDecision.NeedsParentUnlock)
                         }
                     },
                 )
