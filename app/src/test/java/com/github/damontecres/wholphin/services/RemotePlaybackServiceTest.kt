@@ -3,6 +3,7 @@ package com.github.damontecres.wholphin.services
 import android.content.Context
 import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.kids.ProfileChooserLock
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.preferences.updatePlaybackPreferences
@@ -27,7 +28,6 @@ import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.model.UUID
 import org.jellyfin.sdk.model.api.GeneralCommand
 import org.jellyfin.sdk.model.api.GeneralCommandType
-import com.github.damontecres.wholphin.kids.ProfileChooserLock
 import org.jellyfin.sdk.model.api.PlayCommand
 import org.jellyfin.sdk.model.api.PlayRequest
 import org.junit.After

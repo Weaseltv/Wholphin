@@ -3,9 +3,9 @@ package com.github.damontecres.wholphin.services
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.hilt.work.HiltWorker
-import com.github.damontecres.wholphin.BuildConfig
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.AppPreferences

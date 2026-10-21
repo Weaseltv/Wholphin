@@ -15,10 +15,9 @@ import androidx.tvprovider.media.tv.TvContractCompat
 import androidx.tvprovider.media.tv.TvContractCompat.Channels
 import androidx.tvprovider.media.tv.TvContractCompat.WatchNextPrograms
 import androidx.tvprovider.media.tv.WatchNextProgram
-import com.github.damontecres.wholphin.BuildConfig
-import com.github.damontecres.wholphin.services.WorkerSession
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.MainActivity
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ServerRepository
@@ -28,6 +27,7 @@ import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.services.ImageUrlService
 import com.github.damontecres.wholphin.services.IntentService
 import com.github.damontecres.wholphin.services.LatestNextUpService
+import com.github.damontecres.wholphin.services.WorkerSession
 import com.github.damontecres.wholphin.ui.SlimItemFields
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject

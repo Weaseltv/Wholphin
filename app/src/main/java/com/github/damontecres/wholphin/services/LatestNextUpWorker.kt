@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.appcompat.app.AppCompatActivity
 import androidx.hilt.work.HiltWorker
 import androidx.lifecycle.lifecycleScope
-import com.github.damontecres.wholphin.BuildConfig
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -14,6 +13,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.ui.collectLatestIn
 import com.github.damontecres.wholphin.util.ExceptionHandler
