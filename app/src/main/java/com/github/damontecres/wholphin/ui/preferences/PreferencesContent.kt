@@ -815,11 +815,20 @@ fun PreferencesContent(
             }
         }
         if (showTurnOffProtectionPin) {
+            // Leaving Settings with the prompt up is a dismissal too
+            DisposableEffect(Unit) { onDispose { viewModel.cancelTurnOffKidProtection() } }
             currentUser?.let { user ->
                 PinEntryDialog(
-                    onDismissRequest = { showTurnOffProtectionPin = false },
+                    // Dismissed: a PIN still being checked turns nothing off (review round 5)
+                    onDismissRequest = {
+                        viewModel.cancelTurnOffKidProtection()
+                        showTurnOffProtectionPin = false
+                    },
                     onTextChange = {},
-                    onClickServerAuth = { showTurnOffProtectionPin = false },
+                    onClickServerAuth = {
+                        viewModel.cancelTurnOffKidProtection()
+                        showTurnOffProtectionPin = false
+                    },
                     onSubmit = { pin ->
                         viewModel.turnOffKidProtection(user, pin) { result, turnedOff ->
                             when {

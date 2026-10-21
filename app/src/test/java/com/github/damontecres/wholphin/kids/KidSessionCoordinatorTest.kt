@@ -6,6 +6,7 @@ import androidx.datastore.core.DataStoreFactory
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import com.github.damontecres.wholphin.BuildConfig
+import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.JellyfinServerDao
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinServer
@@ -409,6 +410,70 @@ class KidSessionCoordinatorTest {
             collector.cancel()
 
             assertEquals(listOf("test-main"), threads)
+        }
+
+    /** A new adult's completed sign-in whose deferred PIN setup just finished: published with that adult's ceiling */
+    private suspend fun publishSignedInAdult(): CurrentUser {
+        val adult = profile(9, PolicyState.ADULT)
+        val auth = AuthenticationResult(user = dto(adult), serverId = serverId.toServerString(), accessToken = adult.accessToken)
+        coEvery { userApi.getCurrentUser() } returns successResponse(dto(adult))
+        return repository.changeUser(server.url, auth, existingUser = null, newPin = "4321", authorize = {})
+    }
+
+    @Test
+    fun `withdrawing an adult sign-in nobody navigated into puts the ceiling from before it back`() =
+        runBlocking {
+            protect(ProfileCeiling.Rating(10))
+            val adult = publishSignedInAdult()
+            assertEquals(ProfileCeiling.Unlimited, store.sessionCeiling())
+
+            // Back while the held target is parsed: the chooser flow withdraws what it published
+            repository.endSessionForChooser(adult)
+
+            assertNull(repository.current.value)
+            assertEquals(ProfileCeiling.Rating(10), store.sessionCeiling())
+            // The pinless Teens profile needs a parent again
+            assertEquals(GateDecision.NeedsParentUnlock, gate(ioScope).evaluate(teen))
+        }
+
+    @Test
+    fun `a withdrawal after the chooser teardown ended the session still puts the ceiling back`() =
+        runBlocking {
+            protect(ProfileCeiling.Rating(10))
+            val adult = publishSignedInAdult()
+            // The chooser came back up before the flow's withdrawal ran
+            repository.endSessionForChooser()
+
+            repository.endSessionForChooser(adult)
+
+            assertEquals(ProfileCeiling.Rating(10), store.sessionCeiling())
+            assertEquals(GateDecision.NeedsParentUnlock, gate(ioScope).evaluate(teen))
+        }
+
+    @Test
+    fun `withdrawing a session another switch replaced leaves that switch's session and ceiling alone`() =
+        runBlocking {
+            protect(ProfileCeiling.Rating(10))
+            val adult = publishSignedInAdult()
+            switchTo(olderKid)
+
+            repository.endSessionForChooser(adult)
+
+            assertEquals(olderKid.id, repository.currentUser?.id)
+            assertEquals(ProfileCeiling.Rating(14), store.sessionCeiling())
+        }
+
+    @Test
+    fun `a withdrawal never raises the ceiling above the one stored now`() =
+        runBlocking {
+            protect(ProfileCeiling.Unlimited)
+            switchTo(kid)
+            // From before the kid's switch: unlimited. The kid's session is withdrawn: the lower ceiling stays
+            val withdrawn = repository.current.value!!
+
+            repository.endSessionForChooser(withdrawn)
+
+            assertEquals(ProfileCeiling.Rating(10), store.sessionCeiling())
         }
 
     private companion object {

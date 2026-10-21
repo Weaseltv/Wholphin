@@ -113,6 +113,8 @@ fun SwitchUserContent(
     var username by remember(addUser) { mutableStateOf(addUser?.name ?: "") }
 
     fun showAddUserDialog(user: JellyfinUser?) {
+        // Kid profiles: a pick still in progress never publishes or navigates behind Add User
+        viewModel.leaveForOtherAction()
         addUser = user
         showAddUser = true
     }
@@ -269,7 +271,11 @@ fun SwitchUserContent(
                         modifier = Modifier.fillMaxWidth(),
                         onAddKid =
                             if (kidViewModel.canAddKid(state.users.filter { it.known }.map { it.user }, kidSession)) {
-                                { showAddKid = true }
+                                {
+                                    // A pick still in progress never publishes or navigates behind Add kid
+                                    viewModel.leaveForOtherAction()
+                                    showAddKid = true
+                                }
                             } else {
                                 null
                             },

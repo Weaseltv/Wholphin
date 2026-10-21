@@ -100,6 +100,28 @@ class KidProtectionStore
             return owned
         }
 
+        /**
+         * A published session was withdrawn before anyone used it (review round 5): the session ceiling goes back to
+         * [ceilingBefore], the one from before that session's switch, unless the stored one is lower; it is never
+         * raised. Unknown on either side, or ceilings that don't compare, leave it unknown (fail closed).
+         */
+        suspend fun withdrawSwitch(ceilingBefore: ProfileCeiling) {
+            dataStore.edit {
+                val stored = if (it[KEY_SWITCH_PENDING] == true) ProfileCeiling.Unknown else decodeCeiling(it[KEY_SESSION_CEILING])
+                val restored =
+                    when {
+                        ceilingBefore.isAtMost(stored) -> ceilingBefore
+                        stored.isAtMost(ceilingBefore) -> stored
+                        else -> ProfileCeiling.Unknown
+                    }
+                if (restored == ProfileCeiling.Unknown) {
+                    it.remove(KEY_SESSION_CEILING)
+                } else {
+                    it[KEY_SESSION_CEILING] = encodeCeiling(restored)
+                }
+            }
+        }
+
         /** Sets just the protection flag (a kid row is about to be written); a missing ceiling stays unknown */
         suspend fun protect() {
             dataStore.edit { it[KEY_PROTECTION] = true }
@@ -122,14 +144,23 @@ class KidProtectionStore
             }
         }
 
-        /** "Turn off kid protection on this TV": the caller has checked ParentUnlock and that no kid rows remain */
-        suspend fun clearProtection() {
+        /**
+         * "Turn off kid protection on this TV": the caller has checked ParentUnlock and that no kid rows remain.
+         * [authorize] is asked a last time in the write itself (review round 5); if it says no, nothing changes.
+         *
+         * @return whether protection was cleared
+         */
+        suspend fun clearProtection(authorize: () -> Boolean = { true }): Boolean {
+            var cleared = false
             dataStore.edit {
+                cleared = authorize()
+                if (!cleared) return@edit
                 it.remove(KEY_PROTECTION)
                 it.remove(KEY_SESSION_CEILING)
                 it.remove(KEY_SWITCH_PENDING)
                 it.remove(KEY_SWITCH_ID)
             }
+            return cleared
         }
 
         suspend fun pinBackoff(): PinBackoff {

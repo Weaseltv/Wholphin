@@ -162,6 +162,11 @@ class KidSessionGateImpl
             pin: String,
         ): PinCheckResult = checkPin(user, pin, requireAdult = false, purpose = null, admit = { it() })
 
+        override suspend fun checkOwnPin(
+            user: JellyfinUser,
+            pin: String,
+        ): PinCheckResult = checkPin(user, pin, requireAdult = false, purpose = null, admit = {})
+
         private suspend fun checkPin(
             user: JellyfinUser,
             pin: String,
@@ -388,16 +393,21 @@ class KidSessionGateImpl
         }
 
         /**
-         * "Turn off kid protection on this TV" (plan 4.2): only behind a [ParentUnlock] and with no kid rows left
+         * "Turn off kid protection on this TV" (plan 4.2): only behind a [ParentUnlock] and with no kid rows left.
+         * The unlock and [isCurrent] (the Settings prompt that asked is still open, review round 5) are checked again
+         * in the very write that clears protection, so a prompt dismissed meanwhile turns nothing off.
          *
          * @return whether protection was turned off
          */
-        suspend fun turnOffProtection(): Boolean {
+        suspend fun turnOffProtection(isCurrent: () -> Boolean = { true }): Boolean {
             if (validUnlock()?.purpose != UnlockPurpose.TurnOffProtection) return false
             if (withContext(ioDispatcher) { serverDao.countKidUsers() } > 0) return false
-            store.clearProtection()
-            clearParentUnlock()
-            return true
+            val cleared =
+                store.clearProtection {
+                    validUnlock()?.purpose == UnlockPurpose.TurnOffProtection && isCurrent()
+                }
+            clearParentUnlock(UnlockPurpose.TurnOffProtection)
+            return cleared
         }
 
         suspend fun canTurnOffProtection(): Boolean =

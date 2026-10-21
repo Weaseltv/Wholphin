@@ -73,8 +73,8 @@ class KidProfilesViewModel
     }
 
 /**
- * "Change picture" from the chooser's profile menu. A PIN profile proves it is its owner first;
- * the unlock that grants is dropped as soon as the picture dialog opens.
+ * "Change picture" from the chooser's profile menu. A PIN profile proves it is its owner first; that check grants
+ * no unlock (review round 5), so nothing outlives a dismissed dialog.
  */
 @Composable
 fun ChooserChangePicture(
@@ -109,9 +109,8 @@ fun ChooserChangePicture(
                     onTextChange = {},
                     onConfirm = { pin ->
                         scope.launch {
-                            when (val result = gate.verifyParentPin(user, pin)) {
+                            when (val result = gate.checkOwnPin(user, pin)) {
                                 PinCheckResult.Correct -> {
-                                    gate.clearParentUnlock()
                                     unlocked = true
                                 }
 

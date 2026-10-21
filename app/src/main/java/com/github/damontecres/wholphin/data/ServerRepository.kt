@@ -9,6 +9,7 @@ import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.PolicyState
 import com.github.damontecres.wholphin.kids.KidProtectionStore
+import com.github.damontecres.wholphin.kids.ProfileCeiling
 import com.github.damontecres.wholphin.kids.ProfileKind
 import com.github.damontecres.wholphin.kids.profileCeiling
 import com.github.damontecres.wholphin.kids.profileKind
@@ -72,6 +73,13 @@ class ServerRepository
 
         /** The session the last [assignSession] published; a policy refresh of it doesn't replace it */
         private var publishedSession: CurrentUser? = null
+
+        /**
+         * Kid profiles: the last session a switch published, with the session ceiling from before that switch
+         * (review round 5). Only a newer publication replaces it, so a withdrawal still finds it after the chooser
+         * teardown ended that session. Guarded by [sessionMutex].
+         */
+        private var lastPublication: Publication? = null
 
         private var _currentUserDto = MutableStateFlow<UserDto?>(null)
         val currentUserDto: UserDto? get() = _currentUserDto.value
@@ -224,6 +232,8 @@ class ServerRepository
             authorize: ((CurrentUser) -> Unit)?,
         ): CurrentUser {
             val kidProfiles = BuildConfig.KID_PROFILES_ENABLED
+            // Kid profiles: what a withdrawal of this session restores (review round 5)
+            val ceilingBefore = if (kidProfiles) kidProtectionStore.sessionCeiling() else null
             // Kid profiles: protection is on before a kid row is admitted, and the switch is journalled so an
             // interruption before it completes restarts gated (unknown ceiling), never at a higher one
             val switchId = if (kidProfiles) kidProtectionStore.beginSwitch(protect = user.profileKind != ProfileKind.ADULT) else null
@@ -246,6 +256,7 @@ class ServerRepository
                     // [published] records that the session changed even if a cancellation is delivered on the way back
                     assignSession(currentUser, userDto)
                     published = currentUser
+                    if (ceilingBefore != null) lastPublication = Publication(currentUser, ceilingBefore)
                 }
             } catch (ex: Throwable) {
                 if (switchId != null) {
@@ -351,10 +362,18 @@ class ServerRepository
         /**
          * Kid profiles: withdraws [published], a session a chooser flow published but that flow was left before it
          * navigated into it (review round 4). Ends it like [endSessionForChooser], but only while [published] is still
-         * the session that was published last; any later session is left alone.
+         * the session that was published last; any later session is left alone. The session ceiling its switch set
+         * goes too (review round 5): back to the one from before that switch, never higher (plan 4.1, 4.2), even if the
+         * chooser teardown already ended the session.
          */
         suspend fun endSessionForChooser(published: CurrentUser) {
             sessionMutex.withLock {
+                val publication = lastPublication?.takeIf { it.session === published }
+                if (publication != null) {
+                    lastPublication = null
+                    // The ceiling first: no later switch can be gated against the withdrawn session's ceiling
+                    kidProtectionStore.withdrawSwitch(publication.ceilingBefore)
+                }
                 val ended =
                     commitSession {
                         (publishedSession === published && _current.value != null).also { if (it) assignSession(null, null) }
@@ -625,6 +644,12 @@ fun JellyfinUser.withPolicyOf(userDto: UserDto): JellyfinUser {
         policyState = if (maxRating != null) PolicyState.KID else PolicyState.ADULT,
     )
 }
+
+/** A session a switch published and the session ceiling from before that switch */
+private class Publication(
+    val session: CurrentUser,
+    val ceilingBefore: ProfileCeiling,
+)
 
 @Serializable
 data class CurrentUser(
