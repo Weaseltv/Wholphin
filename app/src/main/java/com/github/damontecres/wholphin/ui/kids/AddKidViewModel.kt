@@ -15,6 +15,7 @@ import com.github.damontecres.wholphin.kids.KidQuickConnect
 import com.github.damontecres.wholphin.kids.KidSessionGate
 import com.github.damontecres.wholphin.kids.PinCheckResult
 import com.github.damontecres.wholphin.kids.ProfileKind
+import com.github.damontecres.wholphin.kids.UnlockPurpose
 import com.github.damontecres.wholphin.services.Avatar
 import com.github.damontecres.wholphin.services.ProfilePictureResult
 import com.github.damontecres.wholphin.services.ProfilePictureService
@@ -100,7 +101,7 @@ class AddKidViewModel
         fun submitPin(pin: String) =
             launch {
                 val user = parent ?: return@launch
-                when (val result = gate.verifyParentPin(user, pin)) {
+                when (val result = gate.verifyParentPin(user, pin, UnlockPurpose.AddKid)) {
                     PinCheckResult.Correct -> loadKids()
                     is PinCheckResult.Wrong -> _step.value = AddKidStep.EnterPin(user, PinError.Wrong(result.attemptsBeforeLockout))
                     is PinCheckResult.LockedOut -> _step.value = AddKidStep.EnterPin(user, PinError.LockedOut(result.retryAtMillis))
@@ -118,7 +119,7 @@ class AddKidViewModel
                 serverRepository.updateUserAuth(user, pin, false)
                 val withPin = user.copy(pin = pin, requireLogin = false)
                 parent = withPin
-                when (gate.verifyParentPin(withPin, pin)) {
+                when (gate.verifyParentPin(withPin, pin, UnlockPurpose.AddKid)) {
                     PinCheckResult.Correct -> loadKids()
                     else -> _step.value = AddKidStep.EnterPin(withPin)
                 }
@@ -204,8 +205,25 @@ class AddKidViewModel
             _step.value = form
         }
 
+        /**
+         * The parent's token, but only while their add-kid unlock is still valid (plan 4.1: 5 minutes). Otherwise
+         * the flow goes back to the parent's PIN and null is returned.
+         */
+        private fun authorizedToken(): String? {
+            val user = parent ?: return null
+            if (gate.validUnlockFor(user.rowId, UnlockPurpose.AddKid) == null) {
+                Timber.i("Parent unlock expired or not for this flow; asking for the PIN again")
+                _step.value = AddKidStep.EnterPin(user)
+                return null
+            }
+            return user.accessToken ?: run {
+                fail(AddKidError.SignInAgain, Retry.None)
+                null
+            }
+        }
+
         private suspend fun loadKids() {
-            val token = parent?.accessToken ?: return fail(AddKidError.SignInAgain, Retry.None)
+            val token = authorizedToken() ?: return
             _step.value = AddKidStep.Loading
             when (val result = api.list(token)) {
                 is KidApiResult.Ok -> {
@@ -228,7 +246,7 @@ class AddKidViewModel
             name: String,
             level: KidLevel,
         ) = launch {
-            val token = parent?.accessToken ?: return@launch fail(AddKidError.SignInAgain, Retry.None)
+            if (authorizedToken() == null) return@launch
             if (pendingBody != name to level) {
                 pendingKey = UUID.randomUUID().toString()
                 pendingBody = name to level
@@ -237,6 +255,7 @@ class AddKidViewModel
             _step.value = AddKidStep.Working(Work.Creating, name)
             var inProgressWaits = 0
             while (true) {
+                val token = authorizedToken() ?: return@launch
                 when (val result = api.create(token, key, name, level)) {
                     is KidApiResult.Ok -> {
                         pendingKey = null
@@ -285,10 +304,11 @@ class AddKidViewModel
         private fun connect(kid: KidProfile) = launch { connectNow(kid) }
 
         private suspend fun connectNow(kid: KidProfile) {
-            val token = parent?.accessToken ?: return fail(AddKidError.SignInAgain, Retry.None)
+            if (authorizedToken() == null) return
             _step.value = AddKidStep.Working(Work.Connecting, kid.displayName)
             var freshCodes = 0
             while (true) {
+                if (authorizedToken() == null) return
                 val code =
                     try {
                         quickConnect.initiate(server.url)
@@ -298,6 +318,7 @@ class AddKidViewModel
                         Timber.w(ex, "Quick Connect initiate failed")
                         return fail(AddKidError.Network, Retry.Connect(kid))
                     }
+                val token = authorizedToken() ?: return
                 val connected =
                     when (val result = api.connect(token, kid.id, code.code)) {
                         is KidApiResult.Ok -> {
@@ -340,6 +361,8 @@ class AddKidViewModel
                         return fail(AddKidError.Generic, Retry.Connect(kid))
                     }
                 val displayName = connected.displayName.ifBlank { kid.displayName }
+                // Signing the kid in is the last use of the parent's authority: still valid?
+                if (authorizedToken() == null) return
                 val current =
                     try {
                         gate.signInKid(server.url, auth, displayName)

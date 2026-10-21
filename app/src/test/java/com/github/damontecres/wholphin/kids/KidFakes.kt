@@ -140,6 +140,9 @@ class FakeKidQuickConnect : KidQuickConnect {
     var initiateError: Exception? = null
     val kidUserId: UUID = UUID.randomUUID()
 
+    /** Runs on every poll (eg to let the parent unlock expire mid-flow) */
+    var onPoll: () -> Unit = {}
+
     override suspend fun initiate(serverUrl: String): QuickConnectCode {
         initiateError?.let { throw it }
         initiated++
@@ -149,7 +152,10 @@ class FakeKidQuickConnect : KidQuickConnect {
     override suspend fun isAuthenticated(
         serverUrl: String,
         secret: String,
-    ): Boolean = ++pollsSeen >= pollsUntilAuthenticated
+    ): Boolean {
+        onPoll()
+        return ++pollsSeen >= pollsUntilAuthenticated
+    }
 
     override suspend fun authenticate(
         serverUrl: String,
