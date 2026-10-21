@@ -35,10 +35,12 @@ import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -57,6 +59,7 @@ import org.jellyfin.sdk.model.api.QuickConnectDto
 import org.jellyfin.sdk.model.api.QuickConnectResult
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.seconds
 
 @HiltViewModel(assistedFactory = SwitchUserViewModel.Factory::class)
@@ -84,6 +87,9 @@ class SwitchUserViewModel
         val state: StateFlow<SwitchUserState> = _state
 
         private var quickConnectJob: Job? = null
+
+        /** The chooser's switch in progress (kid profiles) */
+        private val switchJob = AtomicReference<Deferred<SwitchUserResult>?>(null)
 
         fun clearSwitchUserState() {
             _state.update { it.copy(switchUserState = LoadingState.Pending) }
@@ -151,50 +157,62 @@ class SwitchUserViewModel
             }
         }
 
-        fun trySwitchUser(user: JellyfinUser): Deferred<SwitchUserResult> =
-            viewModelScope.async(WholphinDispatchers.IO) {
-                try {
-                    if (BuildConfig.KID_PROFILES_ENABLED) {
-                        val current = kidSessionGate.switchTo(server, user)
-                        profileChooserLock.navigateAfterSwitch(current)
-                    } else {
-                        val current = serverRepository.changeUser(server, user)
-                        setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
-                    }
-                    SwitchUserResult.Success
-                } catch (ex: ProfileGateException) {
-                    // The refreshed policy needs more than was granted: ask again
-                    Timber.i("Switch refused by the gate: %s", ex.decision)
-                    askForDecision(user, ex.decision, PinPurpose.SWITCH)
-                    SwitchUserResult.Success
-                } catch (ex: InvalidStatusException) {
-                    when (ex.status) {
-                        401 -> {
-                            Timber.w(ex, "Error switching user 401")
-                            SwitchUserResult.Error(
-                                context.getString(R.string.login_credentials_expired),
-                                true,
-                            )
+        fun trySwitchUser(user: JellyfinUser): Deferred<SwitchUserResult> {
+            val job =
+                viewModelScope.async(WholphinDispatchers.IO, start = CoroutineStart.LAZY) {
+                    try {
+                        if (BuildConfig.KID_PROFILES_ENABLED) {
+                            val current = kidSessionGate.switchTo(server, user)
+                            // Superseded while switching: the newer pick's switch (serialized after this one) wins
+                            ensureActive()
+                            profileChooserLock.navigateAfterSwitch(current)
+                        } else {
+                            val current = serverRepository.changeUser(server, user)
+                            setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
                         }
+                        SwitchUserResult.Success
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: ProfileGateException) {
+                        // The refreshed policy needs more than was granted: ask again
+                        Timber.i("Switch refused by the gate: %s", ex.decision)
+                        askForDecision(user, ex.decision, PinPurpose.SWITCH)
+                        SwitchUserResult.Success
+                    } catch (ex: InvalidStatusException) {
+                        when (ex.status) {
+                            401 -> {
+                                Timber.w(ex, "Error switching user 401")
+                                SwitchUserResult.Error(
+                                    context.getString(R.string.login_credentials_expired),
+                                    true,
+                                )
+                            }
 
-                        403 -> {
-                            Timber.w(ex, "Error switching user 403")
-                            SwitchUserResult.Error(
-                                context.getString(R.string.login_not_authorized),
-                                false,
-                            )
-                        }
+                            403 -> {
+                                Timber.w(ex, "Error switching user 403")
+                                SwitchUserResult.Error(
+                                    context.getString(R.string.login_not_authorized),
+                                    false,
+                                )
+                            }
 
-                        else -> {
-                            Timber.e(ex, "Error switching user")
-                            SwitchUserResult.Error(ex.localizedMessage, true)
+                            else -> {
+                                Timber.e(ex, "Error switching user")
+                                SwitchUserResult.Error(ex.localizedMessage, true)
+                            }
                         }
+                    } catch (ex: Exception) {
+                        Timber.e(ex, "Error switching user")
+                        SwitchUserResult.Error(ex.localizedMessage, true)
                     }
-                } catch (ex: Exception) {
-                    Timber.e(ex, "Error switching user")
-                    SwitchUserResult.Error(ex.localizedMessage, true)
                 }
+            if (BuildConfig.KID_PROFILES_ENABLED) {
+                // Kid profiles: a newer pick supersedes an unfinished one, which then never navigates
+                switchJob.getAndSet(job)?.cancel()
             }
+            job.start()
+            return job
+        }
 
         fun login(
             server: JellyfinServer,
@@ -369,6 +387,8 @@ class SwitchUserViewModel
          * switch gate decides whether a parent PIN is needed (plan 4.2, 4.5).
          */
         fun onProfileSelected(user: JellyfinUser) {
+            // A new pick supersedes a switch still in progress
+            switchJob.getAndSet(null)?.cancel()
             viewModelScope.launchIO {
                 // A new pick starts without any earlier unlock
                 kidSessionGate.clearParentUnlock()
