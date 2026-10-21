@@ -166,11 +166,17 @@ class ProfileChooserLock
 
         /**
          * After a profile was picked on the chooser: continue a held tile/deep link if [current] owns it,
-         * otherwise open that profile's home.
+         * otherwise open that profile's home. [isCurrent] is asked on the main thread, right where it navigates
+         * (review round 4): if the chooser flow that published [current] was left meanwhile, nothing navigates and a
+         * held target stays held.
+         *
+         * @return whether it navigated
          */
-        suspend fun navigateAfterSwitch(current: CurrentUser) {
+        suspend fun navigateAfterSwitch(
+            current: CurrentUser,
+            isCurrent: () -> Boolean = { true },
+        ): Boolean {
             val held = _held.value
-            _held.value = null
             if (held != null && held.ownerUserId == current.user.id) {
                 val result =
                     try {
@@ -180,7 +186,9 @@ class ProfileChooserLock
                         null
                     }
                 if (result is IntentResult.Target) {
-                    withContext(WholphinDispatchers.Main) {
+                    return withContext(WholphinDispatchers.Main) {
+                        if (!isCurrent()) return@withContext false
+                        _held.compareAndSet(held, null)
                         if (result.addHomeToBackStack) {
                             navigationManager.reloadHome()
                         } else {
@@ -188,14 +196,17 @@ class ProfileChooserLock
                         }
                         navigationManager.backStack.addAll(result.destinations)
                         setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
+                        true
                     }
-                    return
                 }
             } else if (held != null) {
                 Timber.i("Held intent belongs to another profile, going to the picked profile's home")
             }
-            withContext(WholphinDispatchers.Main) {
+            return withContext(WholphinDispatchers.Main) {
+                if (!isCurrent()) return@withContext false
+                if (held != null) _held.compareAndSet(held, null)
                 setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
+                true
             }
         }
     }

@@ -1,8 +1,5 @@
 package com.github.damontecres.wholphin.kids
 
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
-import androidx.datastore.preferences.core.Preferences
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.JellyfinServerDao
@@ -15,17 +12,17 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.model.api.AuthenticationResult
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -33,22 +30,19 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
-import java.io.File
 import java.util.UUID
 
 /**
  * ProfileSwitchGate rules (plan 4.2), ParentUnlock and PIN backoff. Kid profiles only exist in the weaselfin flavor.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class KidSessionGateTest {
-    @get:Rule
-    val temporaryFolder: TemporaryFolder = TemporaryFolder.builder().assureDeletion().build()
-
-    private val dataStoreScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private lateinit var storeFile: File
-    private lateinit var dataStore: DataStore<Preferences>
+    /**
+     * In memory (review round 4): a real-IO DataStore let virtual time run on (expiring the unlock) while the test
+     * waited for a write, so the test dispatcher is now the only timing model
+     */
+    private val dataStore = FakePreferencesDataStore()
     private lateinit var store: KidProtectionStore
 
     private val serverRepository = mockk<ServerRepository>()
@@ -85,18 +79,11 @@ class KidSessionGateTest {
     @Before
     fun setUp() {
         Assume.assumeTrue(BuildConfig.KID_PROFILES_ENABLED)
-        storeFile = File(temporaryFolder.root, "key_value.preferences_pb")
-        dataStore = PreferenceDataStoreFactory.create(scope = dataStoreScope, produceFile = { storeFile })
         store = KidProtectionStore(dataStore)
         every { serverRepository.current } returns current
         rows.forEach { row -> every { serverDao.getUser(serverId, row.id) } returns row }
         every { serverDao.getServer(serverId) } returns JellyfinServerUsers(server(serverId), rows)
         every { serverDao.countKidUsers() } answers { rows.count { it.policyState == PolicyState.KID } }
-    }
-
-    @After
-    fun tearDown() {
-        dataStoreScope.cancel()
     }
 
     private fun TestScope.gate(kidStore: KidProtectionStore = store) =
@@ -158,7 +145,7 @@ class KidSessionGateTest {
             // The gated restore used by cold start and intents refuses it before any switch
             current.value = null
             assertNull(gate.restoreGated(serverId, pinlessAdult.id))
-            coVerify(exactly = 0) { serverRepository.changeUser(any(), any<JellyfinUser>(), any()) }
+            coVerify(exactly = 0) { serverRepository.changeUser(any(), any<JellyfinUser>(), any(), any()) }
         }
 
     @Test
@@ -184,7 +171,7 @@ class KidSessionGateTest {
             val gate = gate()
             gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(kid14.rowId))
             // The older kid's saved token has expired
-            coEvery { serverRepository.changeUser(any(), any<JellyfinUser>(), any()) } throws InvalidStatusException(401)
+            coEvery { serverRepository.changeUser(any(), any<JellyfinUser>(), any(), any()) } throws InvalidStatusException(401)
             try {
                 gate.switchTo(server(serverId), kid14)
                 error("should have failed")
@@ -217,7 +204,7 @@ class KidSessionGateTest {
             protect(ProfileCeiling.Rating(10))
             assertEquals(GateDecision.NeedsParentUnlock, gate().evaluate(kid14))
 
-            // "Restart": a new store and gate over the same file
+            // "Restart": a new store and gate over the same data
             val restartedStore = KidProtectionStore(dataStore)
             val restarted = gate(restartedStore)
             assertTrue(restartedStore.isProtected())
@@ -359,7 +346,7 @@ class KidSessionGateTest {
             protect(ProfileCeiling.Rating(10))
             val gate = gate()
             val beforePublish = io.mockk.slot<suspend (JellyfinUser) -> Unit>()
-            coEvery { serverRepository.changeUser(any(), any<JellyfinUser>(), capture(beforePublish)) } coAnswers {
+            coEvery { serverRepository.changeUser(any(), any<JellyfinUser>(), capture(beforePublish), any()) } coAnswers {
                 // The server says this kid is now Older kids
                 beforePublish.captured.invoke(kid10.copy(maxParentalRating = 14))
                 CurrentUser(server(serverId), kid10)
@@ -443,5 +430,87 @@ class KidSessionGateTest {
 
             assertEquals(kid10, gate.signInKid("https://media.example", auth, "Emma").user)
             assertNull(gate.parentUnlock.value)
+        }
+
+    @Test
+    fun `a parent PIN checked for a chooser flow that was left grants nothing`() =
+        runTest {
+            protect(ProfileCeiling.Rating(10))
+            val gate = gate()
+            // The flow's admission refuses: the prompt was dismissed while the PIN was checked
+            val result = gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(kid14.rowId), admit = {})
+            assertEquals(PinCheckResult.Correct, result)
+            assertNull(gate.parentUnlock.value)
+            assertEquals(GateDecision.NeedsParentUnlock, gate.evaluate(kid14))
+            // Admitted: granted
+            gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(kid14.rowId), admit = { it() })
+            assertEquals(GateDecision.Allow, gate.evaluate(kid14))
+        }
+
+    @Test
+    fun `a wrong PIN still counts when its prompt is dismissed during the check`() =
+        runTest {
+            val gate = gate()
+            // The attempt's write is held until after the asker left (a barrier, not timing)
+            val writing = CompletableDeferred<Unit>()
+            dataStore.beforeUpdate = { writing.await() }
+            val check = launch { gate.verifyParentPin(parent, "0000") }
+            runCurrent()
+
+            check.cancel()
+            writing.complete(Unit)
+            advanceUntilIdle()
+
+            assertEquals(1, store.pinBackoff().failures)
+        }
+
+    @Test
+    fun `an escalation whose unlock runs out before publication publishes nothing`() =
+        runTest {
+            protect(ProfileCeiling.Rating(10))
+            val gate = gate()
+            gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(kid14.rowId))
+            val beforePublish = io.mockk.slot<suspend (JellyfinUser) -> Unit>()
+            val authorize = io.mockk.slot<(CurrentUser) -> Unit>()
+            var published = false
+            coEvery {
+                serverRepository.changeUser(any(), any<JellyfinUser>(), capture(beforePublish), capture(authorize))
+            } coAnswers {
+                // The fresh gate check passes just before the five minutes are up...
+                now += KidSessionGateImpl.UNLOCK_DURATION.inWholeMilliseconds - 1
+                beforePublish.captured.invoke(kid14)
+                // ...and the switch reaches its publishing step just after
+                now += 1
+                val current = CurrentUser(server(serverId), kid14)
+                authorize.captured.invoke(current)
+                published = true
+                current
+            }
+            try {
+                gate.switchTo(server(serverId), kid14)
+                error("should have been refused")
+            } catch (ex: ProfileGateException) {
+                assertEquals(GateDecision.NeedsParentUnlock, ex.decision)
+            }
+            assertFalse(published)
+        }
+
+    @Test
+    fun `a switch the session ceiling allows doesn't depend on any unlock at publication`() =
+        runTest {
+            protect(ProfileCeiling.Rating(10))
+            val gate = gate()
+            gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(kid10.rowId))
+            val beforePublish = io.mockk.slot<suspend (JellyfinUser) -> Unit>()
+            val authorize = io.mockk.slot<(CurrentUser) -> Unit>()
+            coEvery {
+                serverRepository.changeUser(any(), any<JellyfinUser>(), capture(beforePublish), capture(authorize))
+            } coAnswers {
+                beforePublish.captured.invoke(kid10)
+                now += KidSessionGateImpl.UNLOCK_DURATION.inWholeMilliseconds
+                CurrentUser(server(serverId), kid10).also { authorize.captured.invoke(it) }
+            }
+
+            assertEquals(kid10, gate.switchTo(server(serverId), kid10).user)
         }
 }
