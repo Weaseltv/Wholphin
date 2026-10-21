@@ -90,7 +90,6 @@ import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.MusicService
-import com.github.damontecres.wholphin.services.NavDrawerItemState
 import com.github.damontecres.wholphin.services.NavDrawerService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.ProfilePictureService
@@ -122,10 +121,7 @@ import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.imageApi
@@ -147,19 +143,7 @@ class NavDrawerViewModel
         private val kidSessionGate: KidSessionGate,
         private val profilePictureService: ProfilePictureService,
     ) : ViewModel() {
-        // WeaselPlex kid profiles: no Discover/Requests in a kid session (plan 4.4). Seerr never
-        // connects for kids either, so this only covers the moment before that settles.
-        val serviceState: StateFlow<NavDrawerItemState> =
-            combine(navDrawerService.state, kidSessionGate.isKidSession) { state, kid ->
-                if (kid && BuildConfig.KID_PROFILES_ENABLED) {
-                    state.copy(
-                        items = state.items.filter { it != NavDrawerItem.Discover },
-                        moreItems = state.moreItems.filter { it != NavDrawerItem.Discover },
-                    )
-                } else {
-                    state
-                }
-            }.stateIn(viewModelScope, SharingStarted.Eagerly, navDrawerService.state.value)
+        val serviceState = navDrawerService.state
 
         val pictureVersions = profilePictureService.versions
 
