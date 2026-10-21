@@ -2,9 +2,11 @@ package com.github.damontecres.wholphin.kids
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.datastore.core.DataStore
 import androidx.datastore.core.DataStoreFactory
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.Preferences
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.JellyfinServerDao
@@ -33,6 +35,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.jellyfin.sdk.Jellyfin
@@ -77,6 +80,7 @@ class KidServerRepositoryTest {
     private val scopedApi = mockk<ApiClient>()
     private val userApi = mockk<UserApi>()
     private val systemApi = mockk<SystemApi>()
+    private lateinit var keyValue: DataStore<Preferences>
     private lateinit var store: KidProtectionStore
     private lateinit var repository: ServerRepository
 
@@ -114,7 +118,7 @@ class KidServerRepositoryTest {
     fun setUp() {
         Assume.assumeTrue(BuildConfig.KID_PROFILES_ENABLED)
         WholphinDispatchers.configure(UnconfinedTestDispatcher())
-        val keyValue =
+        keyValue =
             PreferenceDataStoreFactory.create(
                 scope = ioScope,
                 produceFile = { File(temporaryFolder.root, "key_value.preferences_pb") },
@@ -296,6 +300,30 @@ class KidServerRepositoryTest {
             assertEquals("1234", saved.captured.pin)
             assertEquals(1, saved.captured.rowId)
             assertEquals("new-token", saved.captured.accessToken)
+        }
+
+    @Test
+    fun `Quick Connect as another user never takes over the selected profile's row or PIN`() =
+        runTest {
+            // The kid was picked on the chooser, but a new adult approved the Quick Connect
+            val kid = row(3, pin = "5555").copy(policyState = PolicyState.KID, maxParentalRating = 10)
+            val adultId = UUID.randomUUID()
+            coEvery { userApi.getCurrentUser() } returns successResponse(userDto(adultId, null))
+            val saved = slot<JellyfinUser>()
+            every { serverDao.addOrUpdateUser(capture(saved)) } answers { firstArg() }
+            val auth =
+                AuthenticationResult(
+                    user = userDto(adultId, null),
+                    serverId = serverId.toServerString(),
+                    accessToken = "adult-token",
+                )
+
+            repository.changeUser(server.url, auth, kid)
+
+            assertEquals(adultId, saved.captured.id)
+            assertEquals(0, saved.captured.rowId)
+            assertNull(saved.captured.pin)
+            assertEquals("adult-token", saved.captured.accessToken)
         }
 
     @Test

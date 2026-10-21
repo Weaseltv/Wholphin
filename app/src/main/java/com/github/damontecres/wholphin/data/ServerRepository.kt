@@ -267,13 +267,14 @@ class ServerRepository
                     }
                 if (server != null) {
                     val savedUser =
-                        existingUser
-                            ?: if (BuildConfig.KID_PROFILES_ENABLED && authedUser != null) {
-                                // Signing a saved profile in again via Add User keeps its PIN and settings
-                                serverDao.getUser(server.id, authedUser.id)
-                            } else {
-                                null
-                            }
+                        if (!BuildConfig.KID_PROFILES_ENABLED) {
+                            existingUser
+                        } else {
+                            // Kid profiles: the selected profile is reused only if it is the one that just
+                            // authenticated; anyone else gets their own saved row (keeping its PIN) or a new one
+                            existingUser.ifSameIdentity(server.id, authedUser?.id)
+                                ?: authedUser?.let { serverDao.getUser(server.id, it.id) }
+                        }
                     val user =
                         authedUser?.let {
                             if (savedUser != null) {
@@ -458,6 +459,14 @@ class ServerRepository
             const val ACCESS_TOKEN_KEY = "current.accessToken"
         }
     }
+
+/**
+ * [this] profile only if it is the identity that authenticated ([serverId] and [userId] match), else null
+ */
+fun JellyfinUser?.ifSameIdentity(
+    serverId: UUID?,
+    userId: UUID?,
+): JellyfinUser? = this?.takeIf { serverId != null && userId != null && it.serverId == serverId && it.id == userId }
 
 /**
  * The saved profile updated with the server policy in [userDto]. A missing policy keeps the cached values.

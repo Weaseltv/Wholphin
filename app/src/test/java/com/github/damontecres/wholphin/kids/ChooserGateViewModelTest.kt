@@ -11,6 +11,7 @@ import com.github.damontecres.wholphin.test.server
 import com.github.damontecres.wholphin.ui.setup.ChooserPrompt
 import com.github.damontecres.wholphin.ui.setup.PinPurpose
 import com.github.damontecres.wholphin.ui.setup.SwitchUserViewModel
+import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import com.github.damontecres.wholphin.util.configure
 import com.github.damontecres.wholphin.util.reset
@@ -29,11 +30,21 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume
 import org.junit.Before
 import org.junit.Test
+import org.jellyfin.sdk.Jellyfin
+import org.jellyfin.sdk.api.client.ApiClient
+import org.jellyfin.sdk.api.client.Response
+import org.jellyfin.sdk.api.client.extensions.userApi
+import org.jellyfin.sdk.api.operations.UserApi
+import org.jellyfin.sdk.model.api.AuthenticateUserByName
+import org.jellyfin.sdk.model.api.AuthenticationResult
+import org.jellyfin.sdk.model.api.UserDto
+import org.jellyfin.sdk.model.api.UserPolicy
 import java.util.UUID
 
 /** The chooser's use of the gate: adult lockout, PIN prompts, long-press delete rules (plan 4.2) */
@@ -46,6 +57,7 @@ class ChooserGateViewModelTest {
     private val gate = mockk<KidSessionGateImpl>(relaxed = true)
     private val store = mockk<KidProtectionStore>()
     private val chooserLock = mockk<ProfileChooserLock>(relaxed = true)
+    private val jellyfin = mockk<Jellyfin>(relaxed = true)
 
     private val serverId = UUID.randomUUID()
     private val server = server(serverId)
@@ -70,6 +82,7 @@ class ChooserGateViewModelTest {
     private val pinlessAdult = profile(2, PolicyState.ADULT)
     private val kid = profile(3, PolicyState.KID, 10)
     private val olderKid = profile(4, PolicyState.KID, 14)
+    private val kidWithPin = profile(5, PolicyState.KID, 10, pin = "5555")
 
     private lateinit var viewModel: SwitchUserViewModel
 
@@ -79,13 +92,13 @@ class ChooserGateViewModelTest {
         Dispatchers.setMain(dispatcher)
         WholphinDispatchers.configure(dispatcher)
         every { serverDao.getServer(serverId) } returns
-            JellyfinServerUsers(server, listOf(parent, pinlessAdult, kid, olderKid))
+            JellyfinServerUsers(server, listOf(parent, pinlessAdult, kid, olderKid, kidWithPin))
         coEvery { store.isProtected() } returns true
         coEvery { serverRepository.removeUser(any()) } just runs
         viewModel =
             SwitchUserViewModel(
                 context = context,
-                jellyfin = mockk(relaxed = true),
+                jellyfin = jellyfin,
                 serverRepository = serverRepository,
                 serverDao = serverDao,
                 navigationManager = mockk(relaxed = true),
@@ -192,5 +205,40 @@ class ChooserGateViewModelTest {
             coEvery { store.isProtected() } returns false
             viewModel.removeUser(pinlessAdult)
             coVerify(exactly = 1) { serverRepository.removeUser(pinlessAdult) }
+        }
+
+    @Test
+    fun `server sign-in as a new adult from a PIN kid's prompt needs the adult's own PIN`() =
+        runTest(dispatcher) {
+            // The kid was picked, then "use server sign-in" was approved by an adult not saved on this TV
+            val adultId = UUID.randomUUID()
+            every { serverDao.getUser(serverId, adultId) } returns null
+            every { serverDao.getUser(serverId, kidWithPin.id) } returns kidWithPin
+            val auth =
+                AuthenticationResult(
+                    user =
+                        UserDto(
+                            id = adultId,
+                            name = "new adult",
+                            hasPassword = false,
+                            hasConfiguredPassword = false,
+                            hasConfiguredEasyPassword = false,
+                            policy = mockk<UserPolicy> { every { maxParentalRating } returns null },
+                        ),
+                    accessToken = "adult-token",
+                    serverId = serverId.toServerString(),
+                )
+            val api = mockk<ApiClient>()
+            val userApi = mockk<UserApi>()
+            every { jellyfin.createApi(any(), any(), any(), any(), any()) } returns api
+            every { api.userApi } returns userApi
+            coEvery { userApi.authenticateUserByName(any<AuthenticateUserByName>()) } returns Response(auth, 200, emptyMap())
+
+            viewModel.login(server, kidWithPin, "adult", "secret")
+
+            val pending = viewModel.state.value.pendingPinSetup
+            assertNotNull("the new adult must set their own PIN first", pending)
+            assertNull(pending!!.existingUser)
+            coVerify(exactly = 0) { serverRepository.changeUser(any<String>(), any(), any(), any(), any(), any()) }
         }
 }

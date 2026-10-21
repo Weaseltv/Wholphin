@@ -8,6 +8,7 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.WholphinApplication
 import com.github.damontecres.wholphin.data.JellyfinServerDao
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.data.ifSameIdentity
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.kids.GateDecision
@@ -52,6 +53,7 @@ import org.jellyfin.sdk.model.ServerVersion
 import org.jellyfin.sdk.model.api.AuthenticationResult
 import org.jellyfin.sdk.model.api.QuickConnectDto
 import org.jellyfin.sdk.model.api.QuickConnectResult
+import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
 import kotlin.time.Duration.Companion.seconds
 
@@ -308,17 +310,20 @@ class SwitchUserViewModel
             val authedUser = authenticationResult.user
             val policy = authedUser?.policy
             val isAdult = policy != null && policy.maxParentalRating == null
-            val savedPin =
-                existingUser?.pin
-                    ?: authedUser?.let { withContext(WholphinDispatchers.IO) { serverDao.getUser(server.id, it.id) } }?.pin
-            if (isAdult && savedPin.isNullOrBlank() && kidProtectionStore.isProtected()) {
+            // The profile picked on the chooser counts only if it is the identity that just authenticated;
+            // otherwise that identity's own saved row (or none), so nobody inherits another profile's PIN
+            val serverId = authenticationResult.serverId?.toUUIDOrNull() ?: server.id
+            val savedUser =
+                existingUser.ifSameIdentity(serverId, authedUser?.id)
+                    ?: authedUser?.let { withContext(WholphinDispatchers.IO) { serverDao.getUser(serverId, it.id) } }
+            if (isAdult && savedUser?.pin.isNullOrBlank() && kidProtectionStore.isProtected()) {
                 Timber.i("Adult without a PIN on a protected device: PIN setup before sign-in")
                 _state.update {
-                    it.copy(pendingPinSetup = PendingPinSetup(serverUrl, authenticationResult, existingUser))
+                    it.copy(pendingPinSetup = PendingPinSetup(serverUrl, authenticationResult, savedUser))
                 }
                 return
             }
-            completeFreshAuth(serverUrl, authenticationResult, existingUser, null)
+            completeFreshAuth(serverUrl, authenticationResult, savedUser, null)
         }
 
         private suspend fun completeFreshAuth(
