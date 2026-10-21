@@ -1,7 +1,9 @@
-# Kid profiles — frozen TV <-> website contract (v1.1)
+# Kid profiles — frozen TV <-> website contract (v1.2)
 
 Status: **FROZEN 2026-10-21** by the kid-profiles orchestrator. v1.1 (same day) only clarifies
-website-side details found while building tracks A and B; nothing the TV sends or reads changed. Identical copies live in
+website-side details found while building tracks A and B; nothing the TV sends or reads changed.
+v1.2 (same day) applies the Phase 0 result (Jellyfin 12.2.0): `MaxParentalSubRating` is 1 at
+every level; null behaves like 0 and hid all TV-MA/NC-17 from Teens. TV behaviour unchanged. Identical copies live in
 `Wholphin/runbooks/kid-profiles/contract.md` and `weaseltv-platform/docs/kid-profiles/contract.md`. Tracks build to this
 document. Changes go through the orchestrator only; a change bumps the version line above and
 is made in both repos in the same step.
@@ -13,12 +15,13 @@ avatars (Notion, 2026-10-12). Section numbers below refer to that plan.
 
 | Wire id (`level`) | Label (TV and portal) | Description shown | `MaxParentalRating` | `MaxParentalSubRating` | TV ceiling |
 |---|---|---|---|---|---|
-| `kids` | Kids | Up to PG and TV-PG | 10 | `null` | 10 |
-| `older_kids` | Older kids | Up to PG-13 and TV-14 | 14 | `null` | 14 |
-| `teens` | Teens | Up to R and TV-MA | 17 | `null` | 17 |
+| `kids` | Kids | Up to PG and TV-PG | 10 | 1 | 10 |
+| `older_kids` | Older kids | Up to PG-13 and TV-14 | 14 | 1 | 14 |
+| `teens` | Teens | Up to R and TV-MA | 17 | 1 | 17 |
 
-- Values are provisional until Phase 0 confirms them on the live 12.1 server; Phase 0 may
-  change the numbers, never the wire ids.
+- Confirmed by Phase 0 on the live server (Jellyfin **12.2.0**, 2026-10-21; see
+  `runbooks/kid-profiles/phase0-results.md` in Wholphin). Numbers may change only through the
+  orchestrator, never the wire ids.
 - **Kid signal (TV):** a Jellyfin user is a kid iff `UserDto.policy.maxParentalRating != null`.
   Its ceiling is that value. Adults have `null` (the website's member builder sets it to
   `null` explicitly, plan 3.3). The TV never infers the level from the name or from the
@@ -28,7 +31,7 @@ avatars (Notion, 2026-10-12). Section numbers below refer to that plan.
 
 ### 1.1 Kid policy fields (website writes, then reads back and verifies)
 Starting from `weaselPlexMemberPolicy(current, folderIds)` plus member configuration:
-`MaxParentalRating` (table above), `MaxParentalSubRating: null`,
+`MaxParentalRating` and `MaxParentalSubRating` (table above),
 `BlockUnratedItems: ["Movie","Series","Trailer","Book","ChannelContent","LiveTvChannel","LiveTvProgram","Other"]`,
 `EnableLiveTvAccess: false`, `EnableLiveTvManagement: false`, `SyncPlayAccess: "None"`,
 `EnableContentDeletion: false`, `IsAdministrator: false`, `IsDisabled: false` (unless the
