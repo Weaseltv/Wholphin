@@ -134,8 +134,10 @@ class KidSessionGateImpl
                 val isAdult = row.profileKind == ProfileKind.ADULT
                 val correct = row.hasPin && row.pin == pin && (isAdult || !requireAdult)
                 if (correct) {
-                    store.setPinBackoff(PinBackoff())
                     if (isAdult) {
+                        // Only a verified adult PIN clears the device-wide guess counter; a kid opening their
+                        // own profile must not wipe the failed parent guesses before it
+                        store.setPinBackoff(PinBackoff())
                         grantUnlock(row)
                     }
                     PinCheckResult.Correct
@@ -176,6 +178,7 @@ class KidSessionGateImpl
          */
         suspend fun grantUnlockForFreshAuth(user: JellyfinUser) {
             if (BuildConfig.KID_PROFILES_ENABLED && user.profileKind == ProfileKind.ADULT) {
+                pinMutex.withLock { store.setPinBackoff(PinBackoff()) }
                 grantUnlock(user)
             }
         }

@@ -237,6 +237,18 @@ class KidSessionGateTest {
         }
 
     @Test
+    fun `a kid's correct PIN never resets the parent-guess backoff`() =
+        runTest {
+            protect(ProfileCeiling.Rating(10))
+            val gate = gate()
+            repeat(4) { gate.verifyParentPin(parent, "0000") }
+            // A kid opening their own profile in between must not wipe the parent guesses
+            assertEquals(PinCheckResult.Correct, gate.verifyProfilePin(kid10WithPin, "5555"))
+            assertEquals(4, store.pinBackoff().failures)
+            assertTrue(gate.verifyParentPin(parent, "0000") is PinCheckResult.LockedOut)
+        }
+
+    @Test
     fun `lockout durations double and cap at an hour`() {
         assertEquals(30_000L, KidSessionGateImpl.lockoutDuration(1))
         assertEquals(60_000L, KidSessionGateImpl.lockoutDuration(2))
