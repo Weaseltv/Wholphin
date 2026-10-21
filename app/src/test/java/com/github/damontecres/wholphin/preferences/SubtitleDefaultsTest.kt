@@ -99,7 +99,7 @@ class SubtitleDefaultsTest {
         createVersion35Database(serverId, users)
 
         withDatabase { db ->
-            assertEquals(36, db.openHelper.writableDatabase.version)
+            assertEquals(37, db.openHelper.writableDatabase.version)
             users.forEach { previous ->
                 val expected =
                     if (previous.appPreferences.subtitleMode == SubtitleModePreference.USE_USER_PROFILE) {
@@ -182,7 +182,7 @@ class SubtitleDefaultsTest {
     private fun openDatabase(): AppDatabase =
         Room
             .databaseBuilder(context, AppDatabase::class.java, databaseName)
-            .addMigrations(Migrations.Migrate35to36)
+            .addMigrations(Migrations.Migrate35to36, Migrations.Migrate36to37)
             .allowMainThreadQueries()
             .build()
 
