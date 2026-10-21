@@ -56,6 +56,7 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.services.SetupDestination
+import com.github.damontecres.wholphin.services.profilePicturesEnabled
 import com.github.damontecres.wholphin.ui.components.BasicDialog
 import com.github.damontecres.wholphin.ui.components.CircularProgress
 import com.github.damontecres.wholphin.ui.components.DialogItem
@@ -67,6 +68,9 @@ import com.github.damontecres.wholphin.ui.components.TextButton
 import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.dimAndBlur
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
+import com.github.damontecres.wholphin.ui.kids.AddKidFlow
+import com.github.damontecres.wholphin.ui.kids.ChooserChangePicture
+import com.github.damontecres.wholphin.ui.kids.KidProfilesViewModel
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.preferences.SetPinFlow
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
@@ -87,6 +91,7 @@ fun SwitchUserContent(
         hiltViewModel<SwitchUserViewModel, SwitchUserViewModel.Factory>(
             creationCallback = { it.create(server) },
         ),
+    kidViewModel: KidProfilesViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -98,6 +103,11 @@ fun SwitchUserContent(
 
     val currentUser by viewModel.serverRepository.currentUserFlow.collectAsState(null)
     val connectOnly = weaselPlexConnectOnly()
+    // WeaselPlex kid profiles: a kid session hides Add User, Add kid and Switch server (plan 4.4).
+    val kidSession by kidViewModel.isKidSession.collectAsState()
+    val pictureVersions by kidViewModel.pictureVersions.collectAsState()
+    var showAddKid by remember { mutableStateOf(false) }
+    var changePictureFor by remember { mutableStateOf<JellyfinUser?>(null) }
     var showAddUser by remember { mutableStateOf(false) }
     var addUser by remember(server) { mutableStateOf<JellyfinUser?>(null) }
     var username by remember(addUser) { mutableStateOf(addUser?.name ?: "") }
@@ -184,7 +194,7 @@ fun SwitchUserContent(
                 return@SwitchUserContent
             }
             Box(
-                modifier = modifier.dimAndBlur(showAddUser || switchUserWithPin != null),
+                modifier = modifier.dimAndBlur(showAddUser || switchUserWithPin != null || showAddKid),
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -237,14 +247,17 @@ fun SwitchUserContent(
                                 trySwitchUser(user)
                             }
                         },
-                        onAddUser = {
-                            showAddUserDialog(null)
-                        },
+                        onAddUser =
+                            if (kidSession && BuildConfig.KID_PROFILES_ENABLED) {
+                                null
+                            } else {
+                                { showAddUserDialog(null) }
+                            },
                         onRemoveUser = { user ->
                             viewModel.removeUser(user)
                         },
                         onSwitchServer =
-                            if (connectOnly || isServerPinned) {
+                            if (connectOnly || isServerPinned || (kidSession && BuildConfig.KID_PROFILES_ENABLED)) {
                                 null
                             } else {
                                 {
@@ -254,6 +267,24 @@ fun SwitchUserContent(
                                 }
                             },
                         modifier = Modifier.fillMaxWidth(),
+                        onAddKid =
+                            if (kidViewModel.canAddKid(state.users.filter { it.known }.map { it.user }, kidSession)) {
+                                { showAddKid = true }
+                            } else {
+                                null
+                            },
+                        isKid = kidViewModel::isKid,
+                        onChangePicture =
+                            if (profilePicturesEnabled) {
+                                { user ->
+                                    if (kidViewModel.canChangePicture(user, user.id == currentUser?.id)) {
+                                        changePictureFor = user
+                                    }
+                                }
+                            } else {
+                                null
+                            },
+                        pictureVersions = pictureVersions,
                     )
                 }
                 when (state.serverVersionSupported) {
@@ -558,6 +589,21 @@ fun SwitchUserContent(
         }
 
         null -> {}
+    }
+    if (showAddKid) {
+        AddKidFlow(
+            server = server,
+            users = state.users.filter { it.known }.map { it.user },
+            onClose = { showAddKid = false },
+        )
+    }
+    changePictureFor?.let { user ->
+        ChooserChangePicture(
+            server = server,
+            user = user,
+            gate = kidViewModel.gate,
+            onDone = { changePictureFor = null },
+        )
     }
     switchUserWithPin?.let { user ->
         PinEntryDialog(

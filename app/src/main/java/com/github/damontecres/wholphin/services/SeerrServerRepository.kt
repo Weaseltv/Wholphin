@@ -15,6 +15,7 @@ import com.github.damontecres.wholphin.data.model.SeerrPermission
 import com.github.damontecres.wholphin.data.model.SeerrServer
 import com.github.damontecres.wholphin.data.model.SeerrUser
 import com.github.damontecres.wholphin.data.model.hasPermission
+import com.github.damontecres.wholphin.kids.KidSessionGate
 import com.github.damontecres.wholphin.services.hilt.StandardOkHttpClient
 import com.github.damontecres.wholphin.ui.setup.seerr.createSeerrApiUrl
 import com.github.damontecres.wholphin.util.LoadingState
@@ -31,6 +32,7 @@ import okhttp3.OkHttpClient
 import org.jellyfin.sdk.model.api.ImageType
 import timber.log.Timber
 import javax.inject.Inject
+import javax.inject.Provider
 import javax.inject.Singleton
 import kotlin.time.Duration.Companion.seconds
 
@@ -45,6 +47,7 @@ class SeerrServerRepository
         private val seerrServerDao: SeerrServerDao,
         private val serverRepository: ServerRepository,
         @param:StandardOkHttpClient private val okHttpClient: OkHttpClient,
+        private val kidSessionGate: Provider<KidSessionGate>,
     ) {
         private val _connection =
             MutableStateFlow<SeerrConnectionStatus>(SeerrConnectionStatus.NotConfigured)
@@ -80,11 +83,15 @@ class SeerrServerRepository
 
         /**
          * WeaselFin: whether the current Jellyfin user may use Seerr at all. Kid
-         * profiles never may; see [SeerrKidGuard]. Upstream flavors are unaffected.
+         * profiles never may; see [SeerrKidGuard]. With kid profiles on, the session
+         * must also not be a kid (or unknown) session per [KidSessionGate] (plan 4.4).
+         * Upstream flavors are unaffected.
          */
         private fun seerrAllowedFor(user: JellyfinUser?): Boolean {
             if (BuildConfig.FLAVOR != "weaselfin") return true
-            val allowed = SeerrKidGuard.isConfirmedAdult(user?.id, serverRepository.currentUserDto)
+            val allowed =
+                SeerrKidGuard.isConfirmedAdult(user?.id, serverRepository.currentUserDto) &&
+                    !(BuildConfig.KID_PROFILES_ENABLED && kidSessionGate.get().isKidSession.value)
             if (!allowed) Timber.i("Seerr skipped: not a confirmed adult profile")
             return allowed
         }

@@ -60,6 +60,10 @@ sealed class Destination(
 
     data object UserAppPreferences : Destination(true)
 
+    /** WeaselPlex: the signed-in profile's picture (kid-profiles plan 4.6). */
+    @Serializable
+    data object ProfilePicture : Destination(true)
+
     @Serializable
     data class SeriesOverview(
         val itemId: UUID,

@@ -162,10 +162,11 @@ configure<ApplicationExtension> {
         // The short address shown next to the QR code for typing it by hand.
         buildConfigField("String", "QUICK_CONNECT_APPROVE_LABEL", "\"\"")
 
-        // WeaselPlex kid profiles (runbooks/kid-profiles): the session gate, kid protection and
-        // the always-show-the-profile-screen rule. Off for every upstream flavor; only
-        // `weaselfin` turns it on.
+        // WeaselPlex kid profiles (runbooks/kid-profiles): the session gate, kid protection, the
+        // always-show-the-profile-screen rule and the website's kid routes. Off, with no website,
+        // for every upstream flavor; only `weaselfin` turns them on.
         buildConfigField("boolean", "KID_PROFILES_ENABLED", "false")
+        buildConfigField("String", "WEASELPLEX_WEBSITE_URL", "\"\"")
     }
 
     signingConfigs {
@@ -314,6 +315,7 @@ configure<ApplicationExtension> {
             )
             buildConfigField("String", "QUICK_CONNECT_APPROVE_LABEL", "\"theweasel.tv/plex\"")
             buildConfigField("boolean", "KID_PROFILES_ENABLED", "true")
+            buildConfigField("String", "WEASELPLEX_WEBSITE_URL", "\"https://theweasel.tv\"")
             buildConfigField("String", "DEFAULT_THEME", "\"WEASELTV\"")
             buildConfigField("String", "DEFAULT_SUBTITLE_MODE", "\"ONLY_FORCED\"")
             // 🛑 Deliberately still "WeaselFin" (ruling R5, 2026-08-25). The in-app updater

@@ -69,6 +69,7 @@ import com.github.damontecres.wholphin.preferences.SkipSegmentPreferences
 import com.github.damontecres.wholphin.preferences.advancedPreferences
 import com.github.damontecres.wholphin.preferences.basicPreferences
 import com.github.damontecres.wholphin.preferences.experimentalPreferences
+import com.github.damontecres.wholphin.preferences.kidHiddenPreferences
 import com.github.damontecres.wholphin.preferences.lazyListWrapScrolling
 import com.github.damontecres.wholphin.preferences.screensaverPreferences
 import com.github.damontecres.wholphin.preferences.updatePlaybackPreferences
@@ -82,6 +83,7 @@ import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.components.ScrollableDialog
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.indexOfFirstOrNull
+import com.github.damontecres.wholphin.ui.kids.KidProfilesViewModel
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.playOnClickSound
 import com.github.damontecres.wholphin.ui.playSoundOnFocus
@@ -113,6 +115,7 @@ fun PreferencesContent(
     viewModel: PreferencesViewModel = hiltViewModel(),
     updateVM: UpdateViewModel = hiltViewModel(),
     seerrVm: SwitchSeerrViewModel = hiltViewModel(),
+    kidViewModel: KidProfilesViewModel = hiltViewModel(),
     onFocus: (Int, Int) -> Unit = { _, _ -> },
     onUpdateNotesChange: (Release?) -> Unit = {},
 ) {
@@ -126,6 +129,7 @@ fun PreferencesContent(
     val state = rememberLazyListState()
     var preferences by remember { mutableStateOf(initialPreferences) }
     val currentUser by viewModel.currentUser.collectAsState()
+    val kidSession by kidViewModel.isKidSession.collectAsState()
     var showPinFlow by remember { mutableStateOf(false) }
     var showVersionDialog by remember { mutableStateOf(false) }
     val players by viewModel.externalPlayers.collectAsState()
@@ -318,6 +322,7 @@ fun PreferencesContent(
                                 .filter { it.condition.invoke(preferences) }
                                 .map { it.preferences }
                                 .flatten()
+                                .filterNot { kidSession && BuildConfig.KID_PROFILES_ENABLED && it in kidHiddenPreferences }
                     groupPreferences.forEachIndexed { prefIndex, pref ->
                         pref as AppPreference<AppPreferences, Any>
                         val isFirst = groupIndex == 0 && prefIndex == 0 && !showUpdate
