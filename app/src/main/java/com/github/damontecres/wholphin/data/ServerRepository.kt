@@ -125,8 +125,10 @@ class ServerRepository
                 }
                 val currentUser = CurrentUser(updatedServer, updatedUser)
                 withContext(WholphinDispatchers.Main) {
-                    _current.value = currentUser
+                    // WeaselFin: the user's policy goes out first, so anything that reacts to
+                    // the new user (the Seerr kid guard) already sees that user's policy.
                     _currentUserDto.value = userDto
+                    _current.value = currentUser
                 }
                 getServerSharedPreferences(context).edit(true) {
                     putString(SERVER_URL_KEY, updatedServer.url)
