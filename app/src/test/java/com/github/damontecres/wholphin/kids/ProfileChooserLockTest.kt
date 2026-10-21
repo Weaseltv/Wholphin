@@ -5,6 +5,8 @@ import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.JellyfinServerDao
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.data.model.JellyfinServer
+import com.github.damontecres.wholphin.data.model.JellyfinServerUsers
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.services.IntentResult
 import com.github.damontecres.wholphin.services.IntentService
@@ -29,7 +31,9 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume
 import org.junit.Before
@@ -132,6 +136,28 @@ class ProfileChooserLockTest {
             lock.onActivityStopped(externalPlayer = false)
             assertTrue(lock.inBackground)
             assertFalse(lock.consumeExemptReturn())
+        }
+
+    @Test
+    fun `fallback server is the pinned server, else the only saved one`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val lock = lock(profiles = 2)
+            val other = JellyfinServer(UUID.randomUUID(), "other", "https://other.example", null)
+            val only = JellyfinServer(serverId, "only", "https://only.example", null)
+            every { serverDao.getServers() } returns listOf(JellyfinServerUsers(only, emptyList()))
+            assertEquals(serverId, lock.fallbackServerId())
+
+            val pinnedUrl = BuildConfig.DEFAULT_SERVER_URL
+            if (pinnedUrl.isNotBlank()) {
+                val pinned = JellyfinServer(UUID.randomUUID(), "pinned", pinnedUrl, null)
+                every { serverDao.getServers() } returns
+                    listOf(JellyfinServerUsers(other, emptyList()), JellyfinServerUsers(pinned, emptyList()))
+                assertEquals(pinned.id, lock.fallbackServerId())
+            } else {
+                every { serverDao.getServers() } returns
+                    listOf(JellyfinServerUsers(other, emptyList()), JellyfinServerUsers(only, emptyList()))
+                assertNull(lock.fallbackServerId())
+            }
         }
 
     @Test
