@@ -15,6 +15,8 @@ import com.github.damontecres.wholphin.data.model.SeerrPermission
 import com.github.damontecres.wholphin.data.model.SeerrServer
 import com.github.damontecres.wholphin.data.model.SeerrUser
 import com.github.damontecres.wholphin.data.model.hasPermission
+import com.github.damontecres.wholphin.kids.KidSessionGate
+import com.github.damontecres.wholphin.kids.ProfileKind
 import com.github.damontecres.wholphin.services.hilt.StandardOkHttpClient
 import com.github.damontecres.wholphin.ui.setup.seerr.createSeerrApiUrl
 import com.github.damontecres.wholphin.util.LoadingState
@@ -31,6 +33,7 @@ import okhttp3.OkHttpClient
 import org.jellyfin.sdk.model.api.ImageType
 import timber.log.Timber
 import javax.inject.Inject
+import javax.inject.Provider
 import javax.inject.Singleton
 import kotlin.time.Duration.Companion.seconds
 
@@ -45,6 +48,7 @@ class SeerrServerRepository
         private val seerrServerDao: SeerrServerDao,
         private val serverRepository: ServerRepository,
         @param:StandardOkHttpClient private val okHttpClient: OkHttpClient,
+        private val kidSessionGate: Provider<KidSessionGate>,
     ) {
         private val _connection =
             MutableStateFlow<SeerrConnectionStatus>(SeerrConnectionStatus.NotConfigured)
@@ -63,6 +67,18 @@ class SeerrServerRepository
          */
         val active: Flow<Boolean> =
             connection.map { it is SeerrConnectionStatus.Success && seerrApi.active }
+
+        /**
+         * WeaselPlex kid profiles (plan 4.4): kids never reach the request server. True while the
+         * session is a kid or unknown, or when [user] isn't a confirmed adult.
+         */
+        private fun blockedForKids(user: JellyfinUser? = serverRepository.currentUser): Boolean {
+            if (!BuildConfig.KID_PROFILES_ENABLED) return false
+            val gate = kidSessionGate.get()
+            val blocked = gate.isKidSession.value || (user != null && gate.profileKind(user) != ProfileKind.ADULT)
+            if (blocked) Timber.i("Seerr skipped for a kid profile")
+            return blocked
+        }
 
         fun clear() {
             _connection.update { SeerrConnectionStatus.NotConfigured }
@@ -83,6 +99,7 @@ class SeerrServerRepository
             user: SeerrUser,
             userConfig: SeerrUserConfig,
         ) {
+            if (blockedForKids()) return clear()
             val publicSettings = seerrApi.api.settingsApi.settingsPublicGet()
             _connection.update {
                 SeerrConnectionStatus.Success(
@@ -182,6 +199,7 @@ class SeerrServerRepository
          */
         suspend fun connectForUser(user: JellyfinUser): Boolean =
             connectMutex.withLock {
+                if (blockedForKids(user)) return@withLock false
                 if (connection.value is SeerrConnectionStatus.Success &&
                     lastAttemptUserRowId == user.rowId
                 ) {
@@ -247,6 +265,7 @@ class SeerrServerRepository
          * [SeerrReconnectPolicy] through [connectForUser].
          */
         suspend fun reconnectIfNeeded(): Boolean {
+            if (blockedForKids()) return false
             if (BuildConfig.DEFAULT_SEERR_URL.isBlank() &&
                 connection.value is SeerrConnectionStatus.NotConfigured
             ) {
@@ -271,6 +290,7 @@ class SeerrServerRepository
          * down.
          */
         suspend fun provisionPinnedServer(jellyfinUser: JellyfinUser? = serverRepository.currentUser): Boolean {
+            if (blockedForKids(jellyfinUser)) return false
             val pinned = BuildConfig.DEFAULT_SEERR_URL
             if (pinned.isBlank()) return false
             if (jellyfinUser == null) return false

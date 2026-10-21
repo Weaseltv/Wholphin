@@ -79,18 +79,24 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.NavigationDrawerScope
 import androidx.tv.material3.ProvideTextStyle
 import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
+import com.github.damontecres.wholphin.kids.KidSessionGate
+import com.github.damontecres.wholphin.kids.ProfileKind
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.MusicService
+import com.github.damontecres.wholphin.services.NavDrawerItemState
 import com.github.damontecres.wholphin.services.NavDrawerService
 import com.github.damontecres.wholphin.services.NavigationManager
+import com.github.damontecres.wholphin.services.ProfilePictureService
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.SetupNavigationManager
+import com.github.damontecres.wholphin.services.versionedUserImageUrl
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.components.TimeDisplay
 import com.github.damontecres.wholphin.ui.ifElse
@@ -116,7 +122,10 @@ import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.imageApi
@@ -135,8 +144,26 @@ class NavDrawerViewModel
         val setupNavigationManager: SetupNavigationManager,
         val backdropService: BackdropService,
         private val musicService: MusicService,
+        private val kidSessionGate: KidSessionGate,
+        private val profilePictureService: ProfilePictureService,
     ) : ViewModel() {
-        val serviceState = navDrawerService.state
+        // WeaselPlex kid profiles: no Discover/Requests in a kid session (plan 4.4). Seerr never
+        // connects for kids either, so this only covers the moment before that settles.
+        val serviceState: StateFlow<NavDrawerItemState> =
+            combine(navDrawerService.state, kidSessionGate.isKidSession) { state, kid ->
+                if (kid && BuildConfig.KID_PROFILES_ENABLED) {
+                    state.copy(
+                        items = state.items.filter { it != NavDrawerItem.Discover },
+                        moreItems = state.moreItems.filter { it != NavDrawerItem.Discover },
+                    )
+                } else {
+                    state
+                }
+            }.stateIn(viewModelScope, SharingStarted.Eagerly, navDrawerService.state.value)
+
+        val pictureVersions = profilePictureService.versions
+
+        fun isKid(user: JellyfinUser): Boolean = BuildConfig.KID_PROFILES_ENABLED && kidSessionGate.profileKind(user) == ProfileKind.KID
 
         private val _state = MutableStateFlow(NavDrawerState())
         val state: StateFlow<NavDrawerState> = _state
@@ -179,7 +206,10 @@ class NavDrawerViewModel
             _state.update { it.copy(moreExpanded = value) }
         }
 
-        fun getUserImage(user: JellyfinUser): String = api.imageApi.getUserImageUrl(user.id)
+        fun getUserImage(
+            user: JellyfinUser,
+            versions: Map<UUID, Int>,
+        ): String? = versionedUserImageUrl(api.imageApi.getUserImageUrl(user.id), user.id, versions)
 
         /**
          * Determine which nav drawer item should be highlighted as currently selected
@@ -371,13 +401,15 @@ fun NavDrawer(
                 ) {
                     // Even though some must be clicked, focusing on it should clear other focused items
                     val interactionSource = remember { MutableInteractionSource() }
-                    val userImageUrl = remember(user) { viewModel.getUserImage(user) }
+                    val pictureVersions by viewModel.pictureVersions.collectAsState()
+                    val userImageUrl = remember(user, pictureVersions) { viewModel.getUserImage(user, pictureVersions) }
                     if (neon) {
                         RailBrand(expanded = isOpen)
                     }
                     ProfileIcon(
                         user = user,
                         imageUrl = userImageUrl,
+                        isKid = remember(user) { viewModel.isKid(user) },
                         serverName = server.name ?: server.url,
                         drawerOpen = isOpen,
                         interactionSource = interactionSource,
@@ -674,6 +706,7 @@ fun NavigationDrawerScope.ProfileIcon(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    isKid: Boolean = false,
 ) {
     NavigationDrawerItem(
         modifier = modifier,
@@ -689,6 +722,7 @@ fun NavigationDrawerScope.ProfileIcon(
                 name = user.name,
                 imageUrl = imageUrl,
                 alpha = if (drawerOpen || isWeaselTv()) 1f else .5f,
+                isKid = isKid,
                 modifier =
                     Modifier
                         .size(DrawerIconSize),
