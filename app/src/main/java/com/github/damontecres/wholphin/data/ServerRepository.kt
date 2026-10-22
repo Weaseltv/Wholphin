@@ -314,9 +314,7 @@ class ServerRepository
             // interruption before it completes restarts gated (unknown ceiling), never at a higher one
             val journalled =
                 if (BuildConfig.KID_PROFILES_ENABLED) {
-                    kidProtectionStore.beginSwitch(protect = user.profileKind != ProfileKind.ADULT).also {
-                        if (user.profileKind != ProfileKind.ADULT) clearLauncherBeforeKidSession()
-                    }
+                    kidProtectionStore.beginSwitch(protect = user.profileKind != ProfileKind.ADULT)
                 } else {
                     null
                 }
@@ -326,6 +324,8 @@ class ServerRepository
             val ceilingBefore = journalled?.ceilingBefore
             var published: CurrentUser? = null
             try {
+                // Review round 5: inside the journal's settlement, so a cancellation while it waits aborts the switch
+                if (journalled != null && user.profileKind != ProfileKind.ADULT) clearLauncherBeforeKidSession()
                 serverDao.addOrUpdateServer(server)
                 // Read and written with no suspension in between, under the lock every auth and local preference change
                 // holds
