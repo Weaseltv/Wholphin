@@ -25,6 +25,7 @@ import org.jellyfin.sdk.api.client.exception.ApiClientException
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.model.api.ItemFields
 import timber.log.Timber
+import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -91,16 +92,20 @@ class KidContentGuard
             return Policy("${user.serverId}:${user.id}", KidContentRules.maxLevelFor(user.profileCeiling))
         }
 
-        /** [client]'s request with the content rules applied for [policy]; [client] is the unfiltered client */
+        /**
+         * A request with the content rules applied for [policy]. [pinned] is the unfiltered client fixed to the
+         * credentials [policy] was chosen for; the request and every lookup for it use it (review round 1).
+         */
         suspend fun request(
             policy: Policy,
-            client: ApiClient,
+            pinned: CoroutineContextApiClient.Pinned,
             method: HttpMethod,
             pathTemplate: String,
             pathParameters: Map<String, Any?>,
             queryParameters: Map<String, Any?>,
             requestBody: Any?,
         ): RawResponse {
+            val client = pinned.client
             val loader = Loader(client, policy)
             pathItemId(method, pathTemplate, pathParameters)?.let { id ->
                 val fresh = isPlaybackPath(pathTemplate)
@@ -110,8 +115,59 @@ class KidContentGuard
                 }
             }
             val response = client.request(method, pathTemplate, pathParameters, withRuleFields(queryParameters), requestBody)
-            return filterResponse(policy, loader, pathTemplate, response)
+            return stamped(filterResponse(policy, loader, pathTemplate, response), pinned.accessToken, policy)
         }
+
+        /**
+         * [response] marked with the session it was made for: its credentials and, for a filtered one, the rules
+         * (review round 1). See [sessionOf].
+         */
+        fun stamped(
+            response: RawResponse,
+            accessToken: String?,
+            policy: Policy?,
+        ): RawResponse {
+            val stamp = mutableMapOf(HEADER_SESSION to listOf(credentialStamp(accessToken)))
+            if (policy != null) stamp[HEADER_RULES] = listOf(rulesTag(policy))
+            return RawResponse(response.body, response.status, response.headers + stamp)
+        }
+
+        /** Which session a client or a response belongs to (review round 1): null when kid profiles are off */
+        data class Session(
+            val credentials: String,
+            /** The profile, when known: the current session's, if these are its credentials */
+            val userId: UUID?,
+            /** The rules the session's lists are filtered by ([rulesTag]), null for adults */
+            val rules: String?,
+        ) {
+            /** Whether [response] (a [sessionOf] of headers) was made for this session */
+            fun made(response: Session?): Boolean = response != null && response.credentials == credentials && response.rules == rules
+        }
+
+        /** The session [api] makes requests for right now, pinned like a request is */
+        suspend fun sessionOf(api: ApiClient): Session? {
+            if (!BuildConfig.KID_PROFILES_ENABLED) return null
+            val pinned = pinnedOf(api)
+            val policy = policyFor(pinned.accessToken)
+            val userId =
+                serverRepository
+                    .get()
+                    .current.value
+                    ?.user
+                    ?.takeIf { it.accessToken == pinned.accessToken }
+                    ?.id
+            return Session(credentialStamp(pinned.accessToken), userId, policy?.let(::rulesTag))
+        }
+
+        /** The session a response with [headers] was made for, or null if it isn't stamped */
+        fun sessionOf(headers: Map<String, List<String>>): Session? {
+            if (!BuildConfig.KID_PROFILES_ENABLED) return null
+            val credentials = header(headers, HEADER_SESSION) ?: return null
+            return Session(credentials, null, header(headers, HEADER_RULES))
+        }
+
+        private fun pinnedOf(api: ApiClient): CoroutineContextApiClient.Pinned =
+            (api as? CoroutineContextApiClient)?.pinned() ?: CoroutineContextApiClient.Pinned(api, api.accessToken)
 
         /**
          * Whether the item [itemId] may start playing for [api]'s user: always a fresh check, never cached. True for
@@ -121,9 +177,9 @@ class KidContentGuard
             api: ApiClient,
             itemId: UUID,
         ): Boolean {
-            val client = (api as? CoroutineContextApiClient)?.unfiltered ?: api
-            val policy = policyFor(api.accessToken) ?: return true
-            return isVisible(policy, Loader(client, policy), KidJson.normalizeId(itemId.toString()), fresh = true)
+            val pinned = pinnedOf(api)
+            val policy = policyFor(pinned.accessToken) ?: return true
+            return isVisible(policy, Loader(pinned.client, policy), KidJson.normalizeId(itemId.toString()), fresh = true)
         }
 
         /**
@@ -135,10 +191,10 @@ class KidContentGuard
             itemIds: Collection<UUID>,
             fresh: Boolean = false,
         ): Set<UUID> {
-            val policy = policyFor(api.accessToken) ?: return itemIds.toSet()
+            val pinned = pinnedOf(api)
+            val policy = policyFor(pinned.accessToken) ?: return itemIds.toSet()
             if (itemIds.isEmpty()) return emptySet()
-            val client = (api as? CoroutineContextApiClient)?.unfiltered ?: api
-            val loader = Loader(client, policy)
+            val loader = Loader(pinned.client, policy)
             val byId = itemIds.associateBy { KidJson.normalizeId(it.toString()) }
             val facts =
                 try {
@@ -235,7 +291,8 @@ class KidContentGuard
         private inner class Loader(
             private val client: ApiClient,
             private val policy: Policy,
-            private val nestedBoxSets: Boolean = true,
+            /** The box sets being decided above this lookup, for nested box sets */
+            private val ancestors: Set<String> = emptySet(),
         ) : KidFactsLoader {
             private val userCache get() = userCache(policy)
 
@@ -314,36 +371,55 @@ class KidContentGuard
                 return result
             }
 
+            /**
+             * Pages through the box set's children until one is visible or there are none left. Box sets inside it are
+             * decided the same way, down to [MAX_BOX_SET_DEPTH] levels; one that contains itself (a cycle) or sits
+             * deeper counts as not visible (fail closed).
+             */
             override suspend fun boxSetHasVisibleChild(
                 id: String,
                 maxLevel: Int?,
                 fresh: Boolean,
             ): Boolean {
-                // A box set inside a box set counts as not visible: no recursion
-                if (!nestedBoxSets || maxLevel == null) return false
-                // Whether a child is visible depends on the level too
+                if (maxLevel == null || id in ancestors || ancestors.size >= MAX_BOX_SET_DEPTH) return false
+                // Whether a child is visible depends on the level too. Only a top-level answer is cached: a nested one
+                // depends on the box sets above it
                 val cacheKey = "$id:$maxLevel"
-                if (!fresh) userCache.boxSets.valid(cacheKey)?.let { return it.value }
-                val response =
-                    lookupPermits.withPermit {
-                        client.request(
-                            HttpMethod.GET,
-                            "/Items",
-                            emptyMap(),
-                            mapOf(
-                                "parentId" to id,
-                                "fields" to RULE_FIELDS,
-                                "limit" to BOX_SET_CHILDREN,
-                                "enableImages" to false,
-                                "enableUserData" to false,
-                            ),
-                            null,
-                        )
+                val topLevel = ancestors.isEmpty()
+                if (!fresh && topLevel) userCache.boxSets.valid(cacheKey)?.let { return it.value }
+                val children = Loader(client, policy, ancestors + id)
+                var startIndex = 0
+                var visible = false
+                for (page in 0 until MAX_BOX_SET_PAGES) {
+                    val response =
+                        lookupPermits.withPermit {
+                            client.request(
+                                HttpMethod.GET,
+                                "/Items",
+                                emptyMap(),
+                                mapOf(
+                                    "parentId" to id,
+                                    "fields" to RULE_FIELDS,
+                                    "startIndex" to startIndex,
+                                    "limit" to BOX_SET_PAGE,
+                                    "enableImages" to false,
+                                    "enableUserData" to false,
+                                ),
+                                null,
+                            )
+                        }
+                    val root = Json.parseToJsonElement(response.body.decodeToString())
+                    val served = KidJson.itemsOf(root).size
+                    val total = ((root as? JsonObject)?.get("TotalRecordCount") as? JsonPrimitive)?.contentOrNull?.toIntOrNull()
+                    val filtered = KidResponseFilter(maxLevel, children, fresh).filter(root)
+                    if (filtered.root?.let { KidJson.itemsOf(it).isNotEmpty() } == true) {
+                        visible = true
+                        break
                     }
-                val root = Json.parseToJsonElement(response.body.decodeToString())
-                val filtered = KidResponseFilter(maxLevel, Loader(client, policy, nestedBoxSets = false), fresh).filter(root)
-                val visible = filtered.root?.let { KidJson.itemsOf(it).isNotEmpty() } == true
-                userCache.boxSets[cacheKey] = Entry(visible, clock())
+                    startIndex += BOX_SET_PAGE
+                    if (served < BOX_SET_PAGE || (total != null && startIndex >= total)) break
+                }
+                if (topLevel) userCache.boxSets[cacheKey] = Entry(visible, clock())
                 return visible
             }
 
@@ -377,16 +453,50 @@ class KidContentGuard
         }
 
         companion object {
-            val CACHE_TTL = 10.minutes
+            /** How long lookups decide lists; playback never uses them (review round 1: 2 minutes) */
+            val CACHE_TTL = 2.minutes
             private const val MAX_CONCURRENT_LOOKUPS = 4
             private const val LOOKUP_BATCH = 40
-            private const val BOX_SET_CHILDREN = 200
+            private const val BOX_SET_PAGE = 100
+
+            /** Box set children are paged this far at most (fail closed beyond) */
+            private const val MAX_BOX_SET_PAGES = 50
+
+            /** Box sets inside box sets are followed this deep at most (fail closed beyond) */
+            private const val MAX_BOX_SET_DEPTH = 4
 
             /** Marks a filtered response (see [ApiRequestPager][com.github.damontecres.wholphin.util.ApiRequestPager]) */
             const val HEADER_FILTERED = "x-weaselplex-kid-filtered"
 
             /** How many entries the filter removed from a filtered response's list */
             const val HEADER_REMOVED = "x-weaselplex-kid-removed"
+
+            /** The credentials a response was made with (a digest, see [credentialStamp]) */
+            const val HEADER_SESSION = "x-weaselplex-session"
+
+            /** The rules a filtered response was filtered by ([rulesTag]) */
+            const val HEADER_RULES = "x-weaselplex-kid-rules"
+
+            /** Bump when the rules change, so lists saved under older rules aren't shown */
+            const val RULES_VERSION = "kid-rules-v1"
+
+            fun rulesTag(policy: Policy): String = "$RULES_VERSION:${policy.maxLevel}"
+
+            /** A digest of [accessToken], never the token itself */
+            fun credentialStamp(accessToken: String?): String {
+                if (accessToken == null) return "none"
+                val digest = MessageDigest.getInstance("SHA-256").digest(accessToken.encodeToByteArray())
+                return digest.take(12).joinToString("") { "%02x".format(it) }
+            }
+
+            private fun header(
+                headers: Map<String, List<String>>,
+                name: String,
+            ): String? =
+                headers.entries
+                    .firstOrNull { it.key.equals(name, ignoreCase = true) }
+                    ?.value
+                    ?.firstOrNull()
 
             /**
              * How many entries the kid content rules removed from the list of a response with [headers], or null if

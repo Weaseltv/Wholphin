@@ -21,19 +21,53 @@ import kotlin.coroutines.CoroutineContext
  *
  * WeaselFin: every Jellyfin SDK call goes through [request], so the kid content rules ([KidContentGuard], contract
  * section 10) apply here for kid and unknown sessions. Adults go straight through.
+ *
+ * Kid content rules (review round 1): with [pin], every request is pinned to the credentials of the moment it starts.
+ * Its policy, the request itself and the rules' lookups all use one client made for those credentials, so a session
+ * switch meanwhile can never send a request decided for one profile with another profile's credentials.
  */
 class CoroutineContextApiClient(
     private val client: ApiClient,
     private val coroutineContext: CoroutineContext = WholphinDispatchers.IO,
     private val contentGuard: KidContentGuard? = null,
+    private val pin: ((Credentials) -> ApiClient)? = null,
 ) : ApiClient() {
-    /** The wrapped client, without the kid content rules: only for the rules' own lookups */
-    internal val unfiltered: ApiClient get() = client
+    /** The credentials a request is pinned to */
+    data class Credentials(
+        val baseUrl: String?,
+        val accessToken: String?,
+        val clientInfo: ClientInfo,
+        val deviceInfo: DeviceInfo,
+    )
+
+    /** A client fixed to [accessToken], without the kid content rules: for one request and its rules' lookups */
+    class Pinned(
+        val client: ApiClient,
+        val accessToken: String?,
+    )
+
+    /** Replaced as a whole on [update], so a request reads one consistent set */
+    @Volatile
+    private var credentials = Credentials(client.baseUrl, client.accessToken, client.clientInfo, client.deviceInfo)
+
+    /** A few clients pinned to recent credentials, so pinning costs a lookup */
+    private val pinnedClients =
+        object : LinkedHashMap<Credentials, ApiClient>(PINNED_CLIENTS, .75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Credentials, ApiClient>?): Boolean = size > PINNED_CLIENTS
+        }
+
+    /** A client for the credentials of this moment (the live wrapped client when nothing pins) */
+    internal fun pinned(): Pinned {
+        val pin = pin ?: return Pinned(client, client.accessToken)
+        val now = credentials
+        val pinnedClient = synchronized(pinnedClients) { pinnedClients.getOrPut(now) { pin(now) } }
+        return Pinned(pinnedClient, now.accessToken)
+    }
 
     override val baseUrl: String?
-        get() = client.baseUrl
+        get() = if (pin != null) credentials.baseUrl else client.baseUrl
     override val accessToken: String?
-        get() = client.accessToken
+        get() = if (pin != null) credentials.accessToken else client.accessToken
     override val clientInfo: ClientInfo
         get() = client.clientInfo
     override val deviceInfo: DeviceInfo
@@ -50,6 +84,7 @@ class CoroutineContextApiClient(
         deviceInfo: DeviceInfo,
     ) {
         client.update(baseUrl, accessToken, clientInfo, deviceInfo)
+        credentials = Credentials(baseUrl, accessToken, clientInfo, deviceInfo)
     }
 
     override suspend fun request(
@@ -60,8 +95,8 @@ class CoroutineContextApiClient(
         requestBody: Any?,
     ): RawResponse =
         withContext(coroutineContext) {
-            val policy = contentGuard?.policyFor(client.accessToken)
-            if (policy == null) {
+            val guard = contentGuard
+            if (guard == null) {
                 client.request(
                     method,
                     pathTemplate,
@@ -70,9 +105,20 @@ class CoroutineContextApiClient(
                     requestBody,
                 )
             } else {
-                contentGuard.request(policy, client, method, pathTemplate, pathParameters, queryParameters, requestBody)
+                val pinned = pinned()
+                val policy = guard.policyFor(pinned.accessToken)
+                if (policy == null) {
+                    val response = pinned.client.request(method, pathTemplate, pathParameters, queryParameters, requestBody)
+                    guard.stamped(response, pinned.accessToken, null)
+                } else {
+                    guard.request(policy, pinned, method, pathTemplate, pathParameters, queryParameters, requestBody)
+                }
             }
         }
+
+    private companion object {
+        const val PINNED_CLIENTS = 4
+    }
 }
 
 class CoroutineContextApiClientFactory(
@@ -93,6 +139,19 @@ class CoroutineContextApiClientFactory(
             factory.create(baseUrl, accessToken, clientInfo, deviceInfo, httpClientOptions, socketConnectionFactory),
             coroutineContext,
             contentGuard,
+            pin =
+                contentGuard?.let {
+                    { pinned ->
+                        factory.create(
+                            pinned.baseUrl,
+                            pinned.accessToken,
+                            pinned.clientInfo,
+                            pinned.deviceInfo,
+                            httpClientOptions,
+                            socketConnectionFactory,
+                        )
+                    }
+                },
         )
 
     override fun create(

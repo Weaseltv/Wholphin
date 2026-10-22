@@ -43,6 +43,12 @@ class KidContentGuardTest {
         var token: String?,
     ) : ApiClient() {
         val requests = mutableListOf<Pair<String, Map<String, Any?>>>()
+
+        /** Box set children by parent id, served in pages */
+        var children: Map<String, List<String>> = emptyMap()
+
+        /** Called with each request's path before it is answered */
+        var onRequest: ((String) -> Unit)? = null
         var listResponse: String = """{"Items":[],"TotalRecordCount":0}"""
         var contentType = "application/json; charset=utf-8"
 
@@ -70,6 +76,8 @@ class KidContentGuardTest {
             requestBody: Any?,
         ): RawResponse {
             requests.add(pathTemplate to queryParameters)
+            onRequest?.invoke(pathTemplate)
+            val parentId = queryParameters["parentId"]?.toString()
             val body =
                 when (pathTemplate) {
                     "/Items/{itemId}" -> {
@@ -81,6 +89,12 @@ class KidContentGuardTest {
                         val ids = queryParameters["ids"] as? List<String>
                         if (ids != null) {
                             """{"Items":[${ids.mapNotNull { items[it] }.joinToString(",")}],"TotalRecordCount":${ids.size}}"""
+                        } else if (parentId != null) {
+                            val all = children[parentId].orEmpty()
+                            val start = queryParameters["startIndex"] as? Int ?: 0
+                            val limit = queryParameters["limit"] as? Int ?: all.size
+                            val page = all.drop(start).take(limit)
+                            """{"Items":[${page.joinToString(",")}],"TotalRecordCount":${all.size}}"""
                         } else {
                             listResponse
                         }
@@ -319,5 +333,90 @@ class KidContentGuardTest {
         assertFalse(KidContentGuard.isPlaybackPath("/Items/{itemId}/Similar"))
         assertNull(KidContentGuard.removedBy(mapOf("content-type" to listOf("application/json"))))
         assertEquals(0, KidContentGuard.removedBy(mapOf(KidContentGuard.HEADER_FILTERED to listOf("1"))))
+    }
+
+    // Review round 1
+
+    @Test
+    fun `a request and its lookups stay on the credentials they started with`() =
+        runTest {
+            val pinnedServers = mutableMapOf<String?, FakeServer>()
+            lateinit var pinnedApi: CoroutineContextApiClient
+            pinnedApi =
+                CoroutineContextApiClient(server, Dispatchers.Unconfined, guard) { credentials ->
+                    pinnedServers.getOrPut(credentials.accessToken) {
+                        FakeServer(items, credentials.accessToken).also { pinned ->
+                            if (credentials.accessToken == kid.accessToken) {
+                                // The TV switches to the adult while the kid's lookup is under way
+                                pinned.onRequest = { path ->
+                                    if (path == "/Items/{itemId}" && current.value?.user == kid) {
+                                        current.value = CurrentUser(testServer, adult)
+                                        pinnedApi.update(server.baseUrl, adult.accessToken, server.clientInfo, server.deviceInfo)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            val response = pinnedApi.get("/Items/{itemId}/Similar", mapOf("itemId" to moonstruckId))
+            // The lookup and the request went out with the kid's credentials, and say so
+            assertEquals(
+                listOf("/Items/{itemId}", "/Items/{itemId}/Similar"),
+                pinnedServers.getValue(kid.accessToken).requests.map { it.first },
+            )
+            assertNull(pinnedServers[adult.accessToken])
+            val made = guard.sessionOf(response.headers)!!
+            assertEquals(KidContentGuard.credentialStamp(kid.accessToken), made.credentials)
+            assertEquals("${KidContentGuard.RULES_VERSION}:2", made.rules)
+            // The next request is the adult's: unfiltered, and stamped as the adult's
+            val adultResponse = pinnedApi.get("/Items")
+            assertEquals(1, pinnedServers.getValue(adult.accessToken).requests.size)
+            val adultSession = guard.sessionOf(pinnedApi)!!
+            assertEquals(adult.id, adultSession.userId)
+            assertNull(adultSession.rules)
+            assertTrue(adultSession.made(guard.sessionOf(adultResponse.headers)))
+            assertFalse(adultSession.made(made))
+        }
+
+    private fun boxSet(id: String) = """{"Id":"$id","Name":"$id","ServerId":"s","Type":"BoxSet","IsFolder":true}"""
+
+    private fun ids(response: RawResponse) =
+        Json
+            .parseToJsonElement(response.body.decodeToString())
+            .jsonObject["Items"]!!
+            .jsonArray
+            .map { it.jsonObject["Id"]!!.jsonPrimitive.content }
+
+    @Test
+    fun `box sets page through their children and follow nested box sets`() =
+        runTest {
+            val hidden = (0 until 150).map { movie("horror$it", "PG", 1982, listOf("Horror")) }
+            val moonstruck = items.getValue(key(moonstruckId))
+            server.children =
+                mapOf(
+                    // The visible child is on the second page
+                    "paged" to hidden + moonstruck,
+                    "allhidden" to hidden,
+                    // A box set inside a box set
+                    "outer" to listOf(boxSet("inner")),
+                    "inner" to listOf(moonstruck),
+                    // A cycle with nothing else in it
+                    "a" to listOf(boxSet("b")),
+                    "b" to listOf(boxSet("a")),
+                    // Deeper than the limit
+                    "d1" to listOf(boxSet("d2")),
+                    "d2" to listOf(boxSet("d3")),
+                    "d3" to listOf(boxSet("d4")),
+                    "d4" to listOf(boxSet("d5")),
+                    "d5" to listOf(moonstruck),
+                )
+            server.listResponse =
+                """{"Items":[${listOf("paged", "allhidden", "outer", "a", "d1").joinToString(",") { boxSet(it) }}],"TotalRecordCount":5}"""
+            assertEquals(listOf("paged", "outer"), ids(api.get("/Items", query = mapOf("fields" to null))))
+        }
+
+    @Test
+    fun `list lookups expire after two minutes`() {
+        assertEquals(120_000L, KidContentGuard.CACHE_TTL.inWholeMilliseconds)
     }
 }

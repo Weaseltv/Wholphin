@@ -11,6 +11,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
+import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.okhttp.OkHttpFactory
 import org.jellyfin.sdk.createJellyfin
 import org.jellyfin.sdk.model.ClientInfo
@@ -229,8 +230,7 @@ class StreamingCollectionsTest {
                     mockk(),
                     rows,
                     mockk {
-                        coEvery { currentPolicy() } returns
-                            null
+                        coEvery { sessionOf(any<ApiClient>()) } returns null
                     },
                 )
             service.prefetch(userId, StreamingCollections.justWatch("Showtime"))
