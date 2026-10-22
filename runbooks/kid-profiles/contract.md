@@ -262,6 +262,8 @@ no title is shown.
 - Episodes and seasons are also hidden whenever their series is hidden, even if the episode has its own
   lower rating ("its episodes hidden too").
 - A PG movie with neither `PremiereDate` nor `ProductionYear` counts as PG-13 (fail closed).
+- Rule 1 also hides an episode or season whose own genres contain "horror", even if the series'
+  genres don't (horror is always hidden).
 - Rules apply to every item type except containers: libraries/folders/user views, people, genres (the
   "Horror" genre itself is hidden), studios, years, playlists (their contents are filtered), and box sets
   (shown only while at least one child is visible). Unknown types are treated as titles. Trailers and extras
