@@ -14,6 +14,7 @@ import com.github.damontecres.wholphin.kids.KidProfilesApi
 import com.github.damontecres.wholphin.kids.KidQuickConnect
 import com.github.damontecres.wholphin.kids.KidSessionGate
 import com.github.damontecres.wholphin.kids.PinCheckResult
+import com.github.damontecres.wholphin.kids.PinRules
 import com.github.damontecres.wholphin.kids.ProfileGateException
 import com.github.damontecres.wholphin.kids.ProfileKind
 import com.github.damontecres.wholphin.kids.UnlockPurpose
@@ -66,7 +67,7 @@ class AddKidViewModel
         private var avatar: Avatar? = null
         private var kids: List<KidProfile> = emptyList()
 
-        val avatars: List<Avatar> get() = pictures.avatars()
+        val avatars: List<Avatar> get() = pictures.avatars(isKid = true)
 
         fun start(
             server: JellyfinServer,
@@ -113,6 +114,8 @@ class AddKidViewModel
         fun createFirstPin(pin: String) =
             launch {
                 val user = parent ?: return@launch
+                // A new PIN is exactly 4 presses; the PIN screen never sends anything else
+                if (!PinRules.isValidNewPin(pin)) return@launch
                 if (gate.isDeviceProtected.first()) {
                     _step.value = AddKidStep.ParentLocked(user)
                     return@launch
@@ -412,7 +415,7 @@ class AddKidViewModel
         ) {
             val picked = avatar ?: return
             if (token == null) return
-            val result = pictures.save(ProfilePictureTarget(server.url, userId, token, name), picked)
+            val result = pictures.save(ProfilePictureTarget(server.url, userId, token, name, isKid = true), picked)
             if (result is ProfilePictureResult.Failed) Timber.w("Kid picture not saved; it can be set in Settings")
         }
 

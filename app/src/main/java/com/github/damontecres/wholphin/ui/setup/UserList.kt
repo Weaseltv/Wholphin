@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Create
@@ -47,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.Border
@@ -67,6 +67,9 @@ import com.github.damontecres.wholphin.ui.components.DialogItem
 import com.github.damontecres.wholphin.ui.components.DialogPopup
 import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
+import com.github.damontecres.wholphin.ui.kids.KidColors
+import com.github.damontecres.wholphin.ui.kids.KidText
+import com.github.damontecres.wholphin.ui.kids.kidGlow
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
@@ -419,19 +422,21 @@ fun UserIconCardImage(
     }
 }
 
-private val KidBadgeColor = Color(0xFFFFC233)
+/** The kid-profile lime (owner mockups, 2026-10-22). */
+private val KidBadgeColor = KidColors.Lime
 
-/** "Kid" on a kid profile's tile (plan 4.4). */
+/** "Kid" on a kid profile's tile (plan 4.4): a lime chip with dark Exo 2 lettering and a soft glow. */
 @Composable
 fun KidBadge(modifier: Modifier = Modifier) {
     Text(
         text = stringResource(R.string.kid_badge).uppercase(),
-        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-        color = Color.Black,
+        style = KidText.body(11.sp, FontWeight.Bold, tracking = .12.em),
+        color = NeonBoard.OnAccent,
         modifier =
             modifier
-                .background(KidBadgeColor, RoundedCornerShape(4.dp))
-                .padding(horizontal = 6.dp, vertical = 2.dp),
+                .kidGlow(radius = 8.dp, alpha = .5f)
+                .background(KidBadgeColor)
+                .padding(horizontal = 7.dp, vertical = 2.dp),
     )
 }
 

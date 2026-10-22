@@ -165,6 +165,19 @@ class AddKidViewModelTest {
         }
 
     @Test
+    fun `a first pin that isn't four presses is not saved`() =
+        test {
+            val dad = testUser("Dad")
+            viewModel.start(testServer, listOf(dad))
+            advanceUntilIdle()
+            viewModel.createFirstPin("43210")
+            viewModel.createFirstPin("432")
+            advanceUntilIdle()
+            coVerify(exactly = 0) { serverRepository.updateUserAuth(any(), any(), any()) }
+            assertEquals(AddKidStep.CreateFirstPin(dad), step)
+        }
+
+    @Test
     fun `pinless parent on a protected tv is locked`() =
         test {
             gate.isDeviceProtected.value = true
@@ -232,7 +245,7 @@ class AddKidViewModelTest {
             val (target, png) = uploader.uploads.single()
             assertEquals(quickConnect.kidUserId, target.userId)
             assertEquals("kid-token", target.accessToken)
-            assertEquals("placeholder-cat", png.decodeToString())
+            assertEquals("bee-blue", png.decodeToString())
             assertEquals(1, cache.versions.value[quickConnect.kidUserId])
         }
 
