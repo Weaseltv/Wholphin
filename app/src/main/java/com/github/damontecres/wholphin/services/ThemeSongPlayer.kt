@@ -9,6 +9,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.kids.KidContentGuard
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.ThemeSongVolume
@@ -91,6 +92,12 @@ class ThemeSongPlayer
                         }
                     val job =
                         scope.launchIO {
+                            // Kid content rules (review round 5): kid and unknown sessions get no music, theme songs
+                            // included
+                            if (BuildConfig.KID_PROFILES_ENABLED && kidContentGuard.currentPolicy() != null) {
+                                Timber.i("Kid content rules: no theme songs for kid sessions")
+                                return@launchIO
+                            }
                             val themeSongs by api.libraryApi.getThemeSongs(itemId)
                             themeSongs.items.randomOrNull()?.let { theme ->
                                 // Kid content rules (contract section 10): a fresh check of the song, and of the item
