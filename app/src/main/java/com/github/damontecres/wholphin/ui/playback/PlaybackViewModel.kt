@@ -497,10 +497,6 @@ class PlaybackViewModel
             }
         }
 
-        /** Kid content rules: the permit of the item playing, checked again where its stream is installed */
-        @Volatile
-        private var playbackPermit: KidContentGuard.PlaybackPermit? = null
-
         private suspend fun refuseKidContent() {
             Timber.i("Kid content rules: playback refused")
             showToast(context, context.getString(R.string.kid_content_playback_refused), Toast.LENGTH_SHORT)
@@ -552,7 +548,6 @@ class PlaybackViewModel
                     refuseKidContent()
                     return@withContext false
                 }
-                playbackPermit = permit
                 this@PlaybackViewModel.currentItem = playlistItem
                 this@PlaybackViewModel.itemId = item.id
 
@@ -896,7 +891,17 @@ class PlaybackViewModel
                                 )
                             }
                     }
+                    // Kid content rules (review round 3): every stream (re)creation, whether first start, audio or subtitle
+                    // change, quality change or retry, gets its own fresh permit, checked right before it is installed
+                    val streamPermit = kidContentGuard.playbackPermit(api, item.id)
                     withContext(WholphinDispatchers.Main) {
+                        if (!kidContentGuard.isCurrent(streamPermit)) {
+                            // Nothing stays installed for a later prepare to replay
+                            player.stop()
+                            player.clearMediaItems()
+                            refuseKidContent()
+                            return@withContext
+                        }
                         // TODO, don't need to release & recreate when switching streams
                         this@PlaybackViewModel.activityListener?.let {
                             it.release()
@@ -920,8 +925,11 @@ class PlaybackViewModel
                                 currentPlayback = playback,
                             )
                         }
-                        // Kid content rules (review round 2): only under the session the item was allowed in
-                        if (playbackPermit?.itemId != item.id || !kidContentGuard.isCurrent(playbackPermit)) {
+                        // Kid content rules: still under the session the stream was allowed in
+                        if (!kidContentGuard.isCurrent(streamPermit)) {
+                            // Nothing stays installed for a later prepare to replay
+                            player.stop()
+                            player.clearMediaItems()
                             refuseKidContent()
                             return@withContext
                         }
@@ -1536,7 +1544,13 @@ class PlaybackViewModel
                                 enableDirectPlay = false,
                                 enableDirectStream = false,
                             )
+                            // Kid content rules (review round 3): a retry is a new stream, with its own fresh permit
+                            val retryPermit = kidContentGuard.playbackPermit(api, currentItem.item.id)
                             withContext(WholphinDispatchers.Main) {
+                                if (!kidContentGuard.isCurrent(retryPermit)) {
+                                    player.stop()
+                                    return@withContext
+                                }
                                 player.prepare()
                                 player.play()
                             }
