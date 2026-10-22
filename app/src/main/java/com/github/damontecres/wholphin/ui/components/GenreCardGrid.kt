@@ -24,7 +24,6 @@ import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.alphabetSortName
 import com.github.damontecres.wholphin.data.model.createGenreDestination
-import com.github.damontecres.wholphin.kids.KidContentGuard
 import com.github.damontecres.wholphin.kids.ProfileKind
 import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.services.ImageUrlService
@@ -180,17 +179,11 @@ data class GenreCacheKey(
 )
 
 /** Kid content rules: the cached backdrops were picked under an earlier session or ceiling */
-internal suspend fun forgetGenreBackdrops() {
-    genreCache.clear()
-    genreCachedAt.clear()
-}
-
-/** When each [genreCache] entry was made, for kid sessions' shorter cache life */
-private val genreCachedAt = ConcurrentHashMap<GenreCacheKey, Long>()
+internal suspend fun forgetGenreBackdrops() = genreCache.clear()
 
 /**
- * Kid content rules (review round 5): whether the signed-in profile is a kid or unknown one, whose cached backdrops
- * only replay within the rules' lookup lifetime ([KidContentGuard.CACHE_TTL]); adults keep the 2 hours
+ * Kid content rules (review round 6): whether the signed-in profile is a kid or unknown one, which never uses the
+ * cached genre backdrops or the saved Collections lists; adults keep their caching
  */
 internal fun isKidOrUnknown(user: JellyfinUser?): Boolean = BuildConfig.KID_PROFILES_ENABLED && user?.profileKind != ProfileKind.ADULT
 
@@ -216,8 +209,7 @@ suspend fun getGenreImageMap(
     kidSession: Boolean = false,
 ): Map<UUID, String?> {
     val key = GenreCacheKey(userId, parentId)
-    val fresh = !kidSession || System.currentTimeMillis() - (genreCachedAt[key] ?: 0L) < KidContentGuard.CACHE_TTL.inWholeMilliseconds
-    if (useCache && fresh) {
+    if (useCache && !kidSession) {
         genreCache.getIfAvailable(key)?.let {
             Timber.v("Got cached entry")
             return it
@@ -264,8 +256,7 @@ suspend fun getGenreImageMap(
                 }
             }
         }.awaitAll()
-    genreCache.put(key, genreToUrl)
-    genreCachedAt[key] = System.currentTimeMillis()
+    if (!kidSession) genreCache.put(key, genreToUrl)
     return genreToUrl
 }
 

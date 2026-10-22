@@ -45,7 +45,6 @@ import com.github.damontecres.wholphin.data.model.GetItemsFilterOverride
 import com.github.damontecres.wholphin.data.model.HomeCardAppearance
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.data.model.LibraryDisplayInfo
-import com.github.damontecres.wholphin.kids.KidContentGuard
 import com.github.damontecres.wholphin.kids.isStaleSession
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.UserPreferences
@@ -124,14 +123,8 @@ import java.util.concurrent.ConcurrentHashMap
 /** The Collections page's grouped lists by request, kept while the app runs so it reopens straight away. */
 private val savedCollections = ConcurrentHashMap<GetItemsRequest, List<BaseItemDto>>()
 
-/** When each [savedCollections] list was saved, for kid sessions' shorter replay life */
-private val savedCollectionsAt = ConcurrentHashMap<GetItemsRequest, Long>()
-
 /** Kid content rules: the saved lists were filtered under an earlier session or ceiling */
-internal fun forgetSavedCollections() {
-    savedCollections.clear()
-    savedCollectionsAt.clear()
-}
+internal fun forgetSavedCollections() = savedCollections.clear()
 
 @HiltViewModel(assistedFactory = CollectionFolderViewModel.Factory::class)
 class CollectionFolderViewModel
@@ -376,8 +369,10 @@ class CollectionFolderViewModel
         override fun onCollectionGroupChange(group: String?) {
             _state.update { it.copy(collectionGroup = group) }
             position = 0
-            // The grouped list has every collection, so a group is picked from it without a reload
-            collections?.let(::showCollections)
+            // The grouped list has every collection, so a group is picked from it without a reload. Kid content rules
+            // (review round 6): a kid or unknown session fetches fresh through the rules on every group pick
+            val kept = if (isKidOrUnknown(serverRepository.currentUser)) null else collections
+            kept?.let(::showCollections)
                 ?: loadResults(true, state.value.sortAndDirection, recursive, state.value.filter, useSeriesForPrimary)
         }
 
@@ -492,14 +487,10 @@ class CollectionFolderViewModel
                     limit = null,
                     enableTotalRecordCount = false,
                 )
-            // Kid content rules (review round 5): a kid or unknown session replays a saved list only within the rules'
-            // lookup lifetime, and doesn't keep it on screen if the refresh fails
+            // Kid content rules (review round 6): a kid or unknown session never uses the saved list; every open fetches
+            // fresh through the rules, and a failed fetch leaves nothing from before on screen
             val kidSession = isKidOrUnknown(serverRepository.currentUser)
-            val cached =
-                savedCollections[all]?.takeUnless {
-                    kidSession &&
-                        System.currentTimeMillis() - (savedCollectionsAt[all] ?: 0L) >= KidContentGuard.CACHE_TTL.inWholeMilliseconds
-                }
+            val cached = if (kidSession) null else savedCollections[all]
             _state.update { it.copy(sortAndDirection = sortAndDirection, filter = filter) }
             if (cached != null) {
                 showCollections(cached)
@@ -519,14 +510,16 @@ class CollectionFolderViewModel
                         .content.items
                         .associate { it.id to it.userData }
                 val complete = fresh.map { it.copy(userData = userData[it.id] ?: it.userData) }
-                savedCollections[all] = complete
-                savedCollectionsAt[all] = System.currentTimeMillis()
+                if (!kidSession) savedCollections[all] = complete
                 showCollections(complete)
             } catch (ex: CancellationException) {
                 throw ex
             } catch (ex: Exception) {
                 Timber.e(ex, "Exception while loading collections")
-                if (kidSession || state.value.items !is DataLoadingState.Success) {
+                if (kidSession) {
+                    collections = null
+                    _state.update { it.copy(items = DataLoadingState.Error(ex), backgroundLoading = LoadingState.Pending) }
+                } else if (state.value.items !is DataLoadingState.Success) {
                     _state.update { it.copy(items = DataLoadingState.Error(ex), backgroundLoading = LoadingState.Pending) }
                 }
             }
