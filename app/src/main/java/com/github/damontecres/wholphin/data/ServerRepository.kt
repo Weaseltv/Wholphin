@@ -16,6 +16,7 @@ import com.github.damontecres.wholphin.kids.profileCeiling
 import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.services.hilt.IoDispatcher
+import com.github.damontecres.wholphin.services.tvprovider.LauncherRows
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -311,7 +312,11 @@ class ServerRepository
             // interruption before it completes restarts gated (unknown ceiling), never at a higher one
             val journalled =
                 if (BuildConfig.KID_PROFILES_ENABLED) {
-                    kidProtectionStore.beginSwitch(protect = user.profileKind != ProfileKind.ADULT)
+                    kidProtectionStore.beginSwitch(protect = user.profileKind != ProfileKind.ADULT).also {
+                        // Kid content rules (review round 3): a protected TV shows no launcher rows; protection is
+                        // persisted by now, and their removal is under way before this session is published
+                        if (user.profileKind != ProfileKind.ADULT) LauncherRows.requestClear(context)
+                    }
                 } else {
                     null
                 }

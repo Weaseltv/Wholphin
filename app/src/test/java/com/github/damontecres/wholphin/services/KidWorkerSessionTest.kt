@@ -50,6 +50,7 @@ class KidWorkerSessionTest {
             mockk(relaxed = true),
             latestNextUpService,
             mockk(relaxed = true),
+            mockk { coEvery { isProtected() } returns false },
         )
 
     @Before

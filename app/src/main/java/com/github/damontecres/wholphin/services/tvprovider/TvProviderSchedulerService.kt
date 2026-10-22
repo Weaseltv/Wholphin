@@ -57,12 +57,14 @@ class TvProviderSchedulerService
                 if (supportsTvProvider) {
                     activity.lifecycleScope.launchIO(ExceptionHandler()) {
                         if (BuildConfig.KID_PROFILES_ENABLED) {
-                            // Kid content rules (contract section 10, review round 1): the previous profile's launcher
-                            // rows never stay up for a kid or unknown session, nor on a protected TV's chooser (no
-                            // session); the worker refills them for the next profile. Any other change still stops
-                            // runs started for the previous session
-                            val clear = if (user == null) kidProtectionStore.isProtected() else user.user.profileKind != ProfileKind.ADULT
-                            if (clear) LauncherRows.clear(context) else LauncherRows.invalidate()
+                            // Kid content rules (contract section 10, review round 3): a protected TV shows no
+                            // launcher rows for any profile, since the TV's home screen is outside the profile gate.
+                            // Unprotected, any change still stops runs started for the previous session
+                            if (kidProtectionStore.isProtected()) {
+                                LauncherRows.clear(context)
+                                return@launchIO
+                            }
+                            LauncherRows.invalidate()
                         }
                         if (user != null) {
                             // Schedule a new worker whenever the user changes
@@ -86,6 +88,18 @@ class TvProviderSchedulerService
                                             .build(),
                                 ).await()
                         }
+                    }
+                }
+            }
+        }
+
+        init {
+            if (BuildConfig.KID_PROFILES_ENABLED && supportsTvProvider) {
+                // Review round 3: protection turning on (or the app starting protected) takes the launcher rows down
+                kidProtectionStore.isProtected.collectLatestIn(activity.lifecycleScope) { protected ->
+                    if (protected) {
+                        workManager.cancelUniqueWork(TvProviderWorker.WORK_NAME)
+                        activity.lifecycleScope.launchIO(ExceptionHandler()) { LauncherRows.clear(context) }
                     }
                 }
             }

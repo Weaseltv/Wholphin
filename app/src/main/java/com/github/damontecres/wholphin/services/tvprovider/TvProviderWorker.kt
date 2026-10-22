@@ -22,6 +22,7 @@ import com.github.damontecres.wholphin.MainActivity
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
+import com.github.damontecres.wholphin.kids.KidProtectionStore
 import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.services.ImageUrlService
@@ -31,7 +32,11 @@ import com.github.damontecres.wholphin.services.WorkerSession
 import com.github.damontecres.wholphin.ui.SlimItemFields
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.jellyfin.sdk.api.client.ApiClient
@@ -64,6 +69,7 @@ class TvProviderWorker
         private val api: ApiClient,
         private val latestNextUpService: LatestNextUpService,
         private val imageUrlService: ImageUrlService,
+        private val kidProtectionStore: KidProtectionStore,
     ) : CoroutineWorker(context, workerParams) {
         override suspend fun doWork(): Result {
             Timber.d("Start")
@@ -80,9 +86,12 @@ class TvProviderWorker
             // checks the epoch under the launcher lock, so nothing fetched for another session is ever written
             val epoch = serverRepository.sessionEpoch.value
             val generation = LauncherRows.generation
-            val stale: () -> Result? = {
+            // Review round 3: a protected TV (kid protection on) shows no launcher rows for any profile, so nothing is
+            // written while it is protected; checked under the lock right before each write too
+            val stale: suspend () -> Result? = {
                 when {
                     !BuildConfig.KID_PROFILES_ENABLED -> null
+                    kidProtectionStore.isProtected() -> Result.success()
                     serverRepository.sessionEpoch.value != epoch -> Result.success()
                     LauncherRows.generation != generation -> Result.success()
                     else -> WorkerSession.check(serverRepository, serverId, userId)
@@ -291,7 +300,7 @@ class TvProviderWorker
          * write; a non-null result means the scheduled user is no longer current, so nothing more is written and
          * that result is returned.
          */
-        private suspend fun addOtherChannels(stale: () -> Result?): Result? {
+        private suspend fun addOtherChannels(stale: suspend () -> Result?): Result? {
             val preferences = preferences.data.firstOrNull()
             val channelsPrefs = context.getSharedPreferences("channels", Context.MODE_PRIVATE)
 
@@ -476,6 +485,13 @@ internal object LauncherRows {
     /** A session change: runs started before it write nothing more */
     suspend fun invalidate() {
         mutex.withLock { generation++ }
+    }
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** [clear] off the caller's thread, eg right before a session that turns kid protection on is published */
+    fun requestClear(context: Context) {
+        scope.launch { runCatching { clear(context) }.onFailure { Timber.w(it, "Couldn't clear the launcher rows") } }
     }
 
     /** Removes this app's Watch Next and preview programs from the launcher, and stops runs started before */
