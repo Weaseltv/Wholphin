@@ -32,6 +32,8 @@ import com.github.damontecres.wholphin.ui.SlimItemFields
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.exception.ApiClientException
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
@@ -70,9 +72,16 @@ class TvProviderWorker
             val userId =
                 inputData.getString(PARAM_USER_ID)?.toUUIDOrNull() ?: return Result.failure()
 
-            // Kid profiles: whether the scheduled user stopped being the session (then the result to return)
+            // Kid profiles: whether the scheduled user stopped being the session (then the result to return). Kid
+            // content rules (review round 1): also once the launcher rows were cleared or the session changed since
+            // this run started; checked under [LauncherRows.locked] together with each write
+            val generation = LauncherRows.generation
             val stale: () -> Result? = {
-                if (BuildConfig.KID_PROFILES_ENABLED) WorkerSession.check(serverRepository, serverId, userId) else null
+                when {
+                    !BuildConfig.KID_PROFILES_ENABLED -> null
+                    LauncherRows.generation != generation -> Result.success()
+                    else -> WorkerSession.check(serverRepository, serverId, userId)
+                }
             }
             if (BuildConfig.KID_PROFILES_ENABLED) {
                 stale()?.let { return it }
@@ -114,8 +123,11 @@ class TvProviderWorker
                                 .lowercase()
                                 .contains("primary")
                     }.map { TvContractCompat.buildWatchNextProgramUri(it.id) }
-                    .forEach {
-                        context.contentResolver.delete(it, null, null)
+                    .let { uris ->
+                        LauncherRows.locked {
+                            stale()?.let { return it }
+                            uris.forEach { context.contentResolver.delete(it, null, null) }
+                        }
                     }
                 // End temporary clean up
 
@@ -130,22 +142,22 @@ class TvProviderWorker
                 Timber.v("toAdd (%s)=%s", toAdd.size, toAdd.map { it.id })
 
                 // Remove existing items if they are no longer in the next up from server
-                stale()?.let { return it }
-                (toRemove + userRemoved)
-                    .map { TvContractCompat.buildWatchNextProgramUri(it.id) }
-                    .forEach {
-                        context.contentResolver.delete(it, null, null)
-                    }
+                LauncherRows.locked {
+                    stale()?.let { return it }
+                    (toRemove + userRemoved)
+                        .map { TvContractCompat.buildWatchNextProgramUri(it.id) }
+                        .forEach {
+                            context.contentResolver.delete(it, null, null)
+                        }
+                }
 
                 // Add new ones
-                stale()?.let { return it }
+                val toInsert = toAdd.map { convert(it).toContentValues() }.toTypedArray()
                 val addedCount =
-                    context.contentResolver.bulkInsert(
-                        WatchNextPrograms.CONTENT_URI,
-                        toAdd
-                            .map { convert(it).toContentValues() }
-                            .toTypedArray(),
-                    )
+                    LauncherRows.locked {
+                        stale()?.let { return it }
+                        context.contentResolver.bulkInsert(WatchNextPrograms.CONTENT_URI, toInsert)
+                    }
                 Timber.v("Added %s", addedCount)
 
                 stale()?.let { return it }
@@ -292,12 +304,14 @@ class TvProviderWorker
                             setType(Channels.TYPE_PREVIEW)
                             setAppLinkIntent(Intent(context, MainActivity::class.java))
                         }.build()
-                stale()?.let { return it }
                 channelId =
-                    context.contentResolver.insert(
-                        Channels.CONTENT_URI,
-                        channel.toContentValues(),
-                    )
+                    LauncherRows.locked {
+                        stale()?.let { return it }
+                        context.contentResolver.insert(
+                            Channels.CONTENT_URI,
+                            channel.toContentValues(),
+                        )
+                    }
                 if (channelId != null) {
                     channelsPrefs.edit(true) {
                         putString("latest", channelId.toString())
@@ -314,14 +328,15 @@ class TvProviderWorker
             val programs = latest.map { convert(channelId, it).toContentValues() }.toTypedArray()
 
             // Delete & replace
-            stale()?.let { return it }
-            context.contentResolver.delete(TvContractCompat.PreviewPrograms.CONTENT_URI, null, null)
-            stale()?.let { return it }
             val count =
-                context.contentResolver.bulkInsert(
-                    TvContractCompat.PreviewPrograms.CONTENT_URI,
-                    programs,
-                )
+                LauncherRows.locked {
+                    stale()?.let { return it }
+                    context.contentResolver.delete(TvContractCompat.PreviewPrograms.CONTENT_URI, null, null)
+                    context.contentResolver.bulkInsert(
+                        TvContractCompat.PreviewPrograms.CONTENT_URI,
+                        programs,
+                    )
+                }
             Timber.v("Inserted $count records")
             return null
         }
@@ -420,12 +435,6 @@ class TvProviderWorker
                 }.build()
 
         companion object {
-            /** Removes this app's Watch Next and preview programs from the launcher (kid content rules) */
-            fun clearLauncherRows(context: Context) {
-                context.contentResolver.delete(WatchNextPrograms.CONTENT_URI, null, null)
-                context.contentResolver.delete(TvContractCompat.PreviewPrograms.CONTENT_URI, null, null)
-            }
-
             const val WORK_NAME = "com.github.damontecres.wholphin.services.tvprovider.TvProviderWorker"
             const val PARAM_USER_ID = "userId"
             const val PARAM_SERVER_ID = "serverId"
@@ -442,3 +451,34 @@ fun <T> Cursor.map(transform: (Cursor) -> T): List<T> =
             }
         }
     }
+
+/**
+ * Kid content rules (contract section 10, review round 1): launcher writes and clearing never interleave. Clearing and
+ * every session change start a new [generation]; a worker run checks, together with each write and under the same
+ * lock, that its generation is still the current one, so a run that passed its session check before a clear can't
+ * put rows back after it.
+ */
+internal object LauncherRows {
+    @PublishedApi
+    internal val mutex = Mutex()
+
+    @Volatile
+    var generation = 0L
+        private set
+
+    suspend inline fun <T> locked(action: () -> T): T = mutex.withLock { action() }
+
+    /** A session change: runs started before it write nothing more */
+    suspend fun invalidate() {
+        mutex.withLock { generation++ }
+    }
+
+    /** Removes this app's Watch Next and preview programs from the launcher, and stops runs started before */
+    suspend fun clear(context: Context) {
+        mutex.withLock {
+            generation++
+            context.contentResolver.delete(WatchNextPrograms.CONTENT_URI, null, null)
+            context.contentResolver.delete(TvContractCompat.PreviewPrograms.CONTENT_URI, null, null)
+        }
+    }
+}

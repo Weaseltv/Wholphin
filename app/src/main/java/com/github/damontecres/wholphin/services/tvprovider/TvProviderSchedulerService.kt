@@ -14,6 +14,7 @@ import androidx.work.await
 import androidx.work.workDataOf
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.kids.KidProtectionStore
 import com.github.damontecres.wholphin.kids.ProfileKind
 import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.ui.collectLatestIn
@@ -38,6 +39,7 @@ class TvProviderSchedulerService
         @param:ActivityContext private val context: Context,
         private val serverRepository: ServerRepository,
         private val workManager: WorkManager,
+        private val kidProtectionStore: KidProtectionStore,
     ) {
         private val activity = (context as AppCompatActivity)
 
@@ -50,14 +52,17 @@ class TvProviderSchedulerService
             serverRepository.current.collectLatestIn(activity.lifecycleScope) { user ->
                 workManager.cancelUniqueWork(TvProviderWorker.WORK_NAME)
                 if (supportsTvProvider) {
-                    if (BuildConfig.KID_PROFILES_ENABLED && user != null && user.user.profileKind != ProfileKind.ADULT) {
-                        // Kid content rules (contract section 10): the previous profile's launcher rows never stay up
-                        // for a kid session; the worker refills them with the kid's filtered items
-                        activity.lifecycleScope.launchIO(ExceptionHandler()) { TvProviderWorker.clearLauncherRows(context) }
-                    }
-                    if (user != null) {
-                        // Schedule a new worker whenever the user changes
-                        activity.lifecycleScope.launchIO(ExceptionHandler()) {
+                    activity.lifecycleScope.launchIO(ExceptionHandler()) {
+                        if (BuildConfig.KID_PROFILES_ENABLED) {
+                            // Kid content rules (contract section 10, review round 1): the previous profile's launcher
+                            // rows never stay up for a kid or unknown session, nor on a protected TV's chooser (no
+                            // session); the worker refills them for the next profile. Any other change still stops
+                            // runs started for the previous session
+                            val clear = if (user == null) kidProtectionStore.isProtected() else user.user.profileKind != ProfileKind.ADULT
+                            if (clear) LauncherRows.clear(context) else LauncherRows.invalidate()
+                        }
+                        if (user != null) {
+                            // Schedule a new worker whenever the user changes
                             Timber.i("Scheduling TvProviderWorker for ${user.user}")
                             workManager
                                 .enqueueUniquePeriodicWork(
