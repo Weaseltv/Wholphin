@@ -246,12 +246,18 @@ class ServerRepository
             authorize: ((CurrentUser) -> Unit)?,
             entryOwner: Any?,
         ): CurrentUser {
-            val kidProfiles = BuildConfig.KID_PROFILES_ENABLED
-            // Kid profiles: what a withdrawal of this session restores (review round 5)
-            val ceilingBefore = if (kidProfiles) kidProtectionStore.sessionCeiling() else null
             // Kid profiles: protection is on before a kid row is admitted, and the switch is journalled so an
             // interruption before it completes restarts gated (unknown ceiling), never at a higher one
-            val switchId = if (kidProfiles) kidProtectionStore.beginSwitch(protect = user.profileKind != ProfileKind.ADULT) else null
+            val journalled =
+                if (BuildConfig.KID_PROFILES_ENABLED) {
+                    kidProtectionStore.beginSwitch(protect = user.profileKind != ProfileKind.ADULT)
+                } else {
+                    null
+                }
+            val switchId = journalled?.id
+            // Kid profiles: what a withdrawal of this session restores (review round 5), the effective ceiling the
+            // journal recorded (review round 8)
+            val ceilingBefore = journalled?.ceilingBefore
             var published: CurrentUser? = null
             try {
                 serverDao.addOrUpdateServer(server)
@@ -281,7 +287,7 @@ class ServerRepository
                         val publishedUser = published
                         if (publishedUser != null) {
                             // Published, then interrupted: the session is the destination's, so is its ceiling
-                            settlePublished(switchId, ceilingBefore!!, publishedUser, entryOwner)
+                            settlePublished(switchId, publishedUser, entryOwner)
                         } else {
                             // Nothing was published: the previous session ceiling still applies
                             kidProtectionStore.abortSwitch(switchId)
@@ -292,7 +298,7 @@ class ServerRepository
             }
             val currentUser = published!!
             if (switchId != null) {
-                withContext(NonCancellable) { settlePublished(switchId, ceilingBefore!!, currentUser, entryOwner) }
+                withContext(NonCancellable) { settlePublished(switchId, currentUser, entryOwner) }
             }
             return currentUser
         }
@@ -304,14 +310,13 @@ class ServerRepository
          */
         private suspend fun settlePublished(
             switchId: String,
-            ceilingBefore: ProfileCeiling,
             published: CurrentUser,
             entryOwner: Any?,
         ) {
             if (entryOwner == null) {
                 kidProtectionStore.completeSwitch(switchId, published.user.profileCeiling)
             } else {
-                kidProtectionStore.holdSwitch(switchId, ceilingBefore, published.user.profileCeiling)
+                kidProtectionStore.holdSwitch(switchId, published.user.profileCeiling)
             }
         }
 
@@ -488,16 +493,25 @@ class ServerRepository
             sessionMutex.withLock { finishEntryLocked() }
         }
 
-        /** [finishEntry]; the caller holds [sessionMutex] */
+        /**
+         * [finishEntry]; the caller holds [sessionMutex]. Review round 8: the publication keeps its switch until the
+         * entry is written, so if that write fails the session stays gated (unknown) and the next call retries it.
+         */
         private suspend fun finishEntryLocked() {
             withContext(NonCancellable) {
-                val switchId =
+                val (publication, switchId) =
                     commitSession {
                         lastPublication?.takeIf { it.entered }?.let { publication ->
-                            publication.heldSwitchId.also { publication.heldSwitchId = null }
+                            publication.heldSwitchId?.let { publication to it }
                         }
                     } ?: return@withContext
-                kidProtectionStore.enterSwitch(switchId)
+                try {
+                    kidProtectionStore.enterSwitch(switchId)
+                } catch (ex: Exception) {
+                    Timber.w(ex, "Could not record the entered session; it stays gated until this is retried")
+                    return@withContext
+                }
+                commitSession { if (publication.heldSwitchId == switchId) publication.heldSwitchId = null }
             }
         }
 

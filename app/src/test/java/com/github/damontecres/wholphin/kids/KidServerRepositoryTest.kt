@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.github.damontecres.wholphin.BuildConfig
@@ -361,7 +363,7 @@ class KidServerRepositoryTest {
         runTest {
             store.markProtected(ProfileCeiling.Rating(10))
             store.setSessionCeiling(ProfileCeiling.Rating(10))
-            val switchId = store.beginSwitch(protect = false)
+            val switchId = store.beginSwitch(protect = false).id
             assertEquals(ProfileCeiling.Unknown, KidProtectionStore(keyValue).sessionCeiling())
             store.completeSwitch(switchId, ProfileCeiling.Rating(14))
             assertEquals(ProfileCeiling.Rating(14), KidProtectionStore(keyValue).sessionCeiling())
@@ -372,8 +374,8 @@ class KidServerRepositoryTest {
         runTest {
             store.markProtected(ProfileCeiling.Rating(10))
             store.setSessionCeiling(ProfileCeiling.Rating(10))
-            val stale = store.beginSwitch(protect = false)
-            val current = store.beginSwitch(protect = false)
+            val stale = store.beginSwitch(protect = false).id
+            val current = store.beginSwitch(protect = false).id
 
             assertFalse(store.completeSwitch(stale, ProfileCeiling.Rating(17)))
             assertFalse(store.abortSwitch(stale))
@@ -388,8 +390,8 @@ class KidServerRepositoryTest {
         runTest {
             store.markProtected(ProfileCeiling.Rating(10))
             store.setSessionCeiling(ProfileCeiling.Rating(10))
-            val switchId = store.beginSwitch(protect = false)
-            assertTrue(store.holdSwitch(switchId, ProfileCeiling.Rating(10), ProfileCeiling.Unlimited))
+            val switchId = store.beginSwitch(protect = false).id
+            assertTrue(store.holdSwitch(switchId, ProfileCeiling.Unlimited))
             assertEquals(ProfileCeiling.Unknown, KidProtectionStore(keyValue).sessionCeiling())
 
             // A stale switch enters nothing; the held one applies the destination it recorded
@@ -405,8 +407,8 @@ class KidServerRepositoryTest {
         runTest {
             store.markProtected(ProfileCeiling.Rating(14))
             store.setSessionCeiling(ProfileCeiling.Rating(14))
-            val switchId = store.beginSwitch(protect = false)
-            store.holdSwitch(switchId, ProfileCeiling.Rating(14), ProfileCeiling.Unlimited)
+            val switchId = store.beginSwitch(protect = false).id
+            store.holdSwitch(switchId, ProfileCeiling.Unlimited)
             // A refresh of the held session changes what entering it would apply, never the ceiling from before it
             store.setSessionCeiling(ProfileCeiling.Rating(10))
             assertEquals(ProfileCeiling.Unknown, store.sessionCeiling())
@@ -422,12 +424,116 @@ class KidServerRepositoryTest {
         runTest {
             store.markProtected(ProfileCeiling.Rating(10))
             store.setSessionCeiling(ProfileCeiling.Rating(10))
-            val switchId = store.beginSwitch(protect = false)
-            store.holdSwitch(switchId, ProfileCeiling.Rating(10), ProfileCeiling.Unlimited)
+            val switchId = store.beginSwitch(protect = false).id
+            store.holdSwitch(switchId, ProfileCeiling.Unlimited)
             store.setSessionCeiling(ProfileCeiling.Rating(14))
 
             assertTrue(store.enterSwitch(switchId))
             assertEquals(ProfileCeiling.Rating(14), store.sessionCeiling())
+        }
+
+    /**
+     * Review round 8: switches older app versions journalled and never finished, each over an entered adult's stored
+     * ceiling: round 2 (a pending flag), rounds 3-6 (with a switch id) and round 7 (held for a chooser flow)
+     */
+    private val unfinishedSwitchRecords: List<suspend () -> Unit> =
+        listOf(
+            {
+                keyValue.edit { it[booleanPreferencesKey("kids.switchPending")] = true }
+            },
+            {
+                keyValue.edit {
+                    it[booleanPreferencesKey("kids.switchPending")] = true
+                    it[stringPreferencesKey("kids.switchId")] = UUID.randomUUID().toString()
+                }
+            },
+            {
+                keyValue.edit {
+                    it[booleanPreferencesKey("kids.switchPending")] = true
+                    it[stringPreferencesKey("kids.switchId")] = UUID.randomUUID().toString()
+                    it[booleanPreferencesKey("kids.switchHeld")] = true
+                    it[stringPreferencesKey("kids.switchCeilingBefore")] = "unlimited"
+                    it[stringPreferencesKey("kids.switchDestination")] = "10"
+                }
+            },
+        )
+
+    private suspend fun unfinishedSwitchOverUnlimited(record: suspend () -> Unit) {
+        keyValue.edit { it.clear() }
+        store.markProtected(ProfileCeiling.Unlimited)
+        store.setSessionCeiling(ProfileCeiling.Unlimited)
+        record()
+    }
+
+    @Test
+    fun `a switch aborted after replacing an unfinished one never reveals the ceiling it hid`() =
+        runTest {
+            unfinishedSwitchRecords.forEachIndexed { format, record ->
+                unfinishedSwitchOverUnlimited(record)
+                val restarted = KidProtectionStore(keyValue)
+                assertEquals("format $format", ProfileCeiling.Unknown, restarted.sessionCeiling())
+
+                val recovery = restarted.beginSwitch(protect = false)
+                assertEquals("format $format", ProfileCeiling.Unknown, recovery.ceilingBefore)
+                assertTrue(restarted.abortSwitch(recovery.id))
+                assertEquals("format $format", ProfileCeiling.Unknown, restarted.sessionCeiling())
+                assertEquals("format $format", ProfileCeiling.Unknown, KidProtectionStore(keyValue).sessionCeiling())
+            }
+        }
+
+    @Test
+    fun `a held switch withdrawn after replacing an unfinished one never reveals the ceiling it hid`() =
+        runTest {
+            unfinishedSwitchRecords.forEachIndexed { format, record ->
+                unfinishedSwitchOverUnlimited(record)
+                val recovery = store.beginSwitch(protect = false)
+                assertTrue(store.holdSwitch(recovery.id, ProfileCeiling.Rating(14)))
+
+                store.withdrawSwitch(ProfileCeiling.Unlimited, recovery.id)
+                assertEquals("format $format", ProfileCeiling.Unknown, store.sessionCeiling())
+                assertFalse(store.enterSwitch(recovery.id))
+            }
+        }
+
+    @Test
+    fun `a switch completed after replacing an unfinished one applies its destination`() =
+        runTest {
+            unfinishedSwitchRecords.forEachIndexed { format, record ->
+                unfinishedSwitchOverUnlimited(record)
+                val completed = store.beginSwitch(protect = false)
+                assertTrue(store.completeSwitch(completed.id, ProfileCeiling.Rating(14)))
+                assertEquals("format $format", ProfileCeiling.Rating(14), KidProtectionStore(keyValue).sessionCeiling())
+
+                unfinishedSwitchOverUnlimited(record)
+                val entered = store.beginSwitch(protect = false)
+                assertTrue(store.holdSwitch(entered.id, ProfileCeiling.Rating(10)))
+                assertTrue(store.enterSwitch(entered.id))
+                assertEquals("format $format", ProfileCeiling.Rating(10), KidProtectionStore(keyValue).sessionCeiling())
+            }
+        }
+
+    @Test
+    fun `an aborted switch restores the ceiling from before it, never a higher one written meanwhile`() =
+        runTest {
+            store.markProtected(ProfileCeiling.Rating(10))
+            store.setSessionCeiling(ProfileCeiling.Rating(10))
+            val switch = store.beginSwitch(protect = false)
+            assertEquals(ProfileCeiling.Rating(10), switch.ceilingBefore)
+            store.setSessionCeiling(ProfileCeiling.Unlimited)
+
+            assertTrue(store.abortSwitch(switch.id))
+            assertEquals(ProfileCeiling.Rating(10), store.sessionCeiling())
+        }
+
+    @Test
+    fun `protection set under a journalled switch never initialises its ceiling`() =
+        runTest {
+            val switch = store.beginSwitch(protect = false)
+            assertEquals(ProfileCeiling.Unknown, switch.ceilingBefore)
+            store.markProtected(ProfileCeiling.Unlimited)
+
+            assertTrue(store.abortSwitch(switch.id))
+            assertEquals(ProfileCeiling.Unknown, store.sessionCeiling())
         }
 
     /** A repository whose every step (IO, Main, key-value and app DataStores) runs on the test scheduler */

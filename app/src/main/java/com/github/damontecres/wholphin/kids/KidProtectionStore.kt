@@ -35,31 +35,36 @@ class KidProtectionStore
         suspend fun isProtected(): Boolean = isProtected.first()
 
         /**
-         * The ceiling of the last profile a switch completed to. A missing key, or a switch that began but never
-         * completed (process death mid-switch, or before a chooser flow entered what it published), reads as
-         * [ProfileCeiling.Unknown], which the gate treats as gated.
+         * The ceiling of the last profile a switch completed to: the effective ceiling ([effectiveCeiling]). A missing
+         * key, or a switch that began but never completed (process death mid-switch, or before a chooser flow entered
+         * what it published), reads as [ProfileCeiling.Unknown], which the gate treats as gated.
          */
-        suspend fun sessionCeiling(): ProfileCeiling {
-            val prefs = dataStore.data.first()
-            if (prefs[KEY_SWITCH_PENDING] == true) return ProfileCeiling.Unknown
-            return decodeCeiling(prefs[KEY_SESSION_CEILING])
-        }
+        suspend fun sessionCeiling(): ProfileCeiling = dataStore.data.first().effectiveCeiling()
 
         /**
          * Journals a switch about to be published: until [completeSwitch] or [abortSwitch] the session ceiling
          * reads as unknown, so an interruption never leaves the destination's (possibly higher) ceiling behind.
          * [protect] sets the protection flag in the same write, before a kid row is admitted.
          *
-         * @return the id of this switch; only its owner can complete or abort it
+         * Review round 8: the journal records the effective ceiling from before this switch, unknown if another
+         * switch's record (also an older app version's) is replaced here, and the stored ceiling becomes that same
+         * value, so no later step can reveal a ceiling the replaced record hid.
+         *
+         * @return this switch: only its owner can complete or abort it
          */
-        suspend fun beginSwitch(protect: Boolean): String {
+        suspend fun beginSwitch(protect: Boolean): JournalledSwitch {
             val switchId = UUID.randomUUID().toString()
+            var ceilingBefore: ProfileCeiling = ProfileCeiling.Unknown
             dataStore.edit {
+                ceilingBefore = it.effectiveCeiling()
+                it.clearJournal()
                 it[KEY_SWITCH_PENDING] = true
                 it[KEY_SWITCH_ID] = switchId
+                it.putOrRemove(KEY_SWITCH_CEILING_BEFORE, ceilingBefore)
+                it.putOrRemove(KEY_SESSION_CEILING, ceilingBefore)
                 if (protect) it[KEY_PROTECTION] = true
             }
-            return switchId
+            return JournalledSwitch(switchId, ceilingBefore)
         }
 
         /**
@@ -85,15 +90,15 @@ class KidProtectionStore
 
         /**
          * Review round 7: the switch [switchId] published a session that a chooser flow has yet to enter. The journal
-         * stays open, so the session ceiling still reads unknown, and records [ceilingBefore] (the session ceiling from
-         * before this switch) and [destination], the published profile's: [enterSwitch] applies [destination],
-         * [withdrawSwitch] goes back to [ceilingBefore]. Should the process die first, the TV restarts gated.
+         * stays open, so the session ceiling still reads unknown, and records [destination], the published profile's,
+         * next to the ceiling from before this switch that [beginSwitch] recorded (review round 8): [enterSwitch]
+         * applies [destination], [withdrawSwitch] goes back to the one from before. Should the process die first, the
+         * TV restarts gated.
          *
          * @return whether [switchId] was the journalled switch
          */
         suspend fun holdSwitch(
             switchId: String,
-            ceilingBefore: ProfileCeiling,
             destination: ProfileCeiling,
         ): Boolean {
             var owned = false
@@ -101,7 +106,6 @@ class KidProtectionStore
                 if (it[KEY_SWITCH_ID] == switchId) {
                     owned = true
                     it[KEY_SWITCH_HELD] = true
-                    it.putOrRemove(KEY_SWITCH_CEILING_BEFORE, ceilingBefore)
                     it.putOrRemove(KEY_SWITCH_DESTINATION, destination)
                 }
             }
@@ -131,6 +135,9 @@ class KidProtectionStore
          * The switch [switchId] failed before anything was published: the previous session ceiling still applies.
          * Never ends a switch other than [switchId].
          *
+         * Review round 8: that is the ceiling [beginSwitch] recorded, or the stored one if lower; unknown stays unknown,
+         * so aborting a switch that replaced an unfinished one leaves the TV gated.
+         *
          * @return whether [switchId] was the journalled switch
          */
         suspend fun abortSwitch(switchId: String): Boolean {
@@ -138,7 +145,7 @@ class KidProtectionStore
             dataStore.edit {
                 if (it[KEY_SWITCH_ID] == switchId) {
                     owned = true
-                    it.clearJournal()
+                    it.closeJournalAtCeilingBefore()
                 }
             }
             return owned
@@ -150,7 +157,8 @@ class KidProtectionStore
          * raised. Unknown on either side, or ceilings that don't compare, leave it unknown (fail closed).
          *
          * Review round 7: [switchId] is that session's switch if it is still held ([holdSwitch]); its journal closes
-         * here, with the lower of [ceilingBefore] and the one it recorded. Any other journalled switch stays open.
+         * here, with the lower of [ceilingBefore] and the one it recorded. Any other journalled switch stays open, and
+         * then the effective ceiling (unknown) is the one compared (review round 8).
          */
         suspend fun withdrawSwitch(
             ceilingBefore: ProfileCeiling,
@@ -158,15 +166,11 @@ class KidProtectionStore
         ) {
             dataStore.edit {
                 val held = switchId != null && it[KEY_SWITCH_ID] == switchId && it[KEY_SWITCH_HELD] == true
-                // A held switch's open journal is this very session's; the ceiling stored under it is from before it
-                val stored =
-                    if (it[KEY_SWITCH_PENDING] == true && !held) ProfileCeiling.Unknown else decodeCeiling(it[KEY_SESSION_CEILING])
-                var restored = lowerOf(ceilingBefore, stored)
                 if (held) {
-                    restored = lowerOf(restored, decodeCeiling(it[KEY_SWITCH_CEILING_BEFORE]))
-                    it.clearJournal()
+                    it.closeJournalAtCeilingBefore(ceilingBefore)
+                } else {
+                    it.putOrRemove(KEY_SESSION_CEILING, lowerOf(ceilingBefore, it.effectiveCeiling()))
                 }
-                it.putOrRemove(KEY_SESSION_CEILING, restored)
             }
         }
 
@@ -192,12 +196,12 @@ class KidProtectionStore
 
         /**
          * Sets the protection flag (first kid admitted). [ceilingIfMissing] initialises the session
-         * ceiling only when none was stored yet.
+         * ceiling only when none was stored yet, and never under a journalled switch (review round 8).
          */
         suspend fun markProtected(ceilingIfMissing: ProfileCeiling) {
             dataStore.edit {
                 it[KEY_PROTECTION] = true
-                if (it[KEY_SESSION_CEILING] == null) {
+                if (it[KEY_SESSION_CEILING] == null && !it.hasJournal()) {
                     it[KEY_SESSION_CEILING] = encodeCeiling(ceilingIfMissing)
                 }
             }
@@ -252,6 +256,10 @@ class KidProtectionStore
             private val KEY_PIN_LOCKOUTS = intPreferencesKey("kids.pin.lockouts")
             private val KEY_PIN_LOCKED_UNTIL = longPreferencesKey("kids.pin.lockedUntil")
 
+            // Review round 8: any of them is a journalled switch, including the formats of older app versions
+            private val JOURNAL_KEYS =
+                listOf(KEY_SWITCH_PENDING, KEY_SWITCH_ID, KEY_SWITCH_HELD, KEY_SWITCH_CEILING_BEFORE, KEY_SWITCH_DESTINATION)
+
             private const val UNLIMITED = "unlimited"
 
             internal fun encodeCeiling(ceiling: ProfileCeiling): String =
@@ -290,6 +298,27 @@ class KidProtectionStore
                 if (ceiling == ProfileCeiling.Unknown) remove(key) else set(key, encodeCeiling(ceiling))
             }
 
+            private fun Preferences.hasJournal(): Boolean = JOURNAL_KEYS.any { asMap().containsKey(it) }
+
+            /**
+             * Review round 8: the one session ceiling every reader and journal step goes by. Unknown while any switch
+             * is journalled, whichever app version wrote it; otherwise the stored one (unknown if missing).
+             */
+            private fun Preferences.effectiveCeiling(): ProfileCeiling =
+                if (hasJournal()) ProfileCeiling.Unknown else decodeCeiling(this[KEY_SESSION_CEILING])
+
+            /**
+             * Closes the journalled switch at the ceiling from before it: the lowest of the one [beginSwitch] recorded,
+             * the one stored under the journal and [also]. Unknown on any side stays unknown, so this never reveals a
+             * ceiling an unfinished switch hid.
+             */
+            private fun MutablePreferences.closeJournalAtCeilingBefore(also: ProfileCeiling? = null) {
+                var restored = lowerOf(decodeCeiling(this[KEY_SWITCH_CEILING_BEFORE]), decodeCeiling(this[KEY_SESSION_CEILING]))
+                if (also != null) restored = lowerOf(restored, also)
+                clearJournal()
+                putOrRemove(KEY_SESSION_CEILING, restored)
+            }
+
             private fun MutablePreferences.clearJournal() {
                 remove(KEY_SWITCH_PENDING)
                 remove(KEY_SWITCH_ID)
@@ -299,6 +328,12 @@ class KidProtectionStore
             }
         }
     }
+
+/** A switch [KidProtectionStore.beginSwitch] journalled: its [id] and the effective ceiling from before it */
+data class JournalledSwitch(
+    val id: String,
+    val ceilingBefore: ProfileCeiling,
+)
 
 /** Device-wide PIN attempt state: [failures] since the last lockout, [lockouts] so far */
 data class PinBackoff(

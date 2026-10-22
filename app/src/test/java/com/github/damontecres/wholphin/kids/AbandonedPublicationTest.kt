@@ -4,6 +4,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.JellyfinServerDao
@@ -36,6 +39,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
@@ -58,6 +62,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assume
 import org.junit.Before
 import org.junit.Test
+import java.io.IOException
 import java.util.UUID
 
 /**
@@ -566,5 +571,222 @@ class AbandonedPublicationTest {
             restart()
 
             assertEquals(ProfileCeiling.Rating(10), store.sessionCeiling())
+        }
+
+    /**
+     * Review round 8: what an older app version left behind when it died mid-switch, the round 2 format: a pending
+     * flag without a switch id, over the entered adult's stored ceiling
+     */
+    private suspend fun legacyPendingRecord() =
+        keyValue.edit {
+            it[booleanPreferencesKey("kids.protection")] = true
+            it[stringPreferencesKey("kids.sessionCeiling")] = "unlimited"
+            it[booleanPreferencesKey("kids.switchPending")] = true
+        }
+
+    /** Review round 8: an entered adult, then a chooser publishes the Kids profile and dies before entering it */
+    private suspend fun heldRecordOfDeadProcess() {
+        protect(ProfileCeiling.Unlimited)
+        publishUnentered(kid, Any())
+        restart()
+    }
+
+    /** Fails the next save of the current profile, a step every switch takes after its journal began */
+    private fun failNextSave() {
+        var fail = true
+        coEvery { appPreferences.updateData(any()) } answers {
+            if (fail) {
+                fail = false
+                throw IOException("disk full")
+            }
+            AppPreferences.getDefaultInstance()
+        }
+    }
+
+    @Test
+    fun `an authorized recovery switch that fails after a held publication died keeps the TV gated`() =
+        runTest(dispatcher) {
+            heldRecordOfDeadProcess()
+            assertEquals(ProfileCeiling.Unknown, store.sessionCeiling())
+            val gate = gate()
+            val (chooser, _) = chooser(gate)
+
+            // A parent authorizes the Older kids profile; its switch fails after it was journalled, before publishing
+            chooser.onProfileSelected(olderKid)
+            runCurrent()
+            failNextSave()
+            chooser.submitPin("1234")
+            runCurrent()
+            assertNull(repository.current.value)
+            assertTrue(navigated.isEmpty())
+
+            // Never the adult's ceiling the dead switch hid: the pinless Teens profile still needs a parent
+            assertEquals(ProfileCeiling.Unknown, store.sessionCeiling())
+            chooser.onProfileSelected(teen)
+            runCurrent()
+            assertEquals(
+                ChooserPrompt.Pin(target = teen, pinOwner = parent, purpose = PinPurpose.SWITCH),
+                chooser.state.value.prompt,
+            )
+            assertTrue(navigated.isEmpty())
+            restart()
+            assertEquals(ProfileCeiling.Unknown, store.sessionCeiling())
+            assertEquals(GateDecision.NeedsParentUnlock, gate().evaluate(teen))
+        }
+
+    @Test
+    fun `an authorized recovery switch cancelled after a held publication died keeps the TV gated`() =
+        runTest(dispatcher) {
+            heldRecordOfDeadProcess()
+            val gate = gate()
+            assertEquals(PinCheckResult.Correct, gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(olderKid.rowId)))
+            val saving = CompletableDeferred<Unit>()
+            coEvery { appPreferences.updateData(any()) } coAnswers {
+                saving.await()
+                AppPreferences.getDefaultInstance()
+            }
+
+            val switch = launch { gate.switchTo(server, olderKid, entryOwner = Any()) }
+            runCurrent()
+            switch.cancel()
+            runCurrent()
+
+            assertNull(repository.current.value)
+            assertEquals(ProfileCeiling.Unknown, store.sessionCeiling())
+            assertEquals(GateDecision.NeedsParentUnlock, gate.evaluate(teen))
+            restart()
+            assertEquals(ProfileCeiling.Unknown, store.sessionCeiling())
+        }
+
+    @Test
+    fun `an authorized switch that fails after an older version's unfinished switch keeps the TV gated`() =
+        runTest(dispatcher) {
+            legacyPendingRecord()
+            restart()
+            assertEquals(ProfileCeiling.Unknown, store.sessionCeiling())
+            val gate = gate()
+            assertEquals(PinCheckResult.Correct, gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(olderKid.rowId)))
+            failNextSave()
+
+            try {
+                gate.switchTo(server, olderKid)
+                error("should have failed")
+            } catch (_: IOException) {
+            }
+
+            assertNull(repository.current.value)
+            assertEquals(ProfileCeiling.Unknown, store.sessionCeiling())
+            assertEquals(GateDecision.NeedsParentUnlock, gate.evaluate(teen))
+            restart()
+            assertEquals(GateDecision.NeedsParentUnlock, gate().evaluate(teen))
+        }
+
+    @Test
+    fun `an authorized switch cancelled after an older version's unfinished switch keeps the TV gated`() =
+        runTest(dispatcher) {
+            legacyPendingRecord()
+            restart()
+            val gate = gate()
+            assertEquals(PinCheckResult.Correct, gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(olderKid.rowId)))
+            val saving = CompletableDeferred<Unit>()
+            coEvery { appPreferences.updateData(any()) } coAnswers {
+                saving.await()
+                AppPreferences.getDefaultInstance()
+            }
+
+            val switch = launch { gate.switchTo(server, olderKid, entryOwner = Any()) }
+            runCurrent()
+            switch.cancel()
+            runCurrent()
+
+            assertNull(repository.current.value)
+            assertEquals(ProfileCeiling.Unknown, store.sessionCeiling())
+            assertEquals(GateDecision.NeedsParentUnlock, gate.evaluate(teen))
+        }
+
+    @Test
+    fun `a successful recovery switch applies its destination's ceiling`() =
+        runTest(dispatcher) {
+            heldRecordOfDeadProcess()
+            val (chooser, _) = chooser(gate())
+
+            chooser.onProfileSelected(olderKid)
+            runCurrent()
+            chooser.submitPin("1234")
+            runCurrent()
+
+            assertEquals(listOf(olderKid.id), navigated.map { it.user.id })
+            assertEquals(ProfileCeiling.Rating(14), store.sessionCeiling())
+            restart()
+            assertEquals(ProfileCeiling.Rating(14), store.sessionCeiling())
+            assertEquals(GateDecision.NeedsParentUnlock, gate().evaluate(teen))
+            assertEquals(GateDecision.Allow, gate().evaluate(kid))
+        }
+
+    @Test
+    fun `a successful switch after an older version's unfinished switch applies its destination's ceiling`() =
+        runTest(dispatcher) {
+            legacyPendingRecord()
+            restart()
+            val gate = gate()
+            assertEquals(PinCheckResult.Correct, gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(olderKid.rowId)))
+
+            gate.switchTo(server, olderKid)
+
+            assertEquals(olderKid.id, repository.currentUser?.id)
+            assertEquals(ProfileCeiling.Rating(14), store.sessionCeiling())
+            restart()
+            assertEquals(ProfileCeiling.Rating(14), store.sessionCeiling())
+        }
+
+    /** Fails the next write of the key-value storage that records [ceiling] with no switch journalled */
+    private fun failNextFinalization(ceiling: String) {
+        var fail = true
+        keyValue.beforeUpdate = {
+            if (fail && it[stringPreferencesKey("kids.sessionCeiling")] == ceiling && it[stringPreferencesKey("kids.switchId")] == null) {
+                fail = false
+                throw IOException("disk full")
+            }
+        }
+    }
+
+    @Test
+    fun `an entry whose recording failed is recorded by the next gate evaluation`() =
+        runTest(dispatcher) {
+            protect(ProfileCeiling.Rating(10))
+            val owner = Any()
+            assertTrue(repository.markEntered(owner, publishUnentered(parent, owner)))
+            failNextFinalization("unlimited")
+
+            repository.finishEntry()
+            assertEquals(ProfileCeiling.Unknown, store.sessionCeiling())
+
+            // The backstop records it: the entered adult session stays, at its own ceiling
+            assertEquals(GateDecision.Allow, gate().evaluate(teen))
+            assertEquals(parent.id, repository.currentUser?.id)
+            assertEquals(ProfileCeiling.Unlimited, store.sessionCeiling())
+            restart()
+            assertEquals(ProfileCeiling.Unlimited, store.sessionCeiling())
+        }
+
+    @Test
+    fun `an adult pick whose entry failed to record is recorded before the next switch`() =
+        runTest(dispatcher) {
+            protect(ProfileCeiling.Rating(10))
+            val gate = gate()
+            val (viewModel, _) = chooser(gate)
+            failNextFinalization("unlimited")
+
+            viewModel.onProfileSelected(parent)
+            runCurrent()
+            viewModel.submitPin("1234")
+            runCurrent()
+            assertEquals(listOf(parent.id), navigated.map { it.user.id })
+            assertEquals(ProfileCeiling.Unknown, store.sessionCeiling())
+
+            // From the entered parent's session the Teens profile opens without a PIN, at its own ceiling
+            gate.switchTo(server, teen)
+            assertEquals(teen.id, repository.currentUser?.id)
+            assertEquals(ProfileCeiling.Rating(17), store.sessionCeiling())
         }
 }
