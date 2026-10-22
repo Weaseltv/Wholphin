@@ -99,4 +99,14 @@ class RequestPagerKidTest {
             assertEquals(14, pager.indexOfBlocking { it == "17" })
             assertEquals(-1, pager.indexOfBlocking { it == "15" })
         }
+
+    @Test
+    fun `positions behind many empty filtered pages still resolve`() =
+        runTest {
+            // Review round 1: 60 pages in a row are empty after filtering
+            val pager = FakePager(this, total = 700, hidden = (0 until 600).toSet()).also { it.init(0) }
+            assertEquals("600", pager.getBlocking(0))
+            assertEquals(50, pager.indexOfBlocking { it == "650" })
+            assertEquals((600 until 700).map { it.toString() }, pager.all())
+        }
 }

@@ -64,29 +64,52 @@ abstract class RequestPager<T>(
 
     override suspend fun getBlocking(index: Int): T? {
         if (index in 0..<totalCount) {
-            var item = items[index]
-            // Kid content rules: a filtered page can come back shorter, moving [index] into a later page, so this
-            // fetches until the page holding it is loaded (one fetch when pages are full)
-            var fetches = 0
-            while (item == null && fetches <= MAX_REFETCHES) {
-                if (fetches > 0 && cachedPages.getIfPresent(items.pageOf(index)) != null) break
-                fetchPageBlocking(index, false)
-                fetches++
-                if (index >= totalCount) return null
-                item = items[index]
+            return when (val resolved = resolve(index)) {
+                is Resolved.At -> resolved.item
+                Resolved.Exhausted -> null
             }
-            return item
         } else {
             throw IndexOutOfBoundsException("$index of $totalCount")
         }
     }
 
+    /** Kid content rules: what a position holds once its page is loaded, or that the list ended before it */
+    private sealed interface Resolved<out T> {
+        data class At<T>(
+            val item: T?,
+        ) : Resolved<T>
+
+        data object Exhausted : Resolved<Nothing>
+    }
+
+    /**
+     * Loads pages until the one holding [index] is loaded. Kid content rules: a filtered page can come back shorter,
+     * moving [index] into a later page; every fetch either loads that page or learns a page's real length, so this ends
+     * after at most one fetch per server page (one fetch when pages are full). A position past the end of a list that
+     * shrank meanwhile is [Resolved.Exhausted], never an unresolved null.
+     */
+    private suspend fun resolve(index: Int): Resolved<T> {
+        var fetchesLeft = (layout?.pageCount ?: (totalCount / pageSize + 1)) + 2
+        while (true) {
+            if (index >= totalCount) return Resolved.Exhausted
+            val item = items[index]
+            if (item != null) return Resolved.At(item)
+            // Loaded and still null: the page really has no item there (eg removed while scrolling)
+            if (cachedPages.getIfPresent(items.pageOf(index)) != null) return Resolved.At(null)
+            check(fetchesLeft-- > 0) { "Couldn't load position $index of $totalCount" }
+            fetchPageBlocking(index, false)
+        }
+    }
+
     override suspend fun indexOfBlocking(predicate: Predicate<T?>): Int {
         init(0)
-        // totalCount can shrink while filtered pages load, so it is read again on every step
+        // totalCount can shrink while filtered pages load, so it is read again on every step; each position is resolved
+        // (its page loaded) before moving on
         var i = 0
         while (i < totalCount) {
-            val currentItem = getBlocking(i)
+            val resolved = resolve(i)
+            if (resolved !is Resolved.At) break
+            val currentItem = resolved.item
             if (currentItem != null && predicate.test(currentItem)) {
                 return i
             }
@@ -150,9 +173,6 @@ abstract class RequestPager<T>(
 
     companion object {
         internal const val DEBUG = false
-
-        /** Kid content rules: how many further pages [getBlocking] fetches for one position (empty filtered pages) */
-        private const val MAX_REFETCHES = 50
     }
 
     /**
@@ -165,7 +185,7 @@ abstract class RequestPager<T>(
         var serverTotal: Int = -1
         val lengths = HashMap<Int, Int>()
 
-        private val pageCount: Int
+        val pageCount: Int
             get() = if (serverTotal <= 0) (lengths.keys.maxOrNull()?.plus(1) ?: 0) else (serverTotal + pageSize - 1) / pageSize
 
         private fun lengthOf(page: Int): Int =
