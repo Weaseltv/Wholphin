@@ -12,7 +12,10 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.await
 import androidx.work.workDataOf
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.kids.ProfileKind
+import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.ui.collectLatestIn
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.util.ExceptionHandler
@@ -47,6 +50,11 @@ class TvProviderSchedulerService
             serverRepository.current.collectLatestIn(activity.lifecycleScope) { user ->
                 workManager.cancelUniqueWork(TvProviderWorker.WORK_NAME)
                 if (supportsTvProvider) {
+                    if (BuildConfig.KID_PROFILES_ENABLED && user != null && user.user.profileKind != ProfileKind.ADULT) {
+                        // Kid content rules (contract section 10): the previous profile's launcher rows never stay up
+                        // for a kid session; the worker refills them with the kid's filtered items
+                        activity.lifecycleScope.launchIO(ExceptionHandler()) { TvProviderWorker.clearLauncherRows(context) }
+                    }
                     if (user != null) {
                         // Schedule a new worker whenever the user changes
                         activity.lifecycleScope.launchIO(ExceptionHandler()) {

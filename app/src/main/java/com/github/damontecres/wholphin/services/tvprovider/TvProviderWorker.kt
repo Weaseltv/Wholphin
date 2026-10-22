@@ -420,6 +420,12 @@ class TvProviderWorker
                 }.build()
 
         companion object {
+            /** Removes this app's Watch Next and preview programs from the launcher (kid content rules) */
+            fun clearLauncherRows(context: Context) {
+                context.contentResolver.delete(WatchNextPrograms.CONTENT_URI, null, null)
+                context.contentResolver.delete(TvContractCompat.PreviewPrograms.CONTENT_URI, null, null)
+            }
+
             const val WORK_NAME = "com.github.damontecres.wholphin.services.tvprovider.TvProviderWorker"
             const val PARAM_USER_ID = "userId"
             const val PARAM_SERVER_ID = "serverId"

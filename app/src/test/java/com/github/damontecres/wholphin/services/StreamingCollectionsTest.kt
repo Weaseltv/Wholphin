@@ -222,7 +222,17 @@ class StreamingCollectionsTest {
             val userId = UUID.randomUUID()
             val rows = mockk<JustWatchRowService>()
             coEvery { rows.serviceList(any(), any(), any()) } returns listOf(UUID.randomUUID())
-            val service = StreamingQuickListService(mockk(relaxed = true), mockk(), mockk(), rows)
+            val service =
+                StreamingQuickListService(
+                    mockk(relaxed = true),
+                    mockk(),
+                    mockk(),
+                    rows,
+                    mockk {
+                        coEvery { currentPolicy() } returns
+                            null
+                    },
+                )
             service.prefetch(userId, StreamingCollections.justWatch("Showtime"))
             coVerify(timeout = 5_000) { rows.serviceList(userId, "sho", StreamingQuickList.POPULAR) }
             coVerify(exactly = 0) { rows.serviceList(any(), "ppp", any()) }
