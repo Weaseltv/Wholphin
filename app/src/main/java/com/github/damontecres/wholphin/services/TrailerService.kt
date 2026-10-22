@@ -8,6 +8,7 @@ import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.LocalTrailer
 import com.github.damontecres.wholphin.data.model.RemoteTrailer
 import com.github.damontecres.wholphin.data.model.Trailer
+import com.github.damontecres.wholphin.kids.KidSessionGate
 import com.github.damontecres.wholphin.ui.nav.Destination
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.jellyfin.sdk.api.client.ApiClient
@@ -24,9 +25,15 @@ class TrailerService
     constructor(
         @param:ApplicationContext private val context: Context,
         private val api: ApiClient,
+        private val kidSessionGate: KidSessionGate,
     ) {
+        /**
+         * Kid content rules (contract section 10): trailers need their own usable rating, which remote trailers never
+         * have, so a kid or unknown session gets none. Local trailers are items, filtered like any other.
+         */
         fun getRemoteTrailers(item: BaseItem): List<Trailer> =
             item.data.remoteTrailers
+                ?.takeUnless { kidSessionGate.isKidSession.value }
                 ?.mapNotNull { t ->
                     t.url?.let { url ->
                         val name =
