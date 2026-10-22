@@ -25,6 +25,9 @@ class PinRulesTest {
         assertFalse(PinRules.isValidNewPin(""))
         assertFalse(PinRules.isValidNewPin("URD"))
         assertFalse(PinRules.isValidNewPin("URDLU"))
+        // Arrows only: number keys (remote or keyboard) never make a new PIN
+        assertFalse(PinRules.isValidNewPin("1234"))
+        assertFalse(PinRules.isValidNewPin("UR1D"))
     }
 
     @Test
@@ -42,6 +45,7 @@ class PinRulesTest {
     @Test
     fun `setting a pin takes four presses then the same four again`() {
         assertEquals(PinFlowStep.NotFourPresses, pinFlowStep(PinFlowState.ENTER_PIN, "URD", null, ""))
+        assertEquals(PinFlowStep.NotFourPresses, pinFlowStep(PinFlowState.ENTER_PIN, "1234", null, ""))
         assertEquals(PinFlowStep.ConfirmNewPin("URDL"), pinFlowStep(PinFlowState.ENTER_PIN, "URDL", null, ""))
         assertEquals(PinFlowStep.SaveNewPin("URDL"), pinFlowStep(PinFlowState.CONFIRM_PIN, "URDL", null, "URDL"))
         assertEquals(PinFlowStep.Mismatch, pinFlowStep(PinFlowState.CONFIRM_PIN, "URDD", null, "URDL"))
@@ -53,6 +57,8 @@ class PinRulesTest {
         val old = "UUDDLR"
         assertEquals(PinFlowStep.Incorrect, pinFlowStep(PinFlowState.ENTER_PIN_TO_REMOVE, "UUDD", old, ""))
         assertEquals(PinFlowStep.CurrentPinCorrect, pinFlowStep(PinFlowState.ENTER_PIN_TO_REMOVE, old, old, ""))
+        // An older digit PIN is still checked as saved
+        assertEquals(PinFlowStep.CurrentPinCorrect, pinFlowStep(PinFlowState.ENTER_PIN_TO_REMOVE, "1234", "1234", ""))
         assertEquals(PinFlowStep.NotFourPresses, pinFlowStep(PinFlowState.ENTER_PIN, old, old, ""))
     }
 }

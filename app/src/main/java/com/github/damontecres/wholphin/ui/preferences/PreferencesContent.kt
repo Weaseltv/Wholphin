@@ -29,6 +29,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -147,6 +149,8 @@ fun PreferencesContent(
     val canTurnOffProtection by viewModel.canTurnOffProtection.collectAsState()
     var showTurnOffProtectionPin by remember { mutableStateOf(false) }
     var turnOffProtectionMessage by remember { mutableStateOf<String?>(null) }
+    var turnOffProtectionChecks by remember { mutableIntStateOf(0) }
+    var turnOffProtectionLockedUntil by remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(Unit) {
         viewModel.preferenceDataStore.data.collect {
@@ -827,6 +831,8 @@ fun PreferencesContent(
                     },
                     // Its old "Login via server" button only closed the prompt; Back does that now
                     length = PinRules.entryLength(user.pin),
+                    checks = turnOffProtectionChecks,
+                    lockedUntilMillis = turnOffProtectionLockedUntil,
                     prompt = pinPromptFor(user.shownName),
                     onSubmit = { pin ->
                         viewModel.turnOffKidProtection(user, pin) { result, turnedOff ->
@@ -841,11 +847,14 @@ fun PreferencesContent(
                                 result is PinCheckResult.Wrong -> {
                                     turnOffProtectionMessage =
                                         context.getString(R.string.kid_pin_wrong, result.attemptsBeforeLockout)
+                                    turnOffProtectionChecks++
                                 }
 
                                 result is PinCheckResult.LockedOut -> {
                                     val seconds = ((result.retryAtMillis - System.currentTimeMillis()) / 1000).coerceAtLeast(1)
                                     turnOffProtectionMessage = context.getString(R.string.kid_pin_locked_out, seconds)
+                                    turnOffProtectionLockedUntil = result.retryAtMillis
+                                    turnOffProtectionChecks++
                                 }
 
                                 else -> {

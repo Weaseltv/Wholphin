@@ -81,6 +81,8 @@ fun AddKidFlow(
     KidPanelDialog(
         onDismissRequest = close,
         width = panelWidth(step),
+        // The PIN entry takes every D-pad key, so it keeps its footer on screen instead of scrolling
+        scrollable = step !is AddKidStep.EnterPin,
     ) {
         when (val s = step) {
             AddKidStep.Loading,
@@ -329,6 +331,7 @@ private fun PinStep(
             title = stringResource(R.string.add_kid_profile),
             prompt = pinPromptFor(name),
             length = PinRules.entryLength(step.parent.pin),
+            lockedUntilMillis = (step.error as? PinError.LockedOut)?.retryAtMillis ?: 0L,
             message = message,
             onSubmit = { if (it.isNotEmpty()) onSubmit(it) },
         )

@@ -152,11 +152,11 @@ class AddKidViewModelTest {
             viewModel.start(testServer, listOf(dad))
             advanceUntilIdle()
             assertEquals(AddKidStep.CreateFirstPin(dad), step)
-            viewModel.createFirstPin("4321")
+            viewModel.createFirstPin("LRDU")
             advanceUntilIdle()
-            coVerify { serverRepository.updateUserAuth(dad, "4321", false) }
+            coVerify { serverRepository.updateUserAuth(dad, "LRDU", false) }
             assertEquals(
-                "4321",
+                "LRDU",
                 gate.verified
                     .single()
                     .first.pin,
@@ -165,13 +165,14 @@ class AddKidViewModelTest {
         }
 
     @Test
-    fun `a first pin that isn't four presses is not saved`() =
+    fun `a first pin that isn't four arrow presses is not saved`() =
         test {
             val dad = testUser("Dad")
             viewModel.start(testServer, listOf(dad))
             advanceUntilIdle()
             viewModel.createFirstPin("43210")
             viewModel.createFirstPin("432")
+            viewModel.createFirstPin("4321")
             advanceUntilIdle()
             coVerify(exactly = 0) { serverRepository.updateUserAuth(any(), any(), any()) }
             assertEquals(AddKidStep.CreateFirstPin(dad), step)

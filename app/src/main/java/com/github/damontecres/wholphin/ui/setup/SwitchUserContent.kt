@@ -24,6 +24,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -552,6 +553,8 @@ fun SwitchUserContent(
                 },
                 onSubmit = viewModel::submitPin,
                 length = PinRules.entryLength(prompt.pinOwner.pin),
+                checks = prompt.checks,
+                lockedUntilMillis = prompt.lockedUntilMillis,
                 title =
                     when (prompt.purpose) {
                         PinPurpose.SWITCH -> {
@@ -636,6 +639,7 @@ fun SwitchUserContent(
         )
     }
     switchUserWithPin?.let { user ->
+        var checks by remember(user) { mutableIntStateOf(0) }
         PinEntryDialog(
             onDismissRequest = { switchUserWithPin = null },
             onClickServerAuth = {
@@ -643,12 +647,14 @@ fun SwitchUserContent(
                 switchUserWithPin = null
             },
             length = PinRules.entryLength(user.pin),
+            checks = checks,
             prompt = pinPromptFor(user.shownName),
             onSubmit = {
                 if (it == user.pin) {
                     trySwitchUser(user)
                 } else {
                     Toast.makeText(context, context.getString(R.string.incorrect), Toast.LENGTH_SHORT).show()
+                    checks++
                 }
             },
         )

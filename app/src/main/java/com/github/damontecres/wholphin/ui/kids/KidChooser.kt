@@ -2,6 +2,7 @@ package com.github.damontecres.wholphin.ui.kids
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -81,11 +82,14 @@ fun ChooserChangePicture(
     }
     val scope = rememberCoroutineScope()
     var error by remember { mutableStateOf<PinCheckResult?>(null) }
+    var checks by remember { mutableIntStateOf(0) }
     PinEntryDialog(
         onDismissRequest = onDone,
         title = stringResource(R.string.change_picture),
         prompt = pinPromptFor(user.shownName),
         length = PinRules.entryLength(user.pin),
+        checks = checks,
+        lockedUntilMillis = (error as? PinCheckResult.LockedOut)?.retryAtMillis ?: 0L,
         message =
             when (error) {
                 is PinCheckResult.Wrong -> stringResource(R.string.pin_wrong)
@@ -95,8 +99,14 @@ fun ChooserChangePicture(
         onSubmit = { pin ->
             scope.launch {
                 when (val result = gate.checkOwnPin(user, pin)) {
-                    PinCheckResult.Correct -> unlocked = true
-                    else -> error = result
+                    PinCheckResult.Correct -> {
+                        unlocked = true
+                    }
+
+                    else -> {
+                        error = result
+                        checks++
+                    }
                 }
             }
         },

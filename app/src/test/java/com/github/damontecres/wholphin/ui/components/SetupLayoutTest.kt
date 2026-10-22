@@ -2,16 +2,22 @@ package com.github.damontecres.wholphin.ui.components
 
 import android.app.Application
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -20,11 +26,15 @@ import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.github.damontecres.wholphin.preferences.AppThemeColors
+import com.github.damontecres.wholphin.services.Avatar
+import com.github.damontecres.wholphin.services.AvatarGroup
+import com.github.damontecres.wholphin.ui.avatars.ProfilePicturePicker
 import com.github.damontecres.wholphin.ui.setup.PinEntry
 import com.github.damontecres.wholphin.ui.setup.PinEntryDialog
 import com.github.damontecres.wholphin.ui.setup.seerr.AddSeerrServerUsername
@@ -85,10 +95,11 @@ class SetupLayoutTest {
     fun `the fourth press submits the pin and OK only confirms`() {
         val submitted = mutableListOf<String>()
         var serverAuth = 0
+        var checks by mutableIntStateOf(0)
         compose.setContent {
             WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
                 Box(Modifier.width(600.dp)) {
-                    PinEntry(onSubmit = { submitted += it }, onClickServerAuth = { serverAuth++ })
+                    PinEntry(onSubmit = { submitted += it }, checks = checks, onClickServerAuth = { serverAuth++ })
                 }
             }
         }
@@ -101,6 +112,9 @@ class SetupLayoutTest {
         }
         compose.waitForIdle()
         assertEquals(listOf("URDL"), submitted)
+        // The caller has checked it (wrong); the entry is live and empty again
+        checks = 1
+        compose.waitForIdle()
         // OK with nothing typed is the server sign-in, never a PIN
         entry.performKeyInput { pressKey(Key.DirectionCenter) }
         compose.waitForIdle()
@@ -114,6 +128,110 @@ class SetupLayoutTest {
         }
         compose.waitForIdle()
         assertEquals(listOf("URDL", "LL"), submitted)
+    }
+
+    @Test
+    fun `a submitted pin latches the entry until the caller has checked it`() {
+        val submitted = mutableListOf<String>()
+        var serverAuth = 0
+        var checks by mutableIntStateOf(0)
+        compose.setContent {
+            WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
+                Box(Modifier.width(600.dp)) {
+                    PinEntry(onSubmit = { submitted += it }, checks = checks, onClickServerAuth = { serverAuth++ })
+                }
+            }
+        }
+        val entry = compose.onNode(isFocused())
+        entry.performKeyInput { listOf(Key.DirectionUp, Key.DirectionRight, Key.DirectionDown, Key.DirectionLeft).forEach { pressKey(it) } }
+        compose.waitForIdle()
+        // While it is being checked: no new entry, no partial guess, no server sign-in that would cancel it
+        entry.performKeyInput {
+            pressKey(Key.DirectionCenter)
+            pressKey(Key.DirectionUp)
+            pressKey(Key.DirectionUp)
+            pressKey(Key.DirectionCenter)
+        }
+        compose.waitForIdle()
+        assertEquals(listOf("URDL"), submitted)
+        assertEquals(0, serverAuth)
+        // Checked (wrong): entry is live again and starts empty
+        checks = 1
+        compose.waitForIdle()
+        entry.performKeyInput {
+            pressKey(Key.DirectionLeft)
+            pressKey(Key.DirectionCenter)
+        }
+        compose.waitForIdle()
+        assertEquals(listOf("URDL", "L"), submitted)
+    }
+
+    @Test
+    fun `a new pin takes arrows only`() {
+        val chosen = mutableListOf<String>()
+        compose.setContent {
+            WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
+                Column {
+                    PinEntry(onSubmit = { chosen += it }, allowDigits = false)
+                }
+            }
+        }
+        compose.onNode(isFocused()).performKeyInput {
+            pressKey(Key.One)
+            pressKey(Key.NumPad2)
+            listOf(Key.DirectionUp, Key.DirectionRight, Key.DirectionDown, Key.DirectionLeft).forEach { pressKey(it) }
+        }
+        compose.waitForIdle()
+        assertEquals(listOf("URDL"), chosen)
+    }
+
+    @Test
+    fun `checking a saved pin still accepts number keys`() {
+        val checked = mutableListOf<String>()
+        compose.setContent {
+            WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
+                Column { PinEntry(onSubmit = { checked += it }) }
+            }
+        }
+        compose.onNode(isFocused()).performKeyInput { listOf(Key.One, Key.Two, Key.Three, Key.Four).forEach { pressKey(it) } }
+        compose.waitForIdle()
+        assertEquals(listOf("1234"), checked)
+    }
+
+    @Test
+    fun `pin footer stays on screen with a long title, prompt and error at large text`() {
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, 1.6f)) {
+                WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
+                    PinEntryDialog(
+                        onDismissRequest = {},
+                        onSubmit = {},
+                        onClickServerAuth = {},
+                        length = 8,
+                        title = "Turn off kid protection on this TV",
+                        prompt = AnnotatedString("Enter Maximilian Alexander-Fitzgerald's PIN to continue"),
+                        message = "Too many wrong PINs. Try again in 300 seconds. ".repeat(3),
+                    )
+                }
+            }
+        }
+        for (hint in listOf("Login via server", "Cancel")) {
+            val node = compose.onNodeWithText(hint)
+            node.assertIsDisplayed()
+            assertTrue("$hint stays in the viewport", node.getUnclippedBoundsInRoot().bottom.value <= 540)
+        }
+    }
+
+    @Test
+    fun `the picture picker opens on the saved avatar even past the first rows`() {
+        val avatars = (0 until 24).map { Avatar("avatar-$it", AvatarGroup.KIDS) }
+        compose.setContent {
+            WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
+                ProfilePicturePicker(title = "Change picture", subtitle = null, avatars = avatars, current = "avatar-22", onPick = {})
+            }
+        }
+        compose.waitForIdle()
+        compose.onNode(isFocused()).assert(hasContentDescription("avatar-22"))
     }
 
     @Test

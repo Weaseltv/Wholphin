@@ -177,7 +177,7 @@ class ChooserFlowTest {
             )
         viewModel.signIn(server.url, existingUser = null, onError = {}) { auth }
         assertNotNull("the adult sets a PIN before anything is published", state.pendingPinSetup)
-        val adult = JellyfinUser(id = adultId, name = "new adult", serverId = serverId, accessToken = "adult-token", pin = "4321")
+        val adult = JellyfinUser(id = adultId, name = "new adult", serverId = serverId, accessToken = "adult-token", pin = "LRDU")
         return auth to CurrentUser(server, adult)
     }
 
@@ -186,12 +186,12 @@ class ChooserFlowTest {
         runTest(dispatcher) {
             val (auth, adult) = signInPinlessAdult()
             val requests = CompletableDeferred<Unit>()
-            coEvery { serverRepository.changeUser(server.url, auth, null, any(), "4321", any(), any(), any()) } coAnswers {
+            coEvery { serverRepository.changeUser(server.url, auth, null, any(), "LRDU", any(), any(), any()) } coAnswers {
                 withContext(NonCancellable) { requests.await() }
                 publish(adult, arg(6))
             }
 
-            viewModel.completePinSetup("4321")
+            viewModel.completePinSetup("LRDU")
             // Back, then the owner picks the kid; the adult's requests resume afterwards
             viewModel.cancelPinSetup()
             viewModel.onProfileSelected(kid)
@@ -208,14 +208,14 @@ class ChooserFlowTest {
         runTest(dispatcher) {
             val (auth, adult) = signInPinlessAdult()
             val returning = CompletableDeferred<Unit>()
-            coEvery { serverRepository.changeUser(server.url, auth, null, any(), "4321", any(), any(), any()) } coAnswers {
+            coEvery { serverRepository.changeUser(server.url, auth, null, any(), "LRDU", any(), any(), any()) } coAnswers {
                 val current = publish(adult, arg(6))
                 // Published; Back lands before the switch returns from the main thread
                 withContext(NonCancellable) { returning.await() }
                 current
             }
 
-            viewModel.completePinSetup("4321")
+            viewModel.completePinSetup("LRDU")
             viewModel.cancelPinSetup()
             returning.complete(Unit)
 
@@ -358,11 +358,11 @@ class ChooserFlowTest {
     fun `the current flow still publishes, grants and navigates`() =
         runTest(dispatcher) {
             val (auth, adult) = signInPinlessAdult()
-            coEvery { serverRepository.changeUser(server.url, auth, null, any(), "4321", any(), any(), any()) } coAnswers {
+            coEvery { serverRepository.changeUser(server.url, auth, null, any(), "LRDU", any(), any(), any()) } coAnswers {
                 publish(adult, arg(6))
             }
 
-            viewModel.completePinSetup("4321")
+            viewModel.completePinSetup("LRDU")
 
             assertEquals(listOf(adult), published)
             assertEquals(listOf(adult), navigated)

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -23,6 +24,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -70,8 +72,16 @@ fun ProfilePicturePicker(
     footer: @Composable () -> Unit = {},
 ) {
     val firstFocus = remember { FocusRequester() }
-    LaunchedEffect(avatars) { if (avatars.isNotEmpty()) firstFocus.tryRequestFocus() }
     val initialIndex = avatars.indexOfFirst { it.id == current }.coerceAtLeast(0)
+    val gridState = rememberLazyGridState()
+    LaunchedEffect(avatars) {
+        if (avatars.isNotEmpty()) {
+            // The saved picture may be past the first rows: bring it into view, wait for that layout, then focus it
+            gridState.scrollToItem(initialIndex)
+            withFrameNanos {}
+            firstFocus.tryRequestFocus()
+        }
+    }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier,
@@ -83,6 +93,7 @@ fun ProfilePicturePicker(
         }
         KidGap(12.dp)
         LazyVerticalGrid(
+            state = gridState,
             columns = GridCells.Fixed(6),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),

@@ -723,13 +723,23 @@ class SwitchUserViewModel
                         is PinCheckResult.Wrong -> {
                             showPrompt(
                                 flow,
-                                prompt.copy(message = context.getString(R.string.kid_pin_wrong, result.attemptsBeforeLockout)),
+                                prompt.copy(
+                                    message = context.getString(R.string.kid_pin_wrong, result.attemptsBeforeLockout),
+                                    checks = prompt.checks + 1,
+                                ),
                             )
                         }
 
                         is PinCheckResult.LockedOut -> {
                             val seconds = ((result.retryAtMillis - System.currentTimeMillis()) / 1000).coerceAtLeast(1)
-                            showPrompt(flow, prompt.copy(message = context.getString(R.string.kid_pin_locked_out, seconds)))
+                            showPrompt(
+                                flow,
+                                prompt.copy(
+                                    message = context.getString(R.string.kid_pin_locked_out, seconds),
+                                    checks = prompt.checks + 1,
+                                    lockedUntilMillis = result.retryAtMillis,
+                                ),
+                            )
                         }
                     }
                 }
@@ -904,6 +914,10 @@ sealed interface ChooserPrompt {
         val pinOwner: JellyfinUser,
         val purpose: PinPurpose,
         val message: String? = null,
+        /** PINs checked so far in this prompt; each result lets the entry take presses again */
+        val checks: Int = 0,
+        /** While locked out, the entry takes no presses until then */
+        val lockedUntilMillis: Long = 0L,
     ) : ChooserPrompt {
         val isParentPin: Boolean get() = pinOwner.rowId != target.rowId
     }
