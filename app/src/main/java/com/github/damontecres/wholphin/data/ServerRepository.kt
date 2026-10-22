@@ -7,6 +7,7 @@ import androidx.datastore.core.DataStore
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
+import com.github.damontecres.wholphin.data.model.JellyfinUserPreferences
 import com.github.damontecres.wholphin.data.model.PolicyState
 import com.github.damontecres.wholphin.kids.KidProtectionStore
 import com.github.damontecres.wholphin.kids.ProfileCeiling
@@ -162,7 +163,11 @@ class ServerRepository
          * [updateCurrentUserLanguage].
          *
          * Kid profiles (review round 10): [user] may be a copy from before a PIN or login requirement was saved; the
-         * profile is saved and published with the ones saved by the time it is persisted (see [withSavedAuth]).
+         * profile is saved and published with the ones saved by the time it is persisted (see [withSavedColumns]).
+         *
+         * Kid profiles (review round 11): if the fetched user has no policy, the switch is gated, saved and published
+         * with the restriction saved by the time it holds the session lock, never [user]'s older one (see
+         * [withSavedPolicy]). [user]'s local preferences are never saved over newer ones either.
          */
         suspend fun changeUser(
             server: JellyfinServer,
@@ -170,9 +175,12 @@ class ServerRepository
             beforePublish: (suspend (JellyfinUser) -> Unit)? = null,
             authorize: ((CurrentUser) -> Unit)? = null,
             entryOwner: Any? = null,
-        ): CurrentUser = switchUser(server, user, beforePublish, authorize, entryOwner, newPin = null)
+        ): CurrentUser = switchUser(server, user, beforePublish, authorize, entryOwner, newPin = null, newDisplayName = null)
 
-        /** [changeUser]; [newPin] is a PIN set in this switch's own sign-in flow, saved over any saved meanwhile */
+        /**
+         * [changeUser]; [newPin] and [newDisplayName] are a PIN and name set in this switch's own sign-in flow, saved
+         * over any saved meanwhile
+         */
         private suspend fun switchUser(
             server: JellyfinServer,
             user: JellyfinUser,
@@ -180,6 +188,7 @@ class ServerRepository
             authorize: ((CurrentUser) -> Unit)?,
             entryOwner: Any?,
             newPin: String?,
+            newDisplayName: String?,
         ): CurrentUser =
             withContext(ioDispatcher) {
                 requireAuthorized(authorize)
@@ -205,7 +214,7 @@ class ServerRepository
                         Timber.w(ex, "Exception fetching public system info")
                         server
                     }
-                val updatedUser =
+                val fetchedUser =
                     user
                         .copy(
                             id = userDto.id,
@@ -219,6 +228,8 @@ class ServerRepository
                         // Kid profiles (review round 6): never gated or published against the ceiling of a session
                         // a left flow published but never entered
                         withdrawUnenteredLocked(entryOwner)
+                        // Review round 11: without a fetched policy, gated, saved and published with the saved one
+                        val updatedUser = if (userDto.policy == null) withSavedPolicy(fetchedUser) else fetchedUser
                         if (beforePublish != null) {
                             try {
                                 beforePublish.invoke(updatedUser)
@@ -237,7 +248,7 @@ class ServerRepository
                                 throw ex
                             }
                         }
-                        publishSwitch(updatedServer, updatedUser, userDto, authorize, entryOwner, newPin).also {
+                        publishSwitch(updatedServer, updatedUser, userDto, authorize, entryOwner, newPin, newDisplayName).also {
                             getServerSharedPreferences(context).edit(true) {
                                 putString(SERVER_URL_KEY, updatedServer.url)
                                 putString(ACCESS_TOKEN_KEY, it.user.accessToken)
@@ -269,7 +280,9 @@ class ServerRepository
          * Review round 7: a session published for an [entryOwner] doesn't complete its switch yet. The journal is held
          * open ([KidProtectionStore.holdSwitch]) until [finishEntry] records the entry or a withdrawal closes it.
          *
-         * Review round 10: [user] is saved with the auth columns saved by now ([withSavedAuth]); only [newPin] wins.
+         * Review round 10: [user] is saved with the auth columns saved by now ([withSavedColumns]); only [newPin] wins.
+         * Review round 11: its local preferences too; only [newDisplayName] wins. Its policy columns are [user]'s, the
+         * ones the gate checked.
          */
         private suspend fun publishSwitch(
             server: JellyfinServer,
@@ -278,6 +291,7 @@ class ServerRepository
             authorize: ((CurrentUser) -> Unit)?,
             entryOwner: Any?,
             newPin: String?,
+            newDisplayName: String?,
         ): CurrentUser {
             // Kid profiles: protection is on before a kid row is admitted, and the switch is journalled so an
             // interruption before it completes restarts gated (unknown ceiling), never at a higher one
@@ -294,8 +308,9 @@ class ServerRepository
             var published: CurrentUser? = null
             try {
                 serverDao.addOrUpdateServer(server)
-                // Read and written with no suspension in between, under the lock every auth change holds
-                val savedUser = serverDao.addOrUpdateUser(withSavedAuth(user, newPin))
+                // Read and written with no suspension in between, under the lock every auth and local preference change
+                // holds
+                val savedUser = serverDao.addOrUpdateUser(withSavedColumns(user, newPin, newDisplayName))
                 userPreferencesDataStore.updateData {
                     it
                         .toBuilder()
@@ -340,19 +355,46 @@ class ServerRepository
         /**
          * Kid profiles (review round 10): [user], a copy taken before the switch's network work, with the PIN and login
          * requirement its saved row has now, so the switch never reverts an auth change saved meanwhile. Only a PIN
-         * the switch's own sign-in flow set ([newPin], the deferred in-flow PIN setup) replaces the saved one. The
-         * caller holds [sessionMutex], which every auth change holds too, and writes the result right away.
+         * the switch's own sign-in flow set ([newPin], the deferred in-flow PIN setup) replaces the saved one.
+         *
+         * Review round 11: the same for its local preferences (app preferences, UI language and shown name): only a
+         * name its own sign-in flow set ([newDisplayName]) replaces the saved one. The caller holds [sessionMutex],
+         * which every change of these columns holds too, and writes the result right away.
          */
-        private fun withSavedAuth(
+        private fun withSavedColumns(
             user: JellyfinUser,
             newPin: String?,
+            newDisplayName: String?,
         ): JellyfinUser {
             if (!BuildConfig.KID_PROFILES_ENABLED) return user
-            val saved =
-                serverDao.getUser(user.serverId, user.id)?.takeIf { user.rowId <= 0 || it.rowId == user.rowId }
-                    ?: return user
-            return user.copy(pin = newPin ?: saved.pin, requireLogin = saved.requireLogin)
+            val saved = savedRowOf(user) ?: return user
+            return user.copy(
+                pin = newPin ?: saved.pin,
+                requireLogin = saved.requireLogin,
+                uiLanguage = saved.uiLanguage,
+                appPreferences = saved.appPreferences,
+                displayName = newDisplayName ?: saved.displayName,
+            )
         }
+
+        /**
+         * Kid profiles (review round 11): [user], whose fetched server user had no policy, with the restriction its
+         * saved row has now (plan 4.1: the cached restriction is kept when it can't be refreshed), never the older one
+         * [user] was copied with. Without a saved row it is unknown (fail closed). The caller holds [sessionMutex],
+         * which every policy write holds too, so the gate checks and the switch saves and publishes this same row.
+         */
+        private fun withSavedPolicy(user: JellyfinUser): JellyfinUser {
+            if (!BuildConfig.KID_PROFILES_ENABLED) return user
+            val saved = savedRowOf(user)
+            return user.copy(
+                maxParentalRating = saved?.maxParentalRating,
+                policyState = saved?.policyState ?: PolicyState.UNKNOWN,
+            )
+        }
+
+        /** [user]'s saved row, if it is still the one [user] was copied from */
+        private fun savedRowOf(user: JellyfinUser): JellyfinUser? =
+            serverDao.getUser(user.serverId, user.id)?.takeIf { user.rowId <= 0 || it.rowId == user.rowId }
 
         /**
          * Kid profiles: the switch [switchId] published [published]. Without an [entryOwner] it completes, and the
@@ -642,7 +684,7 @@ class ServerRepository
                             }
                         }
                     if (user != null) {
-                        return@withContext switchUser(server, user, beforePublish, authorize, entryOwner, newPin)
+                        return@withContext switchUser(server, user, beforePublish, authorize, entryOwner, newPin, displayName)
                     } else {
                         throw IllegalArgumentException("Authentication result's user was null")
                     }
@@ -789,6 +831,19 @@ class ServerRepository
                 }
             }
 
+        /**
+         * Sets only the app preferences of the saved profile [rowId] (review round 10). Kid profiles (review round 11):
+         * under the session lock, so it never lands between a switch's read of that row and its write.
+         */
+        suspend fun updateUserAppPreferences(
+            rowId: Int,
+            appPreferences: JellyfinUserPreferences,
+        ) {
+            sessionMutex.withLock {
+                withContext(ioDispatcher) { serverDao.updateUserAppPreferences(rowId, appPreferences) }
+            }
+        }
+
         /** Whether [session] is exactly the current session and no publication awaits its entry; on the main thread */
         private fun isEnteredSession(session: CurrentUser): Boolean =
             _current.value === session && session.user.rowId > 0 && lastPublication?.entered != false
@@ -902,7 +957,8 @@ fun CurrentUser?.isSameIdentity(other: CurrentUser?): Boolean =
     if (this == null || other == null) this == other else isIdentity(other.server.id, other.user.id)
 
 /**
- * The saved profile updated with the server policy in [userDto]. A missing policy keeps the cached values.
+ * The saved profile updated with the server policy in [userDto]. A missing policy keeps the cached values (a switch
+ * takes them from the saved row, review round 11).
  */
 fun JellyfinUser.withPolicyOf(userDto: UserDto): JellyfinUser {
     val policy = userDto.policy ?: return this
