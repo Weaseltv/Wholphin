@@ -34,6 +34,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 import java.util.UUID
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /** The kid content rules at the SDK choke point (contract section 10) */
 class KidContentGuardTest {
@@ -49,6 +51,9 @@ class KidContentGuardTest {
 
         /** Called with each request's path before it is answered */
         var onRequest: ((String) -> Unit)? = null
+
+        /** How long each box set children request takes */
+        var childrenDelayMillis = 0L
         var listResponse: String = """{"Items":[],"TotalRecordCount":0}"""
         var contentType = "application/json; charset=utf-8"
 
@@ -90,6 +95,7 @@ class KidContentGuardTest {
                         if (ids != null) {
                             """{"Items":[${ids.mapNotNull { items[it] }.joinToString(",")}],"TotalRecordCount":${ids.size}}"""
                         } else if (parentId != null) {
+                            if (childrenDelayMillis > 0) Thread.sleep(childrenDelayMillis)
                             val all = children[parentId].orEmpty()
                             val start = queryParameters["startIndex"] as? Int ?: 0
                             val limit = queryParameters["limit"] as? Int ?: all.size
@@ -490,5 +496,29 @@ class KidContentGuardTest {
             assertTrue(guard.isCurrent(adultPermit))
             epoch.value += 1
             assertFalse(guard.isCurrent(adultPermit))
+        }
+
+    // Review round 3
+
+    @Test
+    fun `a box set traversal is bounded in wall time and hides the set past it`() =
+        runTest {
+            guard.boxSetTime = 300.milliseconds
+            val moonstruck = items.getValue(key(moonstruckId))
+            // Each level takes 200 ms: the visible child, four levels down, is past the time budget
+            server.children =
+                mapOf(
+                    "t1" to listOf(boxSet("t2")),
+                    "t2" to listOf(boxSet("t3")),
+                    "t3" to listOf(boxSet("t4")),
+                    "t4" to listOf(moonstruck),
+                )
+            server.childrenDelayMillis = 200
+            server.listResponse = """{"Items":[${boxSet("t1")}],"TotalRecordCount":1}"""
+            assertEquals(emptyList<String>(), ids(api.get("/Items", query = mapOf("fields" to null))))
+            assertTrue(server.requests.count { it.second["parentId"] != null } < 4)
+            // Not cached: with time enough it is shown
+            guard.boxSetTime = 10.seconds
+            assertEquals(listOf("t1"), ids(api.get("/Items", query = mapOf("fields" to null))))
         }
 }

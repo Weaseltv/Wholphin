@@ -12,6 +12,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -30,6 +31,7 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
@@ -52,6 +54,9 @@ class KidContentGuard
     ) {
         /** Exposed for tests */
         internal var clock: () -> Long = System::currentTimeMillis
+
+        /** How long one box set's traversal may take (fail closed); exposed for tests */
+        internal var boxSetTime: Duration = BOX_SET_TIME
 
         private val lookupPermits = Semaphore(MAX_CONCURRENT_LOOKUPS)
 
@@ -462,7 +467,8 @@ class KidContentGuard
                 fresh: Boolean,
             ): Boolean {
                 if (maxLevel == null || !nestedBoxSets) return false
-                val traversal = traversal ?: Traversal(clock() + BOX_SET_TIME.inWholeMilliseconds)
+                val topLevel = this.traversal == null
+                val traversal = this.traversal ?: Traversal(clock() + boxSetTime.inWholeMilliseconds)
                 if (id in ancestors || ancestors.size >= MAX_BOX_SET_DEPTH) {
                     traversal.cutOffs++
                     return false
@@ -473,7 +479,16 @@ class KidContentGuard
                 val cutOffsBefore = traversal.cutOffs
                 val visible =
                     try {
-                        searchBoxSet(id, maxLevel, fresh, traversal)
+                        if (topLevel) {
+                            // Review round 3: the whole traversal, permit waits and network calls included, is bounded in
+                            // wall time; running out hides the box set. A cancellation from outside still propagates
+                            withTimeoutOrNull(boxSetTime) { searchBoxSet(id, maxLevel, fresh, traversal) } ?: run {
+                                traversal.cutOffs++
+                                false
+                            }
+                        } else {
+                            searchBoxSet(id, maxLevel, fresh, traversal)
+                        }
                     } catch (ex: CancellationException) {
                         throw ex
                     } catch (ex: Exception) {
@@ -574,7 +589,7 @@ class KidContentGuard
             /** Requests one box set's traversal may make, nested box sets and series lookups included (fail closed) */
             internal const val BOX_SET_REQUESTS = 20
 
-            /** How long one box set's traversal may take (fail closed) */
+            /** How long one box set's traversal may take by default (fail closed) */
             private val BOX_SET_TIME = 5.seconds
 
             /** Marks a filtered response (see [ApiRequestPager][com.github.damontecres.wholphin.util.ApiRequestPager]) */
@@ -698,3 +713,6 @@ class KidContentGuard
             }
         }
     }
+
+/** Kid content rules: whether this failure (or its cause) is a load that outlived its session, to drop without an error */
+fun Throwable.isStaleSession(): Boolean = generateSequence(this) { it.cause }.take(8).any { it is KidContentGuard.StaleSessionException }
