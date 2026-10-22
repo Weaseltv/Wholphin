@@ -75,10 +75,15 @@ class TvProviderWorker
             // Kid profiles: whether the scheduled user stopped being the session (then the result to return). Kid
             // content rules (review round 1): also once the launcher rows were cleared or the session changed since
             // this run started; checked under [LauncherRows.locked] together with each write
+            // Review round 2: the run is bound to the session epoch it starts in (read first, before the session check).
+            // Every request on the shared client fails if the epoch changes while it is under way, and every write
+            // checks the epoch under the launcher lock, so nothing fetched for another session is ever written
+            val epoch = serverRepository.sessionEpoch.value
             val generation = LauncherRows.generation
             val stale: () -> Result? = {
                 when {
                     !BuildConfig.KID_PROFILES_ENABLED -> null
+                    serverRepository.sessionEpoch.value != epoch -> Result.success()
                     LauncherRows.generation != generation -> Result.success()
                     else -> WorkerSession.check(serverRepository, serverId, userId)
                 }

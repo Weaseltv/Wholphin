@@ -49,7 +49,10 @@ class TvProviderSchedulerService
                 context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
 
         init {
-            serverRepository.current.collectLatestIn(activity.lifecycleScope) { user ->
+            // Kid content rules (review round 2): driven by the session epoch, which goes up on every change, so a quick
+            // kid -> adult -> same kid can't be conflated away (the session value would look unchanged)
+            serverRepository.sessionEpoch.collectLatestIn(activity.lifecycleScope) {
+                val user = serverRepository.current.value
                 workManager.cancelUniqueWork(TvProviderWorker.WORK_NAME)
                 if (supportsTvProvider) {
                     activity.lifecycleScope.launchIO(ExceptionHandler()) {

@@ -56,6 +56,7 @@ class KidWorkerSessionTest {
     fun setUp() {
         Assume.assumeTrue(BuildConfig.KID_PROFILES_ENABLED)
         every { serverRepository.current } returns current
+        every { serverRepository.sessionEpoch } returns MutableStateFlow(0L)
     }
 
     @Test

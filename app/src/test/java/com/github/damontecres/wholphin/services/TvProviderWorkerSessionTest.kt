@@ -52,6 +52,7 @@ class TvProviderWorkerSessionTest {
     fun setUp() {
         Assume.assumeTrue(BuildConfig.KID_PROFILES_ENABLED)
         every { serverRepository.current } returns current
+        every { serverRepository.sessionEpoch } returns MutableStateFlow(0L)
         every { context.contentResolver } returns resolver
         every { resolver.query(any(), any(), any(), any(), any()) } returns null
     }
