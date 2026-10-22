@@ -2,6 +2,7 @@ package com.github.damontecres.wholphin.util
 
 import android.widget.Toast
 import com.github.damontecres.wholphin.WholphinApplication
+import com.github.damontecres.wholphin.kids.isStaleSession
 import com.github.damontecres.wholphin.ui.showToast
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -26,6 +27,11 @@ class ExceptionHandler(
     ) {
         if (exception is CancellationException) {
             // Don't log/toast cancellations
+            return
+        }
+        if (exception.isStaleSession()) {
+            // Kid content rules: a load that outlived its session is discarded quietly
+            Timber.i("Discarded a load from an earlier session")
             return
         }
         Timber.e(exception, "Exception in coroutine")

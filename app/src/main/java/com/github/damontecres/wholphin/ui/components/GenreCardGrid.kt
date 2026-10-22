@@ -173,6 +173,9 @@ data class GenreCacheKey(
     val parentId: UUID,
 )
 
+/** Kid content rules: the cached backdrops were picked under an earlier session or ceiling */
+internal suspend fun forgetGenreBackdrops() = genreCache.clear()
+
 private val genreCache by lazy {
     InMemoryKache<GenreCacheKey, Map<UUID, String?>>(8) {
         expireAfterWriteDuration = 2.hours

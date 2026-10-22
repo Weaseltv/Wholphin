@@ -45,6 +45,7 @@ import com.github.damontecres.wholphin.data.model.GetItemsFilterOverride
 import com.github.damontecres.wholphin.data.model.HomeCardAppearance
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.data.model.LibraryDisplayInfo
+import com.github.damontecres.wholphin.kids.isStaleSession
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.BackdropService
@@ -121,6 +122,9 @@ import java.util.concurrent.ConcurrentHashMap
 
 /** The Collections page's grouped lists by request, kept while the app runs so it reopens straight away. */
 private val savedCollections = ConcurrentHashMap<GetItemsRequest, List<BaseItemDto>>()
+
+/** Kid content rules: the saved lists were filtered under an earlier session or ceiling */
+internal fun forgetSavedCollections() = savedCollections.clear()
 
 @HiltViewModel(assistedFactory = CollectionFolderViewModel.Factory::class)
 class CollectionFolderViewModel
@@ -276,7 +280,7 @@ class CollectionFolderViewModel
                 }
             } catch (ex: Exception) {
                 Timber.e(ex, "Error refreshing after deleted item %s", itemId)
-                showToast(context, "Error refreshing after item deleted")
+                if (!ex.isStaleSession()) showToast(context, "Error refreshing after item deleted")
             }
         }
 
@@ -327,7 +331,7 @@ class CollectionFolderViewModel
                     throw ex
                 } catch (ex: Exception) {
                     Timber.e(ex, "Error getting random")
-                    showToast(context, "Error: ${ex.localizedMessage}}")
+                    if (!ex.isStaleSession()) showToast(context, "Error: ${ex.localizedMessage}}")
                 }
             }
         }
