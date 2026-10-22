@@ -306,16 +306,23 @@ class SwitchUserViewModel
 
         /**
          * Navigates into [current] only if [flow], still current, published it and it wasn't withdrawn meanwhile; the
-         * main-thread step that navigates marks it entered with the session coordinator (review round 6)
+         * main-thread step that navigates marks it entered with the session coordinator (review round 6), and the entry
+         * is then recorded durably, even if this step is cancelled on its way back (review round 7)
          */
         private suspend fun navigateInto(
             flow: ChooserFlow,
             current: CurrentUser,
         ) {
-            profileChooserLock.navigateAfterSwitch(current) {
-                synchronized(flowLock) {
-                    (this.flow === flow && flow.published === current && serverRepository.markEntered(flow, current))
-                        .also { if (it) flow.navigated = true }
+            try {
+                profileChooserLock.navigateAfterSwitch(current) {
+                    synchronized(flowLock) {
+                        (this.flow === flow && flow.published === current && serverRepository.markEntered(flow, current))
+                            .also { if (it) flow.navigated = true }
+                    }
+                }
+            } finally {
+                if (synchronized(flowLock) { flow.navigated }) {
+                    withContext(NonCancellable) { serverRepository.finishEntry() }
                 }
             }
         }
