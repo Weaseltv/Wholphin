@@ -190,6 +190,27 @@ class CollectionFolderViewModelTest {
             assertTrue(viewModel.state.value.items is com.github.damontecres.wholphin.util.DataLoadingState.Error)
         }
 
+    /** Review round 7: an adult keeps the saved Collections list as before, eg while the server can't be reached */
+    @Test
+    fun `an adult reopening Collections gets the saved list`() =
+        runTest(testDispatcher) {
+            Assume.assumeTrue(BuildConfig.FLAVOR == "weaselfin")
+            val adult = JellyfinUser(2, UUID.randomUUID(), "adult", UUID.randomUUID(), "adult-token", policyState = PolicyState.ADULT)
+            every { mockServerRepository.currentUser } returns adult
+            library = library.copy(collectionType = CollectionType.BOXSETS)
+            coEvery { mockUserLibraryApi.getItem(libraryId) } returns successResponse(library)
+            val saved = BaseItemDto(id = UUID.randomUUID(), type = BaseItemKind.BOX_SET, name = "Saved")
+            coEvery { GetItemsRequestHandler.execute(mockApi, any()) } returns successQueryResult(listOf(saved))
+            createViewModel(GetItemsFilter())
+            advanceUntilIdle()
+
+            coEvery { GetItemsRequestHandler.execute(mockApi, any()) } throws IllegalStateException("offline")
+            val reopened = createViewModel(GetItemsFilter())
+            advanceUntilIdle()
+            val items = reopened.state.value.items
+            assertTrue(items is com.github.damontecres.wholphin.util.DataLoadingState.Success)
+        }
+
     /** Counting via /Items would return every song and album, overshooting the artist grid */
     @Test
     fun `positionOfLetter counts artists for the ARTIST override`() =

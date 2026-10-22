@@ -123,9 +123,6 @@ import java.util.concurrent.ConcurrentHashMap
 /** The Collections page's grouped lists by request, kept while the app runs so it reopens straight away. */
 private val savedCollections = ConcurrentHashMap<GetItemsRequest, List<BaseItemDto>>()
 
-/** Kid content rules: the saved lists were filtered under an earlier session or ceiling */
-internal fun forgetSavedCollections() = savedCollections.clear()
-
 @HiltViewModel(assistedFactory = CollectionFolderViewModel.Factory::class)
 class CollectionFolderViewModel
     @AssistedInject

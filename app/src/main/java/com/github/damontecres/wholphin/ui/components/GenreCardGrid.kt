@@ -178,9 +178,6 @@ data class GenreCacheKey(
     val parentId: UUID,
 )
 
-/** Kid content rules: the cached backdrops were picked under an earlier session or ceiling */
-internal suspend fun forgetGenreBackdrops() = genreCache.clear()
-
 /**
  * Kid content rules (review round 6): whether the signed-in profile is a kid or unknown one, which never uses the
  * cached genre backdrops or the saved Collections lists; adults keep their caching

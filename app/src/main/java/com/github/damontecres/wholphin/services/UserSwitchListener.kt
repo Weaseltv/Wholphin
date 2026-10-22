@@ -10,8 +10,6 @@ import androidx.lifecycle.lifecycleScope
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinUser
-import com.github.damontecres.wholphin.ui.components.forgetGenreBackdrops
-import com.github.damontecres.wholphin.ui.components.forgetSavedCollections
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.util.WholphinDispatchers
@@ -78,8 +76,9 @@ class UserSwitchListener
          * Kid content rules (contract section 10, review round 3): when the session epoch moves while the same profile
          * stays signed in (its ceiling was refreshed), every screen goes: the back stack is cleared to a fresh Home and
          * the app content is rebuilt for the refreshed session, so no pager or list from the old ceiling stays usable.
-         * App-wide lists kept from before are dropped too. A switch to another profile goes through the chooser (or a
-         * deep link), which already rebuilds everything.
+         * App-wide lists need nothing here: kid and unknown sessions never use the saved Collections lists or genre
+         * backdrops (review rounds 6 and 7), and adults keep theirs as before. A switch to another profile goes through
+         * the chooser (or a deep link), which already rebuilds everything.
          */
         private suspend fun rebuildOnCeilingChange() {
             var last: Pair<Long, UUID?>? = null
@@ -89,8 +88,6 @@ class UserSwitchListener
                 val previous = last
                 last = epoch to current?.user?.id
                 if (previous == null || previous.first == epoch) return@collect
-                forgetSavedCollections()
-                forgetGenreBackdrops()
                 if (current == null || previous.second != current.user.id) return@collect
                 withContext(WholphinDispatchers.Main) {
                     // Only while the app content is shown, never over the chooser or sign-in
