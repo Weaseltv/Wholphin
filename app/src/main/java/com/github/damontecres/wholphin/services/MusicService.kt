@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.services
 
 import android.content.Context
+import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
@@ -9,6 +10,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSpec
 import androidx.media3.session.MediaSession
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.AudioItem
@@ -58,6 +60,7 @@ import org.jellyfin.sdk.model.extensions.ticks
 import org.jellyfin.sdk.model.serializer.toUUID
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
+import java.io.IOException
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -96,7 +99,7 @@ class MusicService
                         .get { disableAudioOffload } ?: false
                 }
             playerFactory
-                .createAudioPlayer(disableAudioOffload = disableAudioOffload)
+                .createAudioPlayer(disableAudioOffload = disableAudioOffload, resolver = ::checkStream)
                 .also {
                     it.addListener(MusicPlayerListener(it, _state))
                 }
@@ -292,6 +295,24 @@ class MusicService
                 }
             updateQueueSize()
             start()
+        }
+
+        /**
+         * Kid content rules (contract section 10, review round 2): runs on the loading thread before any song's bytes are
+         * fetched, whether the track was picked, reached by auto-advance or repeat, or sought in. A fresh check by item id,
+         * bound to the session epoch; a refused stream fails, which stops playback.
+         */
+        private fun checkStream(dataSpec: DataSpec): DataSpec {
+            val itemId = audioItemId(dataSpec.uri)
+            val allowed =
+                runBlocking {
+                    if (itemId == null) kidContentGuard.currentPolicy() == null else kidContentGuard.isPlaybackAllowed(api, itemId)
+                }
+            if (!allowed) {
+                Timber.i("Kid content rules: song refused")
+                throw IOException("Not available on this profile")
+            }
+            return dataSpec
         }
 
         /**
@@ -615,3 +636,10 @@ fun rememberQueue(
             override fun get(index: Int): AudioItem = player.getMediaItemAt(index).localConfiguration?.tag as AudioItem
         }
     }
+
+/** The item id in a Jellyfin audio stream URL (`/Audio/{itemId}/...`), or null */
+internal fun audioItemId(uri: Uri): UUID? {
+    val segments = uri.pathSegments
+    val at = segments.indexOfFirst { it.equals("Audio", ignoreCase = true) }
+    return segments.getOrNull(at + 1)?.takeIf { at >= 0 }?.toUUIDOrNull()
+}

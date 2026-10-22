@@ -13,6 +13,7 @@ import androidx.media3.common.TrackSelectionParameters.AudioOffloadPreferences
 import androidx.media3.common.util.ExperimentalApi
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
@@ -170,9 +171,13 @@ class PlayerFactory
             return PlayerCreation(newPlayer, assHandler)
         }
 
+        /**
+         * @param resolver runs before every stream is opened (each track, seek, repeat or retry), eg to refuse it
+         */
         fun createAudioPlayer(
             disableAudioOffload: Boolean,
             extensions: MediaExtensionStatus = MediaExtensionStatus.MES_FALLBACK,
+            resolver: ResolvingDataSource.Resolver? = null,
         ): ExoPlayer {
             val rendererMode =
                 when (extensions) {
@@ -186,9 +191,10 @@ class PlayerFactory
                 WholphinRenderersFactory(context, false)
                     .setEnableDecoderFallback(true)
                     .setExtensionRendererMode(rendererMode)
+            val upstream = OkHttpDataSource.Factory(authOkHttpClient)
             val mediaSourceFactory =
                 DefaultMediaSourceFactory(
-                    OkHttpDataSource.Factory(authOkHttpClient),
+                    resolver?.let { ResolvingDataSource.Factory(upstream, it) } ?: upstream,
                     extractorsFactory,
                 )
             val trackSelector = createTrackSelector(disableAudioOffload = disableAudioOffload)
