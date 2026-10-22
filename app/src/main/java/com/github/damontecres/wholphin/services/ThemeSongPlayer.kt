@@ -95,9 +95,9 @@ class ThemeSongPlayer
                             themeSongs.items.randomOrNull()?.let { theme ->
                                 // Kid content rules (contract section 10): a fresh check of the song, and of the item
                                 // it is the theme of, right before it plays
-                                if (!kidContentGuard.isPlaybackAllowed(api, itemId) ||
-                                    !kidContentGuard.isPlaybackAllowed(api, theme.id)
-                                ) {
+                                val ownerPermit = kidContentGuard.playbackPermit(api, itemId)
+                                val songPermit = kidContentGuard.playbackPermit(api, theme.id)
+                                if (!kidContentGuard.isCurrent(ownerPermit) || !kidContentGuard.isCurrent(songPermit)) {
                                     Timber.i("Kid content rules: theme song refused")
                                     return@launchIO
                                 }
@@ -113,6 +113,10 @@ class ThemeSongPlayer
                                             ),
                                     )
                                 withContext(WholphinDispatchers.Main) {
+                                    // Review round 2: only under the session the song was allowed in
+                                    if (!kidContentGuard.isCurrent(ownerPermit) || !kidContentGuard.isCurrent(songPermit)) {
+                                        return@withContext
+                                    }
                                     player.apply {
                                         stop()
                                         volume = volumeLevel

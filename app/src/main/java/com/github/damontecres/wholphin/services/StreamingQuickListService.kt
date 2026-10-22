@@ -101,13 +101,12 @@ class StreamingQuickListService
             val collectionId: UUID,
             /** Kid content rules: see [rulesTag]; a snapshot saved under other rules (or none) isn't used */
             val rules: String?,
+            /**
+             * Review round 2: the session epoch the key was made in. A load or replay is only shown while it is still
+             * the epoch, so a snapshot never reaches a session it wasn't made for (an adult's never reaches a kid)
+             */
+            val epoch: Long?,
         )
-
-        /**
-         * Kid content rules (contract section 10): the rules this session's lists are filtered by, null for adults.
-         * Snapshots saved before the rules existed, or for another ceiling, are never shown to a kid session.
-         */
-        private suspend fun rulesTag(): String? = kidContentGuard.sessionOf(api)?.rules
 
         /** Kid content rules (review round 1): a load whose session changed; nothing it got is shown or saved */
         private class StaleSessionException : IllegalStateException("The session changed during a snapshot load")
@@ -121,15 +120,28 @@ class StreamingQuickListService
             key: Key,
             items: List<BaseItem>,
         ): List<BaseItem> {
+            if (!inEpoch(key)) return emptyList()
             if (key.rules == null || items.isEmpty()) return items
             val visible = kidContentGuard.visibleIds(api, items.map { it.id })
-            return items.filter { it.id in visible }
+            // Checked again after the lookups, right before the caller emits
+            return if (inEpoch(key)) items.filter { it.id in visible } else emptyList()
         }
 
+        /** Whether [key]'s session is still the current one (review round 2) */
+        private fun inEpoch(key: Key): Boolean = key.epoch == null || kidContentGuard.epoch() == key.epoch
+
+        /**
+         * Kid content rules (contract section 10): the key carries the rules this session's lists are filtered by (null
+         * for adults) and its epoch. Snapshots saved before the rules existed, or for another ceiling, are never shown to
+         * a kid session.
+         */
         private suspend fun key(
             userId: UUID,
             collectionId: UUID,
-        ) = Key(userId, collectionId, rulesTag())
+        ): Key {
+            val session = kidContentGuard.sessionOf(api)
+            return Key(userId, collectionId, session?.rules, session?.epoch)
+        }
 
         private val lock = Mutex()
 
@@ -278,7 +290,7 @@ class StreamingQuickListService
             lock.withLock {
                 // Kid content rules (review round 1): another session's loads stop here (they'd be rejected anyway)
                 inMemory.keys
-                    .filter { it.userId != key.userId || it.rules != key.rules }
+                    .filter { it.userId != key.userId || it.rules != key.rules || it.epoch != key.epoch }
                     .forEach { stale -> inMemory.remove(stale)?.result?.cancel() }
                 inMemory[key]?.let { existing ->
                     val result = existing.result
@@ -328,7 +340,9 @@ class StreamingQuickListService
             // Kid content rules (review round 1): the session this load is for. Every page must have been made (and
             // filtered) for it, and it must still be the current one before anything is shown or saved
             val session = kidContentGuard.sessionOf(api)
-            if (session != null && (session.userId != key.userId || session.rules != key.rules)) throw StaleSessionException()
+            if (session != null && (session.userId != key.userId || session.rules != key.rules || session.epoch != key.epoch)) {
+                throw StaleSessionException()
+            }
 
             suspend fun stillCurrent() {
                 if (session != null && kidContentGuard.sessionOf(api) != session) throw StaleSessionException()

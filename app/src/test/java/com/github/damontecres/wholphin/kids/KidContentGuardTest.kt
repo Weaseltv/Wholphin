@@ -141,7 +141,12 @@ class KidContentGuardTest {
     private val current = MutableStateFlow<CurrentUser?>(CurrentUser(testServer, kid))
     private val dao = mockk<JellyfinServerDao>()
     private val store = mockk<KidProtectionStore>()
-    private val repository = mockk<ServerRepository> { every { current } returns this@KidContentGuardTest.current }
+    private val epoch = MutableStateFlow(0L)
+    private val repository =
+        mockk<ServerRepository> {
+            every { current } returns this@KidContentGuardTest.current
+            every { sessionEpoch } returns epoch
+        }
     private val guard = KidContentGuard({ repository }, dao, store)
     private val server = FakeServer(items, kid.accessToken)
     private val api = CoroutineContextApiClient(server, Dispatchers.Unconfined, guard)
@@ -419,4 +424,71 @@ class KidContentGuardTest {
     fun `list lookups expire after two minutes`() {
         assertEquals(120_000L, KidContentGuard.CACHE_TTL.inWholeMilliseconds)
     }
+
+    // Review round 2
+
+    @Test
+    fun `a box set stops at its first visible child`() =
+        runTest {
+            val moonstruck = items.getValue(key(moonstruckId))
+            server.children = mapOf("first" to listOf(moonstruck) + (0 until 50).map { boxSet("nested$it") })
+            server.listResponse = """{"Items":[${boxSet("first")}],"TotalRecordCount":1}"""
+            assertEquals(listOf("first"), ids(api.get("/Items", query = mapOf("fields" to null))))
+            assertEquals(1, server.requests.count { it.second["parentId"] != null })
+            // The verdict is cached
+            api.get("/Items", query = mapOf("fields" to null))
+            assertEquals(1, server.requests.count { it.second["parentId"] != null })
+        }
+
+    @Test
+    fun `a box set traversal has a request budget and fails closed past it`() =
+        runTest {
+            val moonstruck = items.getValue(key(moonstruckId))
+            // 30 empty nested box sets before the one with a visible child
+            val nested = (0 until 30).map { "empty$it" }
+            server.children = nested.associateWith { emptyList<String>() } + ("big" to nested.map(::boxSet) + boxSet("last")) +
+                ("last" to listOf(moonstruck))
+            server.listResponse = """{"Items":[${boxSet("big")}],"TotalRecordCount":1}"""
+            assertEquals(emptyList<String>(), ids(api.get("/Items", query = mapOf("fields" to null))))
+            assertTrue(server.requests.count { it.second["parentId"] != null } <= KidContentGuard.BOX_SET_REQUESTS)
+        }
+
+    @Test
+    fun `a response that outlives its session is never returned`() =
+        runTest {
+            // The shared client: its credentials are set by every switch
+            api.update(server.baseUrl, kid.accessToken, server.clientInfo, server.deviceInfo)
+            server.listResponse = """{"Items":[${items.getValue(key(moonstruckId))}],"TotalRecordCount":1}"""
+            server.onRequest = { epoch.value += 1 }
+            try {
+                api.get("/Items")
+                fail("Expected a stale session")
+            } catch (_: KidContentGuard.StaleSessionException) {
+            }
+            server.onRequest = null
+            val response = api.get("/Items")
+            assertEquals(epoch.value, guard.sessionOf(response.headers)!!.epoch)
+        }
+
+    @Test
+    fun `permits and visible ids are bound to the session epoch`() =
+        runTest {
+            val permit = guard.playbackPermit(api, moonstruckId)
+            assertTrue(guard.isCurrent(permit))
+            epoch.value += 1
+            assertFalse(guard.isCurrent(permit))
+            // The session changes while the check is under way: no permit, nothing visible
+            server.onRequest = { epoch.value += 1 }
+            assertNull(guard.playbackPermit(api, moonstruckId))
+            assertEquals(emptySet<UUID>(), guard.visibleIds(api, listOf(moonstruckId), fresh = true))
+            server.onRequest = null
+            assertEquals(setOf(moonstruckId), guard.visibleIds(api, listOf(moonstruckId)))
+            // Adults get permits too, bound the same way
+            current.value = CurrentUser(testServer, adult)
+            server.token = adult.accessToken
+            val adultPermit = guard.playbackPermit(api, poltergeistId)
+            assertTrue(guard.isCurrent(adultPermit))
+            epoch.value += 1
+            assertFalse(guard.isCurrent(adultPermit))
+        }
 }

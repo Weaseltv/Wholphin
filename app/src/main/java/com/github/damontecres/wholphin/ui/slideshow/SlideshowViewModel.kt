@@ -213,7 +213,9 @@ class SlideshowViewModel
                         Timber.v("Got image for $position: ${image != null}")
                         if (image != null) {
                             // Kid content rules (contract section 10): a video is checked fresh right before it plays
-                            if (image.data.mediaType == MediaType.VIDEO && !kidContentGuard.isPlaybackAllowed(api, image.id)) {
+                            val permit =
+                                if (image.data.mediaType == MediaType.VIDEO) kidContentGuard.playbackPermit(api, image.id) else null
+                            if (image.data.mediaType == MediaType.VIDEO && !kidContentGuard.isCurrent(permit)) {
                                 Timber.i("Kid content rules: slideshow video refused")
                                 showToast(context, context.getString(R.string.kid_content_playback_refused), Toast.LENGTH_SHORT)
                                 return@launchIO
@@ -276,15 +278,18 @@ class SlideshowViewModel
                                             )
                                             updateImageFilter(vf.videoFilter)
                                         }
-                                        _state.update {
-                                            it.copy(
-                                                image = imageState,
-                                                imageLoading = ImageLoadingState.Success(imageState),
-                                            )
+                                        if (permit == null || kidContentGuard.isCurrent(permit)) {
+                                            _state.update {
+                                                it.copy(
+                                                    image = imageState,
+                                                    imageLoading = ImageLoadingState.Success(imageState),
+                                                )
+                                            }
                                         }
                                     }
                                 }
-                            } else {
+                            } else if (permit == null || kidContentGuard.isCurrent(permit)) {
+                                // Kid content rules (review round 2): a video only under the session it was allowed in
                                 _state.update {
                                     it.copy(
                                         image = imageState,

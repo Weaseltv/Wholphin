@@ -72,6 +72,19 @@ class ServerRepository
         private var _current = MutableStateFlow<CurrentUser?>(null)
         val current: StateFlow<CurrentUser?> = _current
 
+        private val _sessionEpoch = MutableStateFlow(0L)
+
+        /**
+         * Kid content rules (contract section 10, review round 2): goes up every time the session or its ceiling changes,
+         * in the same commit step, right after [current] changes. A decision taken under one epoch (a filtered response,
+         * a playback permit, a saved list) is only used while it is still the epoch. Read it before [current].
+         */
+        val sessionEpoch: StateFlow<Long> = _sessionEpoch
+
+        private fun nextEpoch() {
+            _sessionEpoch.update { it + 1 }
+        }
+
         /** The session the last [assignSession] published; a policy refresh of it doesn't replace it */
         private var publishedSession: CurrentUser? = null
 
@@ -137,6 +150,7 @@ class ServerRepository
             apiClient.update(baseUrl = baseUrl, accessToken = current?.user?.accessToken)
             _currentUserDto.value = userDto
             _current.value = current
+            nextEpoch()
             publishedSession = current
         }
 
@@ -891,6 +905,8 @@ class ServerRepository
                 }
                 commitSession {
                     _current.update { if (it?.user?.id == refreshed.id) it.copy(user = refreshed) else it }
+                    // The ceiling changed
+                    nextEpoch()
                 }
             }
         }

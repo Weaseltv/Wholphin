@@ -31,6 +31,7 @@ import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The kid content rules (contract section 10) at the one choke point every Jellyfin SDK call goes through
@@ -99,6 +100,7 @@ class KidContentGuard
         suspend fun request(
             policy: Policy,
             pinned: CoroutineContextApiClient.Pinned,
+            epoch: Long?,
             method: HttpMethod,
             pathTemplate: String,
             pathParameters: Map<String, Any?>,
@@ -115,8 +117,26 @@ class KidContentGuard
                 }
             }
             val response = client.request(method, pathTemplate, pathParameters, withRuleFields(queryParameters), requestBody)
-            return stamped(filterResponse(policy, loader, pathTemplate, response), pinned.accessToken, policy)
+            return stamped(filterResponse(policy, loader, pathTemplate, response), pinned.accessToken, policy, epoch)
         }
+
+        /** The session epoch right now ([ServerRepository.sessionEpoch]); read it before anything it should cover */
+        fun epoch(): Long = serverRepository.get().sessionEpoch.value
+
+        /** A request, lookup or decision outlived the session (epoch) it was made for: nothing of it may be used */
+        class StaleSessionException : ApiClientException("The session changed while this was being decided")
+
+        /** Playback of [itemId] allowed under session [epoch]; see [isCurrent] */
+        data class PlaybackPermit(
+            val itemId: UUID,
+            val epoch: Long,
+        )
+
+        /**
+         * Review round 2: whether [permit] still holds, ie the session hasn't changed since it was granted. Checked right
+         * before a stream is installed or handed on.
+         */
+        fun isCurrent(permit: PlaybackPermit?): Boolean = permit != null && (!BuildConfig.KID_PROFILES_ENABLED || permit.epoch == epoch())
 
         /**
          * [response] marked with the session it was made for: its credentials and, for a filtered one, the rules
@@ -126,9 +146,11 @@ class KidContentGuard
             response: RawResponse,
             accessToken: String?,
             policy: Policy?,
+            epoch: Long?,
         ): RawResponse {
             val stamp = mutableMapOf(HEADER_SESSION to listOf(credentialStamp(accessToken)))
             if (policy != null) stamp[HEADER_RULES] = listOf(rulesTag(policy))
+            if (epoch != null) stamp[HEADER_EPOCH] = listOf(epoch.toString())
             return RawResponse(response.body, response.status, response.headers + stamp)
         }
 
@@ -139,14 +161,22 @@ class KidContentGuard
             val userId: UUID?,
             /** The rules the session's lists are filtered by ([rulesTag]), null for adults */
             val rules: String?,
+            /** The session epoch (review round 2) */
+            val epoch: Long?,
         ) {
-            /** Whether [response] (a [sessionOf] of headers) was made for this session */
-            fun made(response: Session?): Boolean = response != null && response.credentials == credentials && response.rules == rules
+            /** Whether [response] (a [sessionOf] of headers) was made for this session, in its epoch */
+            fun made(response: Session?): Boolean =
+                response != null &&
+                    response.credentials == credentials &&
+                    response.rules == rules &&
+                    response.epoch == epoch
         }
 
         /** The session [api] makes requests for right now, pinned like a request is */
         suspend fun sessionOf(api: ApiClient): Session? {
             if (!BuildConfig.KID_PROFILES_ENABLED) return null
+            // The epoch first: anything read after it is at least as new
+            val epoch = epoch()
             val pinned = pinnedOf(api)
             val policy = policyFor(pinned.accessToken)
             val userId =
@@ -156,31 +186,42 @@ class KidContentGuard
                     ?.user
                     ?.takeIf { it.accessToken == pinned.accessToken }
                     ?.id
-            return Session(credentialStamp(pinned.accessToken), userId, policy?.let(::rulesTag))
+            return Session(credentialStamp(pinned.accessToken), userId, policy?.let(::rulesTag), epoch)
         }
 
         /** The session a response with [headers] was made for, or null if it isn't stamped */
         fun sessionOf(headers: Map<String, List<String>>): Session? {
             if (!BuildConfig.KID_PROFILES_ENABLED) return null
             val credentials = header(headers, HEADER_SESSION) ?: return null
-            return Session(credentials, null, header(headers, HEADER_RULES))
+            return Session(credentials, null, header(headers, HEADER_RULES), header(headers, HEADER_EPOCH)?.toLongOrNull())
         }
 
         private fun pinnedOf(api: ApiClient): CoroutineContextApiClient.Pinned =
             (api as? CoroutineContextApiClient)?.pinned() ?: CoroutineContextApiClient.Pinned(api, api.accessToken)
 
         /**
-         * Whether the item [itemId] may start playing for [api]'s user: always a fresh check, never cached. True for
-         * adults. Used right before a stream starts.
+         * Whether the item [itemId] may start playing for [api]'s user: always a fresh check, never cached, bound to the
+         * session epoch it was made in (review round 2). Allowed for adults. Callers keep the permit and check it with
+         * [isCurrent] right before the stream is installed.
          */
+        suspend fun playbackPermit(
+            api: ApiClient,
+            itemId: UUID,
+        ): PlaybackPermit? {
+            val epoch = epoch()
+            val pinned = pinnedOf(api)
+            val policy = policyFor(pinned.accessToken)
+            val allowed =
+                policy == null ||
+                    isVisible(policy, Loader(pinned.client, policy), KidJson.normalizeId(itemId.toString()), fresh = true)
+            return PlaybackPermit(itemId, epoch).takeIf { allowed && isCurrent(it) }
+        }
+
+        /** [playbackPermit], still current */
         suspend fun isPlaybackAllowed(
             api: ApiClient,
             itemId: UUID,
-        ): Boolean {
-            val pinned = pinnedOf(api)
-            val policy = policyFor(pinned.accessToken) ?: return true
-            return isVisible(policy, Loader(pinned.client, policy), KidJson.normalizeId(itemId.toString()), fresh = true)
-        }
+        ): Boolean = isCurrent(playbackPermit(api, itemId))
 
         /**
          * The subset of [itemIds] the current session may see (all of them for adults), for item lists the app kept
@@ -190,6 +231,17 @@ class KidContentGuard
             api: ApiClient,
             itemIds: Collection<UUID>,
             fresh: Boolean = false,
+        ): Set<UUID> {
+            val epoch = epoch()
+            val visible = visibleIdsNow(api, itemIds, fresh)
+            // Review round 2: decided in another session than the current one, it shows nothing
+            return if (!BuildConfig.KID_PROFILES_ENABLED || epoch() == epoch) visible else emptySet()
+        }
+
+        private suspend fun visibleIdsNow(
+            api: ApiClient,
+            itemIds: Collection<UUID>,
+            fresh: Boolean,
         ): Set<UUID> {
             val pinned = pinnedOf(api)
             val policy = policyFor(pinned.accessToken) ?: return itemIds.toSet()
@@ -270,6 +322,25 @@ class KidContentGuard
             }
         }
 
+        /** Review round 2: the shared budget of one box set's traversal */
+        private inner class Traversal(
+            val deadlineMillis: Long,
+        ) {
+            var requestsLeft = BOX_SET_REQUESTS
+            var cutOffs = 0
+
+            /** One more request, or [BudgetSpent] (counted as a cut-off) */
+            fun spend() {
+                if (requestsLeft <= 0 || clock() > deadlineMillis) {
+                    cutOffs++
+                    throw BudgetSpent()
+                }
+                requestsLeft--
+            }
+        }
+
+        private class BudgetSpent : IllegalStateException("Box set traversal budget spent")
+
         private class Entry<T>(
             val value: T,
             val atMillis: Long,
@@ -293,6 +364,10 @@ class KidContentGuard
             private val policy: Policy,
             /** The box sets being decided above this lookup, for nested box sets */
             private val ancestors: Set<String> = emptySet(),
+            /** The box set traversal this lookup is part of, whose budget it spends */
+            private val traversal: Traversal? = null,
+            /** False while a box set's own children are decided: box sets among them are tried afterwards */
+            private val nestedBoxSets: Boolean = true,
         ) : KidFactsLoader {
             private val userCache get() = userCache(policy)
 
@@ -339,7 +414,9 @@ class KidContentGuard
                     }
                 }
                 missing.chunked(LOOKUP_BATCH).forEach { chunk ->
-                    // A failed batch throws: the filter hides everything it was for
+                    // A failed batch throws: the filter hides everything it was for. So does one past a box set
+                    // traversal's budget
+                    traversal?.spend()
                     val response =
                         lookupPermits.withPermit {
                             client.request(
@@ -372,25 +449,55 @@ class KidContentGuard
             }
 
             /**
-             * Pages through the box set's children until one is visible or there are none left. Box sets inside it are
-             * decided the same way, down to [MAX_BOX_SET_DEPTH] levels; one that contains itself (a cycle) or sits
-             * deeper counts as not visible (fail closed).
+             * Pages through the box set's children until one is visible or there are none left, stopping at the first
+             * visible one. Its other children are decided first (from the page itself, plus series lookups); box sets
+             * among them are only tried after that, one at a time, down to [MAX_BOX_SET_DEPTH] levels. A box set that
+             * contains itself (a cycle), sits deeper, or would go past the traversal's budget ([BOX_SET_REQUESTS]
+             * requests, [BOX_SET_TIME]) counts as not visible (fail closed). Verdicts are cached for [CACHE_TTL], except
+             * a "not visible" that a cut-off decided.
              */
             override suspend fun boxSetHasVisibleChild(
                 id: String,
                 maxLevel: Int?,
                 fresh: Boolean,
             ): Boolean {
-                if (maxLevel == null || id in ancestors || ancestors.size >= MAX_BOX_SET_DEPTH) return false
-                // Whether a child is visible depends on the level too. Only a top-level answer is cached: a nested one
-                // depends on the box sets above it
+                if (maxLevel == null || !nestedBoxSets) return false
+                val traversal = traversal ?: Traversal(clock() + BOX_SET_TIME.inWholeMilliseconds)
+                if (id in ancestors || ancestors.size >= MAX_BOX_SET_DEPTH) {
+                    traversal.cutOffs++
+                    return false
+                }
+                // Whether a child is visible depends on the level too
                 val cacheKey = "$id:$maxLevel"
-                val topLevel = ancestors.isEmpty()
-                if (!fresh && topLevel) userCache.boxSets.valid(cacheKey)?.let { return it.value }
-                val children = Loader(client, policy, ancestors + id)
+                if (!fresh) userCache.boxSets.valid(cacheKey)?.let { return it.value }
+                val cutOffsBefore = traversal.cutOffs
+                val visible =
+                    try {
+                        searchBoxSet(id, maxLevel, fresh, traversal)
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: Exception) {
+                        traversal.cutOffs++
+                        if (ex !is BudgetSpent) Timber.w(ex, "Kid content rules: box set lookup failed")
+                        false
+                    }
+                if (visible || traversal.cutOffs == cutOffsBefore) userCache.boxSets[cacheKey] = Entry(visible, clock())
+                return visible
+            }
+
+            private suspend fun searchBoxSet(
+                id: String,
+                maxLevel: Int,
+                fresh: Boolean,
+                traversal: Traversal,
+            ): Boolean {
+                val below = ancestors + id
+                val ownChildren = Loader(client, policy, below, traversal, nestedBoxSets = false)
+                val nestedLoader = Loader(client, policy, below, traversal)
+                val nested = ArrayList<String>()
                 var startIndex = 0
-                var visible = false
                 for (page in 0 until MAX_BOX_SET_PAGES) {
+                    traversal.spend()
                     val response =
                         lookupPermits.withPermit {
                             client.request(
@@ -409,18 +516,17 @@ class KidContentGuard
                             )
                         }
                     val root = Json.parseToJsonElement(response.body.decodeToString())
-                    val served = KidJson.itemsOf(root).size
+                    val children = KidJson.itemsOf(root)
                     val total = ((root as? JsonObject)?.get("TotalRecordCount") as? JsonPrimitive)?.contentOrNull?.toIntOrNull()
-                    val filtered = KidResponseFilter(maxLevel, children, fresh).filter(root)
-                    if (filtered.root?.let { KidJson.itemsOf(it).isNotEmpty() } == true) {
-                        visible = true
-                        break
-                    }
+                    // The children that aren't box sets, from this page alone
+                    val filtered = KidResponseFilter(maxLevel, ownChildren, fresh).filter(root)
+                    if (filtered.root?.let { KidJson.itemsOf(it).isNotEmpty() } == true) return true
+                    children.filter { KidJson.factsOf(it).type == KidContentRules.BOX_SET }.mapNotNullTo(nested) { KidJson.idOf(it) }
                     startIndex += BOX_SET_PAGE
-                    if (served < BOX_SET_PAGE || (total != null && startIndex >= total)) break
+                    if (children.size < BOX_SET_PAGE || (total != null && startIndex >= total)) break
                 }
-                if (topLevel) userCache.boxSets[cacheKey] = Entry(visible, clock())
-                return visible
+                // Then the box sets inside it, until one is visible
+                return nested.any { nestedLoader.boxSetHasVisibleChild(it, maxLevel, fresh) }
             }
 
             /** Keeps the complete facts of the items a filtered response showed, for later path checks */
@@ -465,6 +571,12 @@ class KidContentGuard
             /** Box sets inside box sets are followed this deep at most (fail closed beyond) */
             private const val MAX_BOX_SET_DEPTH = 4
 
+            /** Requests one box set's traversal may make, nested box sets and series lookups included (fail closed) */
+            internal const val BOX_SET_REQUESTS = 20
+
+            /** How long one box set's traversal may take (fail closed) */
+            private val BOX_SET_TIME = 5.seconds
+
             /** Marks a filtered response (see [ApiRequestPager][com.github.damontecres.wholphin.util.ApiRequestPager]) */
             const val HEADER_FILTERED = "x-weaselplex-kid-filtered"
 
@@ -473,6 +585,9 @@ class KidContentGuard
 
             /** The credentials a response was made with (a digest, see [credentialStamp]) */
             const val HEADER_SESSION = "x-weaselplex-session"
+
+            /** The session epoch a response was made in, for the session's own client (review round 2) */
+            const val HEADER_EPOCH = "x-weaselplex-epoch"
 
             /** The rules a filtered response was filtered by ([rulesTag]) */
             const val HEADER_RULES = "x-weaselplex-kid-rules"

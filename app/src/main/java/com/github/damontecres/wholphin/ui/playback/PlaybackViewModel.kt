@@ -497,6 +497,15 @@ class PlaybackViewModel
             }
         }
 
+        /** Kid content rules: the permit of the item playing, checked again where its stream is installed */
+        @Volatile
+        private var playbackPermit: KidContentGuard.PlaybackPermit? = null
+
+        private suspend fun refuseKidContent() {
+            Timber.i("Kid content rules: playback refused")
+            showToast(context, context.getString(R.string.kid_content_playback_refused), Toast.LENGTH_SHORT)
+        }
+
         /**
          * Play an item
          *
@@ -505,11 +514,6 @@ class PlaybackViewModel
          * @param itemPlayback the parameters for playback such chosen subtitle or audio streams
          * @param forceTranscoding whether the user has requested to force playback via transcoding
          */
-        private suspend fun refuseKidContent() {
-            Timber.i("Kid content rules: playback refused")
-            showToast(context, context.getString(R.string.kid_content_playback_refused), Toast.LENGTH_SHORT)
-        }
-
         private suspend fun play(
             playlistItem: PlaylistItem,
             positionMs: Long,
@@ -541,11 +545,14 @@ class PlaybackViewModel
                     )
                     return@withContext false
                 }
-                // Kid content rules (contract section 10): a fresh check by item id right before each stream starts
-                if (!kidContentGuard.isPlaybackAllowed(api, item.id)) {
+                // Kid content rules (contract section 10): a fresh check by item id right before each stream starts; the
+                // permit is checked again where the stream is installed (review round 2)
+                val permit = kidContentGuard.playbackPermit(api, item.id)
+                if (!kidContentGuard.isCurrent(permit)) {
                     refuseKidContent()
                     return@withContext false
                 }
+                playbackPermit = permit
                 this@PlaybackViewModel.currentItem = playlistItem
                 this@PlaybackViewModel.itemId = item.id
 
@@ -912,6 +919,11 @@ class PlaybackViewModel
                                 loading = LoadingState.Success,
                                 currentPlayback = playback,
                             )
+                        }
+                        // Kid content rules (review round 2): only under the session the item was allowed in
+                        if (playbackPermit?.itemId != item.id || !kidContentGuard.isCurrent(playbackPermit)) {
+                            refuseKidContent()
+                            return@withContext
                         }
                         player.setMediaItem(
                             mediaItem,

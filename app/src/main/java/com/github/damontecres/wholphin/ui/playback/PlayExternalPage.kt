@@ -162,7 +162,9 @@ class PlayExternalViewModel
                             is PlaylistItem.Media -> playlistItem.item
                         }
                     // Kid content rules (contract section 10): a fresh check by item id right before the stream starts
-                    if (!kidContentGuard.isPlaybackAllowed(api, item.id)) {
+                    val permit = kidContentGuard.playbackPermit(api, item.id)
+                    playbackPermit = permit
+                    if (!kidContentGuard.isCurrent(permit)) {
                         state.update {
                             it.copy(loading = LoadingState.Error(context.getString(R.string.kid_content_playback_refused)))
                         }
@@ -381,6 +383,20 @@ class PlayExternalViewModel
             }
         }
 
+        /** Kid content rules: the permit of the item about to be handed to the external player */
+        @Volatile
+        private var playbackPermit: KidContentGuard.PlaybackPermit? = null
+
+        /**
+         * Kid content rules (review round 2): whether the stream may still be handed on, ie the session hasn't changed
+         * since it was allowed; otherwise playback is refused
+         */
+        fun mayLaunch(): Boolean {
+            if (kidContentGuard.isCurrent(playbackPermit)) return true
+            state.update { it.copy(loading = LoadingState.Error(context.getString(R.string.kid_content_playback_refused))) }
+            return false
+        }
+
         fun reportException(ex: Exception) {
             Timber.e(ex, "Error launching activity")
             state.update { it.copy(loading = LoadingState.Error(ex)) }
@@ -442,7 +458,7 @@ fun PlayExternalPage(
                     Timber.i("Launching external playback")
                     viewModel.launched.update { true }
                     try {
-                        launcher.launch(state.intent)
+                        if (viewModel.mayLaunch()) launcher.launch(state.intent)
                     } catch (ex: Exception) {
                         viewModel.reportException(ex)
                     }

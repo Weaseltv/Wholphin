@@ -46,6 +46,14 @@ class CoroutineContextApiClient(
         val accessToken: String?,
     )
 
+    /**
+     * Review round 2: whether this is a session's client (its credentials were ever updated, as the shared client's are
+     * on every switch). Its requests are bound to the session epoch they start in; one that ends in another epoch fails
+     * with [KidContentGuard.StaleSessionException], so no response ever crosses a session change.
+     */
+    @Volatile
+    private var sessionBound = false
+
     /** Replaced as a whole on [update], so a request reads one consistent set */
     @Volatile
     private var credentials = Credentials(client.baseUrl, client.accessToken, client.clientInfo, client.deviceInfo)
@@ -85,6 +93,7 @@ class CoroutineContextApiClient(
     ) {
         client.update(baseUrl, accessToken, clientInfo, deviceInfo)
         credentials = Credentials(baseUrl, accessToken, clientInfo, deviceInfo)
+        sessionBound = true
     }
 
     override suspend fun request(
@@ -105,14 +114,19 @@ class CoroutineContextApiClient(
                     requestBody,
                 )
             } else {
+                // The epoch before the credentials: if they change after it is read, so does the epoch
+                val epoch = if (sessionBound) guard.epoch() else null
                 val pinned = pinned()
                 val policy = guard.policyFor(pinned.accessToken)
-                if (policy == null) {
-                    val response = pinned.client.request(method, pathTemplate, pathParameters, queryParameters, requestBody)
-                    guard.stamped(response, pinned.accessToken, null)
-                } else {
-                    guard.request(policy, pinned, method, pathTemplate, pathParameters, queryParameters, requestBody)
-                }
+                val response =
+                    if (policy == null) {
+                        val response = pinned.client.request(method, pathTemplate, pathParameters, queryParameters, requestBody)
+                        guard.stamped(response, pinned.accessToken, null, epoch)
+                    } else {
+                        guard.request(policy, pinned, epoch, method, pathTemplate, pathParameters, queryParameters, requestBody)
+                    }
+                if (epoch != null && guard.epoch() != epoch) throw KidContentGuard.StaleSessionException()
+                response
             }
         }
 
