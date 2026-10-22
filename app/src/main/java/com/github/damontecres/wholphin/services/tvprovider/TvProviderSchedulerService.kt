@@ -13,6 +13,7 @@ import androidx.work.WorkManager
 import androidx.work.await
 import androidx.work.workDataOf
 import com.github.damontecres.wholphin.BuildConfig
+import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.kids.KidProtectionStore
 import com.github.damontecres.wholphin.kids.ProfileKind
@@ -66,40 +67,54 @@ class TvProviderSchedulerService
                             }
                             LauncherRows.invalidate()
                         }
-                        if (user != null) {
-                            // Schedule a new worker whenever the user changes
-                            Timber.i("Scheduling TvProviderWorker for ${user.user}")
-                            workManager
-                                .enqueueUniquePeriodicWork(
-                                    uniqueWorkName = TvProviderWorker.WORK_NAME,
-                                    existingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.UPDATE,
-                                    request =
-                                        PeriodicWorkRequestBuilder<TvProviderWorker>(
-                                            repeatInterval = 1.hours.toJavaDuration(),
-                                        ).setBackoffCriteria(
-                                            BackoffPolicy.LINEAR,
-                                            15.minutes.toJavaDuration(),
-                                        ).setInputData(
-                                            workDataOf(
-                                                TvProviderWorker.PARAM_USER_ID to user.user.id.toString(),
-                                                TvProviderWorker.PARAM_SERVER_ID to user.server.id.toString(),
-                                            ),
-                                        ).setInitialDelay(60.seconds.toJavaDuration())
-                                            .build(),
-                                ).await()
-                        }
+                        // Schedule a new worker whenever the user changes
+                        if (user != null) schedulePeriodic(user)
                     }
                 }
             }
         }
 
+        private suspend fun schedulePeriodic(user: CurrentUser) {
+            Timber.i("Scheduling TvProviderWorker for ${user.user}")
+            workManager
+                .enqueueUniquePeriodicWork(
+                    uniqueWorkName = TvProviderWorker.WORK_NAME,
+                    existingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.UPDATE,
+                    request =
+                        PeriodicWorkRequestBuilder<TvProviderWorker>(
+                            repeatInterval = 1.hours.toJavaDuration(),
+                        ).setBackoffCriteria(
+                            BackoffPolicy.LINEAR,
+                            15.minutes.toJavaDuration(),
+                        ).setInputData(
+                            workDataOf(
+                                TvProviderWorker.PARAM_USER_ID to user.user.id.toString(),
+                                TvProviderWorker.PARAM_SERVER_ID to user.server.id.toString(),
+                            ),
+                        ).setInitialDelay(60.seconds.toJavaDuration())
+                            .build(),
+                ).await()
+        }
+
         init {
             if (BuildConfig.KID_PROFILES_ENABLED && supportsTvProvider) {
-                // Review round 3: protection turning on (or the app starting protected) takes the launcher rows down
+                // Review round 3: protection turning on (or the app starting protected) takes the launcher rows down.
+                // Review round 4: turning it off brings back the unprotected behaviour, scheduled updates for the
+                // current profile, with the rows refreshed now
+                var wasProtected: Boolean? = null
                 kidProtectionStore.isProtected.collectLatestIn(activity.lifecycleScope) { protected ->
+                    val before = wasProtected
+                    wasProtected = protected
                     if (protected) {
                         workManager.cancelUniqueWork(TvProviderWorker.WORK_NAME)
                         activity.lifecycleScope.launchIO(ExceptionHandler()) { LauncherRows.clear(context) }
+                    } else if (before == true) {
+                        activity.lifecycleScope.launchIO(ExceptionHandler()) {
+                            LauncherRows.invalidate()
+                            serverRepository.current.value?.let { schedulePeriodic(it) }
+                            // After the invalidation, so the refresh isn't taken for a run from before it
+                            launchOneTimeRefresh()
+                        }
                     }
                 }
             }
