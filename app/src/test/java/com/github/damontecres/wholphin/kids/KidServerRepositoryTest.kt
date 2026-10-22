@@ -649,7 +649,7 @@ class KidServerRepositoryTest {
             } catch (_: IllegalStateException) {
             }
             verify(exactly = 0) { serverDao.addOrUpdateUser(any()) }
-            verify(exactly = 0) { serverDao.updateUserAuth(any(), any(), any()) }
+            verify(exactly = 0) { serverDao.updateUserAuthUnlessPinRemoved(any(), any(), any(), any()) }
         }
 
     @Test
