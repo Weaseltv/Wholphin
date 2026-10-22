@@ -13,6 +13,7 @@ import androidx.media3.session.MediaSession
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.AudioItem
 import com.github.damontecres.wholphin.data.model.BaseItem
+import com.github.damontecres.wholphin.kids.KidContentGuard
 import com.github.damontecres.wholphin.preferences.enabled
 import com.github.damontecres.wholphin.preferences.get
 import com.github.damontecres.wholphin.services.hilt.DefaultCoroutineScope
@@ -79,6 +80,7 @@ class MusicService
         private val serverRepository: ServerRepository,
         private val imageUrlService: ImageUrlService,
         private val userPreferencesService: UserPreferencesService,
+        private val kidContentGuard: KidContentGuard,
     ) {
         private val _state = MutableStateFlow(MusicServiceState.EMPTY)
         val state: StateFlow<MusicServiceState> = _state
@@ -221,8 +223,7 @@ class MusicService
             Timber.d("setQueue: %s items, shuffled=%s", items.size, shuffled)
             val preferAc3Surround = preferAc3Surround()
             val mediaItems =
-                items
-                    .filter { it.type == BaseItemKind.AUDIO }
+                allowed(items.filter { it.type == BaseItemKind.AUDIO })
                     .map { convert(it, preferAc3Surround) }
             withContext(WholphinDispatchers.Main) {
                 player.setMediaItems(mediaItems)
@@ -240,6 +241,7 @@ class MusicService
             index: Int? = null,
         ) {
             if (item.type == BaseItemKind.AUDIO) {
+                if (allowed(listOf(item)).isEmpty()) return
                 val preferAc3Surround = preferAc3Surround()
                 val mediaItem = convert(item, preferAc3Surround)
                 withContext(WholphinDispatchers.Main) {
@@ -273,23 +275,33 @@ class MusicService
             list.indices
                 .chunked(25)
                 .forEach {
-                    val mediaItems =
+                    val songs =
                         it.mapNotNull {
                             if (remaining == 0) {
                                 list
                                     .getBlocking(it)
                                     ?.takeIf { it.type == BaseItemKind.AUDIO }
-                                    ?.let { convert(it, preferAc3Surround) }
                             } else {
                                 Timber.v("Skipping $remaining")
                                 remaining--
                                 null
                             }
                         }
+                    val mediaItems = allowed(songs).map { convert(it, preferAc3Surround) }
                     onMain { player.addMediaItems(mediaItems) }
                 }
             updateQueueSize()
             start()
+        }
+
+        /**
+         * Kid content rules (contract section 10): only the songs a fresh check by item id allows, right before their
+         * streams are queued. Everything for adults.
+         */
+        private suspend fun allowed(songs: List<BaseItem>): List<BaseItem> {
+            if (songs.isEmpty() || kidContentGuard.currentPolicy() == null) return songs
+            val visible = kidContentGuard.visibleIds(api, songs.map { it.id }, fresh = true)
+            return songs.filter { it.id in visible }
         }
 
         /**
@@ -405,6 +417,7 @@ class MusicService
          * Play this item next after the current, ie add the item as the next index in the queue
          */
         suspend fun playNext(song: BaseItem) {
+            if (allowed(listOf(song)).isEmpty()) return
             val mediaItem = convert(song, preferAc3Surround())
             onMain {
                 player.addMediaItem(state.value.currentIndex + 1, mediaItem)

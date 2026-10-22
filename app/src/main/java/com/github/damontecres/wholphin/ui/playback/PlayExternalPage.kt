@@ -21,10 +21,12 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.viewModelScope
+import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ItemPlaybackDao
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.PlaylistItem
+import com.github.damontecres.wholphin.kids.KidContentGuard
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.PlaylistCreationResult
@@ -76,6 +78,7 @@ class PlayExternalViewModel
         private val itemPlaybackDao: ItemPlaybackDao,
         private val playlistCreator: PlaylistCreator,
         private val streamChoiceService: StreamChoiceService,
+        private val kidContentGuard: KidContentGuard,
         private val navigationManager: NavigationManager,
         private val userPreferencesService: UserPreferencesService,
     ) : ViewModel() {
@@ -157,6 +160,13 @@ class PlayExternalViewModel
                             is PlaylistItem.Intro -> playlistItem.item
                             is PlaylistItem.Media -> playlistItem.item
                         }
+                    // Kid content rules (contract section 10): a fresh check by item id right before the stream starts
+                    if (!kidContentGuard.isPlaybackAllowed(api, item.id)) {
+                        state.update {
+                            it.copy(loading = LoadingState.Error(context.getString(R.string.kid_content_playback_refused)))
+                        }
+                        return@launchDefault
+                    }
                     val mediaSource = streamChoiceService.chooseSource(item.data, playbackConfig)
                     val plc = streamChoiceService.getPlaybackLanguageChoice(item.data)
                     if (mediaSource == null) {

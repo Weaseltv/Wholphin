@@ -12,6 +12,7 @@ import com.github.damontecres.wholphin.ui.detail.series.SeasonEpisodeIds
 import com.github.damontecres.wholphin.ui.nav.Destination
 import kotlinx.coroutines.flow.first
 import org.jellyfin.sdk.api.client.ApiClient
+import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
@@ -104,6 +105,10 @@ class IntentService
                         .let { BaseItem(it) }
                 } catch (ex: Exception) {
                     Timber.w(ex, "Error fetching item %s", itemId)
+                    if (ex is InvalidStatusException && ex.status == 404 && kidSessionGate.isKidSession.value) {
+                        // Kid content rules (contract section 10): a hidden title, the kid stays in their session
+                        return IntentResult.Unavailable
+                    }
                     return IntentResult.Error("Could not fetch item $itemId")
                 }
 
@@ -331,6 +336,9 @@ sealed interface IntentResult {
     ) : IntentResult
 
     data object NoOp : IntentResult
+
+    /** Kid content rules: the item isn't available to this kid session; it stays where it is (home) */
+    data object Unavailable : IntentResult
 
     data class Target(
         val destinations: List<Destination>,

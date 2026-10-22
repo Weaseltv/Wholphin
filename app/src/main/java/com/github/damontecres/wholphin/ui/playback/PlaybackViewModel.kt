@@ -27,6 +27,7 @@ import androidx.media3.session.MediaSession
 import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.size.Size
+import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ItemPlaybackDao
 import com.github.damontecres.wholphin.data.ItemPlaybackRepository
 import com.github.damontecres.wholphin.data.ServerRepository
@@ -36,6 +37,7 @@ import com.github.damontecres.wholphin.data.model.ItemPlayback
 import com.github.damontecres.wholphin.data.model.Playlist
 import com.github.damontecres.wholphin.data.model.PlaylistItem
 import com.github.damontecres.wholphin.data.model.TrackIndex
+import com.github.damontecres.wholphin.kids.KidContentGuard
 import com.github.damontecres.wholphin.mpv.MpvPlayer
 import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.PlayerBackend
@@ -161,6 +163,7 @@ class PlaybackViewModel
         private val musicService: MusicService,
         private val activePlaybackRegistry: ActivePlaybackRegistry,
         private val volumeService: VolumeService,
+        private val kidContentGuard: KidContentGuard,
         @Assisted private val destination: Destination,
     ) : ViewModel(),
         Player.Listener,
@@ -360,6 +363,12 @@ class PlaybackViewModel
                 (destination as? Destination.Playback)?.let {
                     PlayRequestMapper.requestedStreams(it, serverRepository.currentUser?.rowId ?: 0)
                 }
+            // Kid content rules (contract section 10): refused by item id after a fresh check
+            if (!kidContentGuard.isPlaybackAllowed(api, itemId)) {
+                refuseKidContent()
+                navigationManager.goBack()
+                return
+            }
             val queriedItem = api.userLibraryApi.getItem(itemId).content
             val playlistItem =
                 if (explicitQueue.isNotEmpty()) {
@@ -495,6 +504,11 @@ class PlaybackViewModel
          * @param itemPlayback the parameters for playback such chosen subtitle or audio streams
          * @param forceTranscoding whether the user has requested to force playback via transcoding
          */
+        private suspend fun refuseKidContent() {
+            Timber.i("Kid content rules: playback refused")
+            showToast(context, context.getString(R.string.kid_content_playback_refused), Toast.LENGTH_SHORT)
+        }
+
         private suspend fun play(
             playlistItem: PlaylistItem,
             positionMs: Long,
@@ -524,6 +538,11 @@ class PlaybackViewModel
                         "Unsupported type '${item.type}', skipping...",
                         Toast.LENGTH_SHORT,
                     )
+                    return@withContext false
+                }
+                // Kid content rules (contract section 10): a fresh check by item id right before each stream starts
+                if (!kidContentGuard.isPlaybackAllowed(api, item.id)) {
+                    refuseKidContent()
                     return@withContext false
                 }
                 this@PlaybackViewModel.currentItem = playlistItem

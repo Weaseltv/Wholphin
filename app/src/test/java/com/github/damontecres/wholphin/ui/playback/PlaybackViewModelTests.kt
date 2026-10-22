@@ -137,6 +137,7 @@ class PlaybackViewModelTests {
             musicService = mockMusicService,
             activePlaybackRegistry = activePlaybackRegistry,
             volumeService = mockVolumeService,
+            kidContentGuard = mockk { coEvery { isPlaybackAllowed(any(), any()) } returns true },
             destination = destination,
         )
 
