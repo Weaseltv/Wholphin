@@ -11,6 +11,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
+import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.okhttp.OkHttpFactory
 import org.jellyfin.sdk.createJellyfin
 import org.jellyfin.sdk.model.ClientInfo
@@ -222,7 +223,16 @@ class StreamingCollectionsTest {
             val userId = UUID.randomUUID()
             val rows = mockk<JustWatchRowService>()
             coEvery { rows.serviceList(any(), any(), any()) } returns listOf(UUID.randomUUID())
-            val service = StreamingQuickListService(mockk(relaxed = true), mockk(), mockk(), rows)
+            val service =
+                StreamingQuickListService(
+                    mockk(relaxed = true),
+                    mockk(),
+                    mockk(),
+                    rows,
+                    mockk {
+                        coEvery { sessionOf(any<ApiClient>()) } returns null
+                    },
+                )
             service.prefetch(userId, StreamingCollections.justWatch("Showtime"))
             coVerify(timeout = 5_000) { rows.serviceList(userId, "sho", StreamingQuickList.POPULAR) }
             coVerify(exactly = 0) { rows.serviceList(any(), "ppp", any()) }

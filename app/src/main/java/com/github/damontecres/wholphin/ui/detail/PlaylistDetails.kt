@@ -491,6 +491,7 @@ fun PlaylistDetails(
                     Destination.PlaybackList(
                         itemId = destination.itemId,
                         startIndex = index,
+                        startItemId = item.id.takeUnless { shuffle },
                         shuffle = shuffle,
                         filter = state.filterAndSort.filter,
                         sortAndDirection = state.filterAndSort.sortAndDirection,

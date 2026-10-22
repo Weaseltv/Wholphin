@@ -9,6 +9,8 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import com.github.damontecres.wholphin.BuildConfig
+import com.github.damontecres.wholphin.kids.KidContentGuard
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.ThemeSongVolume
 import com.github.damontecres.wholphin.services.hilt.AuthOkHttpClient
@@ -49,6 +51,7 @@ class ThemeSongPlayer
         private val api: ApiClient,
         @param:IoCoroutineScope private val scope: CoroutineScope,
         private val preferences: DataStore<AppPreferences>,
+        private val kidContentGuard: KidContentGuard,
     ) {
         private val mutex = Mutex()
         private val state = MutableStateFlow(ThemeSongState())
@@ -89,8 +92,22 @@ class ThemeSongPlayer
                         }
                     val job =
                         scope.launchIO {
+                            // Kid content rules (review round 5): kid and unknown sessions get no music, theme songs
+                            // included
+                            if (BuildConfig.KID_PROFILES_ENABLED && kidContentGuard.currentPolicy() != null) {
+                                Timber.i("Kid content rules: no theme songs for kid sessions")
+                                return@launchIO
+                            }
                             val themeSongs by api.libraryApi.getThemeSongs(itemId)
                             themeSongs.items.randomOrNull()?.let { theme ->
+                                // Kid content rules (contract section 10): a fresh check of the song, and of the item
+                                // it is the theme of, right before it plays
+                                val ownerPermit = kidContentGuard.playbackPermit(api, itemId)
+                                val songPermit = kidContentGuard.playbackPermit(api, theme.id)
+                                if (!kidContentGuard.isCurrent(ownerPermit) || !kidContentGuard.isCurrent(songPermit)) {
+                                    Timber.i("Kid content rules: theme song refused")
+                                    return@launchIO
+                                }
                                 val url =
                                     api.universalAudioApi.getUniversalAudioStreamUrl(
                                         theme.id,
@@ -103,6 +120,10 @@ class ThemeSongPlayer
                                             ),
                                     )
                                 withContext(WholphinDispatchers.Main) {
+                                    // Review round 2: only under the session the song was allowed in
+                                    if (!kidContentGuard.isCurrent(ownerPermit) || !kidContentGuard.isCurrent(songPermit)) {
+                                        return@withContext
+                                    }
                                     player.apply {
                                         stop()
                                         volume = volumeLevel

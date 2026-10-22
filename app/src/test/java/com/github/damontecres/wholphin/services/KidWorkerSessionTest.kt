@@ -50,12 +50,14 @@ class KidWorkerSessionTest {
             mockk(relaxed = true),
             latestNextUpService,
             mockk(relaxed = true),
+            mockk { coEvery { isProtected() } returns false },
         )
 
     @Before
     fun setUp() {
         Assume.assumeTrue(BuildConfig.KID_PROFILES_ENABLED)
         every { serverRepository.current } returns current
+        every { serverRepository.sessionEpoch } returns MutableStateFlow(0L)
     }
 
     @Test

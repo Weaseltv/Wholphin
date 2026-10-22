@@ -16,6 +16,7 @@ import com.github.damontecres.wholphin.kids.profileCeiling
 import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.services.hilt.IoDispatcher
+import com.github.damontecres.wholphin.services.tvprovider.LauncherRows
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -32,6 +33,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.api.client.ApiClient
@@ -46,6 +48,7 @@ import java.time.ZonedDateTime
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Handles managing the current server & user as well as adding & removing new ones
@@ -71,6 +74,19 @@ class ServerRepository
 
         private var _current = MutableStateFlow<CurrentUser?>(null)
         val current: StateFlow<CurrentUser?> = _current
+
+        private val _sessionEpoch = MutableStateFlow(0L)
+
+        /**
+         * Kid content rules (contract section 10, review round 2): goes up every time the session or its ceiling changes,
+         * in the same commit step, right after [current] changes. A decision taken under one epoch (a filtered response,
+         * a playback permit, a saved list) is only used while it is still the epoch. Read it before [current].
+         */
+        val sessionEpoch: StateFlow<Long> = _sessionEpoch
+
+        private fun nextEpoch() {
+            _sessionEpoch.update { it + 1 }
+        }
 
         /** The session the last [assignSession] published; a policy refresh of it doesn't replace it */
         private var publishedSession: CurrentUser? = null
@@ -137,6 +153,7 @@ class ServerRepository
             apiClient.update(baseUrl = baseUrl, accessToken = current?.user?.accessToken)
             _currentUserDto.value = userDto
             _current.value = current
+            nextEpoch()
             publishedSession = current
         }
 
@@ -307,6 +324,8 @@ class ServerRepository
             val ceilingBefore = journalled?.ceilingBefore
             var published: CurrentUser? = null
             try {
+                // Review round 5: inside the journal's settlement, so a cancellation while it waits aborts the switch
+                if (journalled != null && user.profileKind != ProfileKind.ADULT) clearLauncherBeforeKidSession()
                 serverDao.addOrUpdateServer(server)
                 // Read and written with no suspension in between, under the lock every auth and local preference change
                 // holds
@@ -350,6 +369,20 @@ class ServerRepository
                 withContext(NonCancellable) { settlePublished(switchId, currentUser, entryOwner) }
             }
             return currentUser
+        }
+
+        /**
+         * Kid content rules (review rounds 3 and 4): a protected TV shows no launcher rows. Protection is persisted by
+         * now; the rows are cleared (under the launcher lock, off the main thread) before the kid session is published,
+         * waiting at most [LAUNCHER_CLEAR_WAIT]. If that fails or takes longer, the kid session is still published and
+         * another clear is queued: the TV's home screen is outside the app's gate, so it never blocks a kid sign-in.
+         */
+        private suspend fun clearLauncherBeforeKidSession() {
+            val cleared = withTimeoutOrNull(LAUNCHER_CLEAR_WAIT) { LauncherRows.clearAsync(context, ioDispatcher).await() }
+            if (cleared != true) {
+                Timber.w("Launcher rows not cleared before a kid session (%s), retrying", if (cleared == null) "timed out" else "failed")
+                LauncherRows.requestClear(context)
+            }
         }
 
         /**
@@ -891,6 +924,8 @@ class ServerRepository
                 }
                 commitSession {
                     _current.update { if (it?.user?.id == refreshed.id) it.copy(user = refreshed) else it }
+                    // The ceiling changed
+                    nextEpoch()
                 }
             }
         }
@@ -924,6 +959,9 @@ class ServerRepository
         }
 
         companion object {
+            /** Kid content rules: how long publishing a kid session waits for the launcher rows to be cleared */
+            private val LAUNCHER_CLEAR_WAIT = 3.seconds
+
             fun getServerSharedPreferences(context: Context): SharedPreferences =
                 context.getSharedPreferences(
                     "${context.packageName}_server",

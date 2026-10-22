@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import timber.log.Timber
+import java.util.UUID
 import javax.inject.Inject
 
 /**
@@ -33,6 +34,8 @@ class UserSwitchListener
         private val serverRepository: ServerRepository,
         private val seerrServerRepository: SeerrServerRepository,
         private val homeSettingsService: HomeSettingsService,
+        private val navigationManager: NavigationManager,
+        private val setupNavigationManager: SetupNavigationManager,
     ) {
         init {
             context as AppCompatActivity
@@ -52,6 +55,9 @@ class UserSwitchListener
                     },
                 )
             }
+            if (BuildConfig.KID_PROFILES_ENABLED) {
+                context.lifecycleScope.launchDefault { rebuildOnCeilingChange() }
+            }
             context.lifecycleScope.launchDefault {
                 // collectLatest: a newer session (or the chooser teardown) cancels the previous user's
                 // in-flight Seerr connect and home settings load, so their late results are dropped
@@ -62,6 +68,33 @@ class UserSwitchListener
                     if (user != null) {
                         switchUser(user)
                     }
+                }
+            }
+        }
+
+        /**
+         * Kid content rules (contract section 10, review round 3): when the session epoch moves while the same profile
+         * stays signed in (its ceiling was refreshed), every screen goes: the back stack is cleared to a fresh Home and
+         * the app content is rebuilt for the refreshed session, so no pager or list from the old ceiling stays usable.
+         * App-wide lists need nothing here: kid and unknown sessions never use the saved Collections lists or genre
+         * backdrops (review rounds 6 and 7), and adults keep theirs as before. A switch to another profile goes through
+         * the chooser (or a deep link), which already rebuilds everything.
+         */
+        private suspend fun rebuildOnCeilingChange() {
+            var last: Pair<Long, UUID?>? = null
+            serverRepository.sessionEpoch.collect { epoch ->
+                // The epoch first, then the session it covers
+                val current = serverRepository.current.value
+                val previous = last
+                last = epoch to current?.user?.id
+                if (previous == null || previous.first == epoch) return@collect
+                if (current == null || previous.second != current.user.id) return@collect
+                withContext(WholphinDispatchers.Main) {
+                    // Only while the app content is shown, never over the chooser or sign-in
+                    if (setupNavigationManager.backStack.firstOrNull() !is SetupDestination.AppContent) return@withContext
+                    Timber.i("Kid content rules: the ceiling changed, rebuilding from Home")
+                    navigationManager.reloadHome()
+                    setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
                 }
             }
         }

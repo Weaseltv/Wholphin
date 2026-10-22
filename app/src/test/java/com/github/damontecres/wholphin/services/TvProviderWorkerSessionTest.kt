@@ -52,6 +52,7 @@ class TvProviderWorkerSessionTest {
     fun setUp() {
         Assume.assumeTrue(BuildConfig.KID_PROFILES_ENABLED)
         every { serverRepository.current } returns current
+        every { serverRepository.sessionEpoch } returns MutableStateFlow(0L)
         every { context.contentResolver } returns resolver
         every { resolver.query(any(), any(), any(), any(), any()) } returns null
     }
@@ -70,6 +71,7 @@ class TvProviderWorkerSessionTest {
                         mockk(relaxed = true),
                         mockk(relaxed = true),
                         mockk(relaxed = true),
+                        mockk { coEvery { isProtected() } returns false },
                     ),
                 )
             coEvery { worker.fetchLatest(any()) } coAnswers {
@@ -83,5 +85,29 @@ class TvProviderWorkerSessionTest {
             verify(exactly = 0) { resolver.insert(TvContractCompat.Channels.CONTENT_URI, any()) }
             verify(exactly = 0) { resolver.delete(TvContractCompat.PreviewPrograms.CONTENT_URI, any(), any()) }
             verify(exactly = 0) { resolver.bulkInsert(TvContractCompat.PreviewPrograms.CONTENT_URI, any()) }
+        }
+
+    @Test
+    fun `a protected TV gets no launcher rows for any profile`() =
+        runTest {
+            // Review round 3: the scheduled adult is still current, but kid protection is on
+            current.value = currentUser(serverId, userId)
+            val worker =
+                TvProviderWorker(
+                    context,
+                    params(),
+                    serverRepository,
+                    mockk(relaxed = true),
+                    mockk(relaxed = true),
+                    mockk(relaxed = true),
+                    mockk(relaxed = true),
+                    mockk { coEvery { isProtected() } returns true },
+                )
+
+            assertEquals(ListenableWorker.Result.success(), worker.doWork())
+
+            verify(exactly = 0) { resolver.insert(any(), any()) }
+            verify(exactly = 0) { resolver.delete(any(), any(), any()) }
+            verify(exactly = 0) { resolver.bulkInsert(any(), any()) }
         }
 }

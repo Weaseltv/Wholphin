@@ -16,6 +16,7 @@ import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.PolicyState
 import com.github.damontecres.wholphin.preferences.AppPreferences
+import com.github.damontecres.wholphin.services.tvprovider.LauncherRows
 import com.github.damontecres.wholphin.ui.successResponse
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.util.WholphinDispatchers
@@ -661,6 +662,33 @@ class KidServerRepositoryTest {
             assertEquals(PolicyState.KID, current.user.policyState)
             assertEquals(ProfileKind.KID, current.user.profileKind)
             assertEquals(ProfileCeiling.Rating(10), current.user.profileCeiling)
+        }
+
+    @Test
+    fun `cancelling a kid switch while the launcher clear is awaited settles its journal`() =
+        runTest {
+            // Review round 5: a session at 14 before, protection on
+            store.protect()
+            store.setSessionCeiling(ProfileCeiling.Rating(14))
+            val kid = row(5)
+            coEvery { userApi.getCurrentUser() } returns successResponse(userDto(kid.id, 10))
+            // The launcher is busy, so the clear the kid session waits for doesn't finish
+            val release = CompletableDeferred<Unit>()
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { LauncherRows.locked { release.await() } }
+
+            val switch = launch(UnconfinedTestDispatcher(testScheduler)) { repository.changeUser(server, kid, authorize = {}) }
+            // The switch is journalled (the ceiling reads unknown) and waits for the clear
+            assertEquals(ProfileCeiling.Unknown, store.sessionCeiling())
+            assertTrue(switch.isActive)
+            // Back, or another profile picked, while the clear is awaited
+            switch.cancel()
+            switch.join()
+
+            assertNull(repository.current.value)
+            // The journal was settled: the ceiling from before, never left unknown
+            assertEquals(ProfileCeiling.Rating(14), store.sessionCeiling())
+            assertTrue(store.isProtected())
+            release.complete(Unit)
         }
 }
 

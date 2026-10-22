@@ -3,6 +3,7 @@ package com.github.damontecres.wholphin.services
 import android.content.Context
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.GetItemsFilter
+import com.github.damontecres.wholphin.kids.KidContentGuard
 import com.github.damontecres.wholphin.ui.SlimItemFields
 import com.github.damontecres.wholphin.util.GetItemsRequestHandler
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -67,6 +68,7 @@ class StreamingQuickListService
         private val api: ApiClient,
         private val justWatchService: JustWatchService,
         private val justWatchRowService: JustWatchRowService,
+        private val kidContentGuard: KidContentGuard,
     ) {
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         private val json = Json { ignoreUnknownKeys = true }
@@ -75,6 +77,8 @@ class StreamingQuickListService
         private data class SavedSnapshot(
             val savedAt: Long,
             val items: List<BaseItemDto>,
+            /** Kid content rules: the rules the items were filtered by ([rulesTag]), null for adults */
+            val rules: String? = null,
         )
 
         private class Snapshot(
@@ -95,7 +99,49 @@ class StreamingQuickListService
         private data class Key(
             val userId: UUID,
             val collectionId: UUID,
+            /** Kid content rules: see [rulesTag]; a snapshot saved under other rules (or none) isn't used */
+            val rules: String?,
+            /**
+             * Review round 2: the session epoch the key was made in. A load or replay is only shown while it is still
+             * the epoch, so a snapshot never reaches a session it wasn't made for (an adult's never reaches a kid)
+             */
+            val epoch: Long?,
         )
+
+        /** Kid content rules (review round 1): a load whose session changed; nothing it got is shown or saved */
+        private class StaleSessionException : IllegalStateException("The session changed during a snapshot load")
+
+        /**
+         * Kid content rules (review round 1): [items] as a kid session may see them now. Snapshots
+         * live for hours, so their members are checked again through the rules (lookups cached for minutes); what
+         * can't be decided now is hidden. Adults get [items] as they are.
+         */
+        private suspend fun visibleNow(
+            key: Key,
+            items: List<BaseItem>,
+        ): List<BaseItem> {
+            if (!inEpoch(key)) return emptyList()
+            if (key.rules == null || items.isEmpty()) return items
+            val visible = kidContentGuard.visibleIds(api, items.map { it.id })
+            // Checked again after the lookups, right before the caller emits
+            return if (inEpoch(key)) items.filter { it.id in visible } else emptyList()
+        }
+
+        /** Whether [key]'s session is still the current one (review round 2) */
+        private fun inEpoch(key: Key): Boolean = key.epoch == null || kidContentGuard.epoch() == key.epoch
+
+        /**
+         * Kid content rules (contract section 10): the key carries the rules this session's lists are filtered by (null
+         * for adults) and its epoch. Snapshots saved before the rules existed, or for another ceiling, are never shown to
+         * a kid session.
+         */
+        private suspend fun key(
+            userId: UUID,
+            collectionId: UUID,
+        ): Key {
+            val session = kidContentGuard.sessionOf(api)
+            return Key(userId, collectionId, session?.rules, session?.epoch)
+        }
 
         private val lock = Mutex()
 
@@ -124,9 +170,10 @@ class StreamingQuickListService
             flow {
                 foregroundLoads.update { it + 1 }
                 try {
+                    val key = key(userId, collectionId)
                     emitAll(
-                        snapshot(Key(userId, collectionId)).progress.transformWhile {
-                            emit(it)
+                        snapshot(key).progress.transformWhile {
+                            emit(it.copy(items = visibleNow(key, it.items)))
                             !it.complete
                         },
                     )
@@ -147,10 +194,11 @@ class StreamingQuickListService
                 justWatch
                     ?.takeIf { list != StreamingQuickList.NEW }
                     ?.let { scope.async { saved(userId, it.code, list) } }
+            val key = key(userId, collectionId)
             val snapshot =
                 try {
                     foregroundLoads.update { it + 1 }
-                    snapshot(Key(userId, collectionId)).result.await()
+                    snapshot(key).result.await()
                 } finally {
                     foregroundLoads.update { it - 1 }
                 }
@@ -180,7 +228,8 @@ class StreamingQuickListService
                 }
             val types = filter.includeItemTypes
             val filtered = if (types.isNullOrEmpty()) members else members.filter { it.type in types }
-            return if (list == StreamingQuickList.TOP_10) filtered.take(10) else filtered
+            val visible = visibleNow(key, filtered)
+            return if (list == StreamingQuickList.TOP_10) visible.take(10) else visible
         }
 
         /** Whether [filter] only chooses types, so [items] can apply it without the server. */
@@ -226,7 +275,7 @@ class StreamingQuickListService
             scope.launch {
                 delay(PREFETCH_DELAY)
                 collectionIds.forEach { collectionId ->
-                    val key = Key(userId, collectionId)
+                    val key = key(userId, collectionId)
                     val savedAge = savedAge(key)
                     val loaded = lock.withLock { inMemory[key] } != null
                     if (!loaded && (savedAge == null || savedAge > PREFETCH_REFRESH_AFTER.inWholeMilliseconds)) {
@@ -239,6 +288,10 @@ class StreamingQuickListService
 
         private suspend fun snapshot(key: Key): Load =
             lock.withLock {
+                // Kid content rules (review round 1): another session's loads stop here (they'd be rejected anyway)
+                inMemory.keys
+                    .filter { it.userId != key.userId || it.rules != key.rules || it.epoch != key.epoch }
+                    .forEach { stale -> inMemory.remove(stale)?.result?.cancel() }
                 inMemory[key]?.let { existing ->
                     val result = existing.result
                     val failed = result.isCompleted && result.getCompletionExceptionOrNull() != null
@@ -284,8 +337,18 @@ class StreamingQuickListService
             background: Boolean,
         ): Snapshot {
             val started = System.currentTimeMillis()
+            // Kid content rules (review round 1): the session this load is for. Every page must have been made (and
+            // filtered) for it, and it must still be the current one before anything is shown or saved
+            val session = kidContentGuard.sessionOf(api)
+            if (session != null && (session.userId != key.userId || session.rules != key.rules || session.epoch != key.epoch)) {
+                throw StaleSessionException()
+            }
 
-            suspend fun page(
+            suspend fun stillCurrent() {
+                if (session != null && kidContentGuard.sessionOf(api) != session) throw StaleSessionException()
+            }
+
+            suspend fun response(
                 startIndex: Int,
                 limit: Int,
                 count: Boolean,
@@ -304,12 +367,35 @@ class StreamingQuickListService
                         limit = limit,
                         enableTotalRecordCount = count,
                     ),
-                ).content
+                ).also {
+                    if (session != null && !session.made(kidContentGuard.sessionOf(it.headers))) throw StaleSessionException()
+                }
 
-            val first = page(0, FIRST_PAGE, count = true)
+            suspend fun page(
+                startIndex: Int,
+                limit: Int,
+                count: Boolean,
+            ) = response(startIndex, limit, count).content
+
+            val firstResponse = response(0, FIRST_PAGE, count = true)
+            val first = firstResponse.content
+            // Kid content rules: pages are the server's, so count what the filter removed from the first one too
+            val removed = KidContentGuard.removedBy(firstResponse.headers)
+            val serverTotal = first.totalRecordCount + (removed ?: 0)
             val dtos = first.items.toMutableList()
-            progress?.value = Progress(dtos.map { BaseItem(it, true) }, dtos.size >= first.totalRecordCount)
-            val pageStarts = (FIRST_PAGE until first.totalRecordCount step PAGE).toList()
+            stillCurrent()
+            progress?.value =
+                Progress(
+                    dtos.map { BaseItem(it, true) },
+                    if (removed ==
+                        null
+                    ) {
+                        dtos.size >= first.totalRecordCount
+                    } else {
+                        serverTotal <= FIRST_PAGE
+                    },
+                )
+            val pageStarts = (FIRST_PAGE until serverTotal step PAGE).toList()
             val permits = Semaphore(PARALLEL_PAGES)
             coroutineScope {
                 val pages =
@@ -325,14 +411,16 @@ class StreamingQuickListService
                 // Add pages in order as they arrive
                 pages.forEachIndexed { index, page ->
                     dtos += page.await()
+                    stillCurrent()
                     progress?.value = Progress(dtos.map { BaseItem(it, true) }, index == pages.lastIndex)
                 }
             }
             val items = dtos.distinctBy { it.id }
             Timber.d("Snapshot for %s: %s items in %s ms", key.collectionId, items.size, System.currentTimeMillis() - started)
             val now = System.currentTimeMillis()
+            stillCurrent()
             runCatching {
-                file(key).apply { parentFile?.mkdirs() }.writeText(json.encodeToString(SavedSnapshot(now, items)))
+                file(key).apply { parentFile?.mkdirs() }.writeText(json.encodeToString(SavedSnapshot(now, items, key.rules)))
             }.onFailure { Timber.w(it, "Couldn't save snapshot for %s", key.collectionId) }
             val snapshot = Snapshot(now, items.map { BaseItem(it, true) })
             progress?.value = Progress(snapshot.items, true)
@@ -345,11 +433,14 @@ class StreamingQuickListService
                     .takeIf { it.exists() }
                     ?.readText()
                     ?.let { json.decodeFromString<SavedSnapshot>(it) }
+                    // Kid content rules: only a snapshot filtered by this session's rules
+                    ?.takeIf { it.rules == key.rules }
                     ?.let { saved -> Snapshot(saved.savedAt, saved.items.map { BaseItem(it, true) }) }
             }.onFailure { Timber.w(it, "Couldn't read snapshot for %s", key.collectionId) }
                 .getOrNull()
 
-        private fun savedAge(key: Key): Long? = file(key).takeIf { it.exists() }?.lastModified()?.let(::age)
+        private fun savedAge(key: Key): Long? =
+            file(key).takeIf { it.exists() && (key.rules == null || readSaved(key) != null) }?.lastModified()?.let(::age)
 
         private fun age(time: Long) = System.currentTimeMillis() - time
 

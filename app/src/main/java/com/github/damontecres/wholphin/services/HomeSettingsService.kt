@@ -20,6 +20,7 @@ import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.HomeItemFields
 import com.github.damontecres.wholphin.ui.ProgramItemFields
 import com.github.damontecres.wholphin.ui.components.getGenreImageMap
+import com.github.damontecres.wholphin.ui.components.isKidOrUnknown
 import com.github.damontecres.wholphin.ui.formatTypeName
 import com.github.damontecres.wholphin.ui.main.settings.Library
 import com.github.damontecres.wholphin.ui.playback.getTypeFor
@@ -889,6 +890,7 @@ class HomeSettingsService
                             includeItemTypes = null,
                             cardWidthPx = null,
                             useCache = isRefresh,
+                            kidSession = isKidOrUnknown(serverRepository.currentUser),
                         )
                     val library =
                         libraries

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
+import com.github.damontecres.wholphin.kids.isStaleSession
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.DatePlayedService
@@ -214,7 +215,7 @@ class HomeViewModel
                 } catch (ex: Exception) {
                     Timber.e(ex, "Exception during home page loading")
                     if (state.value.loadingState == LoadingState.Success) {
-                        showToast(context, "Error refreshing home: ${ex.localizedMessage}")
+                        if (!ex.isStaleSession()) showToast(context, "Error refreshing home: ${ex.localizedMessage}")
                         _state.update { it.copy(refreshState = LoadingState.Error(ex)) }
                     } else {
                         _state.update {

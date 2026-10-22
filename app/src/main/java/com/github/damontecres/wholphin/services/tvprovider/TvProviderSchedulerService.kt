@@ -12,7 +12,12 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.await
 import androidx.work.workDataOf
+import com.github.damontecres.wholphin.BuildConfig
+import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.kids.KidProtectionStore
+import com.github.damontecres.wholphin.kids.ProfileKind
+import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.ui.collectLatestIn
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.util.ExceptionHandler
@@ -35,6 +40,7 @@ class TvProviderSchedulerService
         @param:ActivityContext private val context: Context,
         private val serverRepository: ServerRepository,
         private val workManager: WorkManager,
+        private val kidProtectionStore: KidProtectionStore,
     ) {
         private val activity = (context as AppCompatActivity)
 
@@ -44,31 +50,70 @@ class TvProviderSchedulerService
                 context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
 
         init {
-            serverRepository.current.collectLatestIn(activity.lifecycleScope) { user ->
+            // Kid content rules (review round 2): driven by the session epoch, which goes up on every change, so a quick
+            // kid -> adult -> same kid can't be conflated away (the session value would look unchanged)
+            serverRepository.sessionEpoch.collectLatestIn(activity.lifecycleScope) {
+                val user = serverRepository.current.value
                 workManager.cancelUniqueWork(TvProviderWorker.WORK_NAME)
                 if (supportsTvProvider) {
-                    if (user != null) {
+                    activity.lifecycleScope.launchIO(ExceptionHandler()) {
+                        if (BuildConfig.KID_PROFILES_ENABLED) {
+                            // Kid content rules (contract section 10, review round 3): a protected TV shows no
+                            // launcher rows for any profile, since the TV's home screen is outside the profile gate.
+                            // Unprotected, any change still stops runs started for the previous session
+                            if (kidProtectionStore.isProtected()) {
+                                LauncherRows.clear(context)
+                                return@launchIO
+                            }
+                            LauncherRows.invalidate()
+                        }
                         // Schedule a new worker whenever the user changes
+                        if (user != null) schedulePeriodic(user)
+                    }
+                }
+            }
+        }
+
+        private suspend fun schedulePeriodic(user: CurrentUser) {
+            Timber.i("Scheduling TvProviderWorker for ${user.user}")
+            workManager
+                .enqueueUniquePeriodicWork(
+                    uniqueWorkName = TvProviderWorker.WORK_NAME,
+                    existingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.UPDATE,
+                    request =
+                        PeriodicWorkRequestBuilder<TvProviderWorker>(
+                            repeatInterval = 1.hours.toJavaDuration(),
+                        ).setBackoffCriteria(
+                            BackoffPolicy.LINEAR,
+                            15.minutes.toJavaDuration(),
+                        ).setInputData(
+                            workDataOf(
+                                TvProviderWorker.PARAM_USER_ID to user.user.id.toString(),
+                                TvProviderWorker.PARAM_SERVER_ID to user.server.id.toString(),
+                            ),
+                        ).setInitialDelay(60.seconds.toJavaDuration())
+                            .build(),
+                ).await()
+        }
+
+        init {
+            if (BuildConfig.KID_PROFILES_ENABLED && supportsTvProvider) {
+                // Review round 3: protection turning on (or the app starting protected) takes the launcher rows down.
+                // Review round 4: turning it off brings back the unprotected behaviour, scheduled updates for the
+                // current profile, with the rows refreshed now
+                var wasProtected: Boolean? = null
+                kidProtectionStore.isProtected.collectLatestIn(activity.lifecycleScope) { protected ->
+                    val before = wasProtected
+                    wasProtected = protected
+                    if (protected) {
+                        workManager.cancelUniqueWork(TvProviderWorker.WORK_NAME)
+                        activity.lifecycleScope.launchIO(ExceptionHandler()) { LauncherRows.clear(context) }
+                    } else if (before == true) {
                         activity.lifecycleScope.launchIO(ExceptionHandler()) {
-                            Timber.i("Scheduling TvProviderWorker for ${user.user}")
-                            workManager
-                                .enqueueUniquePeriodicWork(
-                                    uniqueWorkName = TvProviderWorker.WORK_NAME,
-                                    existingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.UPDATE,
-                                    request =
-                                        PeriodicWorkRequestBuilder<TvProviderWorker>(
-                                            repeatInterval = 1.hours.toJavaDuration(),
-                                        ).setBackoffCriteria(
-                                            BackoffPolicy.LINEAR,
-                                            15.minutes.toJavaDuration(),
-                                        ).setInputData(
-                                            workDataOf(
-                                                TvProviderWorker.PARAM_USER_ID to user.user.id.toString(),
-                                                TvProviderWorker.PARAM_SERVER_ID to user.server.id.toString(),
-                                            ),
-                                        ).setInitialDelay(60.seconds.toJavaDuration())
-                                            .build(),
-                                ).await()
+                            LauncherRows.invalidate()
+                            serverRepository.current.value?.let { schedulePeriodic(it) }
+                            // After the invalidation, so the refresh isn't taken for a run from before it
+                            launchOneTimeRefresh()
                         }
                     }
                 }

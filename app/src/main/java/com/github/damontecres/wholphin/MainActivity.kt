@@ -557,6 +557,11 @@ class MainActivityViewModel
                                 return@withLock
                             }
 
+                            IntentResult.Unavailable -> {
+                                showUnavailable()
+                                return@withLock
+                            }
+
                             IntentResult.NoOp,
                             null,
                             -> {
@@ -756,7 +761,23 @@ class MainActivityViewModel
                     }
                 }
 
+                IntentResult.Unavailable -> {
+                    showUnavailable()
+                }
+
                 IntentResult.NoOp -> {}
+            }
+        }
+
+        /** Kid content rules (contract section 10): a deep link to a hidden title opens home instead */
+        private suspend fun showUnavailable() {
+            showToast(context, context.getString(R.string.kid_content_item_unavailable))
+            val current = serverRepository.current.value
+            if (current != null) {
+                navigationManager.reloadHome()
+                setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
+            } else {
+                setupNavigationManager.navigateTo(SetupDestination.ServerList)
             }
         }
 
