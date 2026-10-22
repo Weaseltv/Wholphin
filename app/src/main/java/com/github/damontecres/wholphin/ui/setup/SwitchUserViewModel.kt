@@ -98,6 +98,9 @@ class SwitchUserViewModel
         private var flowIds = 0L
         private val flowLock = Any()
 
+        /** The step of the flow left last, which a new flow waits for (review round 6); guarded by [flowLock] */
+        private var leftStep: Job? = null
+
         fun clearSwitchUserState() {
             _state.update { it.copy(switchUserState = LoadingState.Pending) }
         }
@@ -186,7 +189,9 @@ class SwitchUserViewModel
             val job =
                 synchronized(flowLock) {
                     leaveFlowLocked()
-                    val next = ChooserFlow(++flowIds)
+                    // The left flow's step is cancelled; the new flow waits for it to end (and withdraw what it
+                    // published) before it evaluates anything (review round 6)
+                    val next = ChooserFlow(++flowIds, leftStep)
                     flow = next
                     step(next).also { next.step = it }
                 }
@@ -212,12 +217,16 @@ class SwitchUserViewModel
             block: suspend CoroutineScope.() -> Unit,
         ): Job = viewModelScope.launchIO(start = CoroutineStart.LAZY) { inFlow(flow) { block() } }
 
-        /** Runs a step of [flow]; a session it published but never navigated into is withdrawn when it ends */
+        /**
+         * Runs a step of [flow], once the step of the flow left before it has ended; a session it published but never
+         * navigated into is withdrawn when it ends
+         */
         private suspend fun <T> inFlow(
             flow: ChooserFlow,
             block: suspend () -> T,
         ): T =
             try {
+                flow.follows?.join()
                 block()
             } finally {
                 withdrawUnfinished(flow)
@@ -242,7 +251,10 @@ class SwitchUserViewModel
         }
 
         private fun leaveFlowLocked() {
-            flow?.step?.cancel()
+            flow?.step?.let {
+                it.cancel()
+                leftStep = it
+            }
             flow = null
             // Whatever the left flow was asking for goes with it
             _state.update { it.copy(prompt = null, pendingPinSetup = null) }
@@ -292,14 +304,18 @@ class SwitchUserViewModel
             if (!ifCurrent(flow, block)) throw ChooserFlowLeft(flow.id)
         }
 
-        /** Navigates into [current] only if [flow], still current, published it */
+        /**
+         * Navigates into [current] only if [flow], still current, published it and it wasn't withdrawn meanwhile; the
+         * main-thread step that navigates marks it entered with the session coordinator (review round 6)
+         */
         private suspend fun navigateInto(
             flow: ChooserFlow,
             current: CurrentUser,
         ) {
             profileChooserLock.navigateAfterSwitch(current) {
                 synchronized(flowLock) {
-                    (this.flow === flow && flow.published === current).also { if (it) flow.navigated = true }
+                    (this.flow === flow && flow.published === current && serverRepository.markEntered(flow, current))
+                        .also { if (it) flow.navigated = true }
                 }
             }
         }
@@ -312,7 +328,7 @@ class SwitchUserViewModel
             try {
                 if (flow != null) {
                     ensureCurrent(flow)
-                    val current = kidSessionGate.switchTo(server, user, authorize = publication(flow))
+                    val current = kidSessionGate.switchTo(server, user, authorize = publication(flow), entryOwner = flow)
                     navigateInto(flow, current)
                 } else {
                     val current = serverRepository.changeUser(server, user)
@@ -538,6 +554,7 @@ class SwitchUserViewModel
                     existingUser,
                     newPin = newPin,
                     authorize = publication(flow),
+                    entryOwner = flow,
                 )
             kidSessionGate.grantUnlockForFreshAuth(current.user, admit(flow))
             navigateInto(flow, current)
@@ -841,10 +858,12 @@ class SwitchUserViewModel
 
 /**
  * Kid profiles: one flow the user started on the chooser (review round 4), owned by [SwitchUserViewModel]: its
- * identity, its step in progress, and the session it published (and whether it navigated into it).
+ * identity, its step in progress, and the session it published (and whether it navigated into it). [follows] is the
+ * step of the flow left before it, which its first step waits for (review round 6).
  */
 class ChooserFlow internal constructor(
     val id: Long,
+    internal val follows: Job? = null,
 ) {
     internal var step: Job? = null
     internal var published: CurrentUser? = null

@@ -138,7 +138,7 @@ class ChooserGateViewModelTest {
             val p = prompt as ChooserPrompt.PickParent
             assertTrue(p.locked)
             assertEquals(listOf(parent), p.parents)
-            coVerify(exactly = 0) { gate.switchTo(any(), any(), any()) }
+            coVerify(exactly = 0) { gate.switchTo(any(), any(), any(), any()) }
         }
 
     @Test
@@ -158,7 +158,7 @@ class ChooserGateViewModelTest {
             viewModel.dismissPrompt()
             assertNull(prompt)
             verify { gate.clearParentUnlock() }
-            coVerify(exactly = 0) { gate.switchTo(any(), any(), any()) }
+            coVerify(exactly = 0) { gate.switchTo(any(), any(), any(), any()) }
         }
 
     @Test
@@ -243,7 +243,7 @@ class ChooserGateViewModelTest {
             val pending = viewModel.state.value.pendingPinSetup
             assertNotNull("the new adult must set their own PIN first", pending)
             assertNull(pending!!.existingUser)
-            coVerify(exactly = 0) { serverRepository.changeUser(any<String>(), any(), any(), any(), any(), any(), any()) }
+            coVerify(exactly = 0) { serverRepository.changeUser(any<String>(), any(), any(), any(), any(), any(), any(), any()) }
         }
 
     @Test
@@ -255,7 +255,7 @@ class ChooserGateViewModelTest {
 
             parentPin("1234", PinCheckResult.Correct)
             // The older kid's saved token has expired
-            coEvery { gate.switchTo(server, olderKid, any()) } throws InvalidStatusException(401)
+            coEvery { gate.switchTo(server, olderKid, any(), any()) } throws InvalidStatusException(401)
             viewModel.submitPin("1234")
 
             coVerify { gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(olderKid.rowId), any()) }
@@ -289,11 +289,11 @@ class ChooserGateViewModelTest {
             coEvery { gate.evaluate(any()) } returns GateDecision.Allow
             val firstSwitch = CompletableDeferred<Unit>()
             // The first switch finishes even though it is cancelled (publication can't be interrupted)
-            coEvery { gate.switchTo(server, kid, any()) } coAnswers {
+            coEvery { gate.switchTo(server, kid, any(), any()) } coAnswers {
                 withContext(NonCancellable) { firstSwitch.await() }
                 CurrentUser(server, kid).also { thirdArg<((CurrentUser) -> Unit)?>()?.invoke(it) }
             }
-            coEvery { gate.switchTo(server, olderKid, any()) } coAnswers {
+            coEvery { gate.switchTo(server, olderKid, any(), any()) } coAnswers {
                 CurrentUser(server, olderKid).also { thirdArg<((CurrentUser) -> Unit)?>()?.invoke(it) }
             }
 
