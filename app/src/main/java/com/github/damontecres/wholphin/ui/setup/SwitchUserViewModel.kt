@@ -17,6 +17,7 @@ import com.github.damontecres.wholphin.kids.GateDecision
 import com.github.damontecres.wholphin.kids.KidProtectionStore
 import com.github.damontecres.wholphin.kids.KidSessionGateImpl
 import com.github.damontecres.wholphin.kids.PinCheckResult
+import com.github.damontecres.wholphin.kids.PinRules
 import com.github.damontecres.wholphin.kids.ProfileChooserLock
 import com.github.damontecres.wholphin.kids.ProfileGateException
 import com.github.damontecres.wholphin.kids.ProfileKind
@@ -569,6 +570,8 @@ class SwitchUserViewModel
 
         /** The in-flow PIN of a deferred adult sign-in was set: the sign-in's flow publishes it now */
         fun completePinSetup(pin: String) {
+            // A new PIN is exactly 4 presses; the PIN screen never sends anything else
+            if (!PinRules.isValidNewPin(pin)) return
             val flow: ChooserFlow
             val pending: PendingPinSetup
             synchronized(flowLock) {

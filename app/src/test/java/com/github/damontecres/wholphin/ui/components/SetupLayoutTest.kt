@@ -6,27 +6,31 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasSetTextAction
-import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.isFocusable
+import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
-import androidx.compose.ui.test.requestFocus
+import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.github.damontecres.wholphin.preferences.AppThemeColors
+import com.github.damontecres.wholphin.ui.setup.PinEntry
 import com.github.damontecres.wholphin.ui.setup.PinEntryDialog
 import com.github.damontecres.wholphin.ui.setup.seerr.AddSeerrServerUsername
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import com.github.damontecres.wholphin.util.LoadingState
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -35,6 +39,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
+@OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, sdk = [34], qualifiers = "w800dp-h540dp-land-mdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -61,19 +66,72 @@ class SetupLayoutTest {
     }
 
     @Test
-    fun `pin credential action fits both its title and explanatory line`() {
+    fun `pin prompt fits the tv frame with its four boxes and key hints`() {
         compose.setContent {
             CompositionLocalProvider(LocalDensity provides Density(1f, 1.2f)) {
-                WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) { PinEntryDialog({}, {}, {}) }
+                WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
+                    PinEntryDialog(onDismissRequest = {}, onSubmit = {}, onClickServerAuth = {})
+                }
             }
         }
-        val button = compose.onNode(hasText("Login via server") and isFocusable())
-        button.requestFocus()
-        button.assertIsDisplayed()
-        val bounds = button.getUnclippedBoundsInRoot()
-        val title = compose.onNodeWithText("Login via server", useUnmergedTree = true).getUnclippedBoundsInRoot()
-        assertTrue("Credential label stays within its button", title.top >= bounds.top && title.bottom <= bounds.bottom)
-        assertTrue("Full button stays in the viewport", bounds.bottom.value <= 532)
+        // With nothing typed, OK is the server sign-in, and the hint says so
+        val hint = compose.onNodeWithText("Login via server")
+        hint.assertIsDisplayed()
+        assertTrue("Key hints stay in the viewport", hint.getUnclippedBoundsInRoot().bottom.value <= 532)
+        compose.onNodeWithText("Cancel").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the fourth press submits the pin and OK only confirms`() {
+        val submitted = mutableListOf<String>()
+        var serverAuth = 0
+        compose.setContent {
+            WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
+                Box(Modifier.width(600.dp)) {
+                    PinEntry(onSubmit = { submitted += it }, onClickServerAuth = { serverAuth++ })
+                }
+            }
+        }
+        val entry = compose.onNode(isFocused())
+        entry.performKeyInput {
+            pressKey(Key.DirectionUp)
+            pressKey(Key.DirectionRight)
+            pressKey(Key.DirectionDown)
+            pressKey(Key.DirectionLeft)
+        }
+        compose.waitForIdle()
+        assertEquals(listOf("URDL"), submitted)
+        // OK with nothing typed is the server sign-in, never a PIN
+        entry.performKeyInput { pressKey(Key.DirectionCenter) }
+        compose.waitForIdle()
+        assertEquals(1, serverAuth)
+        assertEquals(listOf("URDL"), submitted)
+        // OK confirms what is typed so far; it is not part of the PIN
+        entry.performKeyInput {
+            pressKey(Key.DirectionLeft)
+            pressKey(Key.DirectionLeft)
+            pressKey(Key.DirectionCenter)
+        }
+        compose.waitForIdle()
+        assertEquals(listOf("URDL", "LL"), submitted)
+    }
+
+    @Test
+    fun `an older longer pin is collected in full before it is submitted`() {
+        val submitted = mutableListOf<String>()
+        compose.setContent {
+            WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
+                Box(Modifier.width(600.dp)) { PinEntry(onSubmit = { submitted += it }, length = 6) }
+            }
+        }
+        compose.onNode(isFocused()).performKeyInput {
+            repeat(5) { pressKey(Key.DirectionUp) }
+        }
+        compose.waitForIdle()
+        assertTrue(submitted.isEmpty())
+        compose.onNode(isFocused()).performKeyInput { pressKey(Key.DirectionDown) }
+        compose.waitForIdle()
+        assertEquals(listOf("UUUUUD"), submitted)
     }
 
     @Test

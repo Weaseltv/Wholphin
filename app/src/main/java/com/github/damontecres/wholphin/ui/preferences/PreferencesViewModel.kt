@@ -17,6 +17,7 @@ import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.kids.KidSessionGateImpl
 import com.github.damontecres.wholphin.kids.PinCheckResult
+import com.github.damontecres.wholphin.kids.PinRules
 import com.github.damontecres.wholphin.kids.ProfileChooserLock
 import com.github.damontecres.wholphin.kids.ProfileKind
 import com.github.damontecres.wholphin.kids.UnlockPurpose
@@ -210,6 +211,8 @@ class PreferencesViewModel
             user: JellyfinUser,
             pin: String?,
         ) {
+            // A new PIN is exactly 4 presses; the PIN screen never sends anything else
+            if (pin != null && !PinRules.isValidNewPin(pin)) return
             queueAuthChange {
                 serverRepository.updateUserAuth(user, pin, false)
                 if (!user.hasPin && pin != null) {

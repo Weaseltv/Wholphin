@@ -57,6 +57,7 @@ import coil3.imageLoader
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.kids.PinCheckResult
+import com.github.damontecres.wholphin.kids.PinRules
 import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.AppSwitchPreference
@@ -91,6 +92,7 @@ import com.github.damontecres.wholphin.ui.preferences.subtitle.SubtitleSettings
 import com.github.damontecres.wholphin.ui.setup.PinEntryDialog
 import com.github.damontecres.wholphin.ui.setup.ReleaseNotes
 import com.github.damontecres.wholphin.ui.setup.UpdateViewModel
+import com.github.damontecres.wholphin.ui.setup.pinPromptFor
 import com.github.damontecres.wholphin.ui.setup.seerr.AddSeerServerDialog
 import com.github.damontecres.wholphin.ui.setup.seerr.SwitchSeerrViewModel
 import com.github.damontecres.wholphin.ui.showToast
@@ -810,7 +812,6 @@ fun PreferencesContent(
                     },
                     onDismissRequest = { showPinFlow = false },
                     allowRemove = !(BuildConfig.KID_PROFILES_ENABLED && deviceProtected),
-                    checkWholePin = BuildConfig.KID_PROFILES_ENABLED,
                 )
             }
         }
@@ -824,11 +825,9 @@ fun PreferencesContent(
                         viewModel.cancelTurnOffKidProtection()
                         showTurnOffProtectionPin = false
                     },
-                    onTextChange = {},
-                    onClickServerAuth = {
-                        viewModel.cancelTurnOffKidProtection()
-                        showTurnOffProtectionPin = false
-                    },
+                    // Its old "Login via server" button only closed the prompt; Back does that now
+                    length = PinRules.entryLength(user.pin),
+                    prompt = pinPromptFor(user.shownName),
                     onSubmit = { pin ->
                         viewModel.turnOffKidProtection(user, pin) { result, turnedOff ->
                             when {
