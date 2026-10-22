@@ -45,6 +45,7 @@ import com.github.damontecres.wholphin.data.model.GetItemsFilterOverride
 import com.github.damontecres.wholphin.data.model.HomeCardAppearance
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.data.model.LibraryDisplayInfo
+import com.github.damontecres.wholphin.kids.KidContentGuard
 import com.github.damontecres.wholphin.kids.isStaleSession
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.UserPreferences
@@ -123,8 +124,14 @@ import java.util.concurrent.ConcurrentHashMap
 /** The Collections page's grouped lists by request, kept while the app runs so it reopens straight away. */
 private val savedCollections = ConcurrentHashMap<GetItemsRequest, List<BaseItemDto>>()
 
+/** When each [savedCollections] list was saved, for kid sessions' shorter replay life */
+private val savedCollectionsAt = ConcurrentHashMap<GetItemsRequest, Long>()
+
 /** Kid content rules: the saved lists were filtered under an earlier session or ceiling */
-internal fun forgetSavedCollections() = savedCollections.clear()
+internal fun forgetSavedCollections() {
+    savedCollections.clear()
+    savedCollectionsAt.clear()
+}
 
 @HiltViewModel(assistedFactory = CollectionFolderViewModel.Factory::class)
 class CollectionFolderViewModel
@@ -485,7 +492,14 @@ class CollectionFolderViewModel
                     limit = null,
                     enableTotalRecordCount = false,
                 )
-            val cached = savedCollections[all]
+            // Kid content rules (review round 5): a kid or unknown session replays a saved list only within the rules'
+            // lookup lifetime, and doesn't keep it on screen if the refresh fails
+            val kidSession = isKidOrUnknown(serverRepository.currentUser)
+            val cached =
+                savedCollections[all]?.takeUnless {
+                    kidSession &&
+                        System.currentTimeMillis() - (savedCollectionsAt[all] ?: 0L) >= KidContentGuard.CACHE_TTL.inWholeMilliseconds
+                }
             _state.update { it.copy(sortAndDirection = sortAndDirection, filter = filter) }
             if (cached != null) {
                 showCollections(cached)
@@ -506,12 +520,13 @@ class CollectionFolderViewModel
                         .associate { it.id to it.userData }
                 val complete = fresh.map { it.copy(userData = userData[it.id] ?: it.userData) }
                 savedCollections[all] = complete
+                savedCollectionsAt[all] = System.currentTimeMillis()
                 showCollections(complete)
             } catch (ex: CancellationException) {
                 throw ex
             } catch (ex: Exception) {
                 Timber.e(ex, "Exception while loading collections")
-                if (state.value.items !is DataLoadingState.Success) {
+                if (kidSession || state.value.items !is DataLoadingState.Success) {
                     _state.update { it.copy(items = DataLoadingState.Error(ex), backgroundLoading = LoadingState.Pending) }
                 }
             }
