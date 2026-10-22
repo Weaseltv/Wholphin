@@ -144,7 +144,8 @@ class UserPreferencesViewModel
                 mutex.withLock {
                     val user = currentUser.first { it != null }!!
                     val newAppPrefs = block.invoke(user.appPreferences)
-                    serverDao.updateUser(user.copy(appPreferences = newAppPrefs))
+                    // Only these columns (review round 10): [user] may be older than a PIN or policy saved meanwhile
+                    serverDao.updateUserAppPreferences(user.rowId, newAppPrefs)
                 }
             }
         }

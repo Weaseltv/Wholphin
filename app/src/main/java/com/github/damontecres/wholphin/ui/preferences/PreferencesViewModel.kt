@@ -186,11 +186,31 @@ class PreferencesViewModel
             }
         }
 
+        /** The last PIN or login change queued (review round 10); guarded by [authChangeLock] */
+        private var lastAuthChange: Job? = null
+        private val authChangeLock = Any()
+
+        /**
+         * Runs [change] after every PIN or login change made before it (review round 10), so they are saved one at a
+         * time and in the order they were made: an earlier one never lands after a later one. A failed change doesn't
+         * stop the next.
+         */
+        private fun queueAuthChange(change: suspend () -> Unit) {
+            synchronized(authChangeLock) {
+                val previous = lastAuthChange
+                lastAuthChange =
+                    viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
+                        previous?.join()
+                        change()
+                    }
+            }
+        }
+
         fun setPin(
             user: JellyfinUser,
             pin: String?,
         ) {
-            viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
+            queueAuthChange {
                 serverRepository.updateUserAuth(user, pin, false)
                 if (!user.hasPin && pin != null) {
                     // A first PIN counts as parental authorization only on an unprotected TV (plan 4.1)
@@ -200,15 +220,11 @@ class PreferencesViewModel
         }
 
         fun setRequireLogin(user: JellyfinUser) {
-            viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
-                serverRepository.updateUserAuth(user, null, true)
-            }
+            queueAuthChange { serverRepository.updateUserAuth(user, null, true) }
         }
 
         fun removeLoginAndPin(user: JellyfinUser) {
-            viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
-                serverRepository.updateUserAuth(user, null, false)
-            }
+            queueAuthChange { serverRepository.updateUserAuth(user, null, false) }
         }
 
         fun resetQuickConnectStatus() {

@@ -160,6 +160,9 @@ class ServerRepository
          * Kid profiles (review round 9): every switch needs its [authorize] check; without one it is refused before any
          * request (see [requireAuthorized]). A change to the current session's own settings is not a switch: see
          * [updateCurrentUserLanguage].
+         *
+         * Kid profiles (review round 10): [user] may be a copy from before a PIN or login requirement was saved; the
+         * profile is saved and published with the ones saved by the time it is persisted (see [withSavedAuth]).
          */
         suspend fun changeUser(
             server: JellyfinServer,
@@ -167,6 +170,16 @@ class ServerRepository
             beforePublish: (suspend (JellyfinUser) -> Unit)? = null,
             authorize: ((CurrentUser) -> Unit)? = null,
             entryOwner: Any? = null,
+        ): CurrentUser = switchUser(server, user, beforePublish, authorize, entryOwner, newPin = null)
+
+        /** [changeUser]; [newPin] is a PIN set in this switch's own sign-in flow, saved over any saved meanwhile */
+        private suspend fun switchUser(
+            server: JellyfinServer,
+            user: JellyfinUser,
+            beforePublish: (suspend (JellyfinUser) -> Unit)?,
+            authorize: ((CurrentUser) -> Unit)?,
+            entryOwner: Any?,
+            newPin: String?,
         ): CurrentUser =
             withContext(ioDispatcher) {
                 requireAuthorized(authorize)
@@ -224,7 +237,7 @@ class ServerRepository
                                 throw ex
                             }
                         }
-                        publishSwitch(updatedServer, updatedUser, userDto, authorize, entryOwner).also {
+                        publishSwitch(updatedServer, updatedUser, userDto, authorize, entryOwner, newPin).also {
                             getServerSharedPreferences(context).edit(true) {
                                 putString(SERVER_URL_KEY, updatedServer.url)
                                 putString(ACCESS_TOKEN_KEY, it.user.accessToken)
@@ -255,6 +268,8 @@ class ServerRepository
          *
          * Review round 7: a session published for an [entryOwner] doesn't complete its switch yet. The journal is held
          * open ([KidProtectionStore.holdSwitch]) until [finishEntry] records the entry or a withdrawal closes it.
+         *
+         * Review round 10: [user] is saved with the auth columns saved by now ([withSavedAuth]); only [newPin] wins.
          */
         private suspend fun publishSwitch(
             server: JellyfinServer,
@@ -262,6 +277,7 @@ class ServerRepository
             userDto: UserDto,
             authorize: ((CurrentUser) -> Unit)?,
             entryOwner: Any?,
+            newPin: String?,
         ): CurrentUser {
             // Kid profiles: protection is on before a kid row is admitted, and the switch is journalled so an
             // interruption before it completes restarts gated (unknown ceiling), never at a higher one
@@ -278,7 +294,8 @@ class ServerRepository
             var published: CurrentUser? = null
             try {
                 serverDao.addOrUpdateServer(server)
-                val savedUser = serverDao.addOrUpdateUser(user)
+                // Read and written with no suspension in between, under the lock every auth change holds
+                val savedUser = serverDao.addOrUpdateUser(withSavedAuth(user, newPin))
                 userPreferencesDataStore.updateData {
                     it
                         .toBuilder()
@@ -318,6 +335,23 @@ class ServerRepository
                 withContext(NonCancellable) { settlePublished(switchId, currentUser, entryOwner) }
             }
             return currentUser
+        }
+
+        /**
+         * Kid profiles (review round 10): [user], a copy taken before the switch's network work, with the PIN and login
+         * requirement its saved row has now, so the switch never reverts an auth change saved meanwhile. Only a PIN
+         * the switch's own sign-in flow set ([newPin], the deferred in-flow PIN setup) replaces the saved one. The
+         * caller holds [sessionMutex], which every auth change holds too, and writes the result right away.
+         */
+        private fun withSavedAuth(
+            user: JellyfinUser,
+            newPin: String?,
+        ): JellyfinUser {
+            if (!BuildConfig.KID_PROFILES_ENABLED) return user
+            val saved =
+                serverDao.getUser(user.serverId, user.id)?.takeIf { user.rowId <= 0 || it.rowId == user.rowId }
+                    ?: return user
+            return user.copy(pin = newPin ?: saved.pin, requireLogin = saved.requireLogin)
         }
 
         /**
@@ -608,7 +642,7 @@ class ServerRepository
                             }
                         }
                     if (user != null) {
-                        return@withContext changeUser(server, user, beforePublish, authorize, entryOwner)
+                        return@withContext switchUser(server, user, beforePublish, authorize, entryOwner, newPin)
                     } else {
                         throw IllegalArgumentException("Authentication result's user was null")
                     }
@@ -667,39 +701,57 @@ class ServerRepository
          * Sets [user]'s PIN and login requirement. If [user] is the current session's profile, only those two change in
          * it (review round 9): [user] may be an older copy, so its policy, language and credentials never replace the
          * session's.
+         *
+         * Kid profiles (review round 10): one step under the session lock, so it never interleaves with another auth
+         * change or with a switch saving this profile. On a protected device a PIN is never removed (plan 4.2): the
+         * check of the PIN saved right then and the write are one Room statement, so a removal from a copy made before
+         * a PIN was saved is refused. Only the PIN and login requirement of the saved row change.
          */
         suspend fun updateUserAuth(
             user: JellyfinUser,
             pin: String?,
             requireLogin: Boolean,
         ) {
-            if (BuildConfig.KID_PROFILES_ENABLED &&
-                pin.isNullOrBlank() &&
-                kidProtectionStore.isProtected() &&
-                // The saved row's PIN counts too, in case [user] is a copy from before it was set
-                (user.hasPin || withContext(ioDispatcher) { serverDao.getUser(user.serverId, user.id) }?.hasPin == true)
-            ) {
-                // Plan 4.2: PIN removal is blocked on a protected device
-                throw IllegalStateException("The PIN can't be removed while kid protection is on")
-            }
-            val updatedUser =
-                withContext(ioDispatcher) {
-                    if (BuildConfig.KID_PROFILES_ENABLED && user.rowId > 0) {
-                        // Only these columns, so a policy or language saved meanwhile is kept
-                        serverDao.updateUserAuth(user.rowId, pin, requireLogin)
-                        user.copy(pin = pin, requireLogin = requireLogin)
-                    } else {
+            if (!BuildConfig.KID_PROFILES_ENABLED) {
+                val updatedUser =
+                    withContext(ioDispatcher) {
                         serverDao.addOrUpdateUser(user.copy(pin = pin, requireLogin = requireLogin))
                     }
+                sessionMutex.withLock {
+                    commitSession {
+                        // Updating current user, so push out the change
+                        _current.update { if (it.isIdentity(user.serverId, updatedUser.id)) it?.copy(user = updatedUser) else it }
+                    }
                 }
+                return
+            }
             sessionMutex.withLock {
+                val keepPin = kidProtectionStore.isProtected()
+                if (keepPin && pin.isNullOrBlank() && user.hasPin) throw PinRemovalBlocked()
+                val written =
+                    withContext(ioDispatcher) {
+                        val rowId = user.rowId.takeIf { it > 0 } ?: serverDao.getUser(user.serverId, user.id)?.rowId
+                        if (rowId == null) {
+                            // Not saved yet, so there is no saved PIN or login requirement to keep
+                            serverDao.addOrUpdateUser(user.copy(pin = pin, requireLogin = requireLogin))
+                            true
+                        } else if (serverDao.updateUserAuthUnlessPinRemoved(rowId, pin, requireLogin, allowPinRemoval = !keepPin) > 0) {
+                            true
+                        } else if (serverDao.getUserByRowId(rowId) != null) {
+                            // Its row has a PIN by now, eg set after [user] was copied
+                            throw PinRemovalBlocked()
+                        } else {
+                            // Removed from this TV meanwhile
+                            false
+                        }
+                    }
+                if (!written) return
                 commitSession {
                     // Updating current user, so push out the change
                     _current.update {
                         when {
-                            !it.isIdentity(user.serverId, updatedUser.id) -> it
-                            BuildConfig.KID_PROFILES_ENABLED -> it?.copy(user = it.user.copy(pin = pin, requireLogin = requireLogin))
-                            else -> it?.copy(user = updatedUser)
+                            !it.isIdentity(user.serverId, user.id) -> it
+                            else -> it?.copy(user = it.user.copy(pin = pin, requireLogin = requireLogin))
                         }
                     }
                 }
@@ -827,6 +879,9 @@ class ServerRepository
             const val ACCESS_TOKEN_KEY = "current.accessToken"
         }
     }
+
+/** Plan 4.2: a PIN can't be removed while kid protection is on */
+private class PinRemovalBlocked : IllegalStateException("The PIN can't be removed while kid protection is on")
 
 /**
  * [this] profile only if it is the identity that authenticated ([serverId] and [userId] match), else null

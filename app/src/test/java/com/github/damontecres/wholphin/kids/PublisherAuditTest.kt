@@ -138,6 +138,12 @@ class PublisherAuditTest {
         every { serverDao.updateUserPolicy(any(), any(), any()) } just Runs
         every { serverDao.getUser(any(), any()) } returns null
         (rows + pinned).forEach { every { serverDao.getUser(serverId, it.id) } returns it }
+        every { serverDao.getUserByRowId(any()) } answers { (rows + pinned).firstOrNull { it.rowId == firstArg<Int>() } }
+        // Like the one Room statement (review round 10): a saved PIN stays unless its removal is allowed
+        every { serverDao.updateUserAuthUnlessPinRemoved(any(), any(), any(), any()) } answers {
+            val saved = (rows + pinned).first { it.rowId == firstArg<Int>() }
+            if (!arg<Boolean>(3) && secondArg<String?>().isNullOrBlank() && saved.hasPin) 0 else 1
+        }
         every { serverDao.getServer(serverId) } returns JellyfinServerUsers(server, rows)
         every { serverDao.getUserFlow(any(), any()) } returns flowOf(null)
         repository = ServerRepository(context, jellyfin, serverDao, sharedApi, appPreferences, dispatcher, store)
@@ -333,6 +339,7 @@ class PublisherAuditTest {
             assertRefused { repository.updateUserAuth(pinned.copy(pin = null), null, false) }
 
             verify(exactly = 0) { serverDao.addOrUpdateUser(any()) }
-            verify(exactly = 0) { serverDao.updateUserAuth(any(), any(), any()) }
+            // Asked to keep the saved PIN, so the one statement wrote nothing
+            verify(exactly = 1) { serverDao.updateUserAuthUnlessPinRemoved(pinned.rowId, null, false, false) }
         }
 }
