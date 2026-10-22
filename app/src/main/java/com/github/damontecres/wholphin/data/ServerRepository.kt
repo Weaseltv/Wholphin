@@ -76,8 +76,9 @@ class ServerRepository
 
         /**
          * Kid profiles: the last session a switch published, with the session ceiling from before that switch
-         * (review round 5). Only a newer publication replaces it, so a withdrawal still finds it after the chooser
-         * teardown ended that session. Guarded by [sessionMutex].
+         * (review round 5) and whether it was entered yet (review round 6). Only a newer publication or a withdrawal
+         * replaces it, so a withdrawal still finds it after the chooser teardown ended that session. Changed under
+         * [sessionMutex], and only read or changed on the main thread ([commitSession] steps and [markEntered]).
          */
         private var lastPublication: Publication? = null
 
@@ -149,12 +150,17 @@ class ServerRepository
          * [authorize] runs in the very step that publishes, after the switch was persisted, and may throw to refuse it
          * (eg an unlock that expired meanwhile, or a chooser flow the user left): nothing is published and the
          * journalled switch is aborted. It is given the session about to be published, the one this returns.
+         *
+         * Kid profiles (review round 6): with an [entryOwner], the session is published but not entered until that
+         * owner calls [markEntered] where it navigates into it. Until then, the next switch (or gate evaluation) that
+         * isn't [entryOwner]'s withdraws it first; see [withdrawUnentered].
          */
         suspend fun changeUser(
             server: JellyfinServer,
             user: JellyfinUser,
             beforePublish: (suspend (JellyfinUser) -> Unit)? = null,
             authorize: ((CurrentUser) -> Unit)? = null,
+            entryOwner: Any? = null,
         ): CurrentUser =
             withContext(ioDispatcher) {
                 if (server.id != user.serverId) {
@@ -190,6 +196,9 @@ class ServerRepository
                 // ceiling of the profile switched to just before or after it
                 val currentUser =
                     sessionMutex.withLock {
+                        // Kid profiles (review round 6): never gated or published against the ceiling of a session
+                        // a left flow published but never entered
+                        withdrawUnenteredLocked(entryOwner)
                         if (beforePublish != null) {
                             try {
                                 beforePublish.invoke(updatedUser)
@@ -208,7 +217,7 @@ class ServerRepository
                                 throw ex
                             }
                         }
-                        publishSwitch(updatedServer, updatedUser, userDto, authorize).also {
+                        publishSwitch(updatedServer, updatedUser, userDto, authorize, entryOwner).also {
                             getServerSharedPreferences(context).edit(true) {
                                 putString(SERVER_URL_KEY, updatedServer.url)
                                 putString(ACCESS_TOKEN_KEY, it.user.accessToken)
@@ -230,6 +239,7 @@ class ServerRepository
             user: JellyfinUser,
             userDto: UserDto,
             authorize: ((CurrentUser) -> Unit)?,
+            entryOwner: Any?,
         ): CurrentUser {
             val kidProfiles = BuildConfig.KID_PROFILES_ENABLED
             // Kid profiles: what a withdrawal of this session restores (review round 5)
@@ -256,7 +266,7 @@ class ServerRepository
                     // [published] records that the session changed even if a cancellation is delivered on the way back
                     assignSession(currentUser, userDto)
                     published = currentUser
-                    if (ceilingBefore != null) lastPublication = Publication(currentUser, ceilingBefore)
+                    if (ceilingBefore != null) lastPublication = Publication(currentUser, ceilingBefore, entryOwner)
                 }
             } catch (ex: Throwable) {
                 if (switchId != null) {
@@ -319,6 +329,8 @@ class ServerRepository
             userId: UUID,
         ): CurrentUser? {
             sessionMutex.withLock {
+                // Kid profiles (review round 6): a session nobody entered is withdrawn, never restored
+                withdrawUnenteredLocked(null)
                 commitSession {
                     _current.value?.takeIf { it.isIdentity(serverId, userId) }?.also {
                         Timber.v("Restoring session for current user, so shortcut")
@@ -368,18 +380,73 @@ class ServerRepository
          */
         suspend fun endSessionForChooser(published: CurrentUser) {
             sessionMutex.withLock {
-                val publication = lastPublication?.takeIf { it.session === published }
-                if (publication != null) {
-                    lastPublication = null
-                    // The ceiling first: no later switch can be gated against the withdrawn session's ceiling
-                    kidProtectionStore.withdrawSwitch(publication.ceilingBefore)
+                withContext(NonCancellable) {
+                    val publication =
+                        commitSession {
+                            lastPublication?.takeIf { it.session === published }?.also { lastPublication = null }
+                        }
+                    withdrawLocked(published, publication)
                 }
-                val ended =
-                    commitSession {
-                        (publishedSession === published && _current.value != null).also { if (it) assignSession(null, null) }
-                    }
-                if (ended) clearSavedSession(clearServer = true)
             }
+        }
+
+        /**
+         * Kid profiles (review round 6): withdraws the last published session if it is still waiting to be entered
+         * by an owner other than [owner] (a chooser flow left before it navigated into it), like
+         * [endSessionForChooser]: its session ends and the session ceiling goes back to the one from before its
+         * switch. Called before a gate evaluation, so nothing is ever evaluated against that session's ceiling.
+         */
+        suspend fun withdrawUnentered(owner: Any? = null) {
+            if (!BuildConfig.KID_PROFILES_ENABLED) return
+            sessionMutex.withLock { withdrawUnenteredLocked(owner) }
+        }
+
+        /** [withdrawUnentered]; the caller holds [sessionMutex] */
+        private suspend fun withdrawUnenteredLocked(owner: Any?) {
+            if (!BuildConfig.KID_PROFILES_ENABLED) return
+            // Taken off [lastPublication] in one main-thread step, so it can't be entered any more, and then
+            // withdrawn even if the caller is cancelled meanwhile
+            withContext(NonCancellable) {
+                val publication =
+                    commitSession {
+                        lastPublication?.takeIf { !it.entered && it.owner !== owner }?.also { lastPublication = null }
+                    } ?: return@withContext
+                Timber.i("Withdrawing a published session nobody entered before the next switch")
+                withdrawLocked(publication.session, publication)
+            }
+        }
+
+        /**
+         * Withdraws [published]: [publication]'s ceiling from before its switch first (never raising the stored one),
+         * so no later switch is gated against the withdrawn session's ceiling, then the session itself if it is still
+         * the one published last. The caller holds [sessionMutex] and has taken [publication] off [lastPublication].
+         */
+        private suspend fun withdrawLocked(
+            published: CurrentUser,
+            publication: Publication?,
+        ) {
+            if (publication != null) kidProtectionStore.withdrawSwitch(publication.ceilingBefore)
+            val ended =
+                commitSession {
+                    (publishedSession === published && _current.value != null).also { if (it) assignSession(null, null) }
+                }
+            if (ended) clearSavedSession(clearServer = true)
+        }
+
+        /**
+         * Kid profiles (review round 6): [owner] enters [published], the session its switch published with that
+         * [owner]. Called on the main thread, in the very step that navigates into it.
+         *
+         * @return whether it may navigate: false if [published] was withdrawn or replaced meanwhile
+         */
+        fun markEntered(
+            owner: Any,
+            published: CurrentUser,
+        ): Boolean {
+            if (!BuildConfig.KID_PROFILES_ENABLED) return true
+            val publication = lastPublication?.takeIf { it.session === published && it.owner === owner } ?: return false
+            publication.entered = true
+            return true
         }
 
         /** Clears the saved current profile (and server); the caller holds [sessionMutex] */
@@ -405,6 +472,7 @@ class ServerRepository
             newPin: String? = null,
             beforePublish: (suspend (JellyfinUser) -> Unit)? = null,
             authorize: ((CurrentUser) -> Unit)? = null,
+            entryOwner: Any? = null,
         ) = withContext(ioDispatcher) {
             val accessToken = authenticationResult.accessToken
             if (accessToken != null) {
@@ -454,7 +522,7 @@ class ServerRepository
                             }
                         }
                     if (user != null) {
-                        return@withContext changeUser(server, user, beforePublish, authorize)
+                        return@withContext changeUser(server, user, beforePublish, authorize, entryOwner)
                     } else {
                         throw IllegalArgumentException("Authentication result's user was null")
                     }
@@ -645,11 +713,17 @@ fun JellyfinUser.withPolicyOf(userDto: UserDto): JellyfinUser {
     )
 }
 
-/** A session a switch published and the session ceiling from before that switch */
+/**
+ * A session a switch published and the session ceiling from before that switch. With an [owner], it is [entered]
+ * only once that owner navigated into it (review round 6); only read or changed on the main thread.
+ */
 private class Publication(
     val session: CurrentUser,
     val ceilingBefore: ProfileCeiling,
-)
+    val owner: Any?,
+) {
+    var entered: Boolean = owner == null
+}
 
 @Serializable
 data class CurrentUser(

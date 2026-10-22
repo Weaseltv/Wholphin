@@ -108,7 +108,7 @@ class ChooserFlowTest {
         every { serverDao.getUser(any(), any()) } returns null
         coEvery { store.isProtected() } returns true
         coEvery { gate.evaluate(any()) } returns GateDecision.Allow
-        coEvery { gate.switchTo(server, any(), any()) } coAnswers {
+        coEvery { gate.switchTo(server, any(), any(), any()) } coAnswers {
             publish(CurrentUser(server, secondArg()), thirdArg())
         }
         coEvery { gate.grantUnlockForFreshAuth(any(), any()) } answers {
@@ -118,6 +118,8 @@ class ChooserFlowTest {
             secondArg<() -> Boolean>().invoke().also { if (it) navigated += firstArg<CurrentUser>() }
         }
         coEvery { serverRepository.endSessionForChooser(any<CurrentUser>()) } answers { withdrawn += firstArg<CurrentUser>() }
+        // The navigating step enters what its flow published (review round 6)
+        every { serverRepository.markEntered(any(), any()) } returns true
         viewModel =
             SwitchUserViewModel(
                 context = mockk<Context>(relaxed = true),
@@ -184,7 +186,7 @@ class ChooserFlowTest {
         runTest(dispatcher) {
             val (auth, adult) = signInPinlessAdult()
             val requests = CompletableDeferred<Unit>()
-            coEvery { serverRepository.changeUser(server.url, auth, null, any(), "4321", any(), any()) } coAnswers {
+            coEvery { serverRepository.changeUser(server.url, auth, null, any(), "4321", any(), any(), any()) } coAnswers {
                 withContext(NonCancellable) { requests.await() }
                 publish(adult, arg(6))
             }
@@ -206,7 +208,7 @@ class ChooserFlowTest {
         runTest(dispatcher) {
             val (auth, adult) = signInPinlessAdult()
             val returning = CompletableDeferred<Unit>()
-            coEvery { serverRepository.changeUser(server.url, auth, null, any(), "4321", any(), any()) } coAnswers {
+            coEvery { serverRepository.changeUser(server.url, auth, null, any(), "4321", any(), any(), any()) } coAnswers {
                 val current = publish(adult, arg(6))
                 // Published; Back lands before the switch returns from the main thread
                 withContext(NonCancellable) { returning.await() }
@@ -238,7 +240,7 @@ class ChooserFlowTest {
 
             assertTrue(granted.isEmpty())
             assertNull(state.prompt)
-            coVerify(exactly = 0) { gate.switchTo(any(), any(), any()) }
+            coVerify(exactly = 0) { gate.switchTo(any(), any(), any(), any()) }
             assertTrue(published.isEmpty())
             assertTrue(navigated.isEmpty())
         }
@@ -272,7 +274,7 @@ class ChooserFlowTest {
 
             assertTrue(granted.isEmpty())
             assertEquals(listOf(CurrentUser(server, kid)), navigated)
-            coVerify(exactly = 0) { gate.switchTo(any(), olderKid, any()) }
+            coVerify(exactly = 0) { gate.switchTo(any(), olderKid, any(), any()) }
         }
 
     @Test
@@ -308,7 +310,7 @@ class ChooserFlowTest {
                     accessToken = "kid-token",
                     serverId = serverId.toServerString(),
                 )
-            coEvery { serverRepository.changeUser(server.url, kidAuth, any(), any(), any(), any(), any()) } coAnswers {
+            coEvery { serverRepository.changeUser(server.url, kidAuth, any(), any(), any(), any(), any(), any()) } coAnswers {
                 publish(CurrentUser(server, kid), arg(6))
             }
             viewModel.signIn(server.url, existingUser = null, onError = {}) {
@@ -328,7 +330,7 @@ class ChooserFlowTest {
         user: JellyfinUser,
         requests: CompletableDeferred<Unit>,
     ) {
-        coEvery { gate.switchTo(server, user, any()) } coAnswers {
+        coEvery { gate.switchTo(server, user, any(), any()) } coAnswers {
             withContext(NonCancellable) { requests.await() }
             publish(CurrentUser(server, user), thirdArg())
         }
@@ -356,7 +358,7 @@ class ChooserFlowTest {
     fun `the current flow still publishes, grants and navigates`() =
         runTest(dispatcher) {
             val (auth, adult) = signInPinlessAdult()
-            coEvery { serverRepository.changeUser(server.url, auth, null, any(), "4321", any(), any()) } coAnswers {
+            coEvery { serverRepository.changeUser(server.url, auth, null, any(), "4321", any(), any(), any()) } coAnswers {
                 publish(adult, arg(6))
             }
 

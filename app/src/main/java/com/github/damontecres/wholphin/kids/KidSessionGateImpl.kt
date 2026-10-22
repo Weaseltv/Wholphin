@@ -97,7 +97,14 @@ class KidSessionGateImpl
             purpose: UnlockPurpose,
         ): ParentUnlock? = validUnlock()?.takeIf { it.userRowId == parentRowId && it.purpose == purpose }
 
-        override suspend fun evaluate(target: JellyfinUser): GateDecision = evaluation(target).decision
+        /**
+         * Evaluated against the session ceiling once a session a left chooser flow published but never entered was
+         * withdrawn (review round 6), never against that session's ceiling
+         */
+        override suspend fun evaluate(target: JellyfinUser): GateDecision {
+            serverRepository.withdrawUnentered()
+            return evaluation(target).decision
+        }
 
         /**
          * A gate decision, the unlock for this switch it saw ([seen]) and the unlock the decision depends on
@@ -330,14 +337,19 @@ class KidSessionGateImpl
          * check) runs in that same step. The [ParentUnlock] granted for this switch is used up, whether the switch
          * succeeds or fails, so it can't carry over to another profile; an unlock granted meanwhile for another
          * selection is left alone, even when this switch ends late (cancelled).
+         *
+         * A session published but not entered by anyone but [entryOwner] is withdrawn before either gate check, and
+         * the session this publishes awaits [entryOwner]'s entry (review round 6, see [ServerRepository.changeUser]).
          */
         suspend fun switchTo(
             server: JellyfinServer,
             user: JellyfinUser,
             authorize: ((CurrentUser) -> Unit)? = null,
+            entryOwner: Any? = null,
         ): CurrentUser {
             val owned = mutableSetOf<ParentUnlock>()
             try {
+                serverRepository.withdrawUnentered(entryOwner)
                 val first = evaluation(user)
                 first.seen?.let(owned::add)
                 if (first.decision != GateDecision.Allow) throw ProfileGateException(first.decision)
@@ -356,6 +368,7 @@ class KidSessionGateImpl
                         grant?.let { requireUnlock(it) }
                         authorize?.invoke(published)
                     },
+                    entryOwner = entryOwner,
                 )
             } finally {
                 owned.forEach { clearParentUnlock(it) }

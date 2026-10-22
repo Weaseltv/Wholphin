@@ -8,9 +8,11 @@ import com.github.damontecres.wholphin.data.model.JellyfinServerUsers
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.PolicyState
 import com.github.damontecres.wholphin.test.server
+import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -81,6 +83,8 @@ class KidSessionGateTest {
         Assume.assumeTrue(BuildConfig.KID_PROFILES_ENABLED)
         store = KidProtectionStore(dataStore)
         every { serverRepository.current } returns current
+        // Nothing published and left unentered here (review round 6)
+        coEvery { serverRepository.withdrawUnentered(any()) } just Runs
         rows.forEach { row -> every { serverDao.getUser(serverId, row.id) } returns row }
         every { serverDao.getServer(serverId) } returns JellyfinServerUsers(server(serverId), rows)
         every { serverDao.countKidUsers() } answers { rows.count { it.policyState == PolicyState.KID } }
