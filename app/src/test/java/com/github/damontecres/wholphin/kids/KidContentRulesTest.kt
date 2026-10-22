@@ -253,9 +253,10 @@ class KidContentRulesTest {
         // Not needed when the era rule can't apply
         assertTrue(KidContentRules.hasFacts(movie("PG", year = 1990).copy(lockedFields = null)))
         assertTrue(KidContentRules.hasFacts(movie("R").copy(lockedFields = null)))
-        // Genres are always needed for a title, but episodes take their series'
+        // Genres are always needed for a title: without them it is a partial item (eg a search hint)
         assertFalse(KidContentRules.hasFacts(movie("G").copy(genres = null)))
-        assertTrue(KidContentRules.hasFacts(episode("TV-G").copy(genres = null)))
+        assertFalse(KidContentRules.hasFacts(episode("TV-G").copy(genres = null)))
+        assertTrue(KidContentRules.hasFacts(ItemFacts("c", "CollectionFolder")))
         assertEquals(hidden(HideReason.MISSING_FACTS), KidContentRules.decide(movie("G").copy(genres = null), 4))
     }
 

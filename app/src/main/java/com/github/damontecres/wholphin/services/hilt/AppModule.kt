@@ -5,6 +5,7 @@ import androidx.work.WorkManager
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.kids.KidContentGuard
 import com.github.damontecres.wholphin.services.SeerrApi
 import com.github.damontecres.wholphin.util.CoroutineContextApiClientFactory
 import com.github.damontecres.wholphin.util.WholphinDispatchers
@@ -130,7 +131,11 @@ object AppModule {
     @Singleton
     fun okHttpFactory(
         @StandardOkHttpClient okHttpClient: OkHttpClient,
-    ) = CoroutineContextApiClientFactory(OkHttpFactory(okHttpClient))
+        kidContentGuard: KidContentGuard,
+    ) = CoroutineContextApiClientFactory(
+        OkHttpFactory(okHttpClient),
+        contentGuard = kidContentGuard.takeIf { BuildConfig.KID_PROFILES_ENABLED },
+    )
 
     @Provides
     @Singleton

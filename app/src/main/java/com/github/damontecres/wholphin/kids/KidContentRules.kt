@@ -155,8 +155,8 @@ object KidContentRules {
      */
     fun hasFacts(item: ItemFacts): Boolean {
         if (isContainer(item.type) || item.type == BOX_SET) return true
-        // Episodes and seasons go by their series' genres (rule 1), which are loaded with the series
-        if (item.genres == null && !needsSeries(item.type)) return false
+        // Sent (if only empty) whenever `fields=Genres` was: without them, this is a partial item (eg a search hint)
+        if (item.genres == null) return false
         if (item.lockedFields == null && eraRuleApplies(item)) return false
         return true
     }

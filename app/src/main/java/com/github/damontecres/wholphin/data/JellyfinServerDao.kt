@@ -119,6 +119,10 @@ interface JellyfinServerDao {
     @Query("SELECT COUNT(*) FROM users WHERE serverId = :serverId")
     fun countUsers(serverId: UUID): Int
 
+    /** Kid content rules: the saved profile a client's credentials belong to, if any */
+    @Query("SELECT * FROM users WHERE accessToken = :accessToken LIMIT 1")
+    fun getUserByAccessToken(accessToken: String): JellyfinUser?
+
     /** Kid profiles: saved rows the server policy marked as kids (any server) */
     @Query("SELECT COUNT(*) FROM users WHERE policyState = 'kid'")
     fun countKidUsers(): Int

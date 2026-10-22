@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.util
 
+import com.github.damontecres.wholphin.kids.KidContentGuard
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.api.client.ApiClient
@@ -17,11 +18,18 @@ import kotlin.coroutines.CoroutineContext
 
 /**
  * Wraps [ApiClient.request] with the given [CoroutineContext]
+ *
+ * WeaselFin: every Jellyfin SDK call goes through [request], so the kid content rules ([KidContentGuard], contract
+ * section 10) apply here for kid and unknown sessions. Adults go straight through.
  */
 class CoroutineContextApiClient(
     private val client: ApiClient,
     private val coroutineContext: CoroutineContext = WholphinDispatchers.IO,
+    private val contentGuard: KidContentGuard? = null,
 ) : ApiClient() {
+    /** The wrapped client, without the kid content rules: only for the rules' own lookups */
+    internal val unfiltered: ApiClient get() = client
+
     override val baseUrl: String?
         get() = client.baseUrl
     override val accessToken: String?
@@ -52,19 +60,25 @@ class CoroutineContextApiClient(
         requestBody: Any?,
     ): RawResponse =
         withContext(coroutineContext) {
-            client.request(
-                method,
-                pathTemplate,
-                pathParameters,
-                queryParameters,
-                requestBody,
-            )
+            val policy = contentGuard?.policyFor(client.accessToken)
+            if (policy == null) {
+                client.request(
+                    method,
+                    pathTemplate,
+                    pathParameters,
+                    queryParameters,
+                    requestBody,
+                )
+            } else {
+                contentGuard.request(policy, client, method, pathTemplate, pathParameters, queryParameters, requestBody)
+            }
         }
 }
 
 class CoroutineContextApiClientFactory(
     private val factory: OkHttpFactory,
     private val coroutineContext: CoroutineContext = WholphinDispatchers.IO,
+    private val contentGuard: KidContentGuard? = null,
 ) : ApiClientFactory,
     SocketConnectionFactory {
     override fun create(
@@ -78,6 +92,7 @@ class CoroutineContextApiClientFactory(
         CoroutineContextApiClient(
             factory.create(baseUrl, accessToken, clientInfo, deviceInfo, httpClientOptions, socketConnectionFactory),
             coroutineContext,
+            contentGuard,
         )
 
     override fun create(
