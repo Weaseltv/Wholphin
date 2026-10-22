@@ -64,6 +64,21 @@ interface JellyfinServerDao {
         userId: UUID,
     ): Flow<JellyfinUser?>
 
+    /** Sets only the PIN and login requirement of a saved profile */
+    @Query("UPDATE users SET pin = :pin, requireLogin = :requireLogin WHERE rowId = :rowId")
+    fun updateUserAuth(
+        rowId: Int,
+        pin: String?,
+        requireLogin: Boolean,
+    )
+
+    /** Sets only the UI language of a saved profile */
+    @Query("UPDATE users SET uiLanguage = :uiLanguage WHERE rowId = :rowId")
+    fun updateUserLanguage(
+        rowId: Int,
+        uiLanguage: String?,
+    )
+
     /** Kid profiles: refresh only the server-policy columns of a saved profile */
     @Query("UPDATE users SET maxParentalRating = :maxParentalRating, policyState = :policyState WHERE rowId = :rowId")
     fun updateUserPolicy(

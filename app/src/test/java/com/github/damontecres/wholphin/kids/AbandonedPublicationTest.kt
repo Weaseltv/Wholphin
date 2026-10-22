@@ -290,7 +290,7 @@ class AbandonedPublicationTest {
                 repository.changeUser(server, teen, beforePublish = {
                     seen = store.sessionCeiling()
                     throw ProfileGateException(GateDecision.NeedsParentUnlock)
-                }, entryOwner = Any())
+                }, authorize = {}, entryOwner = Any())
             }
             assertEquals(ProfileCeiling.Rating(10), seen)
             assertNull(repository.current.value)

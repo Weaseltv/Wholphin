@@ -50,6 +50,7 @@ import org.jellyfin.sdk.model.api.PublicSystemInfo
 import org.jellyfin.sdk.model.api.UserDto
 import org.junit.After
 import org.junit.Assert
+import org.junit.Assume
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -193,7 +194,7 @@ class ServerRepositoryTest {
             val serverRepository = create()
             Assert.assertNull(serverRepository.currentUser)
 
-            serverRepository.changeUser(server, user)
+            serverRepository.changeUser(server, user, authorize = {})
             verify(exactly = 1) {
                 mockApiClient.update(
                     baseUrl = server.url,
@@ -220,6 +221,8 @@ class ServerRepositoryTest {
     @Test
     fun `Test restoreUser via changeUser`() =
         runTest {
+            // Kid profiles never restore through an ungated switch (KidSessionGateImpl.restoreGated does, gated)
+            Assume.assumeFalse(BuildConfig.KID_PROFILES_ENABLED)
             every { mockJellyfinServerDao.addOrUpdateServer(any()) } just Runs
             every { mockJellyfinServerDao.addOrUpdateUser(user) } returns user
             every { mockJellyfinServerDao.getServer(serverId) } returns JellyfinServerUsers(server, listOf(user))
@@ -381,7 +384,7 @@ class ServerRepositoryTest {
                     accessToken = user.accessToken,
                 )
             val serverRepository = create()
-            serverRepository.changeUser(server.url, authResult, null)
+            serverRepository.changeUser(server.url, authResult, null, authorize = {})
 
             verify(exactly = 1) {
                 mockApiClient.update(
@@ -422,7 +425,7 @@ class ServerRepositoryTest {
                     accessToken = user.accessToken,
                 )
             val serverRepository = create()
-            serverRepository.changeUser(server.url, authResult, user)
+            serverRepository.changeUser(server.url, authResult, user, authorize = {})
 
             verify(exactly = 1) {
                 mockApiClient.update(
@@ -467,7 +470,7 @@ class ServerRepositoryTest {
                         serverId = serverId.toServerString(),
                         accessToken = null,
                     )
-                create().changeUser(server.url, authResult, user)
+                create().changeUser(server.url, authResult, user, authorize = {})
             }
         }
         Assert.assertThrows(IllegalArgumentException::class.java) {
@@ -478,7 +481,7 @@ class ServerRepositoryTest {
                         serverId = null,
                         accessToken = user.accessToken,
                     )
-                create().changeUser(server.url, authResult, user)
+                create().changeUser(server.url, authResult, user, authorize = {})
             }
         }
         Assert.assertThrows(IllegalArgumentException::class.java) {
@@ -489,7 +492,7 @@ class ServerRepositoryTest {
                         serverId = "invalid-uuid",
                         accessToken = user.accessToken,
                     )
-                create().changeUser(server.url, authResult, user)
+                create().changeUser(server.url, authResult, user, authorize = {})
             }
         }
         Assert.assertThrows(IllegalArgumentException::class.java) {
@@ -500,7 +503,7 @@ class ServerRepositoryTest {
                         serverId = "invalid-uuid",
                         accessToken = user.accessToken,
                     )
-                create().changeUser(server.url, authResult, user)
+                create().changeUser(server.url, authResult, user, authorize = {})
             }
         }
     }

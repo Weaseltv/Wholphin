@@ -193,7 +193,7 @@ class KidSessionCoordinatorTest {
 
     private suspend fun switchTo(user: JellyfinUser) {
         coEvery { userApi.getCurrentUser() } returns successResponse(dto(user))
-        repository.changeUser(server, user)
+        repository.changeUser(server, user, authorize = {})
     }
 
     /**
@@ -209,7 +209,7 @@ class KidSessionCoordinatorTest {
         coEvery { userApi.getCurrentUser() } returns successResponse(dto(other))
         onUpdate = { given ->
             if (given == token && !started.isCompleted) {
-                val switch = ioScope.async { repository.changeUser(server, other).let { } }
+                val switch = ioScope.async { repository.changeUser(server, other, authorize = {}).let { } }
                 started.complete(switch)
                 runBlocking { withTimeoutOrNull(WAIT_MS) { switch.join() } }
             }
@@ -256,14 +256,14 @@ class KidSessionCoordinatorTest {
             every { serverDao.getServer(serverId) } answers {
                 if (armed) {
                     armed = false
-                    runBlocking { repository.changeUser(server, kid) }
+                    runBlocking { repository.changeUser(server, kid, authorize = {}) }
                 }
                 JellyfinServerUsers(server, listOf(parent, kid, olderKid, teen))
             }
             onUpdate = { given ->
                 if (given == parent.accessToken && armed) {
                     armed = false
-                    val switch = ioScope.async { repository.changeUser(server, kid) }
+                    val switch = ioScope.async { repository.changeUser(server, kid, authorize = {}) }
                     runBlocking { withTimeoutOrNull(WAIT_MS) { switch.join() } }
                 }
             }
