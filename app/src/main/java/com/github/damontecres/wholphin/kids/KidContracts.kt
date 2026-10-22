@@ -122,6 +122,18 @@ interface KidSessionGate {
     ): PinCheckResult
 
     /**
+     * [verifyParentPin] whose unlock is granted only through [admit]: the caller runs the grant it is given only
+     * while the attempt that asked is still current (not dismissed or replaced), atomically with its own dismissal.
+     * The attempt itself always counts towards the backoff, even if whoever asked has left.
+     */
+    suspend fun verifyParentPin(
+        user: JellyfinUser,
+        pin: String,
+        purpose: UnlockPurpose?,
+        admit: (grant: () -> Unit) -> Unit,
+    ): PinCheckResult
+
+    /**
      * Checks [user]'s own PIN with the same attempt backoff but grants no [ParentUnlock], whatever the result: a profile
      * proving it is its owner, eg before changing its picture (review round 5, additive)
      */

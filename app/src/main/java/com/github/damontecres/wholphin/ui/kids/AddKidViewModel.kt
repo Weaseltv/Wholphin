@@ -60,6 +60,11 @@ class AddKidViewModel
         private var parent: JellyfinUser? = null
         private var job: Job? = null
 
+        // The PIN check in progress (review round 3): its unlock is admitted only while it is still this one, under
+        // [attemptLock], so a cancel (Back) or a newer check in between leaves no unlock behind
+        private val attemptLock = Any()
+        private var currentAttempt: Any? = null
+
         // One Idempotency-Key per form submission (name + level), reused on every retry of it.
         private var pendingKey: String? = null
         private var pendingBody: Pair<String, KidLevel>? = null
@@ -106,7 +111,7 @@ class AddKidViewModel
                 val user = parent ?: return@launch
                 val result =
                     try {
-                        gate.verifyParentPin(user, pin, UnlockPurpose.AddKid)
+                        verifyAsCurrentAttempt(user, pin)
                     } catch (ex: CancellationException) {
                         throw ex
                     } catch (ex: Exception) {
@@ -135,7 +140,7 @@ class AddKidViewModel
                 serverRepository.updateUserAuth(user, pin, false)
                 val withPin = user.copy(pin = pin, requireLogin = false)
                 parent = withPin
-                when (gate.verifyParentPin(withPin, pin, UnlockPurpose.AddKid)) {
+                when (verifyAsCurrentAttempt(withPin, pin)) {
                     PinCheckResult.Correct -> loadKids()
                     else -> _step.value = AddKidStep.EnterPin(withPin)
                 }
@@ -203,14 +208,35 @@ class AddKidViewModel
 
         fun backToForm() = showForm()
 
-        /** Leaving the flow drops the parent's unlock (plan 4.1). */
+        /**
+         * Checks [pin] as the flow's current attempt. Verification finishes even if the flow is left meanwhile (the
+         * attempt counts towards the backoff), but its unlock is granted only if this attempt is still current then.
+         */
+        private suspend fun verifyAsCurrentAttempt(
+            user: JellyfinUser,
+            pin: String,
+        ): PinCheckResult {
+            val attempt = Any()
+            synchronized(attemptLock) { currentAttempt = attempt }
+            return gate.verifyParentPin(user, pin, UnlockPurpose.AddKid) { grant ->
+                synchronized(attemptLock) { if (currentAttempt === attempt) grant() }
+            }
+        }
+
+        /** Leaving the flow drops the parent's unlock (plan 4.1), and a PIN still being checked grants none. */
         fun cancel() {
-            job?.cancel()
-            gate.clearParentUnlock()
+            synchronized(attemptLock) {
+                currentAttempt = null
+                job?.cancel()
+                gate.clearParentUnlock()
+            }
         }
 
         override fun onCleared() {
-            gate.clearParentUnlock()
+            synchronized(attemptLock) {
+                currentAttempt = null
+                gate.clearParentUnlock()
+            }
         }
 
         private fun showForm(

@@ -9,7 +9,10 @@ import com.github.damontecres.wholphin.services.AvatarGroup
 import com.github.damontecres.wholphin.services.ProfileImageCache
 import com.github.damontecres.wholphin.services.ProfilePictureTarget
 import com.github.damontecres.wholphin.services.UserImageUploader
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.model.api.AuthenticationResult
 import java.util.UUID
 
@@ -61,12 +64,24 @@ class FakeKidSessionGate : KidSessionGate {
         user: JellyfinUser,
         pin: String,
         purpose: UnlockPurpose?,
-    ): PinCheckResult {
-        verified += user to pin
-        val result = pinResults.removeFirstOrNull() ?: if (user.pin == pin) PinCheckResult.Correct else PinCheckResult.Wrong(3)
-        if (result == PinCheckResult.Correct) parentUnlock.value = ParentUnlock(user.rowId, now, purpose)
-        return result
-    }
+    ): PinCheckResult = verifyParentPin(user, pin, purpose) { it() }
+
+    /** Awaited inside the check, eg to hold it while storage is "pending"; the check can't be cancelled, as in the real gate */
+    var pendingCheck: CompletableDeferred<Unit>? = null
+
+    override suspend fun verifyParentPin(
+        user: JellyfinUser,
+        pin: String,
+        purpose: UnlockPurpose?,
+        admit: (grant: () -> Unit) -> Unit,
+    ): PinCheckResult =
+        withContext(NonCancellable) {
+            verified += user to pin
+            pendingCheck?.await()
+            val result = pinResults.removeFirstOrNull() ?: if (user.pin == pin) PinCheckResult.Correct else PinCheckResult.Wrong(3)
+            if (result == PinCheckResult.Correct) admit { parentUnlock.value = ParentUnlock(user.rowId, now, purpose) }
+            result
+        }
 
     /** [checkOwnPin] calls; they never grant an unlock */
     val ownPinChecks = mutableListOf<Pair<JellyfinUser, String>>()
