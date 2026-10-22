@@ -9,12 +9,14 @@ import androidx.media3.common.Player
 import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.size.Size
+import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ChosenStreams
 import com.github.damontecres.wholphin.data.PlaybackEffectDao
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.PlaybackEffect
 import com.github.damontecres.wholphin.data.model.VideoFilter
+import com.github.damontecres.wholphin.kids.KidContentGuard
 import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.PlayerBackend
 import com.github.damontecres.wholphin.services.ImageUrlService
@@ -69,6 +71,7 @@ class SlideshowViewModel
         private val imageUrlService: ImageUrlService,
         private val userPreferencesService: UserPreferencesService,
         private val screensaverService: ScreensaverService,
+        private val kidContentGuard: KidContentGuard,
         @Assisted val slideshowSettings: Destination.Slideshow,
     ) : ViewModel(),
         Player.Listener {
@@ -209,6 +212,12 @@ class SlideshowViewModel
                             if (position in pager.indices) pager.getBlocking(position) else null
                         Timber.v("Got image for $position: ${image != null}")
                         if (image != null) {
+                            // Kid content rules (contract section 10): a video is checked fresh right before it plays
+                            if (image.data.mediaType == MediaType.VIDEO && !kidContentGuard.isPlaybackAllowed(api, image.id)) {
+                                Timber.i("Kid content rules: slideshow video refused")
+                                showToast(context, context.getString(R.string.kid_content_playback_refused), Toast.LENGTH_SHORT)
+                                return@launchIO
+                            }
                             _state.update { it.copy(position = position) }
 
                             val url =

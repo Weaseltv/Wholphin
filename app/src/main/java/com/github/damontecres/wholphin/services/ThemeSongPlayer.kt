@@ -9,6 +9,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import com.github.damontecres.wholphin.kids.KidContentGuard
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.ThemeSongVolume
 import com.github.damontecres.wholphin.services.hilt.AuthOkHttpClient
@@ -49,6 +50,7 @@ class ThemeSongPlayer
         private val api: ApiClient,
         @param:IoCoroutineScope private val scope: CoroutineScope,
         private val preferences: DataStore<AppPreferences>,
+        private val kidContentGuard: KidContentGuard,
     ) {
         private val mutex = Mutex()
         private val state = MutableStateFlow(ThemeSongState())
@@ -91,6 +93,14 @@ class ThemeSongPlayer
                         scope.launchIO {
                             val themeSongs by api.libraryApi.getThemeSongs(itemId)
                             themeSongs.items.randomOrNull()?.let { theme ->
+                                // Kid content rules (contract section 10): a fresh check of the song, and of the item
+                                // it is the theme of, right before it plays
+                                if (!kidContentGuard.isPlaybackAllowed(api, itemId) ||
+                                    !kidContentGuard.isPlaybackAllowed(api, theme.id)
+                                ) {
+                                    Timber.i("Kid content rules: theme song refused")
+                                    return@launchIO
+                                }
                                 val url =
                                     api.universalAudioApi.getUniversalAudioStreamUrl(
                                         theme.id,
