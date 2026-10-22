@@ -254,7 +254,8 @@ class AbandonedPublicationTest {
             assertEquals(
                 "the Teens profile needs a parent's PIN",
                 ChooserPrompt.Pin(target = teen, pinOwner = parent, purpose = PinPurpose.SWITCH),
-                viewModel.state.value.prompt,
+                // The prompt's identity is the view model's own
+                (viewModel.state.value.prompt as? ChooserPrompt.Pin)?.copy(id = 0L),
             )
             assertNull(repository.current.value)
             assertEquals(ProfileCeiling.Rating(10), store.sessionCeiling())
@@ -455,7 +456,8 @@ class AbandonedPublicationTest {
             runCurrent()
             assertEquals(
                 ChooserPrompt.Pin(target = teen, pinOwner = parent, purpose = PinPurpose.SWITCH),
-                chooser.state.value.prompt,
+                // The prompt's identity is the view model's own
+                (chooser.state.value.prompt as? ChooserPrompt.Pin)?.copy(id = 0L),
             )
             assertNull(repository.current.value)
             assertTrue(navigated.isEmpty())
@@ -626,7 +628,8 @@ class AbandonedPublicationTest {
             runCurrent()
             assertEquals(
                 ChooserPrompt.Pin(target = teen, pinOwner = parent, purpose = PinPurpose.SWITCH),
-                chooser.state.value.prompt,
+                // The prompt's identity is the view model's own
+                (chooser.state.value.prompt as? ChooserPrompt.Pin)?.copy(id = 0L),
             )
             assertTrue(navigated.isEmpty())
             restart()

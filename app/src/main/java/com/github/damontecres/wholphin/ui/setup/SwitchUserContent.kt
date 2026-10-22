@@ -24,7 +24,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -545,37 +545,15 @@ fun SwitchUserContent(
     }
     when (val prompt = state.prompt) {
         is ChooserPrompt.Pin -> {
-            PinEntryDialog(
+            ChooserPinPrompt(
+                prompt = prompt,
                 onDismissRequest = viewModel::dismissPrompt,
                 onClickServerAuth = {
                     viewModel.dismissPrompt()
                     showAddUserDialog(prompt.target)
                 },
-                onSubmit = viewModel::submitPin,
-                length = PinRules.entryLength(prompt.pinOwner.pin),
-                checks = prompt.checks,
-                lockedUntilMillis = prompt.lockedUntilMillis,
-                title =
-                    when (prompt.purpose) {
-                        PinPurpose.SWITCH -> {
-                            prompt.target.shownName ?: stringResource(R.string.enter_pin)
-                        }
-
-                        PinPurpose.DELETE -> {
-                            stringResource(
-                                if (prompt.target.profileKind ==
-                                    ProfileKind.KID
-                                ) {
-                                    R.string.remove_from_this_tv
-                                } else {
-                                    R.string.delete
-                                },
-                            )
-                        }
-                    },
-                prompt = pinPromptFor(prompt.pinOwner.shownName),
-                message = prompt.message,
-                serverAuthRemovesPin = false,
+                // Latched until the check (and what it starts) is done
+                onSubmit = { viewModel.submitPin(it)?.join() },
             )
         }
 
@@ -639,7 +617,6 @@ fun SwitchUserContent(
         )
     }
     switchUserWithPin?.let { user ->
-        var checks by remember(user) { mutableIntStateOf(0) }
         PinEntryDialog(
             onDismissRequest = { switchUserWithPin = null },
             onClickServerAuth = {
@@ -647,14 +624,15 @@ fun SwitchUserContent(
                 switchUserWithPin = null
             },
             length = PinRules.entryLength(user.pin),
-            checks = checks,
             prompt = pinPromptFor(user.shownName),
             onSubmit = {
                 if (it == user.pin) {
+                    // The PIN prompt is done: a switch that then fails (toast, or the login dialog) never leaves it
+                    // frozen underneath
+                    switchUserWithPin = null
                     trySwitchUser(user)
                 } else {
                     Toast.makeText(context, context.getString(R.string.incorrect), Toast.LENGTH_SHORT).show()
-                    checks++
                 }
             },
         )
@@ -829,5 +807,42 @@ private fun UserStateError(
         }
 
         else -> {}
+    }
+}
+
+/**
+ * A chooser PIN prompt. Its entry is keyed on the prompt's identity: a replacement prompt (eg the parent's PIN after
+ * a kid's own) starts with a fresh entry, while a wrong try (a copy with a message) keeps the same one.
+ */
+@Composable
+fun ChooserPinPrompt(
+    prompt: ChooserPrompt.Pin,
+    onDismissRequest: () -> Unit,
+    onClickServerAuth: () -> Unit,
+    onSubmit: suspend (String) -> Unit,
+) {
+    key(prompt.id) {
+        PinEntryDialog(
+            onDismissRequest = onDismissRequest,
+            onClickServerAuth = onClickServerAuth,
+            onSubmit = onSubmit,
+            length = PinRules.entryLength(prompt.pinOwner.pin),
+            lockedUntilMillis = prompt.lockedUntilMillis,
+            title =
+                when (prompt.purpose) {
+                    PinPurpose.SWITCH -> {
+                        prompt.target.shownName ?: stringResource(R.string.enter_pin)
+                    }
+
+                    PinPurpose.DELETE -> {
+                        stringResource(
+                            if (prompt.target.profileKind == ProfileKind.KID) R.string.remove_from_this_tv else R.string.delete,
+                        )
+                    }
+                },
+            prompt = pinPromptFor(prompt.pinOwner.shownName),
+            message = prompt.message,
+            serverAuthRemovesPin = false,
+        )
     }
 }

@@ -4,7 +4,6 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -94,8 +93,6 @@ fun SetPinFlow(
             mutableStateOf(if (currentPin.isNullOrBlank()) PinFlowState.ENTER_PIN else PinFlowState.ENTER_PIN_TO_REMOVE)
         }
     var pendingPin by remember { mutableStateOf("") }
-    // Bumped after each PIN that keeps this step open, so the entry takes presses again
-    var checks by remember { mutableIntStateOf(0) }
 
     fun toast(message: Int) = Toast.makeText(context, context.getString(message), Toast.LENGTH_SHORT).show()
 
@@ -119,7 +116,6 @@ fun SetPinFlow(
             length = if (state == PinFlowState.ENTER_PIN_TO_REMOVE) PinRules.entryLength(currentPin) else PinRules.LENGTH,
             // A new PIN is arrows only; the current one is checked as saved
             allowDigits = state == PinFlowState.ENTER_PIN_TO_REMOVE,
-            checks = checks,
             onSubmit = { typed ->
                 when (val step = pinFlowStep(state, typed, currentPin, pendingPin)) {
                     PinFlowStep.CurrentPinCorrect -> {
@@ -128,12 +124,10 @@ fun SetPinFlow(
 
                     PinFlowStep.Incorrect -> {
                         toast(R.string.incorrect)
-                        checks++
                     }
 
                     PinFlowStep.NotFourPresses -> {
                         toast(R.string.pin_must_be_four)
-                        checks++
                     }
 
                     is PinFlowStep.ConfirmNewPin -> {
@@ -148,7 +142,6 @@ fun SetPinFlow(
                     PinFlowStep.Mismatch -> {
                         toast(R.string.incorrect)
                         pendingPin = ""
-                        checks++
                         flowState = PinFlowState.ENTER_PIN
                     }
                 }

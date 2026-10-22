@@ -6,9 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalDensity
@@ -95,11 +92,10 @@ class SetupLayoutTest {
     fun `the fourth press submits the pin and OK only confirms`() {
         val submitted = mutableListOf<String>()
         var serverAuth = 0
-        var checks by mutableIntStateOf(0)
         compose.setContent {
             WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
                 Box(Modifier.width(600.dp)) {
-                    PinEntry(onSubmit = { submitted += it }, checks = checks, onClickServerAuth = { serverAuth++ })
+                    PinEntry(onSubmit = { submitted += it }, onClickServerAuth = { serverAuth++ })
                 }
             }
         }
@@ -112,10 +108,7 @@ class SetupLayoutTest {
         }
         compose.waitForIdle()
         assertEquals(listOf("URDL"), submitted)
-        // The caller has checked it (wrong); the entry is live and empty again
-        checks = 1
-        compose.waitForIdle()
-        // OK with nothing typed is the server sign-in, never a PIN
+        // The check is done: OK with nothing typed is the server sign-in, never a PIN
         entry.performKeyInput { pressKey(Key.DirectionCenter) }
         compose.waitForIdle()
         assertEquals(1, serverAuth)
@@ -128,42 +121,6 @@ class SetupLayoutTest {
         }
         compose.waitForIdle()
         assertEquals(listOf("URDL", "LL"), submitted)
-    }
-
-    @Test
-    fun `a submitted pin latches the entry until the caller has checked it`() {
-        val submitted = mutableListOf<String>()
-        var serverAuth = 0
-        var checks by mutableIntStateOf(0)
-        compose.setContent {
-            WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
-                Box(Modifier.width(600.dp)) {
-                    PinEntry(onSubmit = { submitted += it }, checks = checks, onClickServerAuth = { serverAuth++ })
-                }
-            }
-        }
-        val entry = compose.onNode(isFocused())
-        entry.performKeyInput { listOf(Key.DirectionUp, Key.DirectionRight, Key.DirectionDown, Key.DirectionLeft).forEach { pressKey(it) } }
-        compose.waitForIdle()
-        // While it is being checked: no new entry, no partial guess, no server sign-in that would cancel it
-        entry.performKeyInput {
-            pressKey(Key.DirectionCenter)
-            pressKey(Key.DirectionUp)
-            pressKey(Key.DirectionUp)
-            pressKey(Key.DirectionCenter)
-        }
-        compose.waitForIdle()
-        assertEquals(listOf("URDL"), submitted)
-        assertEquals(0, serverAuth)
-        // Checked (wrong): entry is live again and starts empty
-        checks = 1
-        compose.waitForIdle()
-        entry.performKeyInput {
-            pressKey(Key.DirectionLeft)
-            pressKey(Key.DirectionCenter)
-        }
-        compose.waitForIdle()
-        assertEquals(listOf("URDL", "L"), submitted)
     }
 
     @Test

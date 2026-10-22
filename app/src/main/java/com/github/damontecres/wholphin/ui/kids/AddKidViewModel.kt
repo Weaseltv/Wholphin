@@ -100,10 +100,22 @@ class AddKidViewModel
                     }
             }
 
-        fun submitPin(pin: String) =
+        /** Checks the parent's PIN; the returned job ends when the check (and loading the kids after it) is done. */
+        fun submitPin(pin: String): Job =
             launch {
                 val user = parent ?: return@launch
-                when (val result = gate.verifyParentPin(user, pin, UnlockPurpose.AddKid)) {
+                val result =
+                    try {
+                        gate.verifyParentPin(user, pin, UnlockPurpose.AddKid)
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: Exception) {
+                        // Eg a storage failure: say so and let them try again
+                        Timber.w(ex, "Parent PIN check failed")
+                        _step.value = AddKidStep.EnterPin(user, PinError.CheckFailed)
+                        return@launch
+                    }
+                when (result) {
                     PinCheckResult.Correct -> loadKids()
                     is PinCheckResult.Wrong -> _step.value = AddKidStep.EnterPin(user, PinError.Wrong(result.attemptsBeforeLockout))
                     is PinCheckResult.LockedOut -> _step.value = AddKidStep.EnterPin(user, PinError.LockedOut(result.retryAtMillis))
@@ -426,9 +438,9 @@ class AddKidViewModel
             _step.value = AddKidStep.Failed(error, retry)
         }
 
-        private fun launch(block: suspend () -> Unit) {
+        private fun launch(block: suspend () -> Unit): Job {
             job?.cancel()
-            job = viewModelScope.launch { block() }
+            return viewModelScope.launch { block() }.also { job = it }
         }
 
         companion object {
@@ -523,6 +535,9 @@ sealed interface PinError {
     data class LockedOut(
         val retryAtMillis: Long,
     ) : PinError
+
+    /** The check itself failed (not a wrong PIN); retrying is fine */
+    data object CheckFailed : PinError
 }
 
 sealed interface AddKidError {

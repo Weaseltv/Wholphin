@@ -45,6 +45,7 @@ import com.github.damontecres.wholphin.ui.preferences.SetPinFlow
 import com.github.damontecres.wholphin.ui.setup.PinEntry
 import com.github.damontecres.wholphin.ui.setup.pinPromptFor
 import com.github.damontecres.wholphin.ui.tryRequestFocus
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import java.util.UUID
 
@@ -295,12 +296,9 @@ private fun TileRow(content: @Composable () -> Unit) {
 @Composable
 private fun PinStep(
     step: AddKidStep.EnterPin,
-    onSubmit: (String) -> Unit,
+    onSubmit: (String) -> Job,
 ) {
     val name = step.parent.shownName.orEmpty()
-    // A wrong PIN starts a fresh entry for the next try.
-    var attempt by remember { mutableIntStateOf(0) }
-    LaunchedEffect(step) { attempt++ }
     val message =
         when (val error = step.error) {
             is PinError.Wrong -> {
@@ -322,20 +320,23 @@ private fun PinStep(
                 stringResource(R.string.pin_locked_out, seconds)
             }
 
+            PinError.CheckFailed -> {
+                stringResource(R.string.kids_error_generic)
+            }
+
             null -> {
                 null
             }
         }
-    key(attempt) {
-        PinEntry(
-            title = stringResource(R.string.add_kid_profile),
-            prompt = pinPromptFor(name),
-            length = PinRules.entryLength(step.parent.pin),
-            lockedUntilMillis = (step.error as? PinError.LockedOut)?.retryAtMillis ?: 0L,
-            message = message,
-            onSubmit = { if (it.isNotEmpty()) onSubmit(it) },
-        )
-    }
+    PinEntry(
+        title = stringResource(R.string.add_kid_profile),
+        prompt = pinPromptFor(name),
+        length = PinRules.entryLength(step.parent.pin),
+        lockedUntilMillis = (step.error as? PinError.LockedOut)?.retryAtMillis ?: 0L,
+        message = message,
+        // Latched until the check is done; a wrong PIN then clears the boxes
+        onSubmit = { if (it.isNotEmpty()) onSubmit(it).join() },
+    )
 }
 
 private fun secondsUntil(atMillis: Long) = ((atMillis - System.currentTimeMillis() + 999) / 1000).toInt().coerceAtLeast(0)

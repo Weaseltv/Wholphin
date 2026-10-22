@@ -17,6 +17,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,7 +58,10 @@ import com.github.damontecres.wholphin.ui.kids.kidGlow
 import com.github.damontecres.wholphin.ui.playback.isEnterKey
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import com.github.damontecres.wholphin.ui.tryRequestFocus
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import timber.log.Timber
 
 /** The PIN character a remote key stands for, or null when it isn't part of a PIN (OK never is). */
 fun pinPress(key: Key): Char? =
@@ -82,32 +87,31 @@ fun pinPress(key: Key): Char? =
  * The PIN prompt (owner mockup `4-pin.png`): [length] boxes, the D-pad as a hint, and the OK / BACK keys.
  *
  * Presses after the [length]th are ignored; the [length]th submits the PIN on its own, and OK submits what is
- * typed so far. Either way [onSubmit] gets the whole PIN and the caller checks it (with attempt backoff where it
- * applies). Only a press that started here counts, so the OK that opened the prompt never submits it. With
+ * typed so far. Only a press that started here counts, so the OK that opened the prompt never submits it. With
  * nothing typed, OK runs [onClickServerAuth] when set ("Login via server"); Back dismisses the dialog around it.
  *
- * A submitted PIN latches the entry: every PIN key and OK (including the empty-OK server sign-in) is ignored
- * until the caller bumps [checks] to say that PIN has been checked, and while [lockedUntilMillis] is in the
- * future. So nothing typed during a check can start a second guess or cancel the pending one. Back still works.
+ * The entry owns its latch: while [onSubmit] runs (the caller checks the PIN, with attempt backoff where it
+ * applies, and acts on it) every PIN key and OK is ignored, so nothing typed meanwhile can start a second guess
+ * or cancel the pending one. The latch is released however [onSubmit] ends (done, wrong, failed or cancelled)
+ * and the boxes clear; if it throws, a retryable error shows. Keys are ignored until [lockedUntilMillis] too.
+ * The latch and the lockout are read when a key arrives, never from a value captured at composition.
  *
- * The key-hint footer always shows: in a panel too short for everything, the D-pad hint is dropped first and the
- * top part is clipped, never the footer.
+ * The boxes and the key-hint footer always keep their room: the title and prompt are limited to two lines each,
+ * and in a short panel the message is shortened and the D-pad hint dropped instead.
  *
  * @param length presses to collect: [PinRules.LENGTH] for a new PIN, [PinRules.entryLength] of the saved PIN
  * when checking one
  * @param allowDigits false while choosing a new PIN, which is arrows only; checking a saved PIN accepts digits
- * @param checks how many submitted PINs the caller has finished checking; a change ends the latch
  * @param prompt the line under the title, eg "Enter **Justin M's** PIN to continue"
  * @param message a line under the boxes (wrong PIN, locked out)
  * @param serverAuthRemovesPin shows the "will remove PIN" note with the server sign-in hint
  */
 @Composable
 fun PinEntry(
-    onSubmit: (String) -> Unit,
+    onSubmit: suspend (String) -> Unit,
     modifier: Modifier = Modifier,
     length: Int = PinRules.LENGTH,
     allowDigits: Boolean = true,
-    checks: Int = 0,
     lockedUntilMillis: Long = 0L,
     title: String? = stringResource(R.string.enter_pin),
     prompt: AnnotatedString? = null,
@@ -117,28 +121,43 @@ fun PinEntry(
 ) {
     var input by remember { mutableStateOf("") }
     var pressed by remember { mutableStateOf<Key?>(null) }
-    // The [checks] value a PIN was submitted at; entry stays off while it is still current
-    var submittedAt by remember { mutableStateOf<Int?>(null) }
-    LaunchedEffect(checks) {
-        if (submittedAt != null && submittedAt != checks) {
-            submittedAt = null
-            input = ""
-        }
-    }
-    var lockedOut by remember(lockedUntilMillis) { mutableStateOf(lockedUntilMillis > System.currentTimeMillis()) }
+    var busy by remember { mutableStateOf(false) }
+    var failed by remember { mutableStateOf(false) }
+    var lockedOut by remember { mutableStateOf(lockedUntilMillis > System.currentTimeMillis()) }
+    val lockedUntil by rememberUpdatedState(lockedUntilMillis)
+    val submitNow by rememberUpdatedState(onSubmit)
+    val serverAuth by rememberUpdatedState(onClickServerAuth)
     LaunchedEffect(lockedUntilMillis) {
         val wait = lockedUntilMillis - System.currentTimeMillis()
         if (wait > 0) {
+            lockedOut = true
             delay(wait)
-            lockedOut = false
         }
+        lockedOut = false
     }
-    val live = submittedAt == null && !lockedOut
+    val scope = rememberCoroutineScope()
+
+    // Read at key time: a 4th press followed straight away by OK finds the latch already set
+    fun accepting(): Boolean = !busy && !lockedOut && System.currentTimeMillis() >= lockedUntil
 
     fun submit(pin: String) {
+        if (!accepting()) return
+        busy = true
+        failed = false
         input = pin
-        submittedAt = checks
-        onSubmit(pin)
+        scope.launch {
+            try {
+                submitNow(pin)
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                Timber.w(ex, "PIN check failed")
+                failed = true
+            } finally {
+                input = ""
+                busy = false
+            }
+        }
     }
 
     val focusRequester = remember { FocusRequester() }
@@ -149,7 +168,6 @@ fun PinEntry(
             modifier
                 .focusRequester(focusRequester)
                 .onKeyEvent { event ->
-                    val press = pinPress(event.key)?.takeIf { allowDigits || it in PinRules.ARROWS }
                     val isPinKey = pinPress(event.key) != null
                     if (!isPinKey && !isEnterKey(event)) return@onKeyEvent false
                     when (event.type) {
@@ -160,11 +178,12 @@ fun PinEntry(
                         KeyEventType.KeyUp -> {
                             if (pressed == event.key) {
                                 pressed = null
+                                // A number key while choosing a new PIN isn't a press at all
+                                val press = pinPress(event.key)?.takeIf { allowDigits || it in PinRules.ARROWS }
                                 when {
-                                    !live -> {}
+                                    !accepting() -> {}
 
                                     isPinKey -> {
-                                        // A number key while choosing a new PIN isn't a press at all
                                         if (press != null) {
                                             val next = PinRules.append(input, press, length)
                                             if (PinRules.isComplete(next, length) && next != input) submit(next) else input = next
@@ -176,7 +195,7 @@ fun PinEntry(
                                     }
 
                                     else -> {
-                                        onClickServerAuth?.invoke()
+                                        serverAuth?.invoke()
                                     }
                                 }
                             }
@@ -185,21 +204,23 @@ fun PinEntry(
                     true
                 }.focusable(),
     ) {
-        // Everything above the footer; it gives way (D-pad hint first) when the panel is short
+        // The header can't grow without limit, so the boxes and footer below always keep their room
+        if (title != null) KidTitle(title, maxLines = 2)
+        if (prompt != null) {
+            KidGap(10.dp)
+            KidSubtitle(prompt, color = KidColors.Text, size = 19.sp, maxLines = 2)
+        }
+        KidGap(22.dp)
+        PinBoxes(length = length, filled = input.length)
+        // Only what is left after the header, boxes and footer: the message shortens, the D-pad hint drops out
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.weight(1f, fill = false).clipToBounds(),
         ) {
-            if (title != null) KidTitle(title)
-            if (prompt != null) {
-                KidGap(10.dp)
-                KidSubtitle(prompt, color = KidColors.Text, size = 19.sp)
-            }
-            KidGap(22.dp)
-            PinBoxes(length = length, filled = input.length)
-            if (message != null) {
+            val shown = if (failed) stringResource(R.string.kids_error_generic) else message
+            if (shown != null) {
                 KidGap(12.dp)
-                KidErrorText(message)
+                KidErrorText(shown, maxLines = 2)
             }
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -212,7 +233,7 @@ fun PinEntry(
         KidGap(18.dp)
         KidDivider()
         KidGap(16.dp)
-        val serverAuthHint = onClickServerAuth != null && input.isEmpty() && live
+        val serverAuthHint = onClickServerAuth != null && input.isEmpty() && !busy
         Row(horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.CenterVertically) {
             KeyHint(
                 stringResource(R.string.kid_key_ok),
@@ -326,10 +347,9 @@ private fun DpadKey(
 @Composable
 fun PinEntryDialog(
     onDismissRequest: () -> Unit,
-    onSubmit: (String) -> Unit,
+    onSubmit: suspend (String) -> Unit,
     length: Int = PinRules.LENGTH,
     allowDigits: Boolean = true,
-    checks: Int = 0,
     lockedUntilMillis: Long = 0L,
     title: String? = stringResource(R.string.enter_pin),
     prompt: AnnotatedString? = null,
@@ -343,7 +363,6 @@ fun PinEntryDialog(
             onSubmit = onSubmit,
             length = length,
             allowDigits = allowDigits,
-            checks = checks,
             lockedUntilMillis = lockedUntilMillis,
             title = title,
             prompt = prompt,

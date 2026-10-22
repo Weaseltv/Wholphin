@@ -2,10 +2,8 @@ package com.github.damontecres.wholphin.ui.kids
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.ViewModel
@@ -25,7 +23,6 @@ import com.github.damontecres.wholphin.ui.setup.PinEntryDialog
 import com.github.damontecres.wholphin.ui.setup.pinPromptFor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
 
@@ -80,15 +77,12 @@ fun ChooserChangePicture(
         )
         return
     }
-    val scope = rememberCoroutineScope()
     var error by remember { mutableStateOf<PinCheckResult?>(null) }
-    var checks by remember { mutableIntStateOf(0) }
     PinEntryDialog(
         onDismissRequest = onDone,
         title = stringResource(R.string.change_picture),
         prompt = pinPromptFor(user.shownName),
         length = PinRules.entryLength(user.pin),
-        checks = checks,
         lockedUntilMillis = (error as? PinCheckResult.LockedOut)?.retryAtMillis ?: 0L,
         message =
             when (error) {
@@ -96,18 +90,11 @@ fun ChooserChangePicture(
                 is PinCheckResult.LockedOut -> stringResource(R.string.kids_error_rate_limited_unknown)
                 else -> null
             },
+        // Suspends for the check, so the entry stays latched until it is done
         onSubmit = { pin ->
-            scope.launch {
-                when (val result = gate.checkOwnPin(user, pin)) {
-                    PinCheckResult.Correct -> {
-                        unlocked = true
-                    }
-
-                    else -> {
-                        error = result
-                        checks++
-                    }
-                }
+            when (val result = gate.checkOwnPin(user, pin)) {
+                PinCheckResult.Correct -> unlocked = true
+                else -> error = result
             }
         },
     )

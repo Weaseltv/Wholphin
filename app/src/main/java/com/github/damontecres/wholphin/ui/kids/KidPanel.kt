@@ -227,6 +227,7 @@ fun KidPanelDialog(
 fun KidTitle(
     text: String,
     modifier: Modifier = Modifier,
+    maxLines: Int = Int.MAX_VALUE,
 ) {
     Text(
         text = text,
@@ -234,6 +235,8 @@ fun KidTitle(
         style = KidText.display(if (text.length > 22) 24.sp else 32.sp),
         color = KidColors.Text,
         textAlign = TextAlign.Center,
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
         modifier = modifier,
     )
 }
@@ -266,12 +269,15 @@ fun KidSubtitle(
     modifier: Modifier = Modifier,
     color: Color = KidColors.Muted,
     size: TextUnit = 17.sp,
+    maxLines: Int = Int.MAX_VALUE,
 ) {
     Text(
         text = text,
         style = KidText.body(size),
         color = color,
         textAlign = TextAlign.Center,
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
         modifier = modifier,
     )
 }
@@ -280,12 +286,15 @@ fun KidSubtitle(
 fun KidErrorText(
     text: String,
     modifier: Modifier = Modifier,
+    maxLines: Int = Int.MAX_VALUE,
 ) {
     Text(
         text = text,
         style = KidText.body(15.sp, FontWeight.Medium),
         color = KidColors.Error,
         textAlign = TextAlign.Center,
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
         modifier = modifier,
     )
 }
