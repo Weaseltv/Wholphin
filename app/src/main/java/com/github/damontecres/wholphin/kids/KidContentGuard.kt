@@ -159,11 +159,6 @@ class KidContentGuard
             return visible
         }
 
-        /** Forgets every cached lookup (eg a user switch); also happens on its own when the user changes */
-        fun clearCache() {
-            cache = null
-        }
-
         private suspend fun isVisible(
             policy: Policy,
             loader: Loader,
@@ -224,7 +219,7 @@ class KidContentGuard
             val atMillis: Long,
         )
 
-        /** Lookups for one user; replaced whenever another user's request comes along */
+        /** Lookups for one user; replaced whenever another user's request comes along (so on every user switch) */
         private class UserCache(
             val userKey: String,
         ) {
