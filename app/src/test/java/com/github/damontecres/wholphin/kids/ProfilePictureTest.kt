@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.kids
 
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.services.AvatarGroup
 import com.github.damontecres.wholphin.services.ProfilePictureService
 import com.github.damontecres.wholphin.services.ProfilePictureTarget
 import com.github.damontecres.wholphin.services.versionedUserImageUrl
@@ -45,13 +46,32 @@ class ProfilePictureTest {
     }
 
     @Test
-    fun `picker shows the set and the current picture`() {
+    fun `an adult picks from the adults set, with the current picture`() {
+        cache.chosen[userId] = "wolf-crimson"
+        viewModel.start(target)
+        val state = viewModel.state.value
+        assertEquals(listOf("alien-black", "wolf-crimson"), state.avatars.map { it.id })
+        assertTrue(state.avatars.all { it.group == AvatarGroup.ADULTS })
+        assertEquals("wolf-crimson", state.current)
+        assertEquals("Emma", state.target?.name)
+    }
+
+    @Test
+    fun `a kid picks from the kids set`() {
+        viewModel.start(target.copy(isKid = true))
+        val state = viewModel.state.value
+        assertEquals(listOf("bee-blue", "fox-green"), state.avatars.map { it.id })
+        assertEquals("avatars/kids/bee-blue.webp", state.avatars.first().assetPath)
+    }
+
+    @Test
+    fun `a picture picked from the removed placeholders is simply not marked`() {
+        // The saved image is on the server; only the picker's "current" mark is lost
         cache.chosen[userId] = "placeholder-fox"
         viewModel.start(target)
         val state = viewModel.state.value
-        assertEquals(listOf("placeholder-cat", "placeholder-fox"), state.avatars.map { it.id })
         assertEquals("placeholder-fox", state.current)
-        assertEquals("Emma", state.target?.name)
+        assertTrue(state.avatars.none { it.id == state.current })
     }
 
     @Test
@@ -63,16 +83,16 @@ class ProfilePictureTest {
             advanceUntilIdle()
             val (uploadedFor, png) = uploader.uploads.single()
             assertEquals(target, uploadedFor)
-            assertEquals("placeholder-fox", png.decodeToString())
+            assertEquals("wolf-crimson", png.decodeToString())
             assertEquals(PictureStatus.Saved, viewModel.state.value.status)
-            assertEquals("placeholder-fox", viewModel.state.value.current)
+            assertEquals("wolf-crimson", viewModel.state.value.current)
             assertEquals(mapOf(userId to 1), cache.versions.value)
         }
 
     @Test
     fun `remove deletes the image and refreshes the cache`() =
         runTest(dispatcher) {
-            cache.chosen[userId] = "placeholder-cat"
+            cache.chosen[userId] = "alien-black"
             viewModel.start(target)
             viewModel.remove()
             advanceUntilIdle()
@@ -86,12 +106,12 @@ class ProfilePictureTest {
     fun `failed save keeps the old picture and cache key`() =
         runTest(dispatcher) {
             uploader.failWith = IllegalStateException("403")
-            cache.chosen[userId] = "placeholder-cat"
+            cache.chosen[userId] = "alien-black"
             viewModel.start(target)
             viewModel.pick(viewModel.state.value.avatars[1])
             advanceUntilIdle()
             assertEquals(PictureStatus.Failed, viewModel.state.value.status)
-            assertEquals("placeholder-cat", viewModel.state.value.current)
+            assertEquals("alien-black", viewModel.state.value.current)
             assertTrue(cache.versions.value.isEmpty())
         }
 

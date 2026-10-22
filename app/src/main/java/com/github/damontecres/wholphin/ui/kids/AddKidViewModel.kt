@@ -14,6 +14,7 @@ import com.github.damontecres.wholphin.kids.KidProfilesApi
 import com.github.damontecres.wholphin.kids.KidQuickConnect
 import com.github.damontecres.wholphin.kids.KidSessionGate
 import com.github.damontecres.wholphin.kids.PinCheckResult
+import com.github.damontecres.wholphin.kids.PinRules
 import com.github.damontecres.wholphin.kids.ProfileGateException
 import com.github.damontecres.wholphin.kids.ProfileKind
 import com.github.damontecres.wholphin.kids.UnlockPurpose
@@ -59,6 +60,11 @@ class AddKidViewModel
         private var parent: JellyfinUser? = null
         private var job: Job? = null
 
+        // The PIN check in progress (review round 3): its unlock is admitted only while it is still this one, under
+        // [attemptLock], so a cancel (Back) or a newer check in between leaves no unlock behind
+        private val attemptLock = Any()
+        private var currentAttempt: Any? = null
+
         // One Idempotency-Key per form submission (name + level), reused on every retry of it.
         private var pendingKey: String? = null
         private var pendingBody: Pair<String, KidLevel>? = null
@@ -66,7 +72,7 @@ class AddKidViewModel
         private var avatar: Avatar? = null
         private var kids: List<KidProfile> = emptyList()
 
-        val avatars: List<Avatar> get() = pictures.avatars()
+        val avatars: List<Avatar> get() = pictures.avatars(isKid = true)
 
         fun start(
             server: JellyfinServer,
@@ -99,10 +105,22 @@ class AddKidViewModel
                     }
             }
 
-        fun submitPin(pin: String) =
+        /** Checks the parent's PIN; the returned job ends when the check (and loading the kids after it) is done. */
+        fun submitPin(pin: String): Job =
             launch {
                 val user = parent ?: return@launch
-                when (val result = gate.verifyParentPin(user, pin, UnlockPurpose.AddKid)) {
+                val result =
+                    try {
+                        verifyAsCurrentAttempt(user, pin)
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: Exception) {
+                        // Eg a storage failure: say so and let them try again
+                        Timber.w(ex, "Parent PIN check failed")
+                        _step.value = AddKidStep.EnterPin(user, PinError.CheckFailed)
+                        return@launch
+                    }
+                when (result) {
                     PinCheckResult.Correct -> loadKids()
                     is PinCheckResult.Wrong -> _step.value = AddKidStep.EnterPin(user, PinError.Wrong(result.attemptsBeforeLockout))
                     is PinCheckResult.LockedOut -> _step.value = AddKidStep.EnterPin(user, PinError.LockedOut(result.retryAtMillis))
@@ -113,6 +131,8 @@ class AddKidViewModel
         fun createFirstPin(pin: String) =
             launch {
                 val user = parent ?: return@launch
+                // A new PIN is exactly 4 presses; the PIN screen never sends anything else
+                if (!PinRules.isValidNewPin(pin)) return@launch
                 if (gate.isDeviceProtected.first()) {
                     _step.value = AddKidStep.ParentLocked(user)
                     return@launch
@@ -120,7 +140,7 @@ class AddKidViewModel
                 serverRepository.updateUserAuth(user, pin, false)
                 val withPin = user.copy(pin = pin, requireLogin = false)
                 parent = withPin
-                when (gate.verifyParentPin(withPin, pin, UnlockPurpose.AddKid)) {
+                when (verifyAsCurrentAttempt(withPin, pin)) {
                     PinCheckResult.Correct -> loadKids()
                     else -> _step.value = AddKidStep.EnterPin(withPin)
                 }
@@ -188,14 +208,35 @@ class AddKidViewModel
 
         fun backToForm() = showForm()
 
-        /** Leaving the flow drops the parent's unlock (plan 4.1). */
+        /**
+         * Checks [pin] as the flow's current attempt. Verification finishes even if the flow is left meanwhile (the
+         * attempt counts towards the backoff), but its unlock is granted only if this attempt is still current then.
+         */
+        private suspend fun verifyAsCurrentAttempt(
+            user: JellyfinUser,
+            pin: String,
+        ): PinCheckResult {
+            val attempt = Any()
+            synchronized(attemptLock) { currentAttempt = attempt }
+            return gate.verifyParentPin(user, pin, UnlockPurpose.AddKid) { grant ->
+                synchronized(attemptLock) { if (currentAttempt === attempt) grant() }
+            }
+        }
+
+        /** Leaving the flow drops the parent's unlock (plan 4.1), and a PIN still being checked grants none. */
         fun cancel() {
-            job?.cancel()
-            gate.clearParentUnlock()
+            synchronized(attemptLock) {
+                currentAttempt = null
+                job?.cancel()
+                gate.clearParentUnlock()
+            }
         }
 
         override fun onCleared() {
-            gate.clearParentUnlock()
+            synchronized(attemptLock) {
+                currentAttempt = null
+                gate.clearParentUnlock()
+            }
         }
 
         private fun showForm(
@@ -412,7 +453,7 @@ class AddKidViewModel
         ) {
             val picked = avatar ?: return
             if (token == null) return
-            val result = pictures.save(ProfilePictureTarget(server.url, userId, token, name), picked)
+            val result = pictures.save(ProfilePictureTarget(server.url, userId, token, name, isKid = true), picked)
             if (result is ProfilePictureResult.Failed) Timber.w("Kid picture not saved; it can be set in Settings")
         }
 
@@ -423,9 +464,9 @@ class AddKidViewModel
             _step.value = AddKidStep.Failed(error, retry)
         }
 
-        private fun launch(block: suspend () -> Unit) {
+        private fun launch(block: suspend () -> Unit): Job {
             job?.cancel()
-            job = viewModelScope.launch { block() }
+            return viewModelScope.launch { block() }.also { job = it }
         }
 
         companion object {
@@ -520,6 +561,9 @@ sealed interface PinError {
     data class LockedOut(
         val retryAtMillis: Long,
     ) : PinError
+
+    /** The check itself failed (not a wrong PIN); retrying is fine */
+    data object CheckFailed : PinError
 }
 
 sealed interface AddKidError {

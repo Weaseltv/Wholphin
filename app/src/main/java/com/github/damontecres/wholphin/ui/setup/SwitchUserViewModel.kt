@@ -17,6 +17,7 @@ import com.github.damontecres.wholphin.kids.GateDecision
 import com.github.damontecres.wholphin.kids.KidProtectionStore
 import com.github.damontecres.wholphin.kids.KidSessionGateImpl
 import com.github.damontecres.wholphin.kids.PinCheckResult
+import com.github.damontecres.wholphin.kids.PinRules
 import com.github.damontecres.wholphin.kids.ProfileChooserLock
 import com.github.damontecres.wholphin.kids.ProfileGateException
 import com.github.damontecres.wholphin.kids.ProfileKind
@@ -61,6 +62,7 @@ import org.jellyfin.sdk.model.api.QuickConnectDto
 import org.jellyfin.sdk.model.api.QuickConnectResult
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration.Companion.seconds
 
 @HiltViewModel(assistedFactory = SwitchUserViewModel.Factory::class)
@@ -199,17 +201,21 @@ class SwitchUserViewModel
             return job
         }
 
-        /** Runs [step] (created lazily) as [flow]'s next step, if [flow] is still current and not busy */
+        /**
+         * Runs [step] (created lazily) as [flow]'s next step, if [flow] is still current and not busy. Returns its job,
+         * or null when it wasn't started.
+         */
         private fun continueFlow(
             flow: ChooserFlow,
             step: (ChooserFlow) -> Job,
-        ) {
+        ): Job? {
             val job =
                 synchronized(flowLock) {
-                    if (this.flow !== flow || flow.step?.isActive == true) return
+                    if (this.flow !== flow || flow.step?.isActive == true) return null
                     step(flow).also { flow.step = it }
                 }
             job.start()
+            return job
         }
 
         private fun launchStep(
@@ -569,6 +575,8 @@ class SwitchUserViewModel
 
         /** The in-flow PIN of a deferred adult sign-in was set: the sign-in's flow publishes it now */
         fun completePinSetup(pin: String) {
+            // A new PIN is exactly 4 presses; the PIN screen never sends anything else
+            if (!PinRules.isValidNewPin(pin)) return
             val flow: ChooserFlow
             val pending: PendingPinSetup
             synchronized(flowLock) {
@@ -609,7 +617,7 @@ class SwitchUserViewModel
                 kidSessionGate.clearParentUnlock()
                 launchStep(flow) {
                     if (user.hasPin) {
-                        showPrompt(flow, ChooserPrompt.Pin(target = user, pinOwner = user, purpose = PinPurpose.SWITCH))
+                        showPrompt(flow, pinPrompt(target = user, pinOwner = user, purpose = PinPurpose.SWITCH))
                     } else {
                         continueSwitch(flow, user)
                     }
@@ -659,7 +667,7 @@ class SwitchUserViewModel
                     }
 
                     parents.size == 1 -> {
-                        ChooserPrompt.Pin(target = target, pinOwner = parents.first(), purpose = purpose)
+                        pinPrompt(target = target, pinOwner = parents.first(), purpose = purpose)
                     }
 
                     else -> {
@@ -674,34 +682,36 @@ class SwitchUserViewModel
                 // The prompt showing always belongs to the current flow
                 val prompt = _state.value.prompt as? ChooserPrompt.PickParent ?: return
                 _state.update {
-                    it.copy(prompt = ChooserPrompt.Pin(target = prompt.target, pinOwner = parent, purpose = prompt.purpose))
+                    it.copy(prompt = pinPrompt(target = prompt.target, pinOwner = parent, purpose = prompt.purpose))
                 }
             }
         }
 
-        fun submitPin(pin: String) {
+        /**
+         * Checks the PIN typed into the current PIN prompt, as its flow's next step. The returned job (null when nothing
+         * was started) ends with that step, so the prompt stays latched until then.
+         */
+        fun submitPin(pin: String): Job? {
             val flow: ChooserFlow
             val prompt: ChooserPrompt.Pin
             synchronized(flowLock) {
-                flow = this.flow ?: return
-                prompt = _state.value.prompt as? ChooserPrompt.Pin ?: return
+                flow = this.flow ?: return null
+                prompt = _state.value.prompt as? ChooserPrompt.Pin ?: return null
             }
             // The PIN continues the flow it was asked for, as its next step
-            continueFlow(flow) {
+            return continueFlow(flow) {
                 launchStep(flow) {
-                    val owner = prompt.pinOwner
                     val result =
-                        if (owner.profileKind == ProfileKind.ADULT) {
-                            // The unlock is bound to this target and action only, and granted only while this flow
-                            // is still current
-                            val purpose =
-                                when (prompt.purpose) {
-                                    PinPurpose.SWITCH -> UnlockPurpose.Switch(prompt.target.rowId)
-                                    PinPurpose.DELETE -> UnlockPurpose.Remove(prompt.target.rowId)
-                                }
-                            kidSessionGate.verifyParentPin(owner, pin, purpose, admit(flow))
-                        } else {
-                            kidSessionGate.verifyProfilePin(owner, pin)
+                        try {
+                            checkPromptPin(flow, prompt, pin)
+                        } catch (ex: CancellationException) {
+                            // Including ChooserFlowLeft
+                            throw ex
+                        } catch (ex: Exception) {
+                            // Eg a storage failure: the same prompt says so and takes another try
+                            Timber.w(ex, "PIN check failed")
+                            showPrompt(flow, prompt.copy(message = context.getString(R.string.kids_error_generic)))
+                            return@launchStep
                         }
                     when (result) {
                         PinCheckResult.Correct -> {
@@ -718,18 +728,49 @@ class SwitchUserViewModel
                         }
 
                         is PinCheckResult.Wrong -> {
-                            showPrompt(
-                                flow,
-                                prompt.copy(message = context.getString(R.string.kid_pin_wrong, result.attemptsBeforeLockout)),
-                            )
+                            showPrompt(flow, prompt.copy(message = context.getString(R.string.kid_pin_wrong, result.attemptsBeforeLockout)))
                         }
 
                         is PinCheckResult.LockedOut -> {
                             val seconds = ((result.retryAtMillis - System.currentTimeMillis()) / 1000).coerceAtLeast(1)
-                            showPrompt(flow, prompt.copy(message = context.getString(R.string.kid_pin_locked_out, seconds)))
+                            showPrompt(
+                                flow,
+                                prompt.copy(
+                                    message = context.getString(R.string.kid_pin_locked_out, seconds),
+                                    lockedUntilMillis = result.retryAtMillis,
+                                ),
+                            )
                         }
                     }
                 }
+            }
+        }
+
+        private val promptIds = AtomicLong()
+
+        /** A new PIN prompt, with its own identity (see [ChooserPrompt.Pin.id]) */
+        private fun pinPrompt(
+            target: JellyfinUser,
+            pinOwner: JellyfinUser,
+            purpose: PinPurpose,
+        ) = ChooserPrompt.Pin(target = target, pinOwner = pinOwner, purpose = purpose, id = promptIds.incrementAndGet())
+
+        private suspend fun checkPromptPin(
+            flow: ChooserFlow,
+            prompt: ChooserPrompt.Pin,
+            pin: String,
+        ): PinCheckResult {
+            val owner = prompt.pinOwner
+            return if (owner.profileKind == ProfileKind.ADULT) {
+                // The unlock is bound to this target and action only, and granted only while this flow is still current
+                val purpose =
+                    when (prompt.purpose) {
+                        PinPurpose.SWITCH -> UnlockPurpose.Switch(prompt.target.rowId)
+                        PinPurpose.DELETE -> UnlockPurpose.Remove(prompt.target.rowId)
+                    }
+                kidSessionGate.verifyParentPin(owner, pin, purpose, admit(flow))
+            } else {
+                kidSessionGate.verifyProfilePin(owner, pin)
             }
         }
 
@@ -780,7 +821,7 @@ class SwitchUserViewModel
                 }
 
                 user.hasPin -> {
-                    showPrompt(flow, ChooserPrompt.Pin(target = user, pinOwner = user, purpose = PinPurpose.DELETE))
+                    showPrompt(flow, pinPrompt(target = user, pinOwner = user, purpose = PinPurpose.DELETE))
                 }
 
                 !kidProtectionStore.isProtected() -> {
@@ -901,6 +942,13 @@ sealed interface ChooserPrompt {
         val pinOwner: JellyfinUser,
         val purpose: PinPurpose,
         val message: String? = null,
+        /**
+         * This prompt's identity: a replacement prompt (eg a kid's own PIN, then a parent's) gets a new one and so a
+         * fresh entry; wrong tries are copies and keep it. Set by the view model; 0 in a hand-made prompt.
+         */
+        val id: Long = 0L,
+        /** While locked out, the entry takes no presses until then */
+        val lockedUntilMillis: Long = 0L,
     ) : ChooserPrompt {
         val isParentPin: Boolean get() = pinOwner.rowId != target.rowId
     }

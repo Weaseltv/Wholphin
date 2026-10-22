@@ -1,6 +1,5 @@
 package com.github.damontecres.wholphin.ui.setup
 
-import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -8,335 +7,383 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
+import com.github.damontecres.wholphin.kids.PinRules
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
-import com.github.damontecres.wholphin.ui.components.BasicDialog
-import com.github.damontecres.wholphin.ui.components.TextButton
-import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
+import com.github.damontecres.wholphin.ui.kids.KeyHint
+import com.github.damontecres.wholphin.ui.kids.KidColors
+import com.github.damontecres.wholphin.ui.kids.KidDivider
+import com.github.damontecres.wholphin.ui.kids.KidErrorText
+import com.github.damontecres.wholphin.ui.kids.KidGap
+import com.github.damontecres.wholphin.ui.kids.KidPanel
+import com.github.damontecres.wholphin.ui.kids.KidPanelDialog
+import com.github.damontecres.wholphin.ui.kids.KidSubtitle
+import com.github.damontecres.wholphin.ui.kids.KidText
+import com.github.damontecres.wholphin.ui.kids.KidTitle
+import com.github.damontecres.wholphin.ui.kids.emphasise
+import com.github.damontecres.wholphin.ui.kids.kidGlow
 import com.github.damontecres.wholphin.ui.playback.isEnterKey
-import com.github.damontecres.wholphin.ui.theme.NeonBoard
-import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
-import com.github.damontecres.wholphin.ui.theme.isWeaselTv
-import com.github.damontecres.wholphin.ui.theme.neonUpper
+import com.github.damontecres.wholphin.ui.tryRequestFocus
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import timber.log.Timber
+
+/** The PIN character a remote key stands for, or null when it isn't part of a PIN (OK never is). */
+fun pinPress(key: Key): Char? =
+    when (key) {
+        Key.DirectionUp -> 'U'
+        Key.DirectionRight -> 'R'
+        Key.DirectionDown -> 'D'
+        Key.DirectionLeft -> 'L'
+        Key.Zero, Key.NumPad0 -> '0'
+        Key.One, Key.NumPad1 -> '1'
+        Key.Two, Key.NumPad2 -> '2'
+        Key.Three, Key.NumPad3 -> '3'
+        Key.Four, Key.NumPad4 -> '4'
+        Key.Five, Key.NumPad5 -> '5'
+        Key.Six, Key.NumPad6 -> '6'
+        Key.Seven, Key.NumPad7 -> '7'
+        Key.Eight, Key.NumPad8 -> '8'
+        Key.Nine, Key.NumPad9 -> '9'
+        else -> null
+    }
 
 /**
- * @param onSubmit kid profiles: called with the whole PIN when OK/Enter is pressed, then the input clears; the
- * caller checks it (with attempt backoff) instead of a per-keystroke compare. Never submitted at the saved PIN's
- * length, which would give the length away.
- * @param title shown instead of "Enter PIN" (eg whose PIN is asked for)
- * @param message a line under the dots (wrong PIN, locked out)
- * @param serverAuthRemovesPin shows the "will remove PIN" note under the server sign-in button
+ * The PIN prompt (owner mockup `4-pin.png`): [length] boxes, the D-pad as a hint, and the OK / BACK keys.
+ *
+ * Presses after the [length]th are ignored; the [length]th submits the PIN on its own, and OK submits what is
+ * typed so far. Only a press that started here counts, so the OK that opened the prompt never submits it. With
+ * nothing typed, OK runs [onClickServerAuth] when set ("Login via server"); Back dismisses the dialog around it.
+ *
+ * The entry owns its latch: while [onSubmit] runs (the caller checks the PIN, with attempt backoff where it
+ * applies, and acts on it) every PIN key and OK is ignored, so nothing typed meanwhile can start a second guess
+ * or cancel the pending one. The latch is released however [onSubmit] ends (done, wrong, failed or cancelled)
+ * and the boxes clear; if it throws, a retryable error shows. Keys are ignored until [lockedUntilMillis] too.
+ * The latch and the lockout are read when a key arrives, never from a value captured at composition.
+ *
+ * The boxes and the key-hint footer always keep their room: the title and prompt are limited to two lines each,
+ * and in a short panel the message is shortened and the D-pad hint dropped instead.
+ *
+ * @param length presses to collect: [PinRules.LENGTH] for a new PIN, [PinRules.entryLength] of the saved PIN
+ * when checking one
+ * @param allowDigits false while choosing a new PIN, which is arrows only; checking a saved PIN accepts digits
+ * @param prompt the line under the title, eg "Enter **Justin M's** PIN to continue"
+ * @param message a line under the boxes (wrong PIN, locked out)
+ * @param serverAuthRemovesPin shows the "will remove PIN" note with the server sign-in hint
  */
 @Composable
 fun PinEntry(
-    onTextChange: (String) -> Unit,
-    onClickServerAuth: () -> Unit,
+    onSubmit: suspend (String) -> Unit,
     modifier: Modifier = Modifier,
-    onSubmit: ((String) -> Unit)? = null,
-    title: String? = null,
+    length: Int = PinRules.LENGTH,
+    allowDigits: Boolean = true,
+    lockedUntilMillis: Long = 0L,
+    title: String? = stringResource(R.string.enter_pin),
+    prompt: AnnotatedString? = null,
     message: String? = null,
+    onClickServerAuth: (() -> Unit)? = null,
     serverAuthRemovesPin: Boolean = true,
 ) {
     var input by remember { mutableStateOf("") }
-    Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier,
-    ) {
-        Text(
-            text = (title ?: stringResource(R.string.enter_pin)).neonUpper(),
-            style = if (isWeaselTv()) NeonType.dialogTitle() else MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-        )
-        PinArrowRow(Modifier.align(Alignment.CenterHorizontally))
-        PinEntryDots(input.length, Modifier.align(Alignment.CenterHorizontally))
-        if (message != null) {
-            Text(
-                text = message,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-            )
+    var pressed by remember { mutableStateOf<Key?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    var failed by remember { mutableStateOf(false) }
+    var lockedOut by remember { mutableStateOf(lockedUntilMillis > System.currentTimeMillis()) }
+    val lockedUntil by rememberUpdatedState(lockedUntilMillis)
+    val submitNow by rememberUpdatedState(onSubmit)
+    val serverAuth by rememberUpdatedState(onClickServerAuth)
+    LaunchedEffect(lockedUntilMillis) {
+        val wait = lockedUntilMillis - System.currentTimeMillis()
+        if (wait > 0) {
+            lockedOut = true
+            delay(wait)
         }
-        if (onSubmit != null) {
-            Text(
-                text = stringResource(R.string.press_enter_to_confirm),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-            )
-        }
+        lockedOut = false
+    }
+    val scope = rememberCoroutineScope()
 
-        TextButton(
-            onClick = onClickServerAuth,
-            contentHeight = 48.dp,
-            modifier =
-                Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .keepFocusedItemVisible()
-                    .onPreviewKeyEvent {
-                        // With a PIN typed, OK submits it; with nothing typed, OK is the server sign-in button
-                        if (onSubmit != null && input.isNotEmpty() && isEnterKey(it)) {
-                            if (it.type == KeyEventType.KeyUp) {
-                                val pin = input
-                                input = ""
-                                onSubmit.invoke(pin)
-                            }
-                            true
-                        } else {
-                            false
-                        }
-                    }.onKeyEvent {
-                        if (it.type == KeyEventType.KeyUp) {
-                            var str = input
-                            str +=
-                                when (it.key) {
-                                    Key.DirectionUp -> "U"
-                                    Key.DirectionRight -> "R"
-                                    Key.DirectionDown -> "D"
-                                    Key.DirectionLeft -> "L"
-                                    Key.Zero, Key.NumPad0 -> "0"
-                                    Key.One, Key.NumPad1 -> "1"
-                                    Key.Two, Key.NumPad2 -> "2"
-                                    Key.Three, Key.NumPad3 -> "3"
-                                    Key.Four, Key.NumPad4 -> "4"
-                                    Key.Five, Key.NumPad5 -> "5"
-                                    Key.Six, Key.NumPad6 -> "6"
-                                    Key.Seven, Key.NumPad7 -> "7"
-                                    Key.Eight, Key.NumPad8 -> "8"
-                                    Key.Nine, Key.NumPad9 -> "9"
-                                    else -> return@onKeyEvent false
-                                }
-                            onTextChange.invoke(str)
-                            input = str
-                            return@onKeyEvent true
-                        } else {
-                            return@onKeyEvent false
-                        }
-                    },
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    text = stringResource(R.string.use_server_credentials),
-                )
-                if (serverAuthRemovesPin) {
-                    Text(
-                        text = stringResource(R.string.will_remove_pin),
-                        fontSize = 10.sp,
-                    )
-                }
+    // Read at key time: a 4th press followed straight away by OK finds the latch already set
+    fun accepting(): Boolean = !busy && !lockedOut && System.currentTimeMillis() >= lockedUntil
+
+    fun submit(pin: String) {
+        if (!accepting()) return
+        busy = true
+        failed = false
+        input = pin
+        scope.launch {
+            try {
+                submitNow(pin)
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                Timber.w(ex, "PIN check failed")
+                failed = true
+            } finally {
+                input = ""
+                busy = false
             }
         }
     }
-}
 
-@Composable
-fun PinEntryCreate(
-    @StringRes title: Int,
-    onTextChange: (String) -> Unit,
-    onConfirm: ((String) -> Unit)?,
-    modifier: Modifier = Modifier,
-) {
-    var input by remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusRequester.tryRequestFocus() }
     Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
         modifier =
             modifier
-                .onKeyEvent {
-                    if (isEnterKey(it)) {
-                        onConfirm?.invoke(input)
-                        return@onKeyEvent true
-                    }
-                    if (it.type == KeyEventType.KeyUp) {
-                        var str = input
-                        str +=
-                            when (it.key) {
-                                Key.DirectionUp -> "U"
-                                Key.DirectionRight -> "R"
-                                Key.DirectionDown -> "D"
-                                Key.DirectionLeft -> "L"
-                                Key.Zero, Key.NumPad0 -> "0"
-                                Key.One, Key.NumPad1 -> "1"
-                                Key.Two, Key.NumPad2 -> "2"
-                                Key.Three, Key.NumPad3 -> "3"
-                                Key.Four, Key.NumPad4 -> "4"
-                                Key.Five, Key.NumPad5 -> "5"
-                                Key.Six, Key.NumPad6 -> "6"
-                                Key.Seven, Key.NumPad7 -> "7"
-                                Key.Eight, Key.NumPad8 -> "8"
-                                Key.Nine, Key.NumPad9 -> "9"
-                                else -> return@onKeyEvent false
+                .focusRequester(focusRequester)
+                .onKeyEvent { event ->
+                    val isPinKey = pinPress(event.key) != null
+                    if (!isPinKey && !isEnterKey(event)) return@onKeyEvent false
+                    when (event.type) {
+                        KeyEventType.KeyDown -> {
+                            if (pressed == null) pressed = event.key
+                        }
+
+                        KeyEventType.KeyUp -> {
+                            if (pressed == event.key) {
+                                pressed = null
+                                // A number key while choosing a new PIN isn't a press at all
+                                val press = pinPress(event.key)?.takeIf { allowDigits || it in PinRules.ARROWS }
+                                when {
+                                    !accepting() -> {}
+
+                                    isPinKey -> {
+                                        if (press != null) {
+                                            val next = PinRules.append(input, press, length)
+                                            if (PinRules.isComplete(next, length) && next != input) submit(next) else input = next
+                                        }
+                                    }
+
+                                    input.isNotEmpty() -> {
+                                        submit(input)
+                                    }
+
+                                    else -> {
+                                        serverAuth?.invoke()
+                                    }
+                                }
                             }
-                        onTextChange.invoke(str)
-                        input = str
-                        return@onKeyEvent true
-                    } else {
-                        return@onKeyEvent false
+                        }
                     }
+                    true
                 }.focusable(),
     ) {
-        Text(
-            text = stringResource(title).neonUpper(),
-            style = if (isWeaselTv()) NeonType.dialogTitle() else MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-        )
-        PinArrowRow(Modifier.align(Alignment.CenterHorizontally))
-        PinEntryDots(input.length, Modifier.align(Alignment.CenterHorizontally))
-        if (onConfirm != null) {
-            Text(
-                text = stringResource(R.string.press_enter_to_confirm),
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.align(Alignment.CenterHorizontally),
+        // The header can't grow without limit, so the boxes and footer below always keep their room
+        if (title != null) KidTitle(title, maxLines = 2)
+        if (prompt != null) {
+            KidGap(10.dp)
+            KidSubtitle(prompt, color = KidColors.Text, size = 19.sp, maxLines = 2)
+        }
+        KidGap(22.dp)
+        PinBoxes(length = length, filled = input.length)
+        // Only what is left after the header, boxes and footer: the message shortens, the D-pad hint drops out
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.weight(1f, fill = false).clipToBounds(),
+        ) {
+            val shown = if (failed) stringResource(R.string.kids_error_generic) else message
+            if (shown != null) {
+                KidGap(12.dp)
+                KidErrorText(shown, maxLines = 2)
+            }
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.dropWhenShort(),
+            ) {
+                KidGap(18.dp)
+                DpadHint()
+            }
+        }
+        KidGap(18.dp)
+        KidDivider()
+        KidGap(16.dp)
+        val serverAuthHint = onClickServerAuth != null && input.isEmpty() && !busy
+        Row(horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.CenterVertically) {
+            KeyHint(
+                stringResource(R.string.kid_key_ok),
+                if (serverAuthHint) stringResource(R.string.use_server_credentials) else stringResource(R.string.confirm),
             )
+            KeyHint(stringResource(R.string.kid_key_back), stringResource(R.string.cancel))
+        }
+        if (serverAuthHint && serverAuthRemovesPin) {
+            KidGap(6.dp)
+            Text(stringResource(R.string.will_remove_pin), style = KidText.body(12.sp), color = KidColors.Faint)
         }
     }
 }
 
-@Composable
-fun PinArrowRow(modifier: Modifier = Modifier) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier,
-    ) {
-        val arrows =
-            listOf(R.string.fa_arrow_left_long, R.string.fa_arrow_up_long, R.string.fa_arrow_right_long, R.string.fa_arrow_down_long)
-        arrows.forEach {
-            Text(
-                text = stringResource(it),
-                color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.headlineSmall,
-                fontFamily = FontAwesome,
-            )
+/** Lays the element out only if it fits the height left for it; otherwise it takes no space. */
+private fun Modifier.dropWhenShort(): Modifier =
+    layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
+        if (constraints.hasBoundedHeight && placeable.height > constraints.maxHeight) {
+            layout(0, 0) {}
+        } else {
+            layout(placeable.width, placeable.height) { placeable.place(0, 0) }
         }
-        Text(
-            text = stringResource(R.string.pin_digits_hint),
-            color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.SemiBold,
-        )
     }
-}
 
+/** [length] boxes: filled ones show a dot, the next one a lime border, glow and caret. */
 @Composable
-fun PinEntryDots(
-    count: Int,
+fun PinBoxes(
+    length: Int,
+    filled: Int,
     modifier: Modifier = Modifier,
 ) {
-    if (isWeaselTv()) {
-        // Neon Board (T9): four 56×68 `card2` cells; filled cells take a volt border and glow.
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = modifier.padding(vertical = 8.dp),
-        ) {
-            repeat(maxOf(4, count)) { index ->
-                val filled = index < count
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier =
-                        Modifier
-                            .size(width = 56.dp, height = 68.dp)
-                            .background(NeonBoard.Card2)
-                            .border(1.dp, if (filled) NeonBoard.Volt else NeonBoard.Line2),
-                ) {
-                    if (filled) {
+    // Four boxes as drawn; a longer PIN saved before the 4-press rule gets narrower boxes so they still fit.
+    val width: Dp = if (length <= 5) 75.dp else (440.dp / length).coerceAtLeast(28.dp)
+    val gap: Dp = if (length <= 5) 18.dp else 8.dp
+    Row(horizontalArrangement = Arrangement.spacedBy(gap), modifier = modifier) {
+        repeat(length) { index ->
+            val current = index == filled
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier =
+                    Modifier
+                        .size(width = width, height = 92.dp)
+                        .kidGlow(enabled = current)
+                        .background(if (current) KidColors.LimeFill else KidColors.Tile)
+                        .border(if (current) 2.5.dp else 1.5.dp, if (current) KidColors.Lime else KidColors.TileEdge),
+            ) {
+                when {
+                    index < filled -> {
                         Box(
                             Modifier
-                                .size(12.dp)
-                                .background(NeonBoard.Volt),
+                                .size(17.dp)
+                                .background(KidColors.Text, CircleShape),
+                        )
+                    }
+
+                    current -> {
+                        Box(
+                            Modifier
+                                .size(width = 3.dp, height = 40.dp)
+                                .background(KidColors.Lime),
                         )
                     }
                 }
             }
         }
-        return
     }
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        modifier =
-            modifier
-                .defaultMinSize(minWidth = 180.dp, minHeight = 40.dp)
-                .background(
-                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
-                    shape = CircleShape,
-                ).padding(vertical = 16.dp),
+}
+
+/** The remote's D-pad as a hint: ↑ / ← OK → / ↓. */
+@Composable
+fun DpadHint(modifier: Modifier = Modifier) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = modifier,
     ) {
-        repeat(count) {
-            Box(
-                modifier =
-                    Modifier
-                        .padding(horizontal = 8.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 1f))
-                        .size(8.dp),
-            )
+        DpadKey(stringResource(R.string.fa_arrow_up_long), glyph = true)
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            DpadKey(stringResource(R.string.fa_arrow_left_long), glyph = true)
+            DpadKey(stringResource(R.string.kid_key_ok), glyph = false)
+            DpadKey(stringResource(R.string.fa_arrow_right_long), glyph = true)
         }
+        DpadKey(stringResource(R.string.fa_arrow_down_long), glyph = true)
     }
 }
 
 @Composable
+private fun DpadKey(
+    text: String,
+    glyph: Boolean,
+) {
+    val shape = RoundedCornerShape(8.dp)
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier =
+            Modifier
+                .size(42.dp)
+                .background(KidColors.Tile, shape)
+                .border(1.dp, KidColors.TileEdge, shape),
+    ) {
+        if (glyph) {
+            Text(text = text, fontFamily = FontAwesome, fontSize = 15.sp, color = KidColors.Text)
+        } else {
+            Text(text = text, style = KidText.body(14.sp, FontWeight.Bold), color = KidColors.Text)
+        }
+    }
+}
+
+/** [PinEntry] in its own panel dialog; Back calls [onDismissRequest]. */
+@Composable
 fun PinEntryDialog(
     onDismissRequest: () -> Unit,
-    onTextChange: (String) -> Unit,
-    onClickServerAuth: () -> Unit,
-    onSubmit: ((String) -> Unit)? = null,
-    title: String? = null,
+    onSubmit: suspend (String) -> Unit,
+    length: Int = PinRules.LENGTH,
+    allowDigits: Boolean = true,
+    lockedUntilMillis: Long = 0L,
+    title: String? = stringResource(R.string.enter_pin),
+    prompt: AnnotatedString? = null,
     message: String? = null,
+    onClickServerAuth: (() -> Unit)? = null,
     serverAuthRemovesPin: Boolean = true,
 ) {
-    BasicDialog(
-        onDismissRequest = onDismissRequest,
-    ) {
+    // Not scrolling: the entry takes every D-pad key, so its footer must stay on screen instead
+    KidPanelDialog(onDismissRequest = onDismissRequest, width = 590.dp, scrollable = false) {
         PinEntry(
-            onTextChange = onTextChange,
-            onClickServerAuth = onClickServerAuth,
             onSubmit = onSubmit,
+            length = length,
+            allowDigits = allowDigits,
+            lockedUntilMillis = lockedUntilMillis,
             title = title,
+            prompt = prompt,
             message = message,
+            onClickServerAuth = onClickServerAuth,
             serverAuthRemovesPin = serverAuthRemovesPin,
-            modifier = Modifier.padding(16.dp),
         )
     }
 }
+
+/** "Enter **[name]'s** PIN to continue". */
+@Composable
+fun pinPromptFor(name: String?): AnnotatedString? =
+    name?.takeIf { it.isNotBlank() }?.let { emphasise(stringResource(R.string.pin_prompt_name, it), "$it's") }
 
 @PreviewTvSpec
 @Composable
 private fun PinEntryPreview() {
     WholphinTheme {
-        PinEntry(
-            onTextChange = {},
-            onClickServerAuth = {},
-            modifier = Modifier,
-        )
+        KidPanel(Modifier.width(590.dp).padding(16.dp)) {
+            PinEntry(onSubmit = {}, prompt = AnnotatedString("Enter Justin M's PIN to continue"))
+        }
     }
 }

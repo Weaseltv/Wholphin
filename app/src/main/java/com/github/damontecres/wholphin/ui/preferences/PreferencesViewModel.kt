@@ -17,6 +17,7 @@ import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.kids.KidSessionGateImpl
 import com.github.damontecres.wholphin.kids.PinCheckResult
+import com.github.damontecres.wholphin.kids.PinRules
 import com.github.damontecres.wholphin.kids.ProfileChooserLock
 import com.github.damontecres.wholphin.kids.ProfileKind
 import com.github.damontecres.wholphin.kids.UnlockPurpose
@@ -38,6 +39,7 @@ import com.github.damontecres.wholphin.util.LoadingState
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -115,33 +117,45 @@ class PreferencesViewModel
          * "Turn off kid protection on this TV": the adult's PIN gives the [com.github.damontecres.wholphin.kids.ParentUnlock]
          * it needs, granted only while this submission is still the current one, and checked again right where
          * protection is cleared. A later submission replaces an earlier one.
+         *
+         * [onResult] gets the check and whether protection went off; a
+         * failure of the check or the write (eg storage) calls [onError] instead, and nothing is turned off. The
+         * returned job ends when all that is done, so the PIN prompt stays latched until then.
          */
         fun turnOffKidProtection(
             user: JellyfinUser,
             pin: String,
+            onError: () -> Unit = {},
             onResult: (PinCheckResult, Boolean) -> Unit,
-        ) {
+        ): Job =
             synchronized(turnOffLock) {
                 turnOffAttempt?.cancel()
                 val attempt =
                     viewModelScope.launchIO(ExceptionHandler(autoToast = true), start = CoroutineStart.LAZY) {
                         val self = coroutineContext[Job]!!
-                        val result =
-                            kidSessionGate.verifyParentPin(user, pin, UnlockPurpose.TurnOffProtection) { grant ->
-                                synchronized(turnOffLock) { if (turnOffAttempt === self) grant() }
-                            }
-                        val turnedOff =
-                            result == PinCheckResult.Correct &&
-                                isCurrentTurnOff(self) &&
-                                kidSessionGate.turnOffProtection { isCurrentTurnOff(self) }
-                        kidSessionGate.clearParentUnlock(UnlockPurpose.TurnOffProtection)
-                        refreshKidProtection()
-                        withContext(WholphinDispatchers.Main) { if (isCurrentTurnOff(self)) onResult(result, turnedOff) }
+                        try {
+                            val result =
+                                kidSessionGate.verifyParentPin(user, pin, UnlockPurpose.TurnOffProtection) { grant ->
+                                    synchronized(turnOffLock) { if (turnOffAttempt === self) grant() }
+                                }
+                            val turnedOff =
+                                result == PinCheckResult.Correct &&
+                                    isCurrentTurnOff(self) &&
+                                    kidSessionGate.turnOffProtection { isCurrentTurnOff(self) }
+                            kidSessionGate.clearParentUnlock(UnlockPurpose.TurnOffProtection)
+                            refreshKidProtection()
+                            withContext(WholphinDispatchers.Main) { if (isCurrentTurnOff(self)) onResult(result, turnedOff) }
+                        } catch (ex: CancellationException) {
+                            throw ex
+                        } catch (ex: Exception) {
+                            Timber.w(ex, "Turning off kid protection failed")
+                            kidSessionGate.clearParentUnlock(UnlockPurpose.TurnOffProtection)
+                            withContext(WholphinDispatchers.Main) { if (isCurrentTurnOff(self)) onError() }
+                        }
                     }
                 turnOffAttempt = attempt
                 attempt
-            }.start()
-        }
+            }.also { it.start() }
 
         /** The "Turn off kid protection" prompt was dismissed: a PIN still being checked turns nothing off */
         fun cancelTurnOffKidProtection() {
@@ -210,6 +224,8 @@ class PreferencesViewModel
             user: JellyfinUser,
             pin: String?,
         ) {
+            // A new PIN is exactly 4 presses; the PIN screen never sends anything else
+            if (pin != null && !PinRules.isValidNewPin(pin)) return
             queueAuthChange {
                 serverRepository.updateUserAuth(user, pin, false)
                 if (!user.hasPin && pin != null) {

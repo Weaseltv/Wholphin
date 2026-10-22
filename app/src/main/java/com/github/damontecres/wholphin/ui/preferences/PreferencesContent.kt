@@ -29,6 +29,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -57,6 +59,7 @@ import coil3.imageLoader
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.kids.PinCheckResult
+import com.github.damontecres.wholphin.kids.PinRules
 import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.AppSwitchPreference
@@ -91,6 +94,7 @@ import com.github.damontecres.wholphin.ui.preferences.subtitle.SubtitleSettings
 import com.github.damontecres.wholphin.ui.setup.PinEntryDialog
 import com.github.damontecres.wholphin.ui.setup.ReleaseNotes
 import com.github.damontecres.wholphin.ui.setup.UpdateViewModel
+import com.github.damontecres.wholphin.ui.setup.pinPromptFor
 import com.github.damontecres.wholphin.ui.setup.seerr.AddSeerServerDialog
 import com.github.damontecres.wholphin.ui.setup.seerr.SwitchSeerrViewModel
 import com.github.damontecres.wholphin.ui.showToast
@@ -145,6 +149,7 @@ fun PreferencesContent(
     val canTurnOffProtection by viewModel.canTurnOffProtection.collectAsState()
     var showTurnOffProtectionPin by remember { mutableStateOf(false) }
     var turnOffProtectionMessage by remember { mutableStateOf<String?>(null) }
+    var turnOffProtectionLockedUntil by remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(Unit) {
         viewModel.preferenceDataStore.data.collect {
@@ -810,7 +815,6 @@ fun PreferencesContent(
                     },
                     onDismissRequest = { showPinFlow = false },
                     allowRemove = !(BuildConfig.KID_PROFILES_ENABLED && deviceProtected),
-                    checkWholePin = BuildConfig.KID_PROFILES_ENABLED,
                 )
             }
         }
@@ -824,42 +828,48 @@ fun PreferencesContent(
                         viewModel.cancelTurnOffKidProtection()
                         showTurnOffProtectionPin = false
                     },
-                    onTextChange = {},
-                    onClickServerAuth = {
-                        viewModel.cancelTurnOffKidProtection()
-                        showTurnOffProtectionPin = false
-                    },
+                    // Its old "Login via server" button only closed the prompt; Back does that now
+                    length = PinRules.entryLength(user.pin),
+                    lockedUntilMillis = turnOffProtectionLockedUntil,
+                    prompt = pinPromptFor(user.shownName),
+                    // Latched until the check and the write are done; a failure leaves the prompt usable
                     onSubmit = { pin ->
-                        viewModel.turnOffKidProtection(user, pin) { result, turnedOff ->
-                            when {
-                                turnedOff -> {
-                                    showTurnOffProtectionPin = false
-                                    Toast
-                                        .makeText(context, context.getString(R.string.kid_protection_turned_off), Toast.LENGTH_LONG)
-                                        .show()
-                                }
+                        viewModel
+                            .turnOffKidProtection(
+                                user,
+                                pin,
+                                onError = { turnOffProtectionMessage = context.getString(R.string.kids_error_generic) },
+                            ) { result, turnedOff ->
+                                when {
+                                    turnedOff -> {
+                                        showTurnOffProtectionPin = false
+                                        Toast
+                                            .makeText(context, context.getString(R.string.kid_protection_turned_off), Toast.LENGTH_LONG)
+                                            .show()
+                                    }
 
-                                result is PinCheckResult.Wrong -> {
-                                    turnOffProtectionMessage =
-                                        context.getString(R.string.kid_pin_wrong, result.attemptsBeforeLockout)
-                                }
+                                    result is PinCheckResult.Wrong -> {
+                                        turnOffProtectionMessage =
+                                            context.getString(R.string.kid_pin_wrong, result.attemptsBeforeLockout)
+                                    }
 
-                                result is PinCheckResult.LockedOut -> {
-                                    val seconds = ((result.retryAtMillis - System.currentTimeMillis()) / 1000).coerceAtLeast(1)
-                                    turnOffProtectionMessage = context.getString(R.string.kid_pin_locked_out, seconds)
-                                }
+                                    result is PinCheckResult.LockedOut -> {
+                                        val seconds = ((result.retryAtMillis - System.currentTimeMillis()) / 1000).coerceAtLeast(1)
+                                        turnOffProtectionMessage = context.getString(R.string.kid_pin_locked_out, seconds)
+                                        turnOffProtectionLockedUntil = result.retryAtMillis
+                                    }
 
-                                else -> {
-                                    showTurnOffProtectionPin = false
-                                    Toast
-                                        .makeText(
-                                            context,
-                                            context.getString(R.string.kid_protection_not_turned_off),
-                                            Toast.LENGTH_LONG,
-                                        ).show()
+                                    else -> {
+                                        showTurnOffProtectionPin = false
+                                        Toast
+                                            .makeText(
+                                                context,
+                                                context.getString(R.string.kid_protection_not_turned_off),
+                                                Toast.LENGTH_LONG,
+                                            ).show()
+                                    }
                                 }
-                            }
-                        }
+                            }.join()
                     },
                     title = stringResource(R.string.kid_turn_off_protection),
                     message = turnOffProtectionMessage,

@@ -14,17 +14,20 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -152,16 +155,70 @@ class AddKidViewModelTest {
             viewModel.start(testServer, listOf(dad))
             advanceUntilIdle()
             assertEquals(AddKidStep.CreateFirstPin(dad), step)
-            viewModel.createFirstPin("4321")
+            viewModel.createFirstPin("LRDU")
             advanceUntilIdle()
-            coVerify { serverRepository.updateUserAuth(dad, "4321", false) }
+            coVerify { serverRepository.updateUserAuth(dad, "LRDU", false) }
             assertEquals(
-                "4321",
+                "LRDU",
                 gate.verified
                     .single()
                     .first.pin,
             )
             assertEquals(listOf("token-Dad"), api.listCalls)
+        }
+
+    @Test
+    fun `a first pin that isn't four arrow presses is not saved`() =
+        test {
+            val dad = testUser("Dad")
+            viewModel.start(testServer, listOf(dad))
+            advanceUntilIdle()
+            viewModel.createFirstPin("43210")
+            viewModel.createFirstPin("432")
+            viewModel.createFirstPin("4321")
+            advanceUntilIdle()
+            coVerify(exactly = 0) { serverRepository.updateUserAuth(any(), any(), any()) }
+            assertEquals(AddKidStep.CreateFirstPin(dad), step)
+        }
+
+    @Test
+    fun `back during a pending correct pin check leaves no add-kid unlock`() =
+        test {
+            viewModel.start(testServer, listOf(mom))
+            advanceUntilIdle()
+            val storage = CompletableDeferred<Unit>()
+            gate.pendingCheck = storage
+            viewModel.submitPin("1234")
+            runCurrent()
+            assertEquals(listOf(mom to "1234"), gate.verified)
+            // Back while Room/DataStore is still pending
+            viewModel.cancel()
+            storage.complete(Unit)
+            advanceUntilIdle()
+            // The check finished (and counted) but granted nothing, and the flow went nowhere
+            assertNull(gate.parentUnlock.value)
+            assertNull(gate.validUnlockFor(mom.rowId, UnlockPurpose.AddKid))
+            assertTrue(api.listCalls.isEmpty())
+        }
+
+    @Test
+    fun `a newer pin check replaces a pending one, which then grants nothing`() =
+        test {
+            viewModel.start(testServer, listOf(mom))
+            advanceUntilIdle()
+            val storage = CompletableDeferred<Unit>()
+            gate.pendingCheck = storage
+            viewModel.submitPin("1234")
+            runCurrent()
+            gate.pendingCheck = null
+            gate.pinResults += PinCheckResult.Wrong(2)
+            viewModel.submitPin("0000")
+            advanceUntilIdle()
+            // The first, correct check ends after the second, wrong one: it is no longer current
+            gate.pinResults += PinCheckResult.Correct
+            storage.complete(Unit)
+            advanceUntilIdle()
+            assertNull(gate.parentUnlock.value)
         }
 
     @Test
@@ -232,7 +289,7 @@ class AddKidViewModelTest {
             val (target, png) = uploader.uploads.single()
             assertEquals(quickConnect.kidUserId, target.userId)
             assertEquals("kid-token", target.accessToken)
-            assertEquals("placeholder-cat", png.decodeToString())
+            assertEquals("bee-blue", png.decodeToString())
             assertEquals(1, cache.versions.value[quickConnect.kidUserId])
         }
 

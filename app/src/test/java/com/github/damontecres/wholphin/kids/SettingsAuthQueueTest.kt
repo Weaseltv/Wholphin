@@ -99,12 +99,12 @@ class SettingsAuthQueueTest {
             barriers += first
 
             viewModel.removeLoginAndPin(parent)
-            viewModel.setPin(parent, "1234")
+            viewModel.setPin(parent, "URDL")
             viewModel.setRequireLogin(parent)
 
             assertEquals("a later change started before the earlier one was saved", listOf<Pair<String?, Boolean>>(null to false), started)
             first.complete(Unit)
-            val expected = listOf(null to false, "1234" to false, null to true)
+            val expected = listOf(null to false, "URDL" to false, null to true)
             assertEquals(expected, started)
             assertEquals(expected, finished)
         }
@@ -112,11 +112,11 @@ class SettingsAuthQueueTest {
     @Test
     fun `changes made one after another are all saved`() =
         runTest(dispatcher) {
-            viewModel.setPin(parent, "1234")
-            viewModel.setPin(parent.copy(pin = "1234"), "5678")
-            viewModel.setRequireLogin(parent.copy(pin = "5678"))
+            viewModel.setPin(parent, "URDL")
+            viewModel.setPin(parent.copy(pin = "URDL"), "DDUU")
+            viewModel.setRequireLogin(parent.copy(pin = "DDUU"))
             viewModel.removeLoginAndPin(parent)
 
-            assertEquals(listOf("1234" to false, "5678" to false, null to true, null to false), finished)
+            assertEquals(listOf("URDL" to false, "DDUU" to false, null to true, null to false), finished)
         }
 }

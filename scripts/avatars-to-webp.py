@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Convert the owner's avatar PNGs to the WebP files the weaselfin flavor bundles.
 
-Usage: scripts/avatars-to-webp.py <png> [<png> ...]
+Usage: scripts/avatars-to-webp.py kids|adults <png> [<png> ...]
 
 Each file name (without .png) becomes the avatar id, so it must already be lowercase-hyphen
-(e.g. red-fox.png -> red-fox.webp). Writes to app/src/weaselfin/assets/avatars/ and refuses
-files that break the spec in runbooks/kid-profiles/avatars.md. Needs Pillow with WebP support.
+(e.g. red-fox.png -> red-fox.webp). Writes to app/src/weaselfin/assets/avatars/<kids|adults>/ (kid
+profiles pick from kids/, adults from adults/) and refuses files that break the spec in
+runbooks/kid-profiles/avatars.md. Ids must be unique across both sets. Needs Pillow with WebP support.
 """
 
 import os
@@ -14,11 +15,12 @@ import sys
 
 from PIL import Image
 
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app", "src", "weaselfin", "assets", "avatars")
+ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app", "src", "weaselfin", "assets", "avatars")
+GROUPS = ("kids", "adults")
 ID = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 
 
-def convert(path: str) -> str | None:
+def convert(path: str, out: str) -> str | None:
     name = os.path.splitext(os.path.basename(path))[0]
     if not ID.match(name):
         return f"{path}: name must be lowercase-hyphen (a-z, 0-9, -)"
@@ -30,19 +32,21 @@ def convert(path: str) -> str | None:
         rgb = im.convert("RGB")
         if rgb.size != (512, 512):
             rgb = rgb.resize((512, 512), Image.LANCZOS)
-        rgb.save(os.path.join(OUT, f"{name}.webp"), "WEBP", quality=88, method=6)
+        rgb.save(os.path.join(out, f"{name}.webp"), "WEBP", quality=88, method=6)
     return None
 
 
 def main() -> int:
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 3 or sys.argv[1] not in GROUPS:
         print(__doc__)
         return 2
-    os.makedirs(OUT, exist_ok=True)
-    errors = [e for e in (convert(p) for p in sys.argv[1:]) if e]
+    group, paths = sys.argv[1], sys.argv[2:]
+    out = os.path.join(ROOT, group)
+    os.makedirs(out, exist_ok=True)
+    errors = [e for e in (convert(p, out) for p in paths) if e]
     for e in errors:
         print(e, file=sys.stderr)
-    print(f"Converted {len(sys.argv) - 1 - len(errors)} avatar(s) into {os.path.normpath(OUT)}")
+    print(f"Converted {len(paths) - len(errors)} avatar(s) into {os.path.normpath(out)}")
     return 1 if errors else 0
 
 

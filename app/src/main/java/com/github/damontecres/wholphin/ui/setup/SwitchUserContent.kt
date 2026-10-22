@@ -24,6 +24,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -55,12 +56,14 @@ import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
+import com.github.damontecres.wholphin.kids.PinRules
+import com.github.damontecres.wholphin.kids.ProfileKind
+import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.profilePicturesEnabled
+import com.github.damontecres.wholphin.services.versionedUserImageUrl
 import com.github.damontecres.wholphin.ui.components.BasicDialog
 import com.github.damontecres.wholphin.ui.components.CircularProgress
-import com.github.damontecres.wholphin.ui.components.DialogItem
-import com.github.damontecres.wholphin.ui.components.DialogPopup
 import com.github.damontecres.wholphin.ui.components.EditTextBox
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.LoadingPage
@@ -70,7 +73,13 @@ import com.github.damontecres.wholphin.ui.dimAndBlur
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.kids.AddKidFlow
 import com.github.damontecres.wholphin.ui.kids.ChooserChangePicture
+import com.github.damontecres.wholphin.ui.kids.KidGap
+import com.github.damontecres.wholphin.ui.kids.KidListRow
+import com.github.damontecres.wholphin.ui.kids.KidPanelDialog
 import com.github.damontecres.wholphin.ui.kids.KidProfilesViewModel
+import com.github.damontecres.wholphin.ui.kids.KidSubtitle
+import com.github.damontecres.wholphin.ui.kids.KidTitle
+import com.github.damontecres.wholphin.ui.kids.OkBackHints
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.preferences.SetPinFlow
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
@@ -536,61 +545,57 @@ fun SwitchUserContent(
     }
     when (val prompt = state.prompt) {
         is ChooserPrompt.Pin -> {
-            PinEntryDialog(
+            ChooserPinPrompt(
+                prompt = prompt,
                 onDismissRequest = viewModel::dismissPrompt,
                 onClickServerAuth = {
                     viewModel.dismissPrompt()
                     showAddUserDialog(prompt.target)
                 },
-                onTextChange = {},
-                onSubmit = viewModel::submitPin,
-                title =
-                    if (prompt.isParentPin) {
-                        stringResource(R.string.kid_parent_pin_title, prompt.pinOwner.shownName.orEmpty())
-                    } else {
-                        null
-                    },
-                message = prompt.message,
-                serverAuthRemovesPin = false,
+                // Latched until the check (and what it starts) is done
+                onSubmit = { viewModel.submitPin(it)?.join() },
             )
         }
 
         is ChooserPrompt.PickParent -> {
             val targetName = prompt.target.shownName.orEmpty()
-            DialogPopup(
-                showDialog = true,
-                title =
+            KidPanelDialog(onDismissRequest = viewModel::dismissPrompt, width = 620.dp) {
+                KidTitle(targetName)
+                KidGap(10.dp)
+                KidSubtitle(
                     if (prompt.locked) {
                         stringResource(R.string.kid_profile_locked, targetName)
                     } else {
                         stringResource(R.string.kid_ask_parent, targetName)
                     },
-                dialogItems =
-                    buildList {
-                        prompt.parents.forEach { parent ->
-                            add(
-                                DialogItem(
-                                    stringResource(R.string.kid_parent_pin_title, parent.shownName.orEmpty()),
-                                    R.string.fa_user,
-                                ) { viewModel.pickParent(parent) },
-                            )
-                        }
-                        if (prompt.purpose == PinPurpose.SWITCH) {
-                            add(
-                                DialogItem(
-                                    stringResource(R.string.kid_sign_in_quick_connect, targetName),
-                                    R.string.fa_arrow_left_arrow_right,
-                                ) {
-                                    viewModel.dismissPrompt()
-                                    showAddUserDialog(prompt.target)
-                                },
-                            )
-                        }
-                    },
-                onDismissRequest = viewModel::dismissPrompt,
-                dismissOnClick = false,
-                waitToLoad = false,
-            )
+                )
+                KidGap(24.dp)
+                val firstFocus = remember { FocusRequester() }
+                LaunchedEffect(Unit) { firstFocus.tryRequestFocus() }
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    prompt.parents.forEachIndexed { index, parent ->
+                        KidListRow(
+                            text = stringResource(R.string.kid_parent_pin_title, parent.shownName.orEmpty()),
+                            glyph = stringResource(R.string.fa_user),
+                            onClick = { viewModel.pickParent(parent) },
+                            modifier = if (index == 0) Modifier.focusRequester(firstFocus) else Modifier,
+                        )
+                    }
+                    if (prompt.purpose == PinPurpose.SWITCH) {
+                        KidListRow(
+                            text = stringResource(R.string.kid_sign_in_quick_connect, targetName),
+                            glyph = stringResource(R.string.fa_arrow_left_arrow_right),
+                            onClick = {
+                                viewModel.dismissPrompt()
+                                showAddUserDialog(prompt.target)
+                            },
+                            modifier = if (prompt.parents.isEmpty()) Modifier.focusRequester(firstFocus) else Modifier,
+                        )
+                    }
+                }
+                KidGap(24.dp)
+                OkBackHints()
+            }
         }
 
         null -> {}
@@ -599,6 +604,7 @@ fun SwitchUserContent(
         AddKidFlow(
             server = server,
             users = state.users.filter { it.known }.map { it.user },
+            imageUrls = state.users.associate { it.user.id to versionedUserImageUrl(it.imageUrl, it.user.id, pictureVersions) },
             onClose = { showAddKid = false },
         )
     }
@@ -617,9 +623,16 @@ fun SwitchUserContent(
                 showAddUserDialog(user)
                 switchUserWithPin = null
             },
-            onTextChange = {
+            length = PinRules.entryLength(user.pin),
+            prompt = pinPromptFor(user.shownName),
+            onSubmit = {
                 if (it == user.pin) {
+                    // The PIN prompt is done: a switch that then fails (toast, or the login dialog) never leaves it
+                    // frozen underneath
+                    switchUserWithPin = null
                     trySwitchUser(user)
+                } else {
+                    Toast.makeText(context, context.getString(R.string.incorrect), Toast.LENGTH_SHORT).show()
                 }
             },
         )
@@ -794,5 +807,42 @@ private fun UserStateError(
         }
 
         else -> {}
+    }
+}
+
+/**
+ * A chooser PIN prompt. Its entry is keyed on the prompt's identity: a replacement prompt (eg the parent's PIN after
+ * a kid's own) starts with a fresh entry, while a wrong try (a copy with a message) keeps the same one.
+ */
+@Composable
+fun ChooserPinPrompt(
+    prompt: ChooserPrompt.Pin,
+    onDismissRequest: () -> Unit,
+    onClickServerAuth: () -> Unit,
+    onSubmit: suspend (String) -> Unit,
+) {
+    key(prompt.id) {
+        PinEntryDialog(
+            onDismissRequest = onDismissRequest,
+            onClickServerAuth = onClickServerAuth,
+            onSubmit = onSubmit,
+            length = PinRules.entryLength(prompt.pinOwner.pin),
+            lockedUntilMillis = prompt.lockedUntilMillis,
+            title =
+                when (prompt.purpose) {
+                    PinPurpose.SWITCH -> {
+                        prompt.target.shownName ?: stringResource(R.string.enter_pin)
+                    }
+
+                    PinPurpose.DELETE -> {
+                        stringResource(
+                            if (prompt.target.profileKind == ProfileKind.KID) R.string.remove_from_this_tv else R.string.delete,
+                        )
+                    }
+                },
+            prompt = pinPromptFor(prompt.pinOwner.shownName),
+            message = prompt.message,
+            serverAuthRemovesPin = false,
+        )
     }
 }

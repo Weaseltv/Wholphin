@@ -6,15 +6,24 @@ and the Web Player show it too.
 
 ## What ships now
 
-Alpha builds carry **8 placeholder avatars** (simple drawn animals on solid colours, made by an
-agent, no characters or text) so the flow can be tested:
+The owner's final set (2026-10-22): **48 avatars**, 24 for kids and 24 for adults, 512 × 512 WebP
+(quality 88) converted from the owner's 512 × 512 PNGs. About 920 KB of assets in total.
 
-`placeholder-bear`, `placeholder-bunny`, `placeholder-cat`, `placeholder-chick`,
-`placeholder-fish`, `placeholder-fox`, `placeholder-owl`, `placeholder-turtle`
+- A **kid profile** picks from `kids/` (add-kid flow, chooser "Change picture", Settings).
+- An **adult profile** picks from `adults/`. A profile whose kind isn't known yet gets the kids set.
 
-They live in `app/src/weaselfin/assets/avatars/<id>.webp`. The file name is the avatar id. The
-app lists whatever `.webp` files are in that folder (sorted by name), so adding or removing files
-needs no code change.
+They live in `app/src/weaselfin/assets/avatars/<kids|adults>/<id>.webp`. The file name is the
+avatar id and is never renamed; ids are unique across both sets. The app lists whatever `.webp`
+files are in each folder (sorted by name), so adding or removing files needs no code change.
+
+Kids (`kids/`): `bee-blue`, `bunny-pink`, `chick-ocean`, `crab-aqua`, `dinosaur-yellow`, `dragon-red`, `elephant-peach`, `fox-green`, `frog-magenta`, `hedgehog-seafoam`, `kitten-periwinkle`, `koala-lavender`, `lion-sky`, `monkey-indigo`, `octopus-lime`, `owlet-coral`, `panda-mint`, `penguin-orange`, `puppy-forest`, `robot-orchid`, `rocket-navy`, `turtle-cream`, `unicorn-purple`, `whale-rose`
+
+Adults (`adults/`): `alien-black`, `astronaut-indigo`, `bear-forest`, `bulldog-lilac`, `cat-silver`, `cobra-turquoise`, `crow-tangerine`, `eagle-sapphire`, `gorilla-fuchsia`, `jaguar-mustard`, `knight-mauve`, `lynx-rose`, `moose-sky`, `ninja-sand`, `owl-plum`, `pirate-midnight`, `raccoon-olive`, `rhino-khaki`, `robot-rust`, `shark-teal`, `stag-denim`, `tiger-emerald`, `viking-sage`, `wolf-crimson`
+
+The 8 `placeholder-*` avatars of the first Alphas were removed. A profile that picked one keeps
+that picture: what is saved is the uploaded image on the media server, not the bundled file. Only
+the picker's "current" mark is lost (the app remembered the placeholder id), and nothing else
+reads the old ids.
 
 ## What the owner supplies
 
@@ -37,13 +46,14 @@ Send them to the agent (Taildrop to the build machine is fine).
 1. Convert and check them (Pillow with WebP is on the ThinkCentre):
 
    ```bash
-   python3 scripts/avatars-to-webp.py ~/avatars-in/*.png
+   python3 scripts/avatars-to-webp.py kids ~/avatars-in/kids/*.png
+   python3 scripts/avatars-to-webp.py adults ~/avatars-in/adults/*.png
    ```
 
-   It writes `app/src/weaselfin/assets/avatars/<id>.webp` and refuses non-square, transparent or
-   badly named files.
-2. Delete the `placeholder-*.webp` files once the real set is in. Profiles that already picked a
-   placeholder keep that image on the server; only the "current" mark in the picker is lost.
+   It writes `app/src/weaselfin/assets/avatars/<kids|adults>/<id>.webp` and refuses non-square,
+   transparent or badly named files.
+2. Remove any avatar being retired. Profiles that already picked it keep that image on the server;
+   only the "current" mark in the picker is lost.
 3. Build an Alpha and hand it to the owner.
 
 ## How saving works (for reference)

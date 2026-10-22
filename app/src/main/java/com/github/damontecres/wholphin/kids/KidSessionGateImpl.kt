@@ -153,7 +153,7 @@ class KidSessionGateImpl
          * [admit], which runs the grant it is given only while the flow that asked is still the current one, so a
          * prompt dismissed while its PIN was checked grants nothing. The attempt itself always counts.
          */
-        suspend fun verifyParentPin(
+        override suspend fun verifyParentPin(
             user: JellyfinUser,
             pin: String,
             purpose: UnlockPurpose?,
