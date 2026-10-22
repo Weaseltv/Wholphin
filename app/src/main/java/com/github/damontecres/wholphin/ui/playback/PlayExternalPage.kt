@@ -117,6 +117,7 @@ class PlayExternalViewModel
                                 playlistCreator.createFrom(
                                     item = queriedItem,
                                     startIndex = destination.startIndex ?: 0,
+                                    startItemId = destination.startItemId,
                                     sortAndDirection = destination.sortAndDirection,
                                     shuffled = destination.shuffle,
                                     recursive = destination.recursive,

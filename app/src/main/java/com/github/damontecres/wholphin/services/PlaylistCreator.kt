@@ -36,6 +36,7 @@ import org.jellyfin.sdk.model.api.SortOrder
 import org.jellyfin.sdk.model.api.request.GetEpisodesRequest
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
+import timber.log.Timber
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -87,29 +88,34 @@ class PlaylistCreator
         private suspend fun createFromPlaylistId(
             playlistId: UUID,
             startIndex: Int?,
+            startItemId: UUID?,
             sortAndDirection: SortAndDirection,
             filter: GetItemsFilter,
         ): Playlist {
-            val request =
-                filter.applyTo(
-                    GetItemsRequest(
-                        userId = serverRepository.currentUser?.id,
-                        parentId = playlistId,
-                        fields = DetailItemFields,
-                        startIndex = startIndex,
-                        limit = Playlist.MAX_SIZE,
-                        sortBy = listOf(sortAndDirection.sort),
-                        sortOrder = listOf(sortAndDirection.direction),
-                        excludeLocationTypes = listOf(LocationType.VIRTUAL),
-                    ),
-                )
-            val items = GetItemsRequestHandler.execute(api, request).content.items
+            val items =
+                anchoredWindow(startIndex ?: 0, Playlist.MAX_SIZE, startItemId?.let { id -> { it: BaseItemDto -> it.id == id } }) { start ->
+                    val request =
+                        filter.applyTo(
+                            GetItemsRequest(
+                                userId = serverRepository.currentUser?.id,
+                                parentId = playlistId,
+                                fields = DetailItemFields,
+                                startIndex = start,
+                                limit = Playlist.MAX_SIZE,
+                                sortBy = listOf(sortAndDirection.sort),
+                                sortOrder = listOf(sortAndDirection.direction),
+                                excludeLocationTypes = listOf(LocationType.VIRTUAL),
+                            ),
+                        )
+                    GetItemsRequestHandler.execute(api, request).content.items
+                }
             return Playlist(items.convertAndAddParts())
         }
 
         private suspend fun createFromCollection(
             item: BaseItemDto,
             startIndex: Int = 0,
+            startItemId: UUID? = null,
             sortAndDirection: SortAndDirection?,
             filter: GetItemsFilter,
         ): Playlist {
@@ -143,10 +149,11 @@ class PlaylistCreator
                         ),
                 )
             val items =
-                GetItemsRequestHandler
-                    .execute(api, request)
-                    .content.items
-                    .convertAndAddParts()
+                anchoredWindow(startIndex, Playlist.MAX_SIZE, startItemId?.let { id -> { it: BaseItemDto -> it.id == id } }) { start ->
+                    GetItemsRequestHandler
+                        .execute(api, request.copy(startIndex = start))
+                        .content.items
+                }.convertAndAddParts()
             return Playlist(items)
         }
 
@@ -158,6 +165,7 @@ class PlaylistCreator
         suspend fun createFrom(
             item: BaseItemDto,
             startIndex: Int = 0,
+            startItemId: UUID? = null,
             sortAndDirection: SortAndDirection? = SortAndDirection.DEFAULT,
             shuffled: Boolean = false,
             recursive: Boolean = false,
@@ -172,6 +180,7 @@ class PlaylistCreator
                         createFromCollection(
                             item = item,
                             startIndex = startIndex,
+                            startItemId = startItemId.takeUnless { shuffled },
                             sortAndDirection =
                                 if (shuffled) {
                                     SortAndDirection(ItemSortBy.RANDOM, SortOrder.ASCENDING)
@@ -275,6 +284,7 @@ class PlaylistCreator
                         createFromPlaylistId(
                             playlistId = item.id,
                             startIndex = startIndex,
+                            startItemId = startItemId.takeUnless { shuffled },
                             sortAndDirection =
                                 if (shuffled) {
                                     SortAndDirection(ItemSortBy.RANDOM, SortOrder.ASCENDING)
@@ -467,4 +477,39 @@ sealed interface PlaylistCreationResult {
         val ex: Exception?,
         val message: String?,
     ) : PlaylistCreationResult
+}
+
+/** Kid content rules: how many server windows after the picked position are searched for the picked item */
+private const val ANCHOR_WINDOWS = 20
+
+/**
+ * Up to [windowSize] items from [startIndex] ([fetch] gets one window of [windowSize] from a server offset), starting
+ * at the one [isStart] picks. Kid content rules (contract section 10, review round 1): [startIndex] is a position in a
+ * list the filter shortened, so the picked item can sit further on at the server; the windows after it are searched,
+ * then the queue starts at it. Unfiltered, it is the first item and nothing changes.
+ */
+internal suspend fun <T> anchoredWindow(
+    startIndex: Int,
+    windowSize: Int,
+    isStart: ((T) -> Boolean)?,
+    fetch: suspend (startIndex: Int) -> List<T>,
+): List<T> {
+    val first = fetch(startIndex)
+    if (isStart == null || first.firstOrNull()?.let(isStart) == true) return first
+    var offset = startIndex
+    var window = first
+    repeat(ANCHOR_WINDOWS) {
+        val at = window.indexOfFirst(isStart)
+        if (at >= 0) {
+            val fromStart = window.subList(at, window.size)
+            if (fromStart.size >= windowSize) return fromStart
+            return (fromStart + fetch(offset + windowSize)).take(windowSize)
+        }
+        offset += windowSize
+        // An empty window may just be one the filter emptied, so the search goes on to the limit
+        window = fetch(offset)
+    }
+    // Not found (eg the list changed meanwhile): from the position as before
+    Timber.w("Start item not found, playing from position %s", startIndex)
+    return first
 }
