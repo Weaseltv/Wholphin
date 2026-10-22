@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.api.client.ApiClient
@@ -47,6 +48,7 @@ import java.time.ZonedDateTime
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Handles managing the current server & user as well as adding & removing new ones
@@ -313,9 +315,7 @@ class ServerRepository
             val journalled =
                 if (BuildConfig.KID_PROFILES_ENABLED) {
                     kidProtectionStore.beginSwitch(protect = user.profileKind != ProfileKind.ADULT).also {
-                        // Kid content rules (review round 3): a protected TV shows no launcher rows; protection is
-                        // persisted by now, and their removal is under way before this session is published
-                        if (user.profileKind != ProfileKind.ADULT) LauncherRows.requestClear(context)
+                        if (user.profileKind != ProfileKind.ADULT) clearLauncherBeforeKidSession()
                     }
                 } else {
                     null
@@ -369,6 +369,20 @@ class ServerRepository
                 withContext(NonCancellable) { settlePublished(switchId, currentUser, entryOwner) }
             }
             return currentUser
+        }
+
+        /**
+         * Kid content rules (review rounds 3 and 4): a protected TV shows no launcher rows. Protection is persisted by
+         * now; the rows are cleared (under the launcher lock, off the main thread) before the kid session is published,
+         * waiting at most [LAUNCHER_CLEAR_WAIT]. If that fails or takes longer, the kid session is still published and
+         * another clear is queued: the TV's home screen is outside the app's gate, so it never blocks a kid sign-in.
+         */
+        private suspend fun clearLauncherBeforeKidSession() {
+            val cleared = withTimeoutOrNull(LAUNCHER_CLEAR_WAIT) { LauncherRows.clearAsync(context, ioDispatcher).await() }
+            if (cleared != true) {
+                Timber.w("Launcher rows not cleared before a kid session (%s), retrying", if (cleared == null) "timed out" else "failed")
+                LauncherRows.requestClear(context)
+            }
         }
 
         /**
@@ -945,6 +959,9 @@ class ServerRepository
         }
 
         companion object {
+            /** Kid content rules: how long publishing a kid session waits for the launcher rows to be cleared */
+            private val LAUNCHER_CLEAR_WAIT = 3.seconds
+
             fun getServerSharedPreferences(context: Context): SharedPreferences =
                 context.getSharedPreferences(
                     "${context.packageName}_server",

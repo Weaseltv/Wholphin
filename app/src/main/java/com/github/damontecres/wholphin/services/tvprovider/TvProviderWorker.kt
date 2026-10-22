@@ -32,9 +32,12 @@ import com.github.damontecres.wholphin.services.WorkerSession
 import com.github.damontecres.wholphin.ui.SlimItemFields
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -489,9 +492,20 @@ internal object LauncherRows {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    /** [clear] off the caller's thread, eg right before a session that turns kid protection on is published */
+    /** [clear] off the caller's thread (on [dispatcher]); whether it worked */
+    fun clearAsync(
+        context: Context,
+        dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    ): Deferred<Boolean> =
+        scope.async(dispatcher) {
+            runCatching { clear(context) }
+                .onFailure { Timber.w(it, "Couldn't clear the launcher rows") }
+                .isSuccess
+        }
+
+    /** [clear] off the caller's thread, eg a retry */
     fun requestClear(context: Context) {
-        scope.launch { runCatching { clear(context) }.onFailure { Timber.w(it, "Couldn't clear the launcher rows") } }
+        clearAsync(context)
     }
 
     /** Removes this app's Watch Next and preview programs from the launcher, and stops runs started before */
