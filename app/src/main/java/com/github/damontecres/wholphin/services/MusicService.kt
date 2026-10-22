@@ -2,19 +2,19 @@ package com.github.damontecres.wholphin.services
 
 import android.content.Context
 import android.net.Uri
+import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
-import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSpec
-import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import com.github.damontecres.wholphin.BuildConfig
+import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.AudioItem
 import com.github.damontecres.wholphin.data.model.BaseItem
@@ -28,6 +28,7 @@ import com.github.damontecres.wholphin.ui.main.settings.MoveDirection
 import com.github.damontecres.wholphin.ui.onMain
 import com.github.damontecres.wholphin.ui.seekBack
 import com.github.damontecres.wholphin.ui.seekForward
+import com.github.damontecres.wholphin.ui.showToast
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.util.BlockingList
 import com.github.damontecres.wholphin.util.LoadingState
@@ -105,10 +106,11 @@ class MusicService
                             .get { disableAudioOffload } ?: false
                     }
                 playerFactory
-                    .createAudioPlayer(disableAudioOffload = disableAudioOffload, resolver = ::checkStream)
-                    .also {
+                    .createAudioPlayer(
+                        disableAudioOffload = disableAudioOffload,
+                        resolver = if (BuildConfig.KID_PROFILES_ENABLED) ::checkStream else null,
+                    ).also {
                         it.addListener(MusicPlayerListener(it, _state))
-                        if (BuildConfig.KID_PROFILES_ENABLED) it.addListener(trackGate)
                     }
             }
 
@@ -129,66 +131,34 @@ class MusicService
             }
         }
 
-        /** The track a [trackGate] check last allowed, and the session epoch it was allowed in */
-        @Volatile
-        private var allowedTrack: Pair<String, Long>? = null
+        /**
+         * Kid content rules (contract section 10, review round 4): kid and unknown sessions get no music at all (rule 2
+         * hides nearly all of it anyway). Every way to start or queue music asks this first: it refuses with a short
+         * message, and stops whatever a kid session might have queued.
+         */
+        private suspend fun refuseKidMusic(): Boolean {
+            if (!BuildConfig.KID_PROFILES_ENABLED || kidContentGuard.currentPolicy() == null) return false
+            Timber.i("Kid content rules: no music for kid sessions")
+            showToast(context, context.getString(R.string.kid_music_unavailable), Toast.LENGTH_SHORT)
+            if (playerHolder.isInitialized()) stop()
+            return true
+        }
 
         /**
-         * Kid content rules (review round 3): for kid and unknown sessions every track start is gated. The player pauses
-         * at the end of each track ([start] sets that), and on any change of track (auto-advance, repeat, seek, a pick);
-         * the track that is about to play then needs a fresh, epoch-bound check before playback goes on, and stops the
-         * music otherwise. ExoPlayer may have buffered it already, so the stream check alone isn't enough.
+         * Kid content rules (review round 2), a backstop: runs before every stream is opened. Adults pass with an
+         * in-memory check; a kid session (which never queues music) is refused.
          */
-        private val trackGate =
-            object : Player.Listener {
-                override fun onPlayWhenReadyChanged(
-                    playWhenReady: Boolean,
-                    reason: Int,
-                ) {
-                    if (!playWhenReady && reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM) {
-                        val next = player.nextMediaItemIndex
-                        if (next != C.INDEX_UNSET) gate(player.getMediaItemAt(next).mediaId, next)
-                    }
+        private fun checkStream(dataSpec: DataSpec): DataSpec {
+            val itemId = audioItemId(dataSpec.uri)
+            val allowed =
+                runBlocking {
+                    if (itemId == null) kidContentGuard.currentPolicy() == null else kidContentGuard.isPlaybackAllowed(api, itemId)
                 }
-
-                override fun onMediaItemTransition(
-                    mediaItem: MediaItem?,
-                    reason: Int,
-                ) {
-                    val mediaId = mediaItem?.mediaId ?: return
-                    val allowed = allowedTrack
-                    if (allowed != null && allowed.first == mediaId && allowed.second == kidContentGuard.epoch()) return
-                    if (gated()) {
-                        player.pause()
-                        gate(mediaId, player.currentMediaItemIndex)
-                    }
-                }
+            if (!allowed) {
+                Timber.i("Kid content rules: song refused")
+                throw IOException("Not available on this profile")
             }
-
-        /** Whether tracks are gated: a kid or unknown session (a fast in-memory check) */
-        private fun gated(): Boolean = (player as? ExoPlayer)?.pauseAtEndOfMediaItems == true
-
-        /** Checks the track [mediaId] at [index] fresh, then plays on from it, or stops the music */
-        private fun gate(
-            mediaId: String,
-            index: Int,
-        ) {
-            defaultScope.launch {
-                val itemId = mediaId.toUUIDOrNull()
-                val permit = itemId?.let { kidContentGuard.playbackPermit(api, it) }
-                onMain {
-                    val stillThere = index < player.mediaItemCount && player.getMediaItemAt(index).mediaId == mediaId
-                    if (stillThere && kidContentGuard.isCurrent(permit)) {
-                        allowedTrack = mediaId to permit!!.epoch
-                        if (index != player.currentMediaItemIndex) player.seekTo(index, 0L)
-                        player.play()
-                    } else {
-                        Timber.i("Kid content rules: next song refused, stopping music")
-                        player.stop()
-                        player.setMediaItems(emptyList())
-                    }
-                }
-            }
+            return dataSpec
         }
 
         private val mutex = Mutex()
@@ -209,6 +179,7 @@ class MusicService
          * Sets up the media session, activity tracking, and actual playback
          */
         suspend fun start() {
+            if (refuseKidMusic()) return
             if (mediaSession == null) {
                 mutex.withLock {
                     if (mediaSession == null) {
@@ -232,10 +203,7 @@ class MusicService
                     }
                 }
             }
-            // Kid content rules (review round 3): kid and unknown sessions gate every track start, see [trackGate]
-            val gate = BuildConfig.KID_PROFILES_ENABLED && kidContentGuard.currentPolicy() != null
             onMain {
-                (player as? ExoPlayer)?.pauseAtEndOfMediaItems = gate
                 player.prepare()
                 player.play()
             }
@@ -274,6 +242,7 @@ class MusicService
          */
         suspend fun startInstantMix(itemId: UUID) =
             loading {
+                if (refuseKidMusic()) return@loading
                 val items =
                     api.instantMixApi
                         .getInstantMixFromItem(
@@ -296,6 +265,7 @@ class MusicService
             startIndex: Int,
             shuffled: Boolean,
         ) = withContext(WholphinDispatchers.IO) {
+            if (refuseKidMusic()) return@withContext
             Timber.d("setQueue: %s items, startIndex=%s, shuffled=%s", items.size, startIndex, shuffled)
             withContext(WholphinDispatchers.Main) {
                 player.setMediaItems(emptyList())
@@ -312,10 +282,12 @@ class MusicService
             items: List<BaseItem>,
             shuffled: Boolean,
         ) {
+            if (refuseKidMusic()) return
             Timber.d("setQueue: %s items, shuffled=%s", items.size, shuffled)
             val preferAc3Surround = preferAc3Surround()
             val mediaItems =
-                allowed(items.filter { it.type == BaseItemKind.AUDIO })
+                items
+                    .filter { it.type == BaseItemKind.AUDIO }
                     .map { convert(it, preferAc3Surround) }
             withContext(WholphinDispatchers.Main) {
                 player.setMediaItems(mediaItems)
@@ -332,8 +304,8 @@ class MusicService
             item: BaseItem,
             index: Int? = null,
         ) {
+            if (refuseKidMusic()) return
             if (item.type == BaseItemKind.AUDIO) {
-                if (allowed(listOf(item)).isEmpty()) return
                 val preferAc3Surround = preferAc3Surround()
                 val mediaItem = convert(item, preferAc3Surround)
                 withContext(WholphinDispatchers.Main) {
@@ -362,56 +334,29 @@ class MusicService
             list: BlockingList<BaseItem?>,
             startIndex: Int,
         ) = loading {
+            if (refuseKidMusic()) return@loading
             val preferAc3Surround = preferAc3Surround()
             var remaining = startIndex
             list.indices
                 .chunked(25)
                 .forEach {
-                    val songs =
+                    val mediaItems =
                         it.mapNotNull {
                             if (remaining == 0) {
                                 list
                                     .getBlocking(it)
                                     ?.takeIf { it.type == BaseItemKind.AUDIO }
+                                    ?.let { convert(it, preferAc3Surround) }
                             } else {
                                 Timber.v("Skipping $remaining")
                                 remaining--
                                 null
                             }
                         }
-                    val mediaItems = allowed(songs).map { convert(it, preferAc3Surround) }
                     onMain { player.addMediaItems(mediaItems) }
                 }
             updateQueueSize()
             start()
-        }
-
-        /**
-         * Kid content rules (contract section 10, review round 2): runs on the loading thread before any song's bytes are
-         * fetched, whether the track was picked, reached by auto-advance or repeat, or sought in. A fresh check by item id,
-         * bound to the session epoch; a refused stream fails, which stops playback.
-         */
-        private fun checkStream(dataSpec: DataSpec): DataSpec {
-            val itemId = audioItemId(dataSpec.uri)
-            val allowed =
-                runBlocking {
-                    if (itemId == null) kidContentGuard.currentPolicy() == null else kidContentGuard.isPlaybackAllowed(api, itemId)
-                }
-            if (!allowed) {
-                Timber.i("Kid content rules: song refused")
-                throw IOException("Not available on this profile")
-            }
-            return dataSpec
-        }
-
-        /**
-         * Kid content rules (contract section 10): only the songs a fresh check by item id allows, right before their
-         * streams are queued. Everything for adults.
-         */
-        private suspend fun allowed(songs: List<BaseItem>): List<BaseItem> {
-            if (songs.isEmpty() || kidContentGuard.currentPolicy() == null) return songs
-            val visible = kidContentGuard.visibleIds(api, songs.map { it.id }, fresh = true)
-            return songs.filter { it.id in visible }
         }
 
         /**
@@ -516,6 +461,7 @@ class MusicService
          * Start playback at the given index of the queue
          */
         suspend fun playIndex(index: Int) {
+            if (refuseKidMusic()) return
             onMain {
                 player.seekTo(index, 0L)
                 player.play()
@@ -527,7 +473,7 @@ class MusicService
          * Play this item next after the current, ie add the item as the next index in the queue
          */
         suspend fun playNext(song: BaseItem) {
-            if (allowed(listOf(song)).isEmpty()) return
+            if (refuseKidMusic()) return
             val mediaItem = convert(song, preferAc3Surround())
             onMain {
                 player.addMediaItem(state.value.currentIndex + 1, mediaItem)

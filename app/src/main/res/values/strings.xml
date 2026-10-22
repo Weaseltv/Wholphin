@@ -993,6 +993,7 @@
     <!-- Kid profiles (runbooks/kid-profiles) -->
     <string name="kid_content_playback_refused">This title isn\'t available on this profile</string>
     <string name="kid_content_item_unavailable">This title isn\'t available on this profile</string>
+    <string name="kid_music_unavailable">Music isn\'t available on this profile</string>
     <string name="play_start_item_unavailable">The title you picked isn\'t available</string>
     <string name="kid_pin_wrong">Wrong PIN. %1$d tries left before a pause.</string>
     <string name="kid_pin_locked_out">Too many wrong PINs. Try again in %1$d seconds.</string>
