@@ -30,19 +30,38 @@ import javax.inject.Singleton
 /*
  * WeaselPlex profile pictures (kid-profiles plan 4.6). A picture is the Jellyfin user's own
  * Primary image, picked from the avatar set bundled in the weaselfin flavor
- * (`assets/avatars/<id>.webp`; the file name is the stable avatar id). Every profile saves its
- * own picture with its own access token, never the shared ApiClient's.
+ * (`assets/avatars/<group>/<id>.webp`; the file name is the stable avatar id). Kid profiles pick from
+ * the kids set, adults from the adults set. Every profile saves its own picture with its own access
+ * token, never the shared ApiClient's.
  */
 
 /** Whether this build offers profile pictures (weaselfin, with kid profiles on). */
 val profilePicturesEnabled: Boolean get() = BuildConfig.KID_PROFILES_ENABLED
 
+/** The two avatar sets; [dir] is the folder under `assets/avatars/`. */
+enum class AvatarGroup(
+    val dir: String,
+) {
+    KIDS("kids"),
+    ADULTS("adults"),
+    ;
+
+    companion object {
+        /** Kid profiles (and any whose kind isn't known yet) pick from the kids set. */
+        fun forKid(isKid: Boolean): AvatarGroup = if (isKid) KIDS else ADULTS
+    }
+}
+
 /** One bundled avatar; [id] is its file name without `.webp`, lowercase-hyphen, never renamed. */
 data class Avatar(
     val id: String,
+    val group: AvatarGroup,
 ) {
+    /** Its path under the app's assets. */
+    val assetPath: String get() = "$AVATAR_DIR/${group.dir}/$id.webp"
+
     /** What Coil loads for the picker. */
-    val model: String get() = "file:///android_asset/$AVATAR_DIR/$id.webp"
+    val model: String get() = "file:///android_asset/$assetPath"
 
     companion object {
         const val AVATAR_DIR = "avatars"
@@ -55,10 +74,12 @@ data class ProfilePictureTarget(
     val userId: UUID,
     val accessToken: String,
     val name: String?,
+    /** A kid profile picks from the kids set; adults from the adults set. */
+    val isKid: Boolean = false,
 )
 
 interface AvatarCatalog {
-    fun avatars(): List<Avatar>
+    fun avatars(group: AvatarGroup): List<Avatar>
 
     /** The avatar as PNG bytes, ready to upload. */
     suspend fun pngBytes(avatar: Avatar): ByteArray
@@ -119,7 +140,8 @@ class ProfilePictureService
     ) {
         val versions: StateFlow<Map<UUID, Int>> get() = cache.versions
 
-        fun avatars(): List<Avatar> = catalog.avatars()
+        /** The set [isKid]'s profile picks from. */
+        fun avatars(isKid: Boolean): List<Avatar> = catalog.avatars(AvatarGroup.forKid(isKid))
 
         fun chosenAvatar(userId: UUID): String? = cache.chosenAvatar(userId)
 
@@ -159,21 +181,23 @@ class AssetAvatarCatalog
     constructor(
         @param:ApplicationContext private val context: Context,
     ) : AvatarCatalog {
-        private val all: List<Avatar> by lazy {
-            context.assets
-                .list(Avatar.AVATAR_DIR)
-                .orEmpty()
-                .filter { it.endsWith(".webp") }
-                .map { Avatar(it.removeSuffix(".webp")) }
-                .sortedBy { it.id }
+        private val sets: Map<AvatarGroup, List<Avatar>> by lazy {
+            AvatarGroup.entries.associateWith { group ->
+                context.assets
+                    .list("${Avatar.AVATAR_DIR}/${group.dir}")
+                    .orEmpty()
+                    .filter { it.endsWith(".webp") }
+                    .map { Avatar(it.removeSuffix(".webp"), group) }
+                    .sortedBy { it.id }
+            }
         }
 
-        override fun avatars(): List<Avatar> = if (profilePicturesEnabled) all else emptyList()
+        override fun avatars(group: AvatarGroup): List<Avatar> = if (profilePicturesEnabled) sets[group].orEmpty() else emptyList()
 
         override suspend fun pngBytes(avatar: Avatar): ByteArray =
             withContext(WholphinDispatchers.IO) {
                 val bitmap =
-                    context.assets.open("${Avatar.AVATAR_DIR}/${avatar.id}.webp").use {
+                    context.assets.open(avatar.assetPath).use {
                         BitmapFactory.decodeStream(it)
                     } ?: throw IllegalStateException("Could not read avatar ${avatar.id}")
                 // PNG reads everywhere (phone apps, Web Player); the bundled WebP keeps the APK small.

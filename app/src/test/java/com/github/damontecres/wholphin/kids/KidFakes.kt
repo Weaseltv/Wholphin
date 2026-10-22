@@ -5,6 +5,7 @@ import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.services.Avatar
 import com.github.damontecres.wholphin.services.AvatarCatalog
+import com.github.damontecres.wholphin.services.AvatarGroup
 import com.github.damontecres.wholphin.services.ProfileImageCache
 import com.github.damontecres.wholphin.services.ProfilePictureTarget
 import com.github.damontecres.wholphin.services.UserImageUploader
@@ -190,11 +191,16 @@ class FakeKidQuickConnect : KidQuickConnect {
 }
 
 class FakeAvatarCatalog(
-    ids: List<String> = listOf("placeholder-cat", "placeholder-fox"),
+    kids: List<String> = listOf("bee-blue", "fox-green"),
+    adults: List<String> = listOf("alien-black", "wolf-crimson"),
 ) : AvatarCatalog {
-    private val all = ids.map { Avatar(it) }
+    private val sets =
+        mapOf(
+            AvatarGroup.KIDS to kids.map { Avatar(it, AvatarGroup.KIDS) },
+            AvatarGroup.ADULTS to adults.map { Avatar(it, AvatarGroup.ADULTS) },
+        )
 
-    override fun avatars() = all
+    override fun avatars(group: AvatarGroup) = sets[group].orEmpty()
 
     override suspend fun pngBytes(avatar: Avatar) = avatar.id.encodeToByteArray()
 }

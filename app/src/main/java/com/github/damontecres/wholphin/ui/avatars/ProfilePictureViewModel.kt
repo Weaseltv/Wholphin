@@ -3,6 +3,8 @@ package com.github.damontecres.wholphin.ui.avatars
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.kids.ProfileKind
+import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.services.Avatar
 import com.github.damontecres.wholphin.services.ProfilePictureResult
 import com.github.damontecres.wholphin.services.ProfilePictureService
@@ -32,7 +34,7 @@ class ProfilePictureViewModel
             _state.value =
                 ProfilePictureState(
                     target = target,
-                    avatars = service.avatars(),
+                    avatars = service.avatars(target.isKid),
                     current = service.chosenAvatar(target.userId),
                 )
         }
@@ -41,7 +43,15 @@ class ProfilePictureViewModel
         fun startForCurrentUser() {
             val current = serverRepository.current.value ?: return
             val token = current.user.accessToken ?: return
-            start(ProfilePictureTarget(current.server.url, current.user.id, token, current.user.name))
+            start(
+                ProfilePictureTarget(
+                    current.server.url,
+                    current.user.id,
+                    token,
+                    current.user.name,
+                    isKid = current.user.profileKind != ProfileKind.ADULT,
+                ),
+            )
         }
 
         fun pick(avatar: Avatar) = run { service.save(it, avatar) to avatar.id }
