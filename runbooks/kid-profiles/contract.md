@@ -1,9 +1,10 @@
-# Kid profiles — frozen TV <-> website contract (v1.2)
+# Kid profiles — frozen TV <-> website contract (v1.3)
 
 Status: **FROZEN 2026-10-21** by the kid-profiles orchestrator. v1.1 (same day) only clarifies
 website-side details found while building tracks A and B; nothing the TV sends or reads changed.
 v1.2 (same day) applies the Phase 0 result (Jellyfin 12.2.0): `MaxParentalSubRating` is 1 at
-every level; null behaves like 0 and hid all TV-MA/NC-17 from Teens. TV behaviour unchanged. Identical copies live in
+every level; null behaves like 0 and hid all TV-MA/NC-17 from Teens. TV behaviour unchanged. v1.3 (2026-10-22) adds section 10, the owner's
+content rules for every kids profile (TV-side filter on top of the server policy). Identical copies live in
 `Wholphin/runbooks/kid-profiles/contract.md` and `weaseltv-platform/docs/kid-profiles/contract.md`. Tracks build to this
 document. Changes go through the orchestrator only; a change bumps the version line above and
 is made in both repos in the same step.
@@ -228,3 +229,52 @@ rows not `deleting`), `level`, `state` (`provisioning|active|disabled|deleting`)
   messages or secrets.
 - Audit actions use the `weaselplex.kid.*` prefix.
 - Schema changes go through the orchestrator.
+
+## 10. Content rules for every kids profile (owner decision 2026-10-22, v1.3)
+
+The server policy (section 1.1) stays as the first wall. On top of it the TV filters every title it shows a
+kid session or unknown session (section 1, "Unknown is treated as the lowest ceiling"). Adults are not filtered.
+
+**Data.** Jellyfin item metadata: `OfficialRating`, `Genres`, `PremiereDate`, `ProductionYear`, `LockedFields`
+(needs `fields=Settings`), `Type`; for episodes and seasons also the parent series (`SeriesId`). `Genres`
+needs `fields=Genres`.
+
+**Decision order** (the first rule that applies wins):
+
+1. **Horror is always hidden.** Any genre containing "horror" (case-insensitive) hides the item. Episodes and
+   seasons use the parent series' genres. Beats every other rule, including a hand-set rating.
+2. **No usable US rating = hidden.** Normalize `OfficialRating`: trim, uppercase, strip a leading `US-`.
+   Usable: movies `G, PG, PG-13, R, NC-17`; TV `TV-Y, TV-Y7, TV-Y7-FV, TV-G, TV-PG, TV-14, TV-MA`.
+   Everything else is hidden: empty, NR, NOT RATED, UNRATED, APPROVED, PASSED, X, every non-US value
+   (`GB-15`, `16`, `12`, `NC16`, `L`, `TP`, ...). Episodes and seasons with no rating of their own use the
+   series' rating; if the series has none, hide.
+3. **Hand-set rating wins.** `LockedFields` contains `OfficialRating`: use the rating as it is and skip rule 4.
+4. **Pre-PG-13 era.** A `Movie` rated PG with `PremiereDate` before 1984-07-01 (UTC date) counts as PG-13.
+   No `PremiereDate`: use `ProductionYear <= 1984`. Not for TV ratings.
+5. **Compare** on one scale: 0 = G, TV-Y, TV-Y7, TV-Y7-FV, TV-G; 1 = PG, TV-PG; 2 = PG-13, TV-14;
+   3 = R, TV-MA; 4 = NC-17. Show only if the item's level <= the profile's maximum level.
+
+**Profile maximum level** from the session ceiling (section 1): Kids (10) = 1, Older kids (14) = 2,
+Teens (17) = 3. For other values: >= 18 -> 4, >= 17 -> 3, >= 13 -> 2, >= 10 -> 1, else 0. Unknown ceiling:
+no title is shown.
+
+**Orchestrator interpretations** (owner may overrule):
+- Episodes and seasons are also hidden whenever their series is hidden, even if the episode has its own
+  lower rating ("its episodes hidden too").
+- A PG movie with neither `PremiereDate` nor `ProductionYear` counts as PG-13 (fail closed).
+- Rules apply to every item type except containers: libraries/folders/user views, people, genres (the
+  "Horror" genre itself is hidden), studios, years, playlists (their contents are filtered), and box sets
+  (shown only while at least one child is visible). Unknown types are treated as titles. Trailers and extras
+  need their own usable rating.
+- Teens: NC-17 is level 4, so it is now hidden for Teens (the server's 17/1 still admits it).
+
+**Where.** Every surface: home rows (including "Top 10 on ..." rows), library grids, search, collections,
+Continue Watching, Next Up, recommendations, "more like this", person and genre pages, the Android TV launcher
+rows, cached lists, deep links and direct item ids. Playback is refused by item id after a fresh check.
+**Fail closed:** if metadata can't be loaded, the item is hidden (lists) or refused (detail, playback).
+
+**Server side (defense in depth).** Each kids profile is its own Jellyfin user (section 9), with the section 1.1
+policy: `MaxParentalRating` = the level, `BlockUnratedItems` including Movie and Series. Jellyfin has no
+"Episode" unrated type; episodes without a rating follow their series (Phase 0 gate 3). The server cannot express
+rules 1, 2 (non-US values it scores), 4 or the Teens NC-17 cut, so those live on the TV only. Other Jellyfin
+clients signed in as a kid get only the server policy.
