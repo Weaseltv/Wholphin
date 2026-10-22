@@ -181,7 +181,7 @@ class KidServerRepositoryTest {
                 events += "room"
                 firstArg()
             }
-            repository.changeUser(server, kid)
+            repository.changeUser(server, kid, authorize = {})
 
             assertEquals(PolicyState.KID, saved.captured.policyState)
             assertEquals(10, saved.captured.maxParentalRating)
@@ -199,7 +199,7 @@ class KidServerRepositoryTest {
             val adult = row(1, pin = "1234")
             coEvery { userApi.getCurrentUser() } returns successResponse(userDto(adult.id, null))
 
-            repository.changeUser(server, adult)
+            repository.changeUser(server, adult, authorize = {})
 
             assertFalse(store.isProtected())
             assertEquals(ProfileCeiling.Unlimited, store.sessionCeiling())
@@ -212,9 +212,9 @@ class KidServerRepositoryTest {
             val adult = row(1, pin = "1234")
             val kid = row(3)
             coEvery { userApi.getCurrentUser() } returns successResponse(userDto(adult.id, null))
-            repository.changeUser(server, adult)
+            repository.changeUser(server, adult, authorize = {})
             coEvery { userApi.getCurrentUser() } returns successResponse(userDto(kid.id, 10))
-            repository.changeUser(server, kid)
+            repository.changeUser(server, kid, authorize = {})
 
             assertTrue(store.isProtected())
             assertEquals(ProfileCeiling.Rating(10), store.sessionCeiling())
@@ -229,7 +229,12 @@ class KidServerRepositoryTest {
             store.setSessionCeiling(ProfileCeiling.Rating(10))
 
             try {
-                repository.changeUser(server, kid, beforePublish = { throw ProfileGateException(GateDecision.NeedsParentUnlock) })
+                repository.changeUser(
+                    server,
+                    kid,
+                    beforePublish = { throw ProfileGateException(GateDecision.NeedsParentUnlock) },
+                    authorize = {},
+                )
                 error("should have thrown")
             } catch (_: ProfileGateException) {
             }
@@ -249,7 +254,7 @@ class KidServerRepositoryTest {
             val kid = row(3)
             coEvery { userApi.getCurrentUser() } returns successResponse(userDto(kid.id, 10))
             every { serverDao.deleteUser(any(), any()) } just Runs
-            repository.changeUser(server, kid)
+            repository.changeUser(server, kid, authorize = {})
 
             repository.removeUser(repository.currentUser!!)
 
@@ -274,7 +279,7 @@ class KidServerRepositoryTest {
                     accessToken = "kid-token",
                 )
 
-            repository.changeUser(server.url, auth, null)
+            repository.changeUser(server.url, auth, null, authorize = {})
 
             assertEquals(true, protectedAtPublish)
             assertEquals(ProfileCeiling.Rating(14), store.sessionCeiling())
@@ -295,7 +300,7 @@ class KidServerRepositoryTest {
                     accessToken = "new-token",
                 )
 
-            repository.changeUser(server.url, auth, null)
+            repository.changeUser(server.url, auth, null, authorize = {})
 
             assertEquals("1234", saved.captured.pin)
             assertEquals(1, saved.captured.rowId)
@@ -318,7 +323,7 @@ class KidServerRepositoryTest {
                     accessToken = "adult-token",
                 )
 
-            repository.changeUser(server.url, auth, kid)
+            repository.changeUser(server.url, auth, kid, authorize = {})
 
             assertEquals(adultId, saved.captured.id)
             assertEquals(0, saved.captured.rowId)
@@ -347,7 +352,7 @@ class KidServerRepositoryTest {
             }
 
             try {
-                repository.changeUser(server, adult)
+                repository.changeUser(server, adult, authorize = {})
                 error("should have thrown")
             } catch (_: IllegalStateException) {
             }
@@ -568,7 +573,7 @@ class KidServerRepositoryTest {
                 repository.current.collect { if (it?.user?.id == kid.id) switch.cancel() }
             }
 
-            switch = launch { repository.changeUser(server, kid) }
+            switch = launch { repository.changeUser(server, kid, authorize = {}) }
             switch.join()
 
             assertTrue(switch.isCancelled)
@@ -600,11 +605,11 @@ class KidServerRepositoryTest {
                 kidsGo.complete(Unit)
             }
 
-            val teensSwitch = launch { repository.changeUser(server, teens) }
+            val teensSwitch = launch { repository.changeUser(server, teens, authorize = {}) }
             val kidsSwitch =
                 launch {
                     kidsGo.await()
-                    repository.changeUser(server, kids)
+                    repository.changeUser(server, kids, authorize = {})
                 }
             advanceUntilIdle()
             // The Teens session is out and its completion held: the switches overlap
@@ -628,7 +633,7 @@ class KidServerRepositoryTest {
                 firstArg()
             }
 
-            repository.changeUser(server, kid)
+            repository.changeUser(server, kid, authorize = {})
 
             assertEquals(true, protectedWhenRowWritten)
         }
@@ -644,6 +649,7 @@ class KidServerRepositoryTest {
             } catch (_: IllegalStateException) {
             }
             verify(exactly = 0) { serverDao.addOrUpdateUser(any()) }
+            verify(exactly = 0) { serverDao.updateUserAuth(any(), any(), any()) }
         }
 
     @Test
@@ -651,7 +657,7 @@ class KidServerRepositoryTest {
         runTest {
             val kid = row(3)
             coEvery { userApi.getCurrentUser() } returns successResponse(userDto(kid.id, 10))
-            val current: CurrentUser = repository.changeUser(server, kid)
+            val current: CurrentUser = repository.changeUser(server, kid, authorize = {})
             assertEquals(PolicyState.KID, current.user.policyState)
             assertEquals(ProfileKind.KID, current.user.profileKind)
             assertEquals(ProfileCeiling.Rating(10), current.user.profileCeiling)

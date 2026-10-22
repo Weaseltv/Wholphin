@@ -156,6 +156,10 @@ class ServerRepository
          * isn't [entryOwner]'s withdraws it first; see [withdrawUnentered]. Its switch stays journalled until then too
          * (review round 7): the session ceiling reads unknown until [finishEntry] records the entry, so a process death
          * before that restarts gated, never at the published profile's ceiling.
+         *
+         * Kid profiles (review round 9): every switch needs its [authorize] check; without one it is refused before any
+         * request (see [requireAuthorized]). A change to the current session's own settings is not a switch: see
+         * [updateCurrentUserLanguage].
          */
         suspend fun changeUser(
             server: JellyfinServer,
@@ -165,6 +169,7 @@ class ServerRepository
             entryOwner: Any? = null,
         ): CurrentUser =
             withContext(ioDispatcher) {
+                requireAuthorized(authorize)
                 if (server.id != user.serverId) {
                     throw IllegalStateException("User is not part of the server")
                 }
@@ -228,6 +233,18 @@ class ServerRepository
                     }
                 return@withContext currentUser
             }
+
+        /**
+         * Kid profiles (review round 9): only a switch that passed the gate publishes a profile, so each one brings the
+         * check that runs in its publishing step ([KidSessionGateImpl.switchTo], [KidSessionGateImpl.signInKid], a
+         * chooser flow's fresh sign-in). A caller without one would publish ungated over whatever session is current by
+         * then, so it fails closed: nothing is fetched, journalled or published. Upstream builds don't gate.
+         */
+        private fun requireAuthorized(authorize: ((CurrentUser) -> Unit)?) {
+            check(!BuildConfig.KID_PROFILES_ENABLED || authorize != null) {
+                "A kid-profiles switch must go through the gate and be authorized when it is published"
+            }
+        }
 
         /**
          * Saves and publishes a switch that passed the gate; the caller holds [sessionMutex]. Kid profiles: the
@@ -339,9 +356,10 @@ class ServerRepository
                 } ?: return null
             if (_current.value.isIdentity(serverId, userId)) {
                 restoreCurrentSession(serverId, userId)?.let { return it }
-                // Kid profiles: another session was published meanwhile; never fall back to an ungated switch
-                if (BuildConfig.KID_PROFILES_ENABLED) return null
             }
+            // Kid profiles: never an ungated switch (another session was published meanwhile, or it is another profile);
+            // the restore paths go through KidSessionGateImpl.restoreGated (review round 9)
+            if (BuildConfig.KID_PROFILES_ENABLED) return null
             val user = serverAndUsers.users.firstOrNull { it.id == userId } ?: return null
             return changeUser(serverAndUsers.server, user)
         }
@@ -540,6 +558,8 @@ class ServerRepository
             authorize: ((CurrentUser) -> Unit)? = null,
             entryOwner: Any? = null,
         ) = withContext(ioDispatcher) {
+            // Kid profiles: refused before anything is looked up (review round 9)
+            requireAuthorized(authorize)
             val accessToken = authenticationResult.accessToken
             if (accessToken != null) {
                 val authedUser = authenticationResult.user
@@ -643,24 +663,83 @@ class ServerRepository
             }
         }
 
+        /**
+         * Sets [user]'s PIN and login requirement. If [user] is the current session's profile, only those two change in
+         * it (review round 9): [user] may be an older copy, so its policy, language and credentials never replace the
+         * session's.
+         */
         suspend fun updateUserAuth(
             user: JellyfinUser,
             pin: String?,
             requireLogin: Boolean,
         ) {
-            if (BuildConfig.KID_PROFILES_ENABLED && user.hasPin && pin.isNullOrBlank() && kidProtectionStore.isProtected()) {
+            if (BuildConfig.KID_PROFILES_ENABLED &&
+                pin.isNullOrBlank() &&
+                kidProtectionStore.isProtected() &&
+                // The saved row's PIN counts too, in case [user] is a copy from before it was set
+                (user.hasPin || withContext(ioDispatcher) { serverDao.getUser(user.serverId, user.id) }?.hasPin == true)
+            ) {
                 // Plan 4.2: PIN removal is blocked on a protected device
                 throw IllegalStateException("The PIN can't be removed while kid protection is on")
             }
-            val newUser = user.copy(pin = pin, requireLogin = requireLogin)
-            val updatedUser = serverDao.addOrUpdateUser(newUser)
+            val updatedUser =
+                withContext(ioDispatcher) {
+                    if (BuildConfig.KID_PROFILES_ENABLED && user.rowId > 0) {
+                        // Only these columns, so a policy or language saved meanwhile is kept
+                        serverDao.updateUserAuth(user.rowId, pin, requireLogin)
+                        user.copy(pin = pin, requireLogin = requireLogin)
+                    } else {
+                        serverDao.addOrUpdateUser(user.copy(pin = pin, requireLogin = requireLogin))
+                    }
+                }
             sessionMutex.withLock {
                 commitSession {
                     // Updating current user, so push out the change
-                    _current.update { if (it.isIdentity(user.serverId, updatedUser.id)) it?.copy(user = updatedUser) else it }
+                    _current.update {
+                        when {
+                            !it.isIdentity(user.serverId, updatedUser.id) -> it
+                            BuildConfig.KID_PROFILES_ENABLED -> it?.copy(user = it.user.copy(pin = pin, requireLogin = requireLogin))
+                            else -> it?.copy(user = updatedUser)
+                        }
+                    }
                 }
             }
         }
+
+        /**
+         * Sets the UI language of [expected], the session it was chosen in: an update of that session, never a switch
+         * (plan 4.1, review round 9). Under the session lock, it applies only while [expected] is still exactly the
+         * current session and was entered; once another session was published, or this one ended or changed (eg a
+         * refreshed policy), nothing is updated. It changes nothing but the profile's language: not the session's
+         * credentials, the saved current profile, the kid-profile ceiling or the switch journal, and it publishes no
+         * other profile. No request is made.
+         *
+         * @return the updated session, or null if [expected] isn't the current session any more
+         */
+        suspend fun updateCurrentUserLanguage(
+            expected: CurrentUser,
+            uiLanguage: String?,
+        ): CurrentUser? =
+            sessionMutex.withLock {
+                if (!commitSession { isEnteredSession(expected) }) {
+                    Timber.i("Not updating the language of a session that was replaced")
+                    return@withLock null
+                }
+                // Only this column, so a PIN or policy saved meanwhile is kept
+                withContext(ioDispatcher) { serverDao.updateUserLanguage(expected.user.rowId, uiLanguage) }
+                commitSession {
+                    // Nothing else changes the session while the lock is held; checked in the commit step anyway
+                    if (isEnteredSession(expected)) {
+                        expected.copy(user = expected.user.copy(uiLanguage = uiLanguage)).also { _current.value = it }
+                    } else {
+                        null
+                    }
+                }
+            }
+
+        /** Whether [session] is exactly the current session and no publication awaits its entry; on the main thread */
+        private fun isEnteredSession(session: CurrentUser): Boolean =
+            _current.value === session && session.user.rowId > 0 && lastPublication?.entered != false
 
         suspend fun authorizeQuickConnect(code: String): Boolean =
             withContext(ioDispatcher) {
