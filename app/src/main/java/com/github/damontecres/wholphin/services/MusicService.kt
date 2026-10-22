@@ -6,12 +6,15 @@ import androidx.annotation.OptIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSpec
+import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.AudioItem
 import com.github.damontecres.wholphin.data.model.BaseItem
@@ -39,9 +42,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -90,19 +95,100 @@ class MusicService
 
         private val audioFormats by lazy { listOf(*supportedAudioCodecs) }
 
-        val player: Player by lazy {
-            val disableAudioOffload =
-                runBlocking {
-                    userPreferencesService
-                        .getCurrent()
-                        .appPreferences.experimentalPreferences
-                        .get { disableAudioOffload } ?: false
+        private val playerHolder =
+            lazy {
+                val disableAudioOffload =
+                    runBlocking {
+                        userPreferencesService
+                            .getCurrent()
+                            .appPreferences.experimentalPreferences
+                            .get { disableAudioOffload } ?: false
+                    }
+                playerFactory
+                    .createAudioPlayer(disableAudioOffload = disableAudioOffload, resolver = ::checkStream)
+                    .also {
+                        it.addListener(MusicPlayerListener(it, _state))
+                        if (BuildConfig.KID_PROFILES_ENABLED) it.addListener(trackGate)
+                    }
+            }
+
+        val player: Player by playerHolder
+
+        init {
+            if (BuildConfig.KID_PROFILES_ENABLED) {
+                // Kid content rules (review round 3): any session or ceiling change stops the music and clears the
+                // queue, so nothing queued or buffered for one session plays in the next
+                defaultScope.launch {
+                    serverRepository.sessionEpoch.drop(1).collect {
+                        if (playerHolder.isInitialized()) {
+                            Timber.i("Kid content rules: the session changed, stopping music")
+                            stop()
+                        }
+                    }
                 }
-            playerFactory
-                .createAudioPlayer(disableAudioOffload = disableAudioOffload, resolver = ::checkStream)
-                .also {
-                    it.addListener(MusicPlayerListener(it, _state))
+            }
+        }
+
+        /** The track a [trackGate] check last allowed, and the session epoch it was allowed in */
+        @Volatile
+        private var allowedTrack: Pair<String, Long>? = null
+
+        /**
+         * Kid content rules (review round 3): for kid and unknown sessions every track start is gated. The player pauses
+         * at the end of each track ([start] sets that), and on any change of track (auto-advance, repeat, seek, a pick);
+         * the track that is about to play then needs a fresh, epoch-bound check before playback goes on, and stops the
+         * music otherwise. ExoPlayer may have buffered it already, so the stream check alone isn't enough.
+         */
+        private val trackGate =
+            object : Player.Listener {
+                override fun onPlayWhenReadyChanged(
+                    playWhenReady: Boolean,
+                    reason: Int,
+                ) {
+                    if (!playWhenReady && reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM) {
+                        val next = player.nextMediaItemIndex
+                        if (next != C.INDEX_UNSET) gate(player.getMediaItemAt(next).mediaId, next)
+                    }
                 }
+
+                override fun onMediaItemTransition(
+                    mediaItem: MediaItem?,
+                    reason: Int,
+                ) {
+                    val mediaId = mediaItem?.mediaId ?: return
+                    val allowed = allowedTrack
+                    if (allowed != null && allowed.first == mediaId && allowed.second == kidContentGuard.epoch()) return
+                    if (gated()) {
+                        player.pause()
+                        gate(mediaId, player.currentMediaItemIndex)
+                    }
+                }
+            }
+
+        /** Whether tracks are gated: a kid or unknown session (a fast in-memory check) */
+        private fun gated(): Boolean = (player as? ExoPlayer)?.pauseAtEndOfMediaItems == true
+
+        /** Checks the track [mediaId] at [index] fresh, then plays on from it, or stops the music */
+        private fun gate(
+            mediaId: String,
+            index: Int,
+        ) {
+            defaultScope.launch {
+                val itemId = mediaId.toUUIDOrNull()
+                val permit = itemId?.let { kidContentGuard.playbackPermit(api, it) }
+                onMain {
+                    val stillThere = index < player.mediaItemCount && player.getMediaItemAt(index).mediaId == mediaId
+                    if (stillThere && kidContentGuard.isCurrent(permit)) {
+                        allowedTrack = mediaId to permit!!.epoch
+                        if (index != player.currentMediaItemIndex) player.seekTo(index, 0L)
+                        player.play()
+                    } else {
+                        Timber.i("Kid content rules: next song refused, stopping music")
+                        player.stop()
+                        player.setMediaItems(emptyList())
+                    }
+                }
+            }
         }
 
         private val mutex = Mutex()
@@ -146,7 +232,10 @@ class MusicService
                     }
                 }
             }
+            // Kid content rules (review round 3): kid and unknown sessions gate every track start, see [trackGate]
+            val gate = BuildConfig.KID_PROFILES_ENABLED && kidContentGuard.currentPolicy() != null
             onMain {
+                (player as? ExoPlayer)?.pauseAtEndOfMediaItems = gate
                 player.prepare()
                 player.play()
             }
