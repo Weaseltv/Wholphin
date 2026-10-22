@@ -79,6 +79,7 @@ class AbandonedPublicationTest {
     private val navigationManager = mockk<NavigationManager>(relaxed = true)
     private val intentService = mockk<IntentService>()
     private val keyValue = FakePreferencesDataStore()
+    private val appPreferences = mockk<DataStore<AppPreferences>>()
     private lateinit var store: KidProtectionStore
     private lateinit var repository: ServerRepository
 
@@ -129,7 +130,6 @@ class AbandonedPublicationTest {
         Assume.assumeTrue(BuildConfig.KID_PROFILES_ENABLED)
         WholphinDispatchers.configure(dispatcher)
         store = KidProtectionStore(keyValue)
-        val appPreferences = mockk<DataStore<AppPreferences>>()
         coEvery { appPreferences.updateData(any()) } returns AppPreferences.getDefaultInstance()
         every { context.getSharedPreferences(any(), any()) } returns mockk<SharedPreferences>(relaxed = true)
         // Each profile's own scoped client fetches that profile's policy
@@ -237,7 +237,8 @@ class AbandonedPublicationTest {
             viewModel.submitPin("1234")
             runCurrent()
             assertEquals(parent.id, repository.currentUser?.id)
-            assertEquals(ProfileCeiling.Unlimited, store.sessionCeiling())
+            // Not entered yet: its switch is still journalled, so the ceiling reads unknown (review round 7)
+            assertEquals(ProfileCeiling.Unknown, store.sessionCeiling())
 
             // The owner abandons A and picks the pinless Teens profile; A's request finishes afterwards
             viewModel.onProfileSelected(teen)
@@ -276,7 +277,7 @@ class AbandonedPublicationTest {
             val gate = gate()
             val ownerA = Any()
             val adult = publishUnentered(parent, ownerA)
-            assertEquals(ProfileCeiling.Unlimited, store.sessionCeiling())
+            assertEquals(ProfileCeiling.Unknown, store.sessionCeiling())
 
             // B's switch, before A's own withdrawal ran: its fresh gate check sees the ceiling from before A
             var seen: ProfileCeiling? = null
@@ -300,9 +301,10 @@ class AbandonedPublicationTest {
             assertEquals(PinCheckResult.Correct, gate.verifyParentPin(parent, "1234", UnlockPurpose.Switch(teen.rowId)))
             val ownerB = Any()
             val teens = gate.switchTo(server, teen, entryOwner = ownerB)
-            assertEquals(ProfileCeiling.Rating(17), store.sessionCeiling())
+            assertEquals(ProfileCeiling.Unknown, store.sessionCeiling())
             repository.endSessionForChooser(adult)
             assertTrue(repository.markEntered(ownerB, teens))
+            repository.finishEntry()
             assertEquals(teen.id, repository.currentUser?.id)
             assertEquals(ProfileCeiling.Rating(17), store.sessionCeiling())
         }
@@ -344,6 +346,8 @@ class AbandonedPublicationTest {
             val owner = Any()
             val adult = publishUnentered(parent, owner)
             assertTrue(repository.markEntered(owner, adult))
+            repository.finishEntry()
+            assertEquals(ProfileCeiling.Unlimited, store.sessionCeiling())
 
             // From the parent's session, the Teens profile opens freely
             val gate = gate()
@@ -412,5 +416,155 @@ class AbandonedPublicationTest {
             assertNull(lock.held.value)
             assertEquals(GateDecision.Allow, gate.evaluate(teen))
             assertEquals(parent.id, repository.currentUser?.id)
+        }
+
+    /** Process death (review round 7): the store and coordinator start over; only the key-value storage survives */
+    private fun restart() {
+        navigated.clear()
+        store = KidProtectionStore(keyValue)
+        repository = ServerRepository(context, jellyfin, serverDao, sharedApi, appPreferences, dispatcher, store)
+    }
+
+    @Test
+    fun `an adult published but not entered before the process died leaves the TV gated`() =
+        runTest(dispatcher) {
+            protect(ProfileCeiling.Rating(10))
+            val (viewModel, lock) = chooser(gate())
+            holdParentTile(lock, CompletableDeferred())
+
+            // The parent's PIN publishes the parent; parsing its held tile delays navigation, and the process dies
+            viewModel.onProfileSelected(parent)
+            runCurrent()
+            viewModel.submitPin("1234")
+            runCurrent()
+            assertEquals(parent.id, repository.currentUser?.id)
+            assertTrue(navigated.isEmpty())
+            restart()
+
+            // Never the adult's ceiling: gated (unknown), so the pinless Teens profile needs a parent
+            assertEquals(ProfileCeiling.Unknown, store.sessionCeiling())
+            val gate = gate()
+            assertEquals(GateDecision.NeedsParentUnlock, gate.evaluate(teen))
+            val (chooser, _) = chooser(gate)
+            chooser.onProfileSelected(teen)
+            runCurrent()
+            assertEquals(
+                ChooserPrompt.Pin(target = teen, pinOwner = parent, purpose = PinPurpose.SWITCH),
+                chooser.state.value.prompt,
+            )
+            assertNull(repository.current.value)
+            assertTrue(navigated.isEmpty())
+
+            // With the parent's PIN it opens, at its own ceiling, and that survives the next restart
+            chooser.submitPin("1234")
+            runCurrent()
+            assertEquals(listOf(teen.id), navigated.map { it.user.id })
+            restart()
+            assertEquals(ProfileCeiling.Rating(17), store.sessionCeiling())
+        }
+
+    @Test
+    fun `a publication marked entered but not yet recorded restarts gated`() =
+        runTest(dispatcher) {
+            protect(ProfileCeiling.Rating(10))
+            val owner = Any()
+            assertTrue(repository.markEntered(owner, publishUnentered(parent, owner)))
+            restart()
+
+            assertEquals(ProfileCeiling.Unknown, store.sessionCeiling())
+            assertEquals(GateDecision.NeedsParentUnlock, gate().evaluate(teen))
+        }
+
+    @Test
+    fun `an entry not yet recorded is recorded before the next gate evaluation`() =
+        runTest(dispatcher) {
+            protect(ProfileCeiling.Rating(10))
+            val owner = Any()
+            assertTrue(repository.markEntered(owner, publishUnentered(parent, owner)))
+
+            // The entered session stays, at its own ceiling
+            assertEquals(GateDecision.Allow, gate().evaluate(teen))
+            assertEquals(parent.id, repository.currentUser?.id)
+            assertEquals(ProfileCeiling.Unlimited, store.sessionCeiling())
+            restart()
+            assertEquals(ProfileCeiling.Unlimited, store.sessionCeiling())
+        }
+
+    @Test
+    fun `a withdrawn publication leaves the ceiling from before it, also after a restart`() =
+        runTest(dispatcher) {
+            protect(ProfileCeiling.Rating(10))
+            publishUnentered(parent, Any())
+
+            assertEquals(GateDecision.NeedsParentUnlock, gate().evaluate(teen))
+            assertEquals(ProfileCeiling.Rating(10), store.sessionCeiling())
+            restart()
+            assertEquals(ProfileCeiling.Rating(10), store.sessionCeiling())
+            assertEquals(GateDecision.Allow, gate().evaluate(kid))
+        }
+
+    @Test
+    fun `an ownerless publication completes its switch when it publishes`() =
+        runTest(dispatcher) {
+            protect(ProfileCeiling.Rating(14))
+            // Cold-start and intent restores publish without a chooser flow to enter them
+            assertEquals(kid.id, gate().restoreGated(serverId, kid.id)?.user?.id)
+            assertEquals(ProfileCeiling.Rating(10), store.sessionCeiling())
+            restart()
+            assertEquals(ProfileCeiling.Rating(10), store.sessionCeiling())
+        }
+
+    @Test
+    fun `an entered adult pick keeps its ceiling across a restart`() =
+        runTest(dispatcher) {
+            protect(ProfileCeiling.Rating(10))
+            val (viewModel, _) = chooser(gate())
+
+            viewModel.onProfileSelected(parent)
+            runCurrent()
+            viewModel.submitPin("1234")
+            runCurrent()
+            assertEquals(listOf(parent.id), navigated.map { it.user.id })
+            restart()
+
+            assertEquals(ProfileCeiling.Unlimited, store.sessionCeiling())
+            assertEquals(GateDecision.Allow, gate().evaluate(teen))
+        }
+
+    @Test
+    fun `a held tile continued for its owner keeps its ceiling across a restart`() =
+        runTest(dispatcher) {
+            protect(ProfileCeiling.Rating(10))
+            val (viewModel, lock) = chooser(gate())
+            every { navigationManager.backStack } returns mutableListOf()
+            val parsed = CompletableDeferred<Unit>()
+            holdParentTile(lock, parsed)
+
+            viewModel.onProfileSelected(parent)
+            runCurrent()
+            viewModel.submitPin("1234")
+            runCurrent()
+            // Not entered yet: the journal is still open
+            assertEquals(ProfileCeiling.Unknown, store.sessionCeiling())
+            parsed.complete(Unit)
+            runCurrent()
+            assertEquals(listOf(parent.id), navigated.map { it.user.id })
+            restart()
+
+            assertEquals(ProfileCeiling.Unlimited, store.sessionCeiling())
+        }
+
+    @Test
+    fun `a single profile opened automatically keeps its ceiling across a restart`() =
+        runTest(dispatcher) {
+            protect(ProfileCeiling.Rating(14))
+            val (viewModel, _) = chooser(gate())
+
+            viewModel.trySwitchUser(kid)
+            runCurrent()
+            assertEquals(listOf(kid.id), navigated.map { it.user.id })
+            restart()
+
+            assertEquals(ProfileCeiling.Rating(10), store.sessionCeiling())
         }
 }

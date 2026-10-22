@@ -383,6 +383,53 @@ class KidServerRepositoryTest {
             assertEquals(ProfileCeiling.Rating(14), store.sessionCeiling())
         }
 
+    @Test
+    fun `a held switch reads as unknown until it is entered, also after a restart`() =
+        runTest {
+            store.markProtected(ProfileCeiling.Rating(10))
+            store.setSessionCeiling(ProfileCeiling.Rating(10))
+            val switchId = store.beginSwitch(protect = false)
+            assertTrue(store.holdSwitch(switchId, ProfileCeiling.Rating(10), ProfileCeiling.Unlimited))
+            assertEquals(ProfileCeiling.Unknown, KidProtectionStore(keyValue).sessionCeiling())
+
+            // A stale switch enters nothing; the held one applies the destination it recorded
+            assertFalse(KidProtectionStore(keyValue).enterSwitch(UUID.randomUUID().toString()))
+            assertEquals(ProfileCeiling.Unknown, store.sessionCeiling())
+            assertTrue(KidProtectionStore(keyValue).enterSwitch(switchId))
+            assertEquals(ProfileCeiling.Unlimited, KidProtectionStore(keyValue).sessionCeiling())
+            assertFalse(store.enterSwitch(switchId))
+        }
+
+    @Test
+    fun `withdrawing a held switch closes its journal at the ceiling from before it`() =
+        runTest {
+            store.markProtected(ProfileCeiling.Rating(14))
+            store.setSessionCeiling(ProfileCeiling.Rating(14))
+            val switchId = store.beginSwitch(protect = false)
+            store.holdSwitch(switchId, ProfileCeiling.Rating(14), ProfileCeiling.Unlimited)
+            // A refresh of the held session changes what entering it would apply, never the ceiling from before it
+            store.setSessionCeiling(ProfileCeiling.Rating(10))
+            assertEquals(ProfileCeiling.Unknown, store.sessionCeiling())
+
+            store.withdrawSwitch(ProfileCeiling.Rating(14), switchId)
+            assertEquals(ProfileCeiling.Rating(14), KidProtectionStore(keyValue).sessionCeiling())
+            assertFalse(store.enterSwitch(switchId))
+            assertEquals(ProfileCeiling.Rating(14), store.sessionCeiling())
+        }
+
+    @Test
+    fun `a held switch refreshed before it is entered applies the refreshed ceiling`() =
+        runTest {
+            store.markProtected(ProfileCeiling.Rating(10))
+            store.setSessionCeiling(ProfileCeiling.Rating(10))
+            val switchId = store.beginSwitch(protect = false)
+            store.holdSwitch(switchId, ProfileCeiling.Rating(10), ProfileCeiling.Unlimited)
+            store.setSessionCeiling(ProfileCeiling.Rating(14))
+
+            assertTrue(store.enterSwitch(switchId))
+            assertEquals(ProfileCeiling.Rating(14), store.sessionCeiling())
+        }
+
     /** A repository whose every step (IO, Main, key-value and app DataStores) runs on the test scheduler */
     private fun TestScope.scheduledRepository(keyValueStore: DataStore<Preferences>): ServerRepository {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))

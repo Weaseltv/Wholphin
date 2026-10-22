@@ -153,7 +153,9 @@ class ServerRepository
          *
          * Kid profiles (review round 6): with an [entryOwner], the session is published but not entered until that
          * owner calls [markEntered] where it navigates into it. Until then, the next switch (or gate evaluation) that
-         * isn't [entryOwner]'s withdraws it first; see [withdrawUnentered].
+         * isn't [entryOwner]'s withdraws it first; see [withdrawUnentered]. Its switch stays journalled until then too
+         * (review round 7): the session ceiling reads unknown until [finishEntry] records the entry, so a process death
+         * before that restarts gated, never at the published profile's ceiling.
          */
         suspend fun changeUser(
             server: JellyfinServer,
@@ -233,6 +235,9 @@ class ServerRepository
          * ceiling) depends only on whether [current] was actually published, never on how the dispatcher returned:
          * a cancellation that lands after publication still completes it (plan 4.2). [authorize] is checked in the
          * publishing step itself; if it throws, nothing is published and the switch is aborted.
+         *
+         * Review round 7: a session published for an [entryOwner] doesn't complete its switch yet. The journal is held
+         * open ([KidProtectionStore.holdSwitch]) until [finishEntry] records the entry or a withdrawal closes it.
          */
         private suspend fun publishSwitch(
             server: JellyfinServer,
@@ -266,7 +271,9 @@ class ServerRepository
                     // [published] records that the session changed even if a cancellation is delivered on the way back
                     assignSession(currentUser, userDto)
                     published = currentUser
-                    if (ceilingBefore != null) lastPublication = Publication(currentUser, ceilingBefore, entryOwner)
+                    if (ceilingBefore != null) {
+                        lastPublication = Publication(currentUser, ceilingBefore, entryOwner, switchId.takeIf { entryOwner != null })
+                    }
                 }
             } catch (ex: Throwable) {
                 if (switchId != null) {
@@ -274,7 +281,7 @@ class ServerRepository
                         val publishedUser = published
                         if (publishedUser != null) {
                             // Published, then interrupted: the session is the destination's, so is its ceiling
-                            kidProtectionStore.completeSwitch(switchId, publishedUser.user.profileCeiling)
+                            settlePublished(switchId, ceilingBefore!!, publishedUser, entryOwner)
                         } else {
                             // Nothing was published: the previous session ceiling still applies
                             kidProtectionStore.abortSwitch(switchId)
@@ -285,10 +292,27 @@ class ServerRepository
             }
             val currentUser = published!!
             if (switchId != null) {
-                // The switch completed: the session ceiling is the destination's (plan 4.2)
-                withContext(NonCancellable) { kidProtectionStore.completeSwitch(switchId, currentUser.user.profileCeiling) }
+                withContext(NonCancellable) { settlePublished(switchId, ceilingBefore!!, currentUser, entryOwner) }
             }
             return currentUser
+        }
+
+        /**
+         * Kid profiles: the switch [switchId] published [published]. Without an [entryOwner] it completes, and the
+         * session ceiling is the destination's from now on (plan 4.2). With one, the journal stays open until that
+         * owner enters it (review round 7), recording what entering or withdrawing it applies.
+         */
+        private suspend fun settlePublished(
+            switchId: String,
+            ceilingBefore: ProfileCeiling,
+            published: CurrentUser,
+            entryOwner: Any?,
+        ) {
+            if (entryOwner == null) {
+                kidProtectionStore.completeSwitch(switchId, published.user.profileCeiling)
+            } else {
+                kidProtectionStore.holdSwitch(switchId, ceilingBefore, published.user.profileCeiling)
+            }
         }
 
         /**
@@ -404,6 +428,8 @@ class ServerRepository
         /** [withdrawUnentered]; the caller holds [sessionMutex] */
         private suspend fun withdrawUnenteredLocked(owner: Any?) {
             if (!BuildConfig.KID_PROFILES_ENABLED) return
+            // An entry its owner hasn't recorded yet is recorded first (review round 7)
+            finishEntryLocked()
             // Taken off [lastPublication] in one main-thread step, so it can't be entered any more, and then
             // withdrawn even if the caller is cancelled meanwhile
             withContext(NonCancellable) {
@@ -425,7 +451,8 @@ class ServerRepository
             published: CurrentUser,
             publication: Publication?,
         ) {
-            if (publication != null) kidProtectionStore.withdrawSwitch(publication.ceilingBefore)
+            // Review round 7: its switch's journal, if still held open, closes by its id
+            if (publication != null) kidProtectionStore.withdrawSwitch(publication.ceilingBefore, publication.heldSwitchId)
             val ended =
                 commitSession {
                     (publishedSession === published && _current.value != null).also { if (it) assignSession(null, null) }
@@ -447,6 +474,31 @@ class ServerRepository
             val publication = lastPublication?.takeIf { it.session === published && it.owner === owner } ?: return false
             publication.entered = true
             return true
+        }
+
+        /**
+         * Kid profiles (review round 7): records durably that the session [markEntered] marked entered was entered,
+         * closing its switch's journal with the published profile's ceiling. Until then the session ceiling reads
+         * unknown (gated). The owner calls this right after the step that navigated, even if it is cancelled; the next
+         * withdrawal check ([withdrawUnentered], before every switch and gate evaluation) records it too, so an entered
+         * session never stays journalled while the app runs.
+         */
+        suspend fun finishEntry() {
+            if (!BuildConfig.KID_PROFILES_ENABLED) return
+            sessionMutex.withLock { finishEntryLocked() }
+        }
+
+        /** [finishEntry]; the caller holds [sessionMutex] */
+        private suspend fun finishEntryLocked() {
+            withContext(NonCancellable) {
+                val switchId =
+                    commitSession {
+                        lastPublication?.takeIf { it.entered }?.let { publication ->
+                            publication.heldSwitchId.also { publication.heldSwitchId = null }
+                        }
+                    } ?: return@withContext
+                kidProtectionStore.enterSwitch(switchId)
+            }
         }
 
         /** Clears the saved current profile (and server); the caller holds [sessionMutex] */
@@ -715,12 +767,14 @@ fun JellyfinUser.withPolicyOf(userDto: UserDto): JellyfinUser {
 
 /**
  * A session a switch published and the session ceiling from before that switch. With an [owner], it is [entered]
- * only once that owner navigated into it (review round 6); only read or changed on the main thread.
+ * only once that owner navigated into it (review round 6), and [heldSwitchId] is its switch while that journal is still
+ * held open (review round 7); only read or changed on the main thread.
  */
 private class Publication(
     val session: CurrentUser,
     val ceilingBefore: ProfileCeiling,
     val owner: Any?,
+    var heldSwitchId: String?,
 ) {
     var entered: Boolean = owner == null
 }

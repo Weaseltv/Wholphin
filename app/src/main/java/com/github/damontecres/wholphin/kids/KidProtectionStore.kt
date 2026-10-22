@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.kids
 
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -35,7 +36,8 @@ class KidProtectionStore
 
         /**
          * The ceiling of the last profile a switch completed to. A missing key, or a switch that began but never
-         * completed (process death mid-switch), reads as [ProfileCeiling.Unknown], which the gate treats as gated.
+         * completed (process death mid-switch, or before a chooser flow entered what it published), reads as
+         * [ProfileCeiling.Unknown], which the gate treats as gated.
          */
         suspend fun sessionCeiling(): ProfileCeiling {
             val prefs = dataStore.data.first()
@@ -75,8 +77,51 @@ class KidProtectionStore
                 if (it[KEY_SWITCH_ID] == switchId) {
                     owned = true
                     it[KEY_SESSION_CEILING] = encodeCeiling(ceiling)
-                    it.remove(KEY_SWITCH_PENDING)
-                    it.remove(KEY_SWITCH_ID)
+                    it.clearJournal()
+                }
+            }
+            return owned
+        }
+
+        /**
+         * Review round 7: the switch [switchId] published a session that a chooser flow has yet to enter. The journal
+         * stays open, so the session ceiling still reads unknown, and records [ceilingBefore] (the session ceiling from
+         * before this switch) and [destination], the published profile's: [enterSwitch] applies [destination],
+         * [withdrawSwitch] goes back to [ceilingBefore]. Should the process die first, the TV restarts gated.
+         *
+         * @return whether [switchId] was the journalled switch
+         */
+        suspend fun holdSwitch(
+            switchId: String,
+            ceilingBefore: ProfileCeiling,
+            destination: ProfileCeiling,
+        ): Boolean {
+            var owned = false
+            dataStore.edit {
+                if (it[KEY_SWITCH_ID] == switchId) {
+                    owned = true
+                    it[KEY_SWITCH_HELD] = true
+                    it.putOrRemove(KEY_SWITCH_CEILING_BEFORE, ceilingBefore)
+                    it.putOrRemove(KEY_SWITCH_DESTINATION, destination)
+                }
+            }
+            return owned
+        }
+
+        /**
+         * Review round 7: the session the held switch [switchId] published was entered, so the destination ceiling
+         * [holdSwitch] recorded is the session ceiling from now on and the journal closes. A switch that is no longer
+         * the journalled one changes nothing.
+         *
+         * @return whether [switchId] was the journalled switch
+         */
+        suspend fun enterSwitch(switchId: String): Boolean {
+            var owned = false
+            dataStore.edit {
+                if (it[KEY_SWITCH_ID] == switchId && it[KEY_SWITCH_HELD] == true) {
+                    owned = true
+                    it.putOrRemove(KEY_SESSION_CEILING, decodeCeiling(it[KEY_SWITCH_DESTINATION]))
+                    it.clearJournal()
                 }
             }
             return owned
@@ -93,8 +138,7 @@ class KidProtectionStore
             dataStore.edit {
                 if (it[KEY_SWITCH_ID] == switchId) {
                     owned = true
-                    it.remove(KEY_SWITCH_PENDING)
-                    it.remove(KEY_SWITCH_ID)
+                    it.clearJournal()
                 }
             }
             return owned
@@ -104,21 +148,25 @@ class KidProtectionStore
          * A published session was withdrawn before anyone used it (review round 5): the session ceiling goes back to
          * [ceilingBefore], the one from before that session's switch, unless the stored one is lower; it is never
          * raised. Unknown on either side, or ceilings that don't compare, leave it unknown (fail closed).
+         *
+         * Review round 7: [switchId] is that session's switch if it is still held ([holdSwitch]); its journal closes
+         * here, with the lower of [ceilingBefore] and the one it recorded. Any other journalled switch stays open.
          */
-        suspend fun withdrawSwitch(ceilingBefore: ProfileCeiling) {
+        suspend fun withdrawSwitch(
+            ceilingBefore: ProfileCeiling,
+            switchId: String? = null,
+        ) {
             dataStore.edit {
-                val stored = if (it[KEY_SWITCH_PENDING] == true) ProfileCeiling.Unknown else decodeCeiling(it[KEY_SESSION_CEILING])
-                val restored =
-                    when {
-                        ceilingBefore.isAtMost(stored) -> ceilingBefore
-                        stored.isAtMost(ceilingBefore) -> stored
-                        else -> ProfileCeiling.Unknown
-                    }
-                if (restored == ProfileCeiling.Unknown) {
-                    it.remove(KEY_SESSION_CEILING)
-                } else {
-                    it[KEY_SESSION_CEILING] = encodeCeiling(restored)
+                val held = switchId != null && it[KEY_SWITCH_ID] == switchId && it[KEY_SWITCH_HELD] == true
+                // A held switch's open journal is this very session's; the ceiling stored under it is from before it
+                val stored =
+                    if (it[KEY_SWITCH_PENDING] == true && !held) ProfileCeiling.Unknown else decodeCeiling(it[KEY_SESSION_CEILING])
+                var restored = lowerOf(ceilingBefore, stored)
+                if (held) {
+                    restored = lowerOf(restored, decodeCeiling(it[KEY_SWITCH_CEILING_BEFORE]))
+                    it.clearJournal()
                 }
+                it.putOrRemove(KEY_SESSION_CEILING, restored)
             }
         }
 
@@ -127,8 +175,19 @@ class KidProtectionStore
             dataStore.edit { it[KEY_PROTECTION] = true }
         }
 
+        /**
+         * The current session's ceiling changed (a policy refresh). Review round 7: while its switch is held
+         * ([holdSwitch]), the destination it records changes instead, so entering applies the refreshed ceiling and a
+         * withdrawal still goes back to the one from before the switch.
+         */
         suspend fun setSessionCeiling(ceiling: ProfileCeiling) {
-            dataStore.edit { it[KEY_SESSION_CEILING] = encodeCeiling(ceiling) }
+            dataStore.edit {
+                if (it[KEY_SWITCH_HELD] == true) {
+                    it.putOrRemove(KEY_SWITCH_DESTINATION, ceiling)
+                } else {
+                    it[KEY_SESSION_CEILING] = encodeCeiling(ceiling)
+                }
+            }
         }
 
         /**
@@ -157,8 +216,7 @@ class KidProtectionStore
                 if (!cleared) return@edit
                 it.remove(KEY_PROTECTION)
                 it.remove(KEY_SESSION_CEILING)
-                it.remove(KEY_SWITCH_PENDING)
-                it.remove(KEY_SWITCH_ID)
+                it.clearJournal()
             }
             return cleared
         }
@@ -185,6 +243,11 @@ class KidProtectionStore
             private val KEY_SESSION_CEILING = stringPreferencesKey("kids.sessionCeiling")
             private val KEY_SWITCH_PENDING = booleanPreferencesKey("kids.switchPending")
             private val KEY_SWITCH_ID = stringPreferencesKey("kids.switchId")
+
+            // Review round 7: a published switch held open until its chooser flow enters it, see [holdSwitch]
+            private val KEY_SWITCH_HELD = booleanPreferencesKey("kids.switchHeld")
+            private val KEY_SWITCH_CEILING_BEFORE = stringPreferencesKey("kids.switchCeilingBefore")
+            private val KEY_SWITCH_DESTINATION = stringPreferencesKey("kids.switchDestination")
             private val KEY_PIN_FAILURES = intPreferencesKey("kids.pin.failures")
             private val KEY_PIN_LOCKOUTS = intPreferencesKey("kids.pin.lockouts")
             private val KEY_PIN_LOCKED_UNTIL = longPreferencesKey("kids.pin.lockedUntil")
@@ -207,6 +270,33 @@ class KidProtectionStore
                     value == UNLIMITED -> ProfileCeiling.Unlimited
                     else -> value.toIntOrNull()?.let { ProfileCeiling.Rating(it) } ?: ProfileCeiling.Unknown
                 }
+
+            /** The lower of [a] and [b]; unknown if either is, or they don't compare (fail closed) */
+            private fun lowerOf(
+                a: ProfileCeiling,
+                b: ProfileCeiling,
+            ): ProfileCeiling =
+                when {
+                    a.isAtMost(b) -> a
+                    b.isAtMost(a) -> b
+                    else -> ProfileCeiling.Unknown
+                }
+
+            /** Stores [ceiling] under [key]; unknown is never stored, it is the missing key */
+            private fun MutablePreferences.putOrRemove(
+                key: Preferences.Key<String>,
+                ceiling: ProfileCeiling,
+            ) {
+                if (ceiling == ProfileCeiling.Unknown) remove(key) else set(key, encodeCeiling(ceiling))
+            }
+
+            private fun MutablePreferences.clearJournal() {
+                remove(KEY_SWITCH_PENDING)
+                remove(KEY_SWITCH_ID)
+                remove(KEY_SWITCH_HELD)
+                remove(KEY_SWITCH_CEILING_BEFORE)
+                remove(KEY_SWITCH_DESTINATION)
+            }
         }
     }
 
