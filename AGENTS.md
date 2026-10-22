@@ -164,6 +164,25 @@ unzip -l <new-arm64-v8a>.apk | grep libffmpegJNI.so                  # native pl
 - Do not use the removed GitHub Actions Create release workflow; build/sign on VPS or ThinkCentre (with WholphinExtensions / ffmpeg packages wired).
 - Do not tell the owner a "VPS website APK still needs refreshing" after a correct Latest GitHub publish — `/fin` already tracks Latest.
 
+## Close builds when you finish: memory (owner, 2026-10-22)
+
+The owner uses the ThinkCentre (15 GB RAM) while agents build on it. A finished build's idle Gradle and Kotlin daemons
+kept about 6 GB for hours, and leftover `/tmp` files kept another 3 GB, starving the owner's other work. Follow these
+rules on both machines, even between Alpha iterations:
+
+- **When your build or test run finishes, close it.** Stop the daemons it left:
+  `./gradlew --stop` and `pkill -u "$USER" -f KotlinCompileDaemon`. First check that no other agent is mid-build
+  (`pgrep -af GradleWorkerMain`, or a Gradle `java` process using CPU in `top`), because `./gradlew --stop` also kills
+  another agent's running build. If one is running, leave the daemons; the idle timeout below closes them.
+- **Leave nothing running** when you report back: no Gradle daemons, emulators, dev servers, `adb logcat`, watchers or
+  background shells you started.
+- **`/tmp` is RAM on the ThinkCentre** (tmpfs). Put large scratch files (APK copies, bundles, test output, unpacked
+  archives) under `~/work/` instead, and delete your own `/tmp` files before you finish.
+- **Machine settings** in `~/.gradle/gradle.properties` (never commit that file; it holds a credential):
+  `org.gradle.daemon.idletimeout=600000` (an idle Gradle daemon exits after 10 minutes instead of 3 hours) and
+  `kotlin.compiler.execution.strategy=in-process` (no separate Kotlin daemon). Add them if missing.
+- The Alpha exception below keeps build *files* on disk for incremental builds. It never covers running processes.
+
 ## VPS and ThinkCentre disk hygiene (added 2026-10-03)
 
 Release and test builds leave gigabytes behind (`app/build`, Gradle outputs; 1–2 GB per TV build, about 6 GB per phone release). On 2026-10-03 the T3 VPS was down to 40 GB free from old release folders. Apply the Alpha exception first; otherwise, before you finish any task that built on either host, delete what you built:
@@ -177,5 +196,6 @@ Release and test builds leave gigabytes behind (`app/build`, Gradle outputs; 1�
   dependency cache. Check `df -h ~` after builds; report less than 30 GB free.
 
 - **Release build folders, once the GitHub release is published and verified:** remove the worktree you built from (e.g. `git -C ~/work/weaselfin/Wholphin worktree remove --force <path>`, or delete `~/work/weaselfin/releases/tv-vX.Y.Z`). The tag keeps the source and the GitHub release keeps the APKs.
-- **Everything else you built:** test builds, throwaway clones in `/tmp`, emulator test APKs.
+- **Everything else you built:** test builds, throwaway clones in `/tmp`, emulator test APKs. Also stop your build
+  daemons (see "Close builds when you finish" above).
 - Then run `df -h ~`, and say in your report if less than 30 GB is free.
