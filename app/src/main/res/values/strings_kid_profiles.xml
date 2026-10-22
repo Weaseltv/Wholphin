@@ -52,4 +52,20 @@
     <string name="kids_error_rate_limited_unknown">Too many tries. Try again in a few minutes.</string>
     <string name="kids_error_network">Couldn\'t reach WeaselPlex. Check the connection and try again.</string>
     <string name="kids_error_generic">Something went wrong. Try again.</string>
+
+    <!-- Kid-profile panels (owner mockups, 2026-10-22) -->
+    <string name="kid_key_ok">OK</string>
+    <string name="kid_key_back">BACK</string>
+    <string name="kid_hint_select">Select</string>
+    <string name="kid_pick_subtitle">Pick a kid to add to this TV, or create a new one.</string>
+    <string name="add_a_new_kid">Add a new kid</string>
+    <string name="kid_name_placeholder">Kid\'s name</string>
+    <string name="adding_kid_to_tv">Adding %1$s to this TV…</string>
+    <string name="kid_takes_a_moment">This only takes a moment.</string>
+    <string name="pick_a_picture_for">Pick a picture for %1$s</string>
+    <string name="pin_prompt_name">Enter %1$s\'s PIN to continue</string>
+    <string name="pin_prompt_current">Enter your current PIN to continue</string>
+    <string name="pin_prompt_new">Press 4 arrows on the remote to make a PIN</string>
+    <string name="pin_prompt_confirm">Press the same 4 arrows again</string>
+    <string name="pin_must_be_four">A PIN is exactly 4 presses</string>
 </resources>
