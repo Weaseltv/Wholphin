@@ -101,7 +101,8 @@ fun ProfilePicturePicker(
             focusedByPicker = initialIndex
             gridState.scrollToItem(initialIndex)
             withFrameNanos {}
-            firstFocus.tryRequestFocus()
+            // The user may have moved while it scrolled or waited for the layout (review round 2): then focus stays put
+            if (!userMoved) firstFocus.tryRequestFocus()
             settled = true
         }
     }

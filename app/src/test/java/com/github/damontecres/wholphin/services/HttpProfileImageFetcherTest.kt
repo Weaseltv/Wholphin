@@ -2,9 +2,6 @@ package com.github.damontecres.wholphin.services
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import org.junit.After
@@ -16,6 +13,8 @@ import java.io.IOException
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.UUID
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 
@@ -33,7 +32,16 @@ class HttpProfileImageFetcherTest {
         synchronized(accepted) { accepted.forEach { runCatching { it.close() } } }
     }
 
-    /** Answers every request with [respond] (or, when it returns null, never answers) */
+    /** Counted down when the server has read a request */
+    private val received = CountDownLatch(1)
+
+    /** Counted down when the client has closed a connection the server holds */
+    private val closed = CountDownLatch(1)
+
+    /**
+     * Answers every request with [respond] (or, when it returns null, never answers), then holds the connection until the
+     * client closes it
+     */
     private fun serve(respond: () -> ByteArray?) {
         thread(isDaemon = true) {
             while (!server.isClosed) {
@@ -45,11 +53,18 @@ class HttpProfileImageFetcherTest {
                         while (reader.readLine()?.isNotEmpty() == true) {
                             // Request line and headers
                         }
+                        received.countDown()
                         respond()?.let {
                             socket.getOutputStream().write(it)
                             socket.getOutputStream().flush()
                         }
+                        // Nothing more comes from the client: this ends when it closes the connection
+                        while (reader.read() != -1) {
+                            // Ignored
+                        }
                     } catch (_: IOException) {
+                    } finally {
+                        closed.countDown()
                     }
                 }
             }
@@ -84,29 +99,30 @@ class HttpProfileImageFetcherTest {
             assertNull(fetch())
         }
 
-    @Test
-    fun `cancelling stops a request the server never answers, straight away`() =
+    /** Cancels a request the server has received, and checks the real request (its connection) ends right away */
+    private fun assertCancelEndsTheRequest() =
         runBlocking {
-            serve { null }
             val request = async(Dispatchers.IO) { fetch() }
-            delay(300)
+            assertTrue("the server got the request", received.await(5, TimeUnit.SECONDS))
             val started = System.nanoTime()
-            request.cancelAndJoin()
+            request.cancel()
+            // Without cancelling the OkHttp call, the connection stays open until the 5 s call timeout
+            assertTrue("the request's connection was closed", closed.await(1, TimeUnit.SECONDS))
+            request.join()
             val tookMillis = (System.nanoTime() - started) / 1_000_000
-            // A blocking read would wait for the 5 s call timeout
             assertTrue("cancel took $tookMillis ms", tookMillis < 1_000)
         }
 
     @Test
-    fun `cancelling stops a body the server stalls on, straight away`() =
-        runBlocking {
-            // Headers promise a body that never comes
-            serve { "HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\nabc".encodeToByteArray() }
-            val request = launch(Dispatchers.IO) { fetch() }
-            delay(300)
-            val started = System.nanoTime()
-            request.cancelAndJoin()
-            val tookMillis = (System.nanoTime() - started) / 1_000_000
-            assertTrue("cancel took $tookMillis ms", tookMillis < 1_000)
-        }
+    fun `cancelling ends a request the server never answers, straight away`() {
+        serve { null }
+        assertCancelEndsTheRequest()
+    }
+
+    @Test
+    fun `cancelling ends a body the server stalls on, straight away`() {
+        // Headers promise a body that never comes
+        serve { "HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\nabc".encodeToByteArray() }
+        assertCancelEndsTheRequest()
+    }
 }

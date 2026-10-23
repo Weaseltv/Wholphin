@@ -259,6 +259,21 @@ class CurrentAvatarTest {
         }
 
     @Test
+    fun `a failure after an earlier match shows the remembered avatar, not the old match`() =
+        runTest(dispatcher) {
+            cache.chosen[userId] = "alien-black"
+            viewModel.start(target)
+            advanceUntilIdle()
+            assertEquals("wolf-crimson", viewModel.state.value.current)
+            // Reopened while the server can't be reached: the last match shows first, then the hint
+            status = ProfileStatus.Unknown
+            viewModel.start(target)
+            assertEquals("wolf-crimson", viewModel.state.value.current)
+            advanceUntilIdle()
+            assertEquals("alien-black", viewModel.state.value.current)
+        }
+
+    @Test
     fun `a result arriving after a pick never replaces it`() =
         runTest(dispatcher) {
             fetchGate = CompletableDeferred()

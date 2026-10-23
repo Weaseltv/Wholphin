@@ -64,8 +64,7 @@ class ProfilePictureViewModel
                             // Only for the picker it was asked for, and never over a pick made meanwhile
                             state.target != target || state.status != PictureStatus.Idle -> state
 
-                            found == CurrentPicture.Unknown -> state
-
+                            // Can't tell (review round 2): the TV's remembered avatar, not a result from earlier
                             else -> state.copy(current = found.tickOr(hint))
                         }
                     }
