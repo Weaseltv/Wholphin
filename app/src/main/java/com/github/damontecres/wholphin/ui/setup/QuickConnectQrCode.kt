@@ -46,6 +46,12 @@ fun forgotPinUrl(): String? =
         ?.let { "${it.trimEnd('/')}/weaselplex/profiles" }
 
 /**
+ * The website's Kids profiles page (contract 12.3), where a kid's page pairs it to a TV, eg
+ * `https://theweasel.tv/weaselplex/profiles/kids`, or null on every flavor without the WeaselPlex website.
+ */
+fun pairKidUrl(): String? = forgotPinUrl()?.let { "$it/kids" }
+
+/**
  * A QR code for [content], black on white so a phone camera reads it off a TV screen.
  */
 @Composable

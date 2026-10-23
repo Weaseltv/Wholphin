@@ -12,6 +12,7 @@ import com.github.damontecres.wholphin.services.ProfilePictureTarget
 import com.github.damontecres.wholphin.services.UserImageUploader
 import io.mockk.Runs
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
@@ -19,6 +20,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.model.api.AuthenticationResult
+import org.jellyfin.sdk.model.api.UserPolicy
 import java.util.UUID
 
 // Test doubles for the kid-profiles seam (contract section 8).
@@ -197,10 +199,43 @@ class FakeKidQuickConnect : KidQuickConnect {
     /** Runs on every poll (eg to let the parent unlock expire mid-flow) */
     var onPoll: () -> Unit = {}
 
+    /** What [poll] answers first, in order: a [QuickConnectPoll], or an exception it throws; then as [isAuthenticated] */
+    val pollResults = ArrayDeque<Any>()
+
+    /** The secrets [poll] was asked about */
+    val polled = mutableListOf<String>()
+
+    /** The tokens [signOut] ended */
+    val signedOut = mutableListOf<String>()
+    var authenticated = 0
+
+    /** The MaxParentalRating of the policy [authenticate]'s user has (null: an adult); no policy at all without [authPolicy] */
+    var authRating: Int? = 10
+    var authPolicy = true
+
     override suspend fun initiate(serverUrl: String): QuickConnectCode {
         initiateError?.let { throw it }
         initiated++
         return QuickConnectCode("00000$initiated", "secret-$initiated")
+    }
+
+    override suspend fun poll(
+        serverUrl: String,
+        secret: String,
+    ): QuickConnectPoll {
+        polled += secret
+        when (val next = pollResults.removeFirstOrNull()) {
+            is QuickConnectPoll -> return next
+            is Exception -> throw next
+        }
+        return if (isAuthenticated(serverUrl, secret)) QuickConnectPoll.AUTHENTICATED else QuickConnectPoll.WAITING
+    }
+
+    override suspend fun signOut(
+        serverUrl: String,
+        accessToken: String,
+    ) {
+        signedOut += accessToken
     }
 
     override suspend fun isAuthenticated(
@@ -214,18 +249,23 @@ class FakeKidQuickConnect : KidQuickConnect {
     override suspend fun authenticate(
         serverUrl: String,
         secret: String,
-    ) = AuthenticationResult(
-        user =
-            org.jellyfin.sdk.model.api.UserDto(
-                id = kidUserId,
-                hasPassword = false,
-                hasConfiguredPassword = false,
-                hasConfiguredEasyPassword = false,
-                name = "Emma",
-            ),
-        accessToken = "kid-token",
-        serverId = testServer.id.toString(),
-    )
+    ): AuthenticationResult {
+        authenticated++
+        val rating = authRating
+        return AuthenticationResult(
+            user =
+                org.jellyfin.sdk.model.api.UserDto(
+                    id = kidUserId,
+                    hasPassword = false,
+                    hasConfiguredPassword = false,
+                    hasConfiguredEasyPassword = false,
+                    name = "Emma",
+                    policy = if (authPolicy) mockk<UserPolicy> { every { maxParentalRating } returns rating } else null,
+                ),
+            accessToken = "kid-token",
+            serverId = testServer.id.toString(),
+        )
+    }
 }
 
 class FakeAvatarCatalog(

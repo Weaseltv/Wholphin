@@ -5,19 +5,35 @@ import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.jellyfin.sdk.Jellyfin
+import org.jellyfin.sdk.api.client.HttpClientOptions
+import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.client.extensions.quickConnectApi
+import org.jellyfin.sdk.api.client.extensions.sessionApi
 import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.model.api.AuthenticationResult
 import org.jellyfin.sdk.model.api.QuickConnectDto
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration.Companion.seconds
 
 data class QuickConnectCode(
     val code: String,
     val secret: String,
 )
+
+/** What polling a Quick Connect secret said (contract 12.3) */
+enum class QuickConnectPoll {
+    WAITING,
+    AUTHENTICATED,
+
+    /** The server no longer knows the secret: the code expired (or was used up); a new one is needed */
+    EXPIRED,
+}
 
 /**
  * Quick Connect for signing a kid in (contract 5.4 steps 4 and 6). Every call uses its own
@@ -36,6 +52,24 @@ interface KidQuickConnect {
         serverUrl: String,
         secret: String,
     ): AuthenticationResult
+
+    /**
+     * Polls [secret] for the pairing screen (contract 12.3). Jellyfin answers 404 once the code expired or was used
+     * ([QuickConnectPoll.EXPIRED]); anything else that fails (network, other statuses) throws.
+     */
+    suspend fun poll(
+        serverUrl: String,
+        secret: String,
+    ): QuickConnectPoll
+
+    /**
+     * Ends the session of [accessToken] (`POST /Sessions/Logout` with that token), eg an adult's sign-in the pairing
+     * refused (contract 12.3). Best effort with a short timeout; never throws.
+     */
+    suspend fun signOut(
+        serverUrl: String,
+        accessToken: String,
+    )
 }
 
 @Singleton
@@ -74,6 +108,52 @@ class JellyfinKidQuickConnect
                     .authenticateWithQuickConnect(QuickConnectDto(secret = secret))
                     .content
             }
+
+        override suspend fun poll(
+            serverUrl: String,
+            secret: String,
+        ): QuickConnectPoll =
+            withContext(WholphinDispatchers.IO) {
+                try {
+                    val state by jellyfin.createApi(serverUrl).quickConnectApi.getQuickConnectState(secret = secret)
+                    if (state.authenticated) QuickConnectPoll.AUTHENTICATED else QuickConnectPoll.WAITING
+                } catch (ex: InvalidStatusException) {
+                    // "Unknown secret": Jellyfin drops a request once it expires (10 minutes) or signs in
+                    if (ex.status == 404) QuickConnectPoll.EXPIRED else throw ex
+                }
+            }
+
+        override suspend fun signOut(
+            serverUrl: String,
+            accessToken: String,
+        ) {
+            try {
+                withTimeoutOrNull(SIGN_OUT_TIMEOUT) {
+                    withContext(WholphinDispatchers.IO) {
+                        jellyfin
+                            .createApi(
+                                baseUrl = serverUrl,
+                                accessToken = accessToken,
+                                httpClientOptions =
+                                    HttpClientOptions(
+                                        requestTimeout = SIGN_OUT_TIMEOUT,
+                                        connectTimeout = SIGN_OUT_TIMEOUT,
+                                        socketTimeout = SIGN_OUT_TIMEOUT,
+                                    ),
+                            ).sessionApi
+                            .reportSessionEnded()
+                    }
+                } ?: Timber.w("Signing a refused sign-in out timed out")
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                Timber.w(ex, "Couldn't sign a refused sign-in out")
+            }
+        }
+
+        private companion object {
+            val SIGN_OUT_TIMEOUT = 5.seconds
+        }
     }
 
 @Module

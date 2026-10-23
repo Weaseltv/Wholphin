@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.kids
 
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.services.ProfilePictureService
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.SetupNavigationManager
@@ -10,6 +11,7 @@ import com.github.damontecres.wholphin.ui.kids.AddKidViewModel
 import com.github.damontecres.wholphin.ui.kids.NameError
 import com.github.damontecres.wholphin.ui.kids.PinError
 import com.github.damontecres.wholphin.ui.kids.Retry
+import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.slot
@@ -19,6 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
@@ -26,11 +29,14 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.util.UUID
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AddKidViewModelTest {
@@ -42,6 +48,7 @@ class AddKidViewModelTest {
     private val cache = FakeProfileImageCache()
     private val serverRepository = mockk<ServerRepository>(relaxed = true)
     private val navigation = mockk<SetupNavigationManager>(relaxed = true)
+    private val accountPins = localAccountPins(serverRepository)
     private lateinit var viewModel: AddKidViewModel
 
     private val mom = testUser("Mom", pin = "1234")
@@ -58,7 +65,7 @@ class AddKidViewModelTest {
                 pictures = ProfilePictureService(FakeAvatarCatalog(), uploader, cache),
                 serverRepository = serverRepository,
                 setupNavigationManager = navigation,
-                accountPins = localAccountPins(serverRepository),
+                accountPins = accountPins,
             )
     }
 
@@ -69,9 +76,13 @@ class AddKidViewModelTest {
 
     private fun test(block: suspend TestScope.() -> Unit) = runTest(dispatcher) { block() }
 
-    private suspend fun TestScope.unlockMom() {
-        viewModel.start(testServer, listOf(mom))
+    private suspend fun TestScope.unlockMom(users: List<JellyfinUser> = listOf(mom)) {
+        viewModel.start(testServer, users)
         advanceUntilIdle()
+        if (step is AddKidStep.PickParent) {
+            viewModel.selectParent(mom)
+            advanceUntilIdle()
+        }
         viewModel.submitPin("1234")
         advanceUntilIdle()
     }
@@ -81,6 +92,7 @@ class AddKidViewModelTest {
         level: KidLevel? = KidLevel.KIDS,
     ) {
         unlockMom()
+        viewModel.createNew()
         viewModel.updateForm(name = name, level = level)
         viewModel.submitForm()
         advanceUntilIdle()
@@ -142,10 +154,12 @@ class AddKidViewModelTest {
         }
 
     @Test
-    fun `correct pin lists kids with the parent's own token`() =
+    fun `correct pin with no other adults offers creating or adding an existing kid`() =
         test {
             unlockMom()
-            assertEquals(listOf("token-Mom"), api.listCalls)
+            assertEquals(AddKidStep.ChooseHow, step)
+            assertTrue(api.listCalls.isEmpty())
+            viewModel.createNew()
             assertEquals(AddKidStep.Form(), step)
         }
 
@@ -165,7 +179,7 @@ class AddKidViewModelTest {
                     .single()
                     .first.pin,
             )
-            assertEquals(listOf("token-Dad"), api.listCalls)
+            assertEquals(AddKidStep.ChooseHow, step)
         }
 
     @Test
@@ -248,10 +262,8 @@ class AddKidViewModelTest {
     fun `existing kid signs in on this tv without creating`() =
         test {
             val emma = testKid("Emma")
-            api.listResults += KidApiResult.Ok(KidList(listOf(emma), 5))
             api.connectResults += KidApiResult.Ok(emma.copy(displayName = "Emma B"))
             unlockMom()
-            assertEquals(AddKidStep.ChooseKid(listOf(emma), 5), step)
             viewModel.signInExisting(emma)
             advanceUntilIdle()
             assertTrue(api.createCalls.isEmpty())
@@ -433,15 +445,20 @@ class AddKidViewModelTest {
     @Test
     fun `kid not found on connect refreshes the list`() =
         test {
-            val emma = testKid("Emma")
+            val emma = ownKid("Emma")
             api.listResults += KidApiResult.Ok(KidList(listOf(emma), 5))
             api.listResults += KidApiResult.Ok(KidList(emptyList(), 5))
             api.connectResults += KidApiResult.Problem(404, KidProblemCodes.KID_NOT_FOUND)
+            quickConnect.pollsUntilAuthenticated = Int.MAX_VALUE
             unlockMom()
+            viewModel.addExisting()
+            runCurrent()
+            assertEquals(listOf(emma), (step as AddKidStep.Pairing).kids)
             viewModel.signInExisting(emma)
-            advanceUntilIdle()
+            runCurrent()
             assertEquals(2, api.listCalls.size)
-            assertTrue(step is AddKidStep.Form)
+            assertEquals(emptyList<KidProfile>(), (step as AddKidStep.Pairing).kids)
+            viewModel.cancel()
         }
 
     @Test
@@ -462,11 +479,13 @@ class AddKidViewModelTest {
     }
 
     @Test
-    fun `limit reached on create offers a retry, flag off shows unavailable`() =
+    fun `flag off on create shows unavailable with a retry`() =
         test {
-            api.listResults += KidApiResult.Problem(404, KidProblemCodes.KIDS_UNAVAILABLE)
-            unlockMom()
-            assertEquals(AddKidStep.Failed(AddKidError.NotAvailable, Retry.LoadKids), step)
+            api.createResults += KidApiResult.Problem(404, KidProblemCodes.KIDS_UNAVAILABLE)
+            fillForm()
+            viewModel.pickPicture(null)
+            advanceUntilIdle()
+            assertEquals(AddKidStep.Failed(AddKidError.NotAvailable, Retry.Create("Emma", KidLevel.KIDS)), step)
         }
 
     @Test
@@ -494,7 +513,6 @@ class AddKidViewModelTest {
     @Test
     fun `an expired parent unlock goes back to the PIN before connecting`() =
         test {
-            api.listResults += KidApiResult.Ok(KidList(listOf(testKid("Emma")), 5))
             unlockMom()
             gate.now += unlockExpiry
             viewModel.signInExisting(testKid("Emma"))
@@ -507,7 +525,6 @@ class AddKidViewModelTest {
     @Test
     fun `an unlock expiring while the code is approved stops before the kid signs in`() =
         test {
-            api.listResults += KidApiResult.Ok(KidList(listOf(testKid("Emma")), 5))
             unlockMom()
             quickConnect.onPoll = { gate.now += unlockExpiry }
             viewModel.signInExisting(testKid("Emma"))
@@ -520,7 +537,6 @@ class AddKidViewModelTest {
     fun `an unlock for another parent or action doesn't count`() =
         test {
             val dad = testUser("Dad", pin = "9")
-            api.listResults += KidApiResult.Ok(KidList(listOf(testKid("Emma")), 5))
             unlockMom()
             gate.parentUnlock.value = ParentUnlock(dad.rowId, gate.now, UnlockPurpose.AddKid)
             viewModel.signInExisting(testKid("Emma"))
@@ -544,7 +560,6 @@ class AddKidViewModelTest {
     @Test
     fun `a kid sign-in refused at publication goes back to the parent's PIN`() =
         test {
-            api.listResults += KidApiResult.Ok(KidList(listOf(testKid("Emma")), 5))
             unlockMom()
             // The unlock ran out during the sign-in's network calls: the gate published nothing
             gate.signInFailure = ProfileGateException(GateDecision.NeedsParentUnlock)
@@ -553,4 +568,287 @@ class AddKidViewModelTest {
             assertEquals(AddKidStep.EnterPin(mom), step)
             verify(exactly = 0) { navigation.navigateTo(any()) }
         }
+
+    /** One of the account's own kids, with its media user (contract 4) */
+    private fun ownKid(name: String) =
+        testKid(name).copy(mediaUserId = UUID.nameUUIDFromBytes("media-$name".toByteArray()).toString().replace("-", ""))
+
+    // Contract 12.4: every other saved adult on the TV has a PIN before a kid is added
+
+    private val dad = testUser("Dad")
+
+    @Test
+    fun `other saved adults with a token and no pin create one or leave first`() =
+        test {
+            val gran = testUser("Gran", token = null)
+            val aunt = testUser("Aunt", pin = "UDLR")
+            val kid = testUser("Kiddo")
+            gate.kinds[kid.id] = ProfileKind.KID
+            val unknown = testUser("Unknown")
+            gate.kinds[unknown.id] = ProfileKind.UNKNOWN
+            unlockMom(listOf(mom, dad, gran, aunt, kid, unknown))
+            assertEquals(AddKidStep.AdultPins(listOf(dad)), step)
+            // Their account PINs were pulled first (contract 11.2)
+            coVerify { accountPins.refresh(dad) }
+            coVerify { accountPins.refresh(aunt) }
+            coVerify(exactly = 0) { accountPins.refresh(gran) }
+        }
+
+    @Test
+    fun `an adult whose account already has a pin counts`() =
+        test {
+            coEvery { accountPins.refresh(dad) } returns dad.copy(pin = "UDLR")
+            unlockMom(listOf(mom, dad))
+            assertEquals(AddKidStep.ChooseHow, step)
+        }
+
+    @Test
+    fun `create pin saves to the adult's account first, then the kid step is next`() =
+        test {
+            unlockMom(listOf(mom, dad))
+            assertFalse(viewModel.createAdultPin(dad, "432"))
+            val saved = viewModel.createAdultPin(dad, "UDLR")
+            assertTrue(saved)
+            coVerify(exactly = 1) { accountPins.set(dad, "UDLR", false) }
+            coVerify { serverRepository.updateUserAuth(dad, "UDLR", false) }
+            assertEquals(AddKidStep.ChooseHow, step)
+        }
+
+    @Test
+    fun `a pin the account couldn't save changes nothing`() =
+        test {
+            coEvery { accountPins.set(dad, any(), any()) } returns AccountPinWrite.Failed
+            unlockMom(listOf(mom, dad))
+            val saved = viewModel.createAdultPin(dad, "UDLR")
+            assertFalse(saved)
+            coVerify(exactly = 0) { serverRepository.updateUserAuth(any(), any(), any()) }
+            assertEquals(AddKidStep.AdultPins(listOf(dad)), step)
+        }
+
+    @Test
+    fun `remove takes the adult off this tv under the parent's add-kid unlock`() =
+        test {
+            val uncle = testUser("Uncle")
+            unlockMom(listOf(mom, dad, uncle))
+            assertEquals(AddKidStep.AdultPins(listOf(dad, uncle)), step)
+            viewModel.removeAdult(dad)
+            advanceUntilIdle()
+            val authorize = slot<() -> Unit>()
+            coVerify { serverRepository.removeUser(dad, capture(authorize)) }
+            assertEquals(AddKidStep.AdultPins(listOf(uncle)), step)
+            // The removal step itself checks the unlock: still valid now, refused once it ran out
+            authorize.captured()
+            gate.now += unlockExpiry
+            assertThrows(ProfileGateException::class.java) { authorize.captured() }
+        }
+
+    @Test
+    fun `a failed removal says so and keeps the adult listed`() =
+        test {
+            coEvery { serverRepository.removeUser(dad, any()) } throws IllegalStateException("db")
+            unlockMom(listOf(mom, dad))
+            viewModel.removeAdult(dad)
+            advanceUntilIdle()
+            assertEquals(AddKidStep.AdultPins(listOf(dad), removeFailed = true), step)
+        }
+
+    @Test
+    fun `an adult who got a pin meanwhile isn't removed`() =
+        test {
+            unlockMom(listOf(mom, dad))
+            coEvery { accountPins.refresh(dad) } returns dad.copy(pin = "UDLR")
+            viewModel.removeAdult(dad)
+            advanceUntilIdle()
+            coVerify(exactly = 0) { serverRepository.removeUser(any(), any()) }
+            assertEquals(AddKidStep.ChooseHow, step)
+        }
+
+    @Test
+    fun `an unlock that ran out in the adult step asks the parent's pin again`() =
+        test {
+            unlockMom(listOf(mom, dad))
+            gate.now += unlockExpiry
+            viewModel.removeAdult(dad)
+            advanceUntilIdle()
+            assertEquals(AddKidStep.EnterPin(mom), step)
+            coVerify(exactly = 0) { serverRepository.removeUser(any(), any()) }
+            unlockAgain()
+            assertEquals(AddKidStep.AdultPins(listOf(dad)), step)
+            gate.now += unlockExpiry
+            val saved = viewModel.createAdultPin(dad, "UDLR")
+            assertFalse(saved)
+            coVerify(exactly = 0) { accountPins.set(any(), any(), any()) }
+            assertEquals(AddKidStep.EnterPin(mom), step)
+        }
+
+    @Test
+    fun `back in the adult step leaves without a kid`() =
+        test {
+            unlockMom(listOf(mom, dad))
+            viewModel.cancel()
+            assertNull(gate.parentUnlock.value)
+            assertTrue(api.createCalls.isEmpty())
+            assertTrue(gate.signedIn.isEmpty())
+        }
+
+    private suspend fun TestScope.unlockAgain() {
+        gate.now += 1
+        viewModel.submitPin("1234")
+        advanceUntilIdle()
+    }
+
+    // Contract 12.3: pairing a kid from another account with a code
+
+    @Test
+    fun `pairing shows the code and the account's own kids not on this tv yet`() =
+        test {
+            val avery = testUser("Avery")
+            gate.kinds[avery.id] = ProfileKind.KID
+            val emma = ownKid("Emma")
+            val here = testKid("Avery").copy(mediaUserId = avery.id.toString().uppercase())
+            val disabled = ownKid("Zed").copy(state = "disabled")
+            api.listResults += KidApiResult.Ok(KidList(listOf(emma, here, disabled), 5))
+            quickConnect.pollsUntilAuthenticated = Int.MAX_VALUE
+            unlockMom(listOf(mom, avery))
+            viewModel.addExisting()
+            runCurrent()
+            assertEquals(AddKidStep.Pairing(code = "000001", kids = listOf(emma)), step)
+            assertEquals(listOf("token-Mom"), api.listCalls)
+            assertEquals("000 001", AddKidViewModel.formatCode("000001"))
+            // Polled every 2 seconds, and polling stops when the screen is left
+            advanceTimeBy(4_001)
+            assertEquals(2, quickConnect.polled.size)
+            viewModel.cancel()
+            advanceTimeBy(20_000)
+            assertEquals(2, quickConnect.polled.size)
+        }
+
+    @Test
+    fun `an expired pairing code is replaced by a new one by itself`() =
+        test {
+            quickConnect.pollResults += QuickConnectPoll.WAITING
+            quickConnect.pollResults += QuickConnectPoll.EXPIRED
+            quickConnect.pollsUntilAuthenticated = Int.MAX_VALUE
+            unlockMom()
+            viewModel.addExisting()
+            runCurrent()
+            advanceTimeBy(4_001)
+            assertEquals(2, quickConnect.initiated)
+            assertEquals("000002", (step as AddKidStep.Pairing).code)
+            assertEquals(listOf("secret-1", "secret-1"), quickConnect.polled)
+            advanceTimeBy(2_000)
+            assertEquals("secret-2", quickConnect.polled.last())
+            viewModel.cancel()
+        }
+
+    @Test
+    fun `failed polls back off and keep the code`() =
+        test {
+            repeat(2) { quickConnect.pollResults += RuntimeException("offline") }
+            quickConnect.pollsUntilAuthenticated = Int.MAX_VALUE
+            unlockMom()
+            viewModel.addExisting()
+            runCurrent()
+            advanceTimeBy(2_001)
+            assertEquals(1, quickConnect.polled.size)
+            assertTrue((step as AddKidStep.Pairing).trouble)
+            // Next try after 4 s, not 2 s; then 8 s
+            advanceTimeBy(3_000)
+            assertEquals(1, quickConnect.polled.size)
+            advanceTimeBy(1_001)
+            assertEquals(2, quickConnect.polled.size)
+            advanceTimeBy(7_000)
+            assertEquals(2, quickConnect.polled.size)
+            advanceTimeBy(1_001)
+            assertEquals(3, quickConnect.polled.size)
+            assertEquals(AddKidStep.Pairing(code = "000001"), step)
+            assertEquals(1, quickConnect.initiated)
+            viewModel.cancel()
+        }
+
+    @Test
+    fun `a code approved for a grown-up is refused and signed out`() =
+        test {
+            quickConnect.authRating = null
+            unlockMom()
+            viewModel.addExisting()
+            advanceUntilIdle()
+            assertEquals(AddKidStep.PairingRefused, step)
+            assertEquals(listOf("kid-token"), quickConnect.signedOut)
+            assertTrue(gate.signedIn.isEmpty())
+            verify(exactly = 0) { navigation.navigateTo(any()) }
+            // "Get a new code", approved for the kid this time
+            quickConnect.authRating = 10
+            viewModel.addExisting()
+            advanceUntilIdle()
+            assertEquals(2, quickConnect.initiated)
+            assertSignedIn("Emma")
+        }
+
+    @Test
+    fun `a sign-in without a policy is refused like a grown-up's`() =
+        test {
+            quickConnect.authPolicy = false
+            unlockMom()
+            viewModel.addExisting()
+            advanceUntilIdle()
+            assertEquals(AddKidStep.PairingRefused, step)
+            assertEquals(listOf("kid-token"), quickConnect.signedOut)
+            assertTrue(gate.signedIn.isEmpty())
+        }
+
+    @Test
+    fun `a paired kid signs in through the gate with its server name and no picture step`() =
+        test {
+            unlockMom()
+            viewModel.addExisting()
+            advanceUntilIdle()
+            assertSignedIn("Emma")
+            assertTrue(api.createCalls.isEmpty())
+            assertTrue(api.connectCalls.isEmpty())
+            assertTrue(uploader.uploads.isEmpty())
+            assertTrue(quickConnect.signedOut.isEmpty())
+        }
+
+    @Test
+    fun `an unlock that ran out while pairing asks the pin again and finishes with the same sign-in`() =
+        test {
+            unlockMom()
+            quickConnect.onPoll = { gate.now += unlockExpiry }
+            viewModel.addExisting()
+            advanceUntilIdle()
+            assertEquals(AddKidStep.EnterPin(mom), step)
+            assertTrue(gate.signedIn.isEmpty())
+            quickConnect.onPoll = {}
+            unlockAgain()
+            assertSignedIn("Emma")
+            assertEquals(1, quickConnect.initiated)
+            assertEquals(1, quickConnect.authenticated)
+        }
+
+    @Test
+    fun `a paired sign-in refused at publication keeps the result for after the pin`() =
+        test {
+            unlockMom()
+            gate.signInFailure = ProfileGateException(GateDecision.NeedsParentUnlock)
+            viewModel.addExisting()
+            advanceUntilIdle()
+            assertEquals(AddKidStep.EnterPin(mom), step)
+            gate.signInFailure = null
+            unlockAgain()
+            assertSignedIn("Emma")
+            assertEquals(1, quickConnect.authenticated)
+        }
+
+    @Test
+    fun `kid signal, backoff and id rules`() {
+        assertEquals(4_000L, AddKidViewModel.backoffMillis(1))
+        assertEquals(16_000L, AddKidViewModel.backoffMillis(3))
+        assertEquals(30_000L, AddKidViewModel.backoffMillis(9))
+        assertEquals("12345", AddKidViewModel.formatCode("12345"))
+        assertEquals(
+            AddKidViewModel.normalisedId("0123456789abcdef0123456789abcdef"),
+            AddKidViewModel.normalisedId("01234567-89AB-CDEF-0123-456789ABCDEF"),
+        )
+    }
 }

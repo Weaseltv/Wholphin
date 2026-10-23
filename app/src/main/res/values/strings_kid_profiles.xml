@@ -25,7 +25,6 @@
     <string name="parent_locked">%1$s needs a PIN before adding kids on this TV. Sign in to that profile with another adult\'s PIN or with Quick Connect, then set a PIN in Settings.</string>
     <string name="kids_on_account">Kids on your account</string>
     <string name="sign_in_kid_on_tv">Sign in %1$s on this TV</string>
-    <string name="kid_not_available_short">%1$s (not available right now)</string>
     <string name="create_new_kid">Create new</string>
     <string name="kid_name">Name</string>
     <string name="kid_level">What can they watch?</string>
@@ -57,8 +56,6 @@
     <string name="kid_key_ok">OK</string>
     <string name="kid_key_back">BACK</string>
     <string name="kid_hint_select">Select</string>
-    <string name="kid_pick_subtitle">Pick a kid to add to this TV, or create a new one.</string>
-    <string name="add_a_new_kid">Add a new kid</string>
     <string name="kid_name_placeholder">Kid\'s name</string>
     <string name="adding_kid_to_tv">Adding %1$s to this TV…</string>
     <string name="kid_takes_a_moment">This only takes a moment.</string>
@@ -81,4 +78,18 @@
     <string name="try_again">Try again</string>
     <string name="continue_without_picture">Continue without a picture</string>
     <string name="pin_check_failed">Couldn\'t check your PIN with WeaselPlex. Check the connection and try again.</string>
+
+    <!-- Pairing a kid to another TV and adult PINs (contract 12, 2026-10-23) -->
+    <string name="adult_pins_subtitle">Every grown-up on this TV needs a PIN before a kid is added. Create one, or remove that profile from this TV.</string>
+    <string name="create_pin">Create PIN</string>
+    <string name="adult_pin_title">PIN for %1$s</string>
+    <string name="adult_remove_failed">That profile couldn\'t be removed. Try again.</string>
+    <string name="kid_how_subtitle">How do you want to add a kid?</string>
+    <string name="create_new_kid_profile">Create a new kid profile</string>
+    <string name="add_existing_kid_profile">Add an existing kid profile</string>
+    <string name="pair_code_instructions">On your phone or computer, go to %1$s, choose Kids profiles, pick the kid, then Pair to a TV and enter this code.</string>
+    <string name="pair_trouble">Can\'t reach the server right now. Still trying…</string>
+    <string name="pair_your_kids">Or add one of your kids</string>
+    <string name="pair_refused">That code was approved for a grown-up profile. Ask them to approve it from the kid\'s page on theweasel.tv.</string>
+    <string name="pair_new_code">Get a new code</string>
 </resources>

@@ -7,6 +7,7 @@ import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.kids.AccountPinWrite
 import com.github.damontecres.wholphin.kids.AccountPins
+import com.github.damontecres.wholphin.kids.GateDecision
 import com.github.damontecres.wholphin.kids.KidApiResult
 import com.github.damontecres.wholphin.kids.KidLevel
 import com.github.damontecres.wholphin.kids.KidNames
@@ -19,6 +20,7 @@ import com.github.damontecres.wholphin.kids.PinCheckResult
 import com.github.damontecres.wholphin.kids.PinRules
 import com.github.damontecres.wholphin.kids.ProfileGateException
 import com.github.damontecres.wholphin.kids.ProfileKind
+import com.github.damontecres.wholphin.kids.QuickConnectPoll
 import com.github.damontecres.wholphin.kids.UnlockPurpose
 import com.github.damontecres.wholphin.services.Avatar
 import com.github.damontecres.wholphin.services.ProfilePictureResult
@@ -29,20 +31,27 @@ import com.github.damontecres.wholphin.services.SetupNavigationManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.jellyfin.sdk.model.api.AuthenticationResult
 import timber.log.Timber
 import java.util.UUID
 import javax.inject.Inject
 
 /**
- * The chooser's "Add kid profile" flow (kid-profiles plan 4.3, contract 5.4): unlock a parent,
- * list the account's kids, create one or pick one, then sign it in on this TV with Quick
- * Connect through [KidSessionGate.signInKid]. A created kid is never created again: retries and
- * expired codes reconnect the same kid.
+ * The chooser's "Add kid profile" flow (kid-profiles plan 4.3, contract 5.4, 12.3, 12.4): unlock a parent, make sure
+ * every other saved adult has a PIN, then create a new kid or add an existing one (one of the account's own, or another
+ * account's kid paired with a code), and sign it in on this TV through [KidSessionGate.signInKid]. A created kid is
+ * never created again: retries and expired codes reconnect the same kid.
  */
 @HiltViewModel
 class AddKidViewModel
@@ -73,7 +82,12 @@ class AddKidViewModel
         private var pendingBody: Pair<String, KidLevel>? = null
         private var form = AddKidStep.Form()
         private var avatar: Avatar? = null
-        private var kids: List<KidProfile> = emptyList()
+
+        /** The TV's saved profiles: the other adults (contract 12.4) and the kids already here (12.3) */
+        private var users: List<JellyfinUser> = emptyList()
+
+        /** Contract 12.3: a paired kid's sign-in, kept while the parent's PIN is asked again */
+        private var pendingPair: AuthenticationResult? = null
 
         val avatars: List<Avatar> get() = pictures.avatars(isKid = true)
 
@@ -85,7 +99,9 @@ class AddKidViewModel
             job?.cancel()
             parent = null
             avatar = null
+            pendingPair = null
             form = AddKidStep.Form()
+            this.users = users
             val parents = parentsOf(users, gate)
             when (parents.size) {
                 0 -> _step.value = AddKidStep.Failed(AddKidError.NoParent, Retry.None)
@@ -111,7 +127,7 @@ class AddKidViewModel
                     }
             }
 
-        /** Checks the parent's PIN; the returned job ends when the check (and loading the kids after it) is done. */
+        /** Checks the parent's PIN; the returned job ends when the check (and the step after it) is done. */
         fun submitPin(pin: String): Job =
             launch {
                 val user = parent ?: return@launch
@@ -127,7 +143,7 @@ class AddKidViewModel
                         return@launch
                     }
                 when (result) {
-                    PinCheckResult.Correct -> loadKids()
+                    PinCheckResult.Correct -> afterUnlock()
                     is PinCheckResult.Wrong -> _step.value = AddKidStep.EnterPin(user, PinError.Wrong(result.attemptsBeforeLockout))
                     is PinCheckResult.LockedOut -> _step.value = AddKidStep.EnterPin(user, PinError.LockedOut(result.retryAtMillis))
                 }
@@ -155,14 +171,75 @@ class AddKidViewModel
                 val withPin = user.copy(pin = pin, requireLogin = false)
                 parent = withPin
                 when (verifyAsCurrentAttempt(withPin, pin)) {
-                    PinCheckResult.Correct -> loadKids()
+                    PinCheckResult.Correct -> afterUnlock()
                     else -> _step.value = AddKidStep.EnterPin(withPin)
                 }
             }
 
+        /** "Create a new kid profile" (contract 5.4 create) */
         fun createNew() {
             _step.value = form
         }
+
+        /** "Add an existing kid profile" (contract 12.3); also "Get a new code" after a refused one */
+        fun addExisting() = launch { pair() }
+
+        /**
+         * Contract 12.4 "Create PIN" for [adult], who is listed: saved to that adult's account with their own token first
+         * (11.2). Returns whether it was saved; if not, nothing changed and the PIN screen says so and asks again.
+         */
+        suspend fun createAdultPin(
+            adult: JellyfinUser,
+            pin: String,
+        ): Boolean =
+            viewModelScope
+                .async {
+                    val listed = _step.value as? AddKidStep.AdultPins ?: return@async false
+                    if (!PinRules.isValidNewPin(pin) || listed.adults.none { it.rowId == adult.rowId }) return@async false
+                    if (!unlocked()) return@async false
+                    if (accountPins.set(adult, pin, adult.requireLogin) != AccountPinWrite.Saved) return@async false
+                    users = users.map { if (it.rowId == adult.rowId) it.copy(pin = pin) else it }
+                    showAdultPins(listed.adults.filter { it.rowId != adult.rowId })
+                    true
+                }.await()
+
+        /**
+         * Contract 12.4 "Remove from this TV" for [adult], who is listed. The parent's add-kid unlock authorizes it (on the
+         * chooser a pinless adult on a protected TV needs another adult's PIN too, plan 4.2), checked again in the step
+         * that removes it.
+         */
+        fun removeAdult(adult: JellyfinUser) =
+            launch {
+                val listed = _step.value as? AddKidStep.AdultPins ?: return@launch
+                val user = parent ?: return@launch
+                if (listed.adults.none { it.rowId == adult.rowId } || !unlocked()) return@launch
+                _step.value = AddKidStep.Loading
+                // A PIN set meanwhile (website, another TV) counts: they stay, and the chooser would ask for their own PIN
+                val fresh = accountPins.refresh(adult)
+                if (fresh.hasPin) {
+                    users = users.map { if (it.rowId == fresh.rowId) fresh else it }
+                } else {
+                    try {
+                        serverRepository.removeUser(fresh) {
+                            if (gate.validUnlockFor(user.rowId, UnlockPurpose.AddKid) == null) {
+                                throw ProfileGateException(GateDecision.NeedsParentUnlock)
+                            }
+                        }
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: ProfileGateException) {
+                        Timber.i("Adult removal refused: %s", ex.decision)
+                        _step.value = AddKidStep.EnterPin(user)
+                        return@launch
+                    } catch (ex: Exception) {
+                        Timber.w(ex, "Couldn't remove an adult profile")
+                        _step.value = listed.copy(removeFailed = true)
+                        return@launch
+                    }
+                    users = users.filter { it.rowId != adult.rowId }
+                }
+                showAdultPins(listed.adults.filter { it.rowId != adult.rowId })
+            }
 
         fun updateForm(
             name: String = form.name,
@@ -200,8 +277,8 @@ class AddKidViewModel
             when (val step = _step.value) {
                 is AddKidStep.Failed -> {
                     when (val retry = step.retry) {
-                        Retry.LoadKids -> {
-                            launch { loadKids() }
+                        Retry.Pair -> {
+                            launch { pendingPair?.let { finishPairing(it) } ?: pair() }
                         }
 
                         is Retry.Create -> {
@@ -242,6 +319,7 @@ class AddKidViewModel
             synchronized(attemptLock) {
                 currentAttempt = null
                 job?.cancel()
+                pendingPair = null
                 gate.clearParentUnlock()
             }
         }
@@ -262,40 +340,189 @@ class AddKidViewModel
         }
 
         /**
-         * The parent's token, but only while their add-kid unlock is still valid (plan 4.1: 5 minutes). Otherwise
-         * the flow goes back to the parent's PIN and null is returned.
+         * Whether the parent's add-kid unlock is still valid (plan 4.1: 5 minutes). Otherwise the flow goes back to the
+         * parent's PIN and false is returned.
          */
+        private fun unlocked(): Boolean {
+            val user = parent ?: return false
+            if (gate.validUnlockFor(user.rowId, UnlockPurpose.AddKid) != null) return true
+            Timber.i("Parent unlock expired or not for this flow; asking for the PIN again")
+            _step.value = AddKidStep.EnterPin(user)
+            return false
+        }
+
+        /** The parent's token, but only while their add-kid unlock is still valid ([unlocked]); otherwise null */
         private fun authorizedToken(): String? {
-            val user = parent ?: return null
-            if (gate.validUnlockFor(user.rowId, UnlockPurpose.AddKid) == null) {
-                Timber.i("Parent unlock expired or not for this flow; asking for the PIN again")
-                _step.value = AddKidStep.EnterPin(user)
-                return null
-            }
-            return user.accessToken ?: run {
+            if (!unlocked()) return null
+            return parent?.accessToken ?: run {
                 fail(AddKidError.SignInAgain, Retry.None)
                 null
             }
         }
 
-        private suspend fun loadKids() {
-            val token = authorizedToken() ?: return
+        /** The parent was unlocked: a paired kid waiting for it signs in, otherwise the adult PINs come next (12.3, 12.4) */
+        private suspend fun afterUnlock() {
+            val paired = pendingPair
+            if (paired != null) finishPairing(paired) else checkAdultPins()
+        }
+
+        /**
+         * Contract 12.4: every other saved adult with a token must have a PIN before a kid is added. Their account PINs
+         * are pulled first, so an account that already has one counts; the rest are listed, else the kid step is next.
+         */
+        private suspend fun checkAdultPins() {
+            if (!unlocked()) return
             _step.value = AddKidStep.Loading
+            val parentRow = parent?.rowId
+            val others = users.filter { it.rowId != parentRow && it.accessToken != null && gate.profileKind(it) == ProfileKind.ADULT }
+            val pulled = coroutineScope { others.map { async { accountPins.refresh(it) } }.awaitAll() }
+            users = users.map { user -> pulled.firstOrNull { it.rowId == user.rowId } ?: user }
+            showAdultPins(pulled.filter { !it.hasPin && it.accessToken != null })
+        }
+
+        private fun showAdultPins(remaining: List<JellyfinUser>) {
+            _step.value = if (remaining.isEmpty()) AddKidStep.ChooseHow else AddKidStep.AdultPins(remaining)
+        }
+
+        /**
+         * Contract 12.3 "Add an existing kid profile": a Quick Connect code the kid's page on the website approves, renewed
+         * by itself when it expires, beside this account's own kids that aren't on this TV yet (5.4 connect). Runs until a
+         * sign-in arrives or the screen is left (its job is cancelled, which stops the polling).
+         */
+        private suspend fun pair() {
+            if (!unlocked()) return
+            pendingPair = null
+            _step.value = AddKidStep.Pairing()
+            coroutineScope {
+                val kids = launch { loadOwnKids() }
+                try {
+                    runPairing()
+                } finally {
+                    kids.cancel()
+                }
+            }
+        }
+
+        /** This account's own active kids that aren't saved (with a token) on this TV yet; best effort */
+        private suspend fun loadOwnKids() {
+            val token = parent?.accessToken ?: return
             when (val result = api.list(token)) {
                 is KidApiResult.Ok -> {
-                    kids = result.value.kids
-                    _step.value =
-                        if (kids.isEmpty()) form else AddKidStep.ChooseKid(kids, result.value.limit)
+                    val here = users.filter { it.accessToken != null }.map { normalisedId(it.id.toString()) }.toSet()
+                    val kids =
+                        result.value.kids.filter { kid ->
+                            kid.state == "active" && kid.mediaUserId?.let { normalisedId(it) !in here } == true
+                        }
+                    updatePairing { it.copy(kids = kids) }
                 }
 
                 is KidApiResult.Problem -> {
-                    fail(errorFor(result), Retry.LoadKids)
+                    Timber.i("Couldn't list the account's kids for pairing: %s %s", result.status, result.code)
                 }
 
                 is KidApiResult.NetworkError -> {
-                    fail(AddKidError.Network, Retry.LoadKids)
+                    Timber.w(result.cause, "Couldn't list the account's kids for pairing")
                 }
             }
+        }
+
+        private fun updatePairing(transform: (AddKidStep.Pairing) -> AddKidStep.Pairing) {
+            _step.update { (it as? AddKidStep.Pairing)?.let(transform) ?: it }
+        }
+
+        /** Shows a code, polls it, and gets a new one when it expires; failures back off instead of looping */
+        private suspend fun runPairing() {
+            var failures = 0
+            while (true) {
+                val code =
+                    try {
+                        quickConnect.initiate(server.url)
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: Exception) {
+                        Timber.w(ex, "Pairing code request failed")
+                        updatePairing { it.copy(code = null, trouble = true) }
+                        delay(backoffMillis(++failures))
+                        continue
+                    }
+                failures = 0
+                updatePairing { it.copy(code = code.code, trouble = false) }
+                if (awaitPairing(code.secret) == QuickConnectPoll.EXPIRED) {
+                    Timber.i("Pairing code expired; showing a new one")
+                    continue
+                }
+                val auth =
+                    try {
+                        quickConnect.authenticate(server.url, code.secret)
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: Exception) {
+                        Timber.w(ex, "Pairing sign-in failed")
+                        delay(backoffMillis(++failures))
+                        continue
+                    }
+                return if (isKid(auth)) finishPairing(auth) else refuse(auth)
+            }
+        }
+
+        /** Polls [secret] every [PAIR_POLL_MS] until it is approved or expires; a failed poll backs off */
+        private suspend fun awaitPairing(secret: String): QuickConnectPoll {
+            var failures = 0
+            while (true) {
+                delay(if (failures == 0) PAIR_POLL_MS else backoffMillis(failures))
+                val poll =
+                    try {
+                        quickConnect.poll(server.url, secret)
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: Exception) {
+                        Timber.w(ex, "Pairing poll failed")
+                        failures++
+                        updatePairing { it.copy(trouble = true) }
+                        continue
+                    }
+                if (failures > 0) {
+                    failures = 0
+                    updatePairing { it.copy(trouble = false) }
+                }
+                if (poll != QuickConnectPoll.WAITING) return poll
+            }
+        }
+
+        /** Contract 12.3: a grown-up's approval is never saved or published, and its token is signed out (best effort) */
+        private suspend fun refuse(auth: AuthenticationResult) {
+            Timber.i("Pairing code was approved for an adult profile; refusing it")
+            auth.accessToken?.let { token -> withContext(NonCancellable) { quickConnect.signOut(server.url, token) } }
+            _step.value = AddKidStep.PairingRefused
+        }
+
+        /**
+         * Contract 12.3: the paired kid signs in through the gate, named as on the server. If the parent's unlock ran out,
+         * [auth] is kept while their PIN is asked again, and the sign-in finishes with it afterwards.
+         */
+        private suspend fun finishPairing(auth: AuthenticationResult) {
+            pendingPair = auth
+            if (!unlocked()) return
+            val name = auth.user?.name?.takeIf { it.isNotBlank() }
+            _step.value = AddKidStep.Working(Work.Connecting, name.orEmpty())
+            val current =
+                try {
+                    gate.signInKid(server.url, auth, name)
+                } catch (ex: CancellationException) {
+                    throw ex
+                } catch (ex: ProfileGateException) {
+                    // The unlock ran out while signing in: nothing was published, ask for the PIN again
+                    Timber.i("Paired kid sign-in refused: %s", ex.decision)
+                    parent?.let { _step.value = AddKidStep.EnterPin(it) }
+                    return
+                } catch (ex: Exception) {
+                    Timber.w(ex, "Paired kid sign-in failed")
+                    return fail(AddKidError.Generic, Retry.Pair)
+                }
+            pendingPair = null
+            gate.clearParentUnlock()
+            _step.value = AddKidStep.Done
+            setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
         }
 
         private fun create(
@@ -394,7 +621,8 @@ class AddKidViewModel
                                 }
 
                                 KidProblemCodes.KID_NOT_FOUND -> {
-                                    return loadKids()
+                                    // Contract 3.2: refresh the list (the pairing screen loads it again)
+                                    return pair()
                                 }
 
                                 else -> {
@@ -489,6 +717,22 @@ class AddKidViewModel
             const val IN_PROGRESS_WAIT_MS = 2_000L
             const val MAX_IN_PROGRESS_WAITS = 5
 
+            /** Contract 12.3: how often the pairing code is polled, and the longest wait after failures */
+            const val PAIR_POLL_MS = 2_000L
+            const val MAX_PAIR_BACKOFF_MS = 30_000L
+
+            /** The wait after [failures] failures in a row: doubling from twice the poll, at most [MAX_PAIR_BACKOFF_MS] */
+            fun backoffMillis(failures: Int): Long = (PAIR_POLL_MS shl failures.coerceIn(1, 4)).coerceAtMost(MAX_PAIR_BACKOFF_MS)
+
+            /** Section 1 kid signal: a kid's policy has a MaxParentalRating; an adult's (or a missing policy) doesn't */
+            fun isKid(auth: AuthenticationResult): Boolean = auth.user?.policy?.maxParentalRating != null
+
+            /** A 6-digit code as "123 456", easier to read off a TV */
+            fun formatCode(code: String): String = if (code.length == 6) "${code.take(3)} ${code.drop(3)}" else code
+
+            /** Contract 4: media user ids compare without dashes or case */
+            fun normalisedId(id: String): String = id.replace("-", "").lowercase()
+
             /** Saved adults who could unlock the flow (signed in, server says adult). */
             fun parentsOf(
                 users: List<JellyfinUser>,
@@ -534,10 +778,27 @@ sealed interface AddKidStep {
         val parent: JellyfinUser,
     ) : AddKidStep
 
-    data class ChooseKid(
-        val kids: List<KidProfile>,
-        val limit: Int,
+    /** Contract 12.4: the other saved adults without a PIN; each creates one or leaves this TV before a kid is added */
+    data class AdultPins(
+        val adults: List<JellyfinUser>,
+        val removeFailed: Boolean = false,
     ) : AddKidStep
+
+    /** "Create a new kid profile" or "Add an existing kid profile" (contract 12.3) */
+    data object ChooseHow : AddKidStep
+
+    /**
+     * Contract 12.3: [code] is the pairing code shown (null while one is fetched), [kids] the account's own kids not on
+     * this TV yet, and [trouble] is set while the server can't be reached (it keeps trying)
+     */
+    data class Pairing(
+        val code: String? = null,
+        val kids: List<KidProfile> = emptyList(),
+        val trouble: Boolean = false,
+    ) : AddKidStep
+
+    /** Contract 12.3: the code was approved for a grown-up's profile; nothing was saved */
+    data object PairingRefused : AddKidStep
 
     data class Form(
         val name: String = "",
@@ -611,7 +872,8 @@ sealed interface AddKidError {
 sealed interface Retry {
     data object None : Retry
 
-    data object LoadKids : Retry
+    /** Contract 12.3: finish a paired kid's sign-in, or pair again */
+    data object Pair : Retry
 
     data class Create(
         val name: String,
