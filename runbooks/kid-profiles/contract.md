@@ -1,11 +1,12 @@
-# Kid profiles — frozen TV <-> website contract (v1.4)
+# Kid profiles — frozen TV <-> website contract (v1.5)
 
 Status: **FROZEN 2026-10-21** by the kid-profiles orchestrator. v1.1 (same day) only clarifies
 website-side details found while building tracks A and B; nothing the TV sends or reads changed.
 v1.2 (same day) applies the Phase 0 result (Jellyfin 12.2.0): `MaxParentalSubRating` is 1 at
 every level; null behaves like 0 and hid all TV-MA/NC-17 from Teens. TV behaviour unchanged. v1.3 (2026-10-22) adds section 10, the owner's
 content rules for every kids profile (TV-side filter on top of the server policy). v1.4 (2026-10-22) adds section 11: account
-avatars and an account PIN that the website can reset, plus the website's "Your profiles" pages. Identical copies live in
+avatars and an account PIN that the website can reset, plus the website's "Your profiles" pages. v1.5 (2026-10-23) adds section 12: kid pages on the website (picture, watch history,
+pairing a kid to another TV), PINs for every adult on a TV with kids, and deleted kids leaving the TV. Identical copies live in
 `Wholphin/runbooks/kid-profiles/contract.md` and `weaseltv-platform/docs/kid-profiles/contract.md`. Tracks build to this
 document. Changes go through the orchestrator only; a change bumps the version line above and
 is made in both repos in the same step.
@@ -352,3 +353,83 @@ they follow the person to every TV and survive signing out and back in.
 - `GET /api/v1/portal/weaselplex/profile` -> `200 {"data":{"displayName":"...","hasPin":bool,"pinUpdatedAt":"..."|null,"hasAvatar":bool}}`.
 - `GET /api/v1/portal/weaselplex/profile/avatar`: the session's own media user's Primary image (never a kid's, no
   caller-supplied id), resized, raster `image/*` only, `Cache-Control: private, no-store`; 404 when there is none.
+
+## 12. Kid pages, pairing a kid to another TV, adult PINs, deleted kids (owner decision 2026-10-23, v1.5)
+
+### 12.1 Website kid pages
+
+- `/weaselplex/profiles/kids`: one title card holds the "Kids profiles" heading, the count ("3 of 5"), "Each kid gets
+  their own profile that only shows movies and shows for their age. You can have up to 5 kid profiles." and "To add a
+  kid, open WeaselPlex on your TV and choose **Select user → Add kid profile**." No subtitle and no second heading.
+  Each kid is one button (avatar or initial, name, level label, level description) that opens
+  `/weaselplex/profiles/kids/{kidId}`.
+- `/weaselplex/profiles/kids/{kidId}`: Back (to Kids profiles); the kid's avatar, name and level; **Rename**,
+  **Change level**, **Change picture**, **Delete** (section 6 rules and routes); **Pair to a TV** (12.3); **Watch
+  history** (12.2). A kid id that isn't this account's (or is `deleting`) shows "We couldn't find that kid profile"
+  with a link back. Same sign-in and access rules as the other profile pages.
+- **Change picture:** the 24 kid avatars, same ids as the TV (`app/src/weaselfin/assets/avatars/kids/`, file name
+  without `.webp`). `PUT /api/v1/portal/weaselplex/kids/{kidId}/avatar`, body (strict) `{"avatarId":"octopus-lime"}`
+  -> `200 {"data":{"avatarId":"octopus-lime"}}`. Portal Origin/CSRF/session checks and active access (403
+  `WEASELPLEX_ACCESS_REQUIRED`); the kid must be this account's (404 `KID_NOT_FOUND`) and `active` (409
+  `KID_NOT_ACTIVE`); unknown id -> 400 `INVALID_REQUEST`; 30 per hour per account (429 `RATE_LIMITED`); 503
+  `MEDIA_ACCESS_PROVIDER_UNAVAILABLE`. The website uploads the avatar as a PNG Primary image of the kid's media user
+  with the admin key (same format as the TV: base64 body, `Content-Type: image/png`). Audit
+  `weaselplex.kid.avatar_changed`.
+- `GET /api/v1/portal/weaselplex/kids/{kidId}/avatar`: the kid's Primary image, same rules as the 11.3 avatar route
+  (this account's kid only, raster only, size cap, `private, no-store`, 404 when none).
+
+### 12.2 Watch history
+
+- `GET /api/v1/portal/weaselplex/kids/{kidId}/history` -> `200 {"data":{"items":[Item...]}}`, newest first, at most
+  50: movies and episodes the kid's media user has finished or started, ordered by `UserData.LastPlayedDate`.
+  `Item = {"itemId","type":"Movie"|"Episode","name","seriesName"|null,"seasonNumber"|null,"episodeNumber"|null,
+  "lastPlayedAt"|null,"finished":bool,"progressPercent":int|null,"hasImage":bool}`. Read with the admin key as that
+  user (`userId=`). Same portal checks and kid ownership as 12.1; 60 per hour per account.
+- `GET /api/v1/portal/weaselplex/kids/{kidId}/history/{itemId}/image`: the item's poster (episodes may fall back to
+  the series poster), only for an item that kid's media user can see; raster only, size cap, resized,
+  `private, no-store`.
+
+### 12.3 Pairing a kid to another TV
+
+A kid made on one account (a parent) can be added to another account's TV (a grandparent). History, level and avatar
+follow because they belong to the kid's media user.
+
+- **The pairing code is a Jellyfin Quick Connect code.** TV: Select user -> Add kid profile -> parent unlock -> adult
+  PINs (12.4) -> **Add an existing kid profile**. The TV starts Quick Connect with a scoped, unauthenticated client and
+  shows the 6-digit code with "On your phone or computer, go to theweasel.tv/weaselplex/profiles, choose Kids
+  profiles, pick the kid, then Pair to a TV and enter this code." and a QR code for
+  `https://theweasel.tv/weaselplex/profiles/kids`. It polls; when the code expires it gets a new one by itself.
+  The same screen also offers this account's own active kids that aren't on the TV yet (section 5.4 connect).
+- **Website:** the kid page's "Pair to a TV" takes the 6 digits and calls the existing
+  `POST /api/v1/portal/weaselplex/quickconnect` with `{"code","kidId"}` (section 6). No new route.
+- **TV, once authenticated:** the result must be a kid (section 1 kid signal). An adult result is refused: the TV
+  signs that token out (`POST /Sessions/Logout` with it) and says the code was approved for a grown-up profile. A kid
+  goes through `KidSessionGate.signInKid` with `UserDto.name` as the display name (the TV can't list another account's
+  kids). If the parent unlock ran out while waiting, the TV asks for the parent's PIN again and then finishes with the
+  same result.
+- Kids from another account don't count against this account's 5; the website only lists the account's own kids.
+
+### 12.4 Every signed-in adult on a TV with kids has a PIN
+
+- Before a kid is created on, signed in on or paired to a TV, after the parent unlock: every other saved adult on that
+  TV that has a token must have a PIN. The TV pulls their account PINs first (11.2); an account that already has one
+  counts, so an existing PIN is turned on by itself. Each remaining adult gets **Create PIN** (4 presses, then again;
+  saved to that adult's account with their token, 11.2) or **Remove from this TV**. The kid step goes on only when
+  none remain. Back leaves the add-kid flow without adding a kid.
+- Saved adults without a token need their password or Quick Connect to get in; when they sign in on a TV with kids
+  they set a PIN first (11.2, unchanged).
+
+### 12.5 Deleted kids leave the TV; pictures stay current
+
+- When the select-user page opens, the TV checks every saved kid profile with its own token (`GET /Users/Me`). HTTP
+  401 (the media user was deleted, or its sessions were ended from the website) removes that profile from the TV: its
+  saved row and its cached PIN, picture and kid state. Network errors and other statuses change nothing. Adults are
+  never removed this way. Kid protection stays on.
+- The same call returns the profile's `PrimaryImageTag`; the chooser puts it in the image URL so a picture changed on
+  the website or another TV shows.
+
+### 12.6 One-time avatar backfill (done 2026-10-23)
+
+- Every non-administrator adult media user without a Primary image got a random adult avatar (the TV's PNG
+  format), once, by the orchestrator (25 users). 11.1's per-TV random avatar stays for profiles saved before the TV
+  update reaches them; accounts made from now on choose at first sign-in.
