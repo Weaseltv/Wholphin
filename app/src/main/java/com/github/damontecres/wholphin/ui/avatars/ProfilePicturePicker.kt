@@ -164,7 +164,7 @@ fun ProfilePicturePicker(
     }
 }
 
-/** Grid columns; 24 avatars make four rows, of which [VISIBLE_ROWS] show */
+/** Grid columns; 48 avatars make eight rows, of which [VISIBLE_ROWS] show */
 private const val COLUMNS = 6
 
 /** Rows shown in full, with the panel's title, subtitle and bottom row, inside a 1080p TV's 540dp */

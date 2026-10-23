@@ -1,4 +1,4 @@
-# Kid profiles — frozen TV <-> website contract (v1.5)
+# Kid profiles — frozen TV <-> website contract (v1.6)
 
 Status: **FROZEN 2026-10-21** by the kid-profiles orchestrator. v1.1 (same day) only clarifies
 website-side details found while building tracks A and B; nothing the TV sends or reads changed.
@@ -6,7 +6,7 @@ v1.2 (same day) applies the Phase 0 result (Jellyfin 12.2.0): `MaxParentalSubRat
 every level; null behaves like 0 and hid all TV-MA/NC-17 from Teens. TV behaviour unchanged. v1.3 (2026-10-22) adds section 10, the owner's
 content rules for every kids profile (TV-side filter on top of the server policy). v1.4 (2026-10-22) adds section 11: account
 avatars and an account PIN that the website can reset, plus the website's "Your profiles" pages. v1.5 (2026-10-23) adds section 12: kid pages on the website (picture, watch history,
-pairing a kid to another TV), PINs for every adult on a TV with kids, and deleted kids leaving the TV. Identical copies live in
+pairing a kid to another TV), PINs for every adult on a TV with kids, and deleted kids leaving the TV. v1.6 (2026-10-23) adds the owner's second avatar set (48 adult, 48 kid). Identical copies live in
 `Wholphin/runbooks/kid-profiles/contract.md` and `weaseltv-platform/docs/kid-profiles/contract.md`. Tracks build to this
 document. Changes go through the orchestrator only; a change bumps the version line above and
 is made in both repos in the same step.
@@ -305,8 +305,8 @@ they follow the person to every TV and survive signing out and back in.
 
 ### 11.1 Avatar
 
-- Stored as the Jellyfin user's Primary image (section 7). Adults choose from the 24 adult avatars, kids from
-  the 24 kid avatars (`app/src/weaselfin/assets/avatars/`).
+- Stored as the Jellyfin user's Primary image (section 7). Adults choose from the 48 adult avatars, kids from
+  the 48 kid avatars (`app/src/weaselfin/assets/avatars/`).
 - **First sign-in.** When an adult signs in on a TV (username/password or Quick Connect, not a profile switch)
   and their user has no Primary image, the TV asks them to choose an avatar before going on. No skip; if the
   upload fails it says so and offers "Try again" and "Continue without a picture".
@@ -367,7 +367,7 @@ they follow the person to every TV and survive signing out and back in.
   **Change level**, **Change picture**, **Delete** (section 6 rules and routes); **Pair to a TV** (12.3); **Watch
   history** (12.2). A kid id that isn't this account's (or is `deleting`) shows "We couldn't find that kid profile"
   with a link back. Same sign-in and access rules as the other profile pages.
-- **Change picture:** the 24 kid avatars, same ids as the TV (`app/src/weaselfin/assets/avatars/kids/`, file name
+- **Change picture:** the 48 kid avatars, same ids as the TV (`app/src/weaselfin/assets/avatars/kids/`, file name
   without `.webp`). `PUT /api/v1/portal/weaselplex/kids/{kidId}/avatar`, body (strict) `{"avatarId":"octopus-lime"}`
   -> `200 {"data":{"avatarId":"octopus-lime"}}`. Portal Origin/CSRF/session checks and active access (403
   `WEASELPLEX_ACCESS_REQUIRED`); the kid must be this account's (404 `KID_NOT_FOUND`) and `active` (409
@@ -431,5 +431,6 @@ follow because they belong to the kid's media user.
 ### 12.6 One-time avatar backfill (done 2026-10-23)
 
 - Every non-administrator adult media user without a Primary image got a random adult avatar (the TV's PNG
-  format), once, by the orchestrator (25 users). 11.1's per-TV random avatar stays for profiles saved before the TV
+  format), once, by the orchestrator (25 users). The owner then asked that no two auto-assigned profiles share one:
+  the two duplicates got unused avatars from the second set (v1.6). Avatars people choose themselves may repeat. 11.1's per-TV random avatar stays for profiles saved before the TV
   update reaches them; accounts made from now on choose at first sign-in.

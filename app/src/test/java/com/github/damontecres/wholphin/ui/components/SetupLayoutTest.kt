@@ -193,14 +193,14 @@ class SetupLayoutTest {
 
     @Test
     fun `the picture picker opens on the saved avatar even past the first rows`() {
-        val avatars = (0 until 24).map { Avatar("avatar-$it", AvatarGroup.KIDS) }
+        val avatars = (0 until 48).map { Avatar("avatar-$it", AvatarGroup.KIDS) }
         compose.setContent {
             WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
-                ProfilePicturePicker(title = "Change picture", subtitle = null, avatars = avatars, current = "avatar-22", onPick = {})
+                ProfilePicturePicker(title = "Change picture", subtitle = null, avatars = avatars, current = "avatar-46", onPick = {})
             }
         }
         compose.waitForIdle()
-        compose.onNode(isFocused()).assert(hasContentDescription("avatar-22"))
+        compose.onNode(isFocused()).assert(hasContentDescription("avatar-46"))
     }
 
     @Test
