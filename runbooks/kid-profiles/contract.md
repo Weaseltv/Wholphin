@@ -383,7 +383,7 @@ they follow the person to every TV and survive signing out and back in.
 - `GET /api/v1/portal/weaselplex/kids/{kidId}/history` -> `200 {"data":{"items":[Item...]}}`, newest first, at most
   50: movies and episodes the kid's media user has finished or started, ordered by `UserData.LastPlayedDate`.
   `Item = {"itemId","type":"Movie"|"Episode","name","seriesName"|null,"seasonNumber"|null,"episodeNumber"|null,
-  "lastPlayedAt"|null,"finished":bool,"progressPercent":int|null,"hasImage":bool}`. Read with the admin key as that
+"lastPlayedAt"|null,"finished":bool,"progressPercent":int|null,"hasImage":bool}`. Read with the admin key as that
   user (`userId=`). Same portal checks and kid ownership as 12.1; 60 per hour per account.
 - `GET /api/v1/portal/weaselplex/kids/{kidId}/history/{itemId}/image`: the item's poster (episodes may fall back to
   the series poster), only for an item that kid's media user can see; raster only, size cap, resized,
