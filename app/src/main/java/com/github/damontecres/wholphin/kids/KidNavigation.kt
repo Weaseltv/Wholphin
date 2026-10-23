@@ -1,11 +1,17 @@
 package com.github.damontecres.wholphin.kids
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.github.damontecres.wholphin.BuildConfig
+import com.github.damontecres.wholphin.data.CurrentUser
+import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.ui.nav.Destination
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -34,17 +40,29 @@ object KidNavigation {
         destination: Destination,
         kidOrUnknown: Boolean,
     ): Boolean = !(BuildConfig.KID_PROFILES_ENABLED && kidOrUnknown && isSettingsPage(destination))
+
+    /** Fail closed (review): only a session known to be an adult's counts as one; no session at all is not an adult's */
+    fun kidOrUnknown(current: CurrentUser?): Boolean = current?.user?.profileKind != ProfileKind.ADULT
 }
 
-/** Keeps a kid session out of the Settings pages, whichever way it got there ([KidNavigation]) */
+/**
+ * Keeps a kid session out of the Settings pages, whichever way it got there ([KidNavigation]). Read from the session
+ * itself, so no session (or one not known to be an adult's) is kept out too.
+ */
 @HiltViewModel
 class KidPageGuardViewModel
     @Inject
     constructor(
-        gate: KidSessionGate,
+        serverRepository: ServerRepository,
         private val navigationManager: NavigationManager,
     ) : ViewModel() {
-        val isKidSession: StateFlow<Boolean> = gate.isKidSession
+        val isKidOrUnknown: StateFlow<Boolean> =
+            serverRepository.current
+                .map { KidNavigation.kidOrUnknown(it) }
+                .stateIn(viewModelScope, SharingStarted.Eagerly, KidNavigation.kidOrUnknown(serverRepository.current.value))
+
+        /** Whether [destination] may show for the session now */
+        fun mayShow(destination: Destination): Boolean = KidNavigation.mayOpen(destination, isKidOrUnknown.value)
 
         fun leave(destination: Destination) {
             Timber.i("Kid session kept out of %s", destination)

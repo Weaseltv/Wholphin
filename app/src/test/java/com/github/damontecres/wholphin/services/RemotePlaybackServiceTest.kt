@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.services
 
 import android.content.Context
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.PolicyState
@@ -231,18 +232,20 @@ class RemotePlaybackServiceTest {
         runTest(testDispatcher) {
             val goToSettings = GeneralCommand(GeneralCommandType.GO_TO_SETTINGS, controllingUserId, emptyMap())
             val settings = Destination.Settings(PreferenceScreenOption.BASIC)
-            // Owner 2026-10-23: a kids profile has no Settings; a profile not known to be an adult counts as a kid
+            // Owner 2026-10-23: a kids profile has no Settings; a profile not known to be an adult counts as a kid. Builds
+            // without kid profiles (eg the default flavor) open Settings for everyone.
+            val kidsAllowed = !BuildConfig.KID_PROFILES_ENABLED
             for (state in listOf(PolicyState.KID, PolicyState.UNKNOWN)) {
                 every { serverRepository.current } returns
                     MutableStateFlow<CurrentUser?>(currentUser.copy(user = currentUser.user.copy(policyState = state)))
-                assertFalse(service.onGeneralCommand(goToSettings))
+                assertEquals(kidsAllowed, service.onGeneralCommand(goToSettings))
             }
-            verify(exactly = 0) { navigationManager.navigateTo(settings) }
+            verify(exactly = if (kidsAllowed) 2 else 0) { navigationManager.navigateTo(settings) }
 
             every { serverRepository.current } returns
                 MutableStateFlow<CurrentUser?>(currentUser.copy(user = currentUser.user.copy(policyState = PolicyState.ADULT)))
             assertTrue(service.onGeneralCommand(goToSettings))
-            verify(exactly = 1) { navigationManager.navigateTo(settings) }
+            verify(exactly = if (kidsAllowed) 3 else 1) { navigationManager.navigateTo(settings) }
         }
 
     @Test

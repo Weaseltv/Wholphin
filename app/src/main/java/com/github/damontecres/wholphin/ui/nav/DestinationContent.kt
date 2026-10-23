@@ -77,8 +77,8 @@ fun DestinationContent(
     if (BuildConfig.KID_PROFILES_ENABLED && KidNavigation.isSettingsPage(destination)) {
         // A kids profile has no Settings (owner 2026-10-23): whichever way it got here, it goes Home instead
         val guard: KidPageGuardViewModel = hiltViewModel()
-        val kidSession by guard.isKidSession.collectAsState()
-        if (!KidNavigation.mayOpen(destination, kidSession)) {
+        val kidOrUnknown by guard.isKidOrUnknown.collectAsState()
+        if (!KidNavigation.mayOpen(destination, kidOrUnknown)) {
             LaunchedEffect(destination) { guard.leave(destination) }
             return
         }
