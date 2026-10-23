@@ -155,11 +155,57 @@ class CurrentAvatarTest {
             status = ProfileStatus.Active("tag-404")
             serverPicture = null
             assertEquals(CurrentPicture.NotBundled, finder.find(target, adults))
+            // A missing (or undecodable) picture isn't cached: asked again next time
+            assertEquals(CurrentPicture.NotBundled, finder.find(target, adults))
+            assertEquals(2, fetches)
             status = ProfileStatus.Active("tag-custom")
             serverPicture = "custom"
             thumbs["custom"] = picture(9)
             assertEquals(CurrentPicture.NotBundled, finder.find(target, adults))
         }
+
+    @Test
+    fun `a picture changed under the same tag is found again after a minute`() =
+        runTest(dispatcher) {
+            finder.clock = { testScheduler.currentTime }
+            assertEquals(CurrentPicture.Bundled("wolf-crimson"), finder.find(target, adults))
+            thumbs["server"] = alien
+            advanceTimeBy(CurrentAvatarFinder.CACHE_FOR_MS - 1)
+            assertEquals(CurrentPicture.Bundled("wolf-crimson"), finder.find(target, adults))
+            advanceTimeBy(2)
+            assertEquals(CurrentPicture.Bundled("alien-black"), finder.find(target, adults))
+            assertEquals(2, fetches)
+        }
+
+    @Test
+    fun `this TV's own save starts afresh, and reopening never shows the old match`() =
+        runTest(dispatcher) {
+            viewModel.start(target)
+            advanceUntilIdle()
+            assertEquals("wolf-crimson", viewModel.state.value.current)
+            // Saved here (same tag on the server for a moment): the remembered avatar shows, and the server is asked again
+            viewModel.pick(adults.first { it.id == "alien-black" })
+            advanceUntilIdle()
+            thumbs["server"] = alien
+            viewModel.start(target)
+            assertEquals("alien-black", viewModel.state.value.current)
+            advanceUntilIdle()
+            assertEquals("alien-black", viewModel.state.value.current)
+            assertEquals(2, fetches)
+        }
+
+    @Test
+    fun `thumbnails average each cell over black, whatever the image's size`() {
+        val red = 0xFFFF0000.toInt()
+        val wide = AvatarMatching.thumbnail(IntArray(96 * 32) { red }, 96, 32)
+        assertEquals(255, wide[0])
+        assertEquals(0, wide[1])
+        assertEquals(255, wide[wide.size - 3])
+        // Half-transparent white is half grey over black; an image smaller than the thumbnail still fills it
+        val tiny = AvatarMatching.thumbnail(IntArray(4 * 4) { 0x80FFFFFF.toInt() }, 4, 4)
+        assertEquals(128, tiny[0])
+        assertEquals(128, tiny[tiny.size - 1])
+    }
 
     @Test
     fun `a server that can't be reached is unknown`() =

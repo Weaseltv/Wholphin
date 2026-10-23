@@ -36,6 +36,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -87,7 +90,8 @@ fun ProfilePicturePicker(
     val initialIndex = avatars.indexOfFirst { it.id == current }.coerceAtLeast(0)
     val gridState = rememberLazyGridState()
     // The tile this picker focused itself, and whether the user has moved since: a current avatar found later moves the
-    // focus to it only until then, never away from where the user went
+    // focus to it only until then, never away from where the user went (review: any key in the picker, or focus on any
+    // other tile, counts, so a move straight to "Remove picture" does too)
     var focusedByPicker by remember(avatars) { mutableIntStateOf(-1) }
     var settled by remember(avatars) { mutableStateOf(false) }
     var userMoved by remember(avatars) { mutableStateOf(false) }
@@ -103,7 +107,11 @@ fun ProfilePicturePicker(
     }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier,
+        modifier =
+            modifier.onPreviewKeyEvent {
+                if (settled && it.type == KeyEventType.KeyDown) userMoved = true
+                false
+            },
     ) {
         KidTitle(title)
         if (!subtitle.isNullOrBlank()) {
