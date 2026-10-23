@@ -46,11 +46,12 @@ class LauncherRowsTest {
             val resolver = mockk<ContentResolver>(relaxed = true)
             val context = mockk<Context> { every { contentResolver } returns resolver }
             val order = mutableListOf<String>()
-            LauncherRows.locked {
-                val clear = async { LauncherRows.clear(context).also { order.add("clear") } }
-                order.add("write")
-                clear
-            }.await()
+            LauncherRows
+                .locked {
+                    val clear = async { LauncherRows.clear(context).also { order.add("clear") } }
+                    order.add("write")
+                    clear
+                }.await()
             assertEquals(listOf("write", "clear"), order)
             LauncherRows.invalidate()
         }
