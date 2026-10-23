@@ -97,4 +97,16 @@
     <string name="pair_your_kids">Or add one of your kids</string>
     <string name="pair_refused">That code was approved for a grown-up profile. Ask them to approve it from the kid\'s page on theweasel.tv.</string>
     <string name="pair_new_code">Get a new code</string>
+
+    <!-- Kid title page (owner mockup kid-title-page.html, 2026-10-23) -->
+    <string name="kid_keep_watching">Keep watching</string>
+    <string name="kid_start_over">Start over</string>
+    <string name="kid_watchlist">Watchlist</string>
+    <string name="kid_on_watchlist">On Watchlist</string>
+    <string name="kid_play_episode">Play S%1$d · E%2$d</string>
+    <string name="kid_next_up">Next up: \"%1$s\"</string>
+    <plurals name="kid_seasons">
+        <item quantity="one">%d season</item>
+        <item quantity="other">%d seasons</item>
+    </plurals>
 </resources>
