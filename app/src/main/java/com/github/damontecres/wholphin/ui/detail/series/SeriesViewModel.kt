@@ -30,6 +30,9 @@ import com.github.damontecres.wholphin.services.TrailerService
 import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.deleteItem
 import com.github.damontecres.wholphin.ui.ItemRowFields
+import com.github.damontecres.wholphin.ui.components.isKidOrUnknown
+import com.github.damontecres.wholphin.ui.detail.KidPlay
+import com.github.damontecres.wholphin.ui.detail.KidTitlePage
 import com.github.damontecres.wholphin.ui.equalsNotNull
 import com.github.damontecres.wholphin.ui.gt
 import com.github.damontecres.wholphin.ui.launchDefault
@@ -121,6 +124,9 @@ class SeriesViewModel
 
         val position = MutableStateFlow(SeriesOverviewPosition(0, 0))
 
+        /** The kid title page (owner mockup 2026-10-23) for a kid or unknown session (fail closed); adults keep theirs */
+        val kidPage: Boolean = isKidOrUnknown(serverRepository.currentUser)
+
         init {
             viewModelScope.launchIO {
                 Timber.v("Start")
@@ -208,6 +214,8 @@ class SeriesViewModel
                     }
                 }
                 val remoteTrailers = trailerService.getRemoteTrailers(series)
+                // The kid page's Play button is there from the start, so it takes the first focus
+                val kidPlay = if (kidPage && seriesPageType == SeriesPageType.DETAILS) loadKidPlay() else null
                 this@SeriesViewModel.position.update {
                     it.copy(
                         episodeRowIndex =
@@ -220,6 +228,7 @@ class SeriesViewModel
                         seasons = seasons,
                         episodes = episodes,
                         trailers = remoteTrailers,
+                        kidPlay = kidPlay,
                     )
                 }
 
@@ -298,6 +307,13 @@ class SeriesViewModel
 
         fun onResumePage() {
             state.value.series.successValue?.let { item ->
+                if (kidPage && seriesPageType == SeriesPageType.DETAILS) {
+                    // Back from watching: the next episode has moved on
+                    viewModelScope.launchIO {
+                        val kidPlay = loadKidPlay()
+                        _state.update { it.copy(kidPlay = kidPlay) }
+                    }
+                }
                 viewModelScope.launchDefault { backdropService.submit(item) }
                 viewModelScope.launchDefault {
                     themeSongPlayer.playThemeFor(seriesId)
@@ -508,6 +524,32 @@ class SeriesViewModel
             state.value.series.successValue
                 ?.let { backdropService.submit(it) }
         }
+
+        /**
+         * The kid page's Play button: the next-up episode (resumed if started), else the first episode. Both lookups go
+         * through the kid content filter, so an episode this kid can't watch is never offered; none on failure.
+         */
+        private suspend fun loadKidPlay(): KidPlay? =
+            try {
+                val nextUp =
+                    api.tvShowsApi
+                        .getNextUp(seriesId = seriesId)
+                        .content.items
+                val episodes =
+                    if (nextUp.isEmpty()) {
+                        api.tvShowsApi
+                            .getEpisodes(seriesId, limit = KID_FIRST_EPISODES)
+                            .content.items
+                    } else {
+                        emptyList()
+                    }
+                KidTitlePage.seriesPlay(KidTitlePage.nextEpisode(nextUp, episodes))
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                Timber.w(ex, "Couldn't find the next episode of %s", seriesId)
+                null
+            }
 
         /**
          * Play whichever episode is next up for series or else the first episode
@@ -931,4 +973,9 @@ data class SeriesState(
     val discovered: List<DiscoverItem> = emptyList(),
     val discoverSeries: DiscoverItem? = null,
     val chosenStreams: ChosenStreams? = null,
+    /** The kid page's Play button (null: none, or not a kid page) */
+    val kidPlay: KidPlay? = null,
 )
+
+/** How many episodes the kid page looks through for the first one this kid may watch */
+private const val KID_FIRST_EPISODES = 50
