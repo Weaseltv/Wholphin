@@ -3,13 +3,18 @@ package com.github.damontecres.wholphin.ui.nav
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.filter.DefaultForGenresFilterOptions
 import com.github.damontecres.wholphin.data.filter.DefaultForStudiosFilterOptions
 import com.github.damontecres.wholphin.data.model.SeerrItemType
+import com.github.damontecres.wholphin.kids.KidNavigation
+import com.github.damontecres.wholphin.kids.KidPageGuardViewModel
 import com.github.damontecres.wholphin.preferences.PlayerBackend
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.ui.avatars.ProfilePicturePage
@@ -69,6 +74,15 @@ fun DestinationContent(
     onClearBackdrop: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    if (BuildConfig.KID_PROFILES_ENABLED && KidNavigation.isSettingsPage(destination)) {
+        // A kids profile has no Settings (owner 2026-10-23): whichever way it got here, it goes Home instead
+        val guard: KidPageGuardViewModel = hiltViewModel()
+        val kidSession by guard.isKidSession.collectAsState()
+        if (!KidNavigation.mayOpen(destination, kidSession)) {
+            LaunchedEffect(destination) { guard.leave(destination) }
+            return
+        }
+    }
     if (destination.fullScreen) {
         LaunchedEffect(Unit) { onClearBackdrop.invoke() }
     }

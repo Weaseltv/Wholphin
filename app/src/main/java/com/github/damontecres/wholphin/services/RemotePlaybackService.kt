@@ -7,7 +7,9 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.TrackIndex
+import com.github.damontecres.wholphin.kids.KidNavigation
 import com.github.damontecres.wholphin.kids.ProfileChooserLock
+import com.github.damontecres.wholphin.ui.components.isKidOrUnknown
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.preferences.PreferenceScreenOption
 import com.github.damontecres.wholphin.ui.showToast
@@ -244,9 +246,13 @@ class RemotePlaybackService
                 }
 
                 GeneralCommandType.GO_TO_SETTINGS -> {
-                    return navigate {
-                        navigationManager.navigateTo(Destination.Settings(PreferenceScreenOption.BASIC))
+                    // A kids profile has no Settings (owner 2026-10-23); unknown counts as a kid
+                    val settings = Destination.Settings(PreferenceScreenOption.BASIC)
+                    if (!KidNavigation.mayOpen(settings, isKidOrUnknown(serverRepository.current.value?.user))) {
+                        Timber.i("Remote \"go to settings\" refused for a kid session")
+                        return false
                     }
+                    return navigate { navigationManager.navigateTo(settings) }
                 }
 
                 else -> {
