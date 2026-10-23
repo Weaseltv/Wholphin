@@ -51,6 +51,7 @@ import kotlinx.coroutines.withTimeout
 import org.jellyfin.sdk.model.api.AuthenticationResult
 import timber.log.Timber
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 
 /**
@@ -97,6 +98,12 @@ class AddKidViewModel
          * handed to the gate: if the flow is left first, it is signed out (review round 1).
          */
         private var pendingPair: AuthenticationResult? = null
+
+        /**
+         * Whether the flow still owns [pendingPair]'s token (review round 2): not once a failed sign-in may have saved or
+         * published it, which makes it this TV's, never to be signed out
+         */
+        private var pendingPairOwned = false
 
         val avatars: List<Avatar> get() = pictures.avatars(isKid = true)
 
@@ -204,7 +211,19 @@ class AddKidViewModel
             pin: String,
         ): AdultPinOutcome {
             var outcome = AdultPinOutcome.NOT_SAVED
-            val save = launch { outcome = saveAdultPin(adult, pin) }
+            val save =
+                launch {
+                    outcome =
+                        try {
+                            saveAdultPin(adult, pin)
+                        } catch (ex: CancellationException) {
+                            throw ex
+                        } catch (ex: Exception) {
+                            // Review round 2: eg a storage failure; the PIN screen says it wasn't saved
+                            Timber.w(ex, "Adult PIN save failed")
+                            AdultPinOutcome.NOT_SAVED
+                        }
+                }
             try {
                 save.join()
             } catch (ex: CancellationException) {
@@ -391,8 +410,46 @@ class AddKidViewModel
         /** Review round 1: a kid's sign-in the flow kept but won't use is signed out, not left as an orphan session */
         private fun abandonPendingPair() {
             val abandoned = pendingPair ?: return
+            val owned = pendingPairOwned
             pendingPair = null
-            signOutAbandoned(abandoned)
+            pendingPairOwned = false
+            if (owned) signOutAbandoned(abandoned)
+        }
+
+        /**
+         * Review round 2: whether a sign-in the gate failed with was saved or published before it failed (then it is this
+         * TV's). Fails safe: when that can't be told, it counts as in use and is never signed out.
+         */
+        private suspend fun inUseAfterFailure(auth: AuthenticationResult): Boolean {
+            val token = auth.accessToken ?: return true
+            return try {
+                serverRepository.isTokenInUse(token)
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                Timber.w(ex, "Couldn't tell whether a failed sign-in was kept")
+                true
+            }
+        }
+
+        /** A pairing sign-in the gate failed with, kept for a retry; the flow owns it only if it wasn't kept by the TV */
+        private suspend fun keepFailedPair(auth: AuthenticationResult) {
+            withContext(NonCancellable) {
+                val owned = !inUseAfterFailure(auth)
+                pendingPair = auth
+                pendingPairOwned = owned
+            }
+            try {
+                currentCoroutineContext().ensureActive()
+            } catch (ex: CancellationException) {
+                abandonPendingPair()
+                throw ex
+            }
+        }
+
+        /** A connect sign-in the gate failed with: signed out unless the TV kept it ([inUseAfterFailure]) */
+        private suspend fun releaseFailedSignIn(auth: AuthenticationResult) {
+            withContext(NonCancellable) { if (!inUseAfterFailure(auth)) signOutAbandoned(auth) }
         }
 
         /** Signs [auth]'s token out (best effort, bounded by [KidQuickConnect.signOut]), even after the flow is gone */
@@ -410,20 +467,22 @@ class AddKidViewModel
          * token is signed out before the cancellation goes on. Throws a plain exception on failure or timeout.
          */
         private suspend fun authenticateOwned(secret: String): AuthenticationResult {
-            // Kept outside the non-cancellable block, so a cancellation on its way out still finds the token
-            var issued: AuthenticationResult? = null
+            // Review round 2: set by the implementation as soon as the result is decoded, before any cancellable return,
+            // so a timeout or cancellation on the way back still finds the token
+            val issued = AtomicReference<AuthenticationResult?>(null)
             try {
-                withContext(NonCancellable) {
-                    issued = withTimeout(AUTHENTICATE_TIMEOUT_MS) { quickConnect.authenticate(server.url, secret) }
-                }
+                val returned =
+                    withContext(NonCancellable) {
+                        withTimeout(AUTHENTICATE_TIMEOUT_MS) { quickConnect.authenticate(server.url, secret) { issued.set(it) } }
+                    }
+                issued.compareAndSet(null, returned)
                 currentCoroutineContext().ensureActive()
-            } catch (ex: TimeoutCancellationException) {
-                throw IllegalStateException("Quick Connect sign-in timed out", ex)
             } catch (ex: CancellationException) {
-                issued?.let { signOutAbandoned(it) }
+                issued.get()?.let { signOutAbandoned(it) }
+                if (ex is TimeoutCancellationException) throw IllegalStateException("Quick Connect sign-in timed out", ex)
                 throw ex
             }
-            return issued ?: throw IllegalStateException("Quick Connect sign-in returned nothing")
+            return issued.get() ?: throw IllegalStateException("Quick Connect sign-in returned nothing")
         }
 
         private fun showForm(
@@ -597,12 +656,17 @@ class AddKidViewModel
          * [auth] is kept while their PIN is asked again, and the sign-in finishes with it afterwards.
          */
         private suspend fun finishPairing(auth: AuthenticationResult) {
-            pendingPair = auth
+            // A fresh sign-in is the flow's own; a kept one ([keepFailedPair]) keeps what it was
+            if (pendingPair !== auth) {
+                pendingPair = auth
+                pendingPairOwned = true
+            }
             if (!unlocked()) return
             val name = auth.user?.name?.takeIf { it.isNotBlank() }
             _step.value = AddKidStep.Working(Work.Connecting, name.orEmpty())
-            // Handed to the gate, which may publish it: from here leaving the flow must not sign it out
+            // Handed to the gate, which may save or publish it: from here leaving the flow must not sign it out
             pendingPair = null
+            pendingPairOwned = false
             val current =
                 try {
                     gate.signInKid(server.url, auth, name)
@@ -611,12 +675,13 @@ class AddKidViewModel
                 } catch (ex: ProfileGateException) {
                     // The unlock ran out while signing in: nothing was published, ask for the PIN again
                     Timber.i("Paired kid sign-in refused: %s", ex.decision)
-                    pendingPair = auth
+                    keepFailedPair(auth)
                     parent?.let { _step.value = AddKidStep.EnterPin(it) }
                     return
                 } catch (ex: Exception) {
+                    // Possibly after publication (eg its journal write): kept, but signed out later only if never kept
                     Timber.w(ex, "Paired kid sign-in failed")
-                    pendingPair = auth
+                    keepFailedPair(auth)
                     return fail(AddKidError.Generic, Retry.Pair)
                 }
             gate.clearParentUnlock()
@@ -755,13 +820,13 @@ class AddKidViewModel
                     } catch (ex: ProfileGateException) {
                         // The parent's unlock ran out while signing in: nothing was published, ask for the PIN again
                         Timber.i("Kid sign-in refused: %s", ex.decision)
-                        signOutAbandoned(auth)
+                        releaseFailedSignIn(auth)
                         val user = parent
                         if (user != null) _step.value = AddKidStep.EnterPin(user) else fail(AddKidError.Generic, Retry.Connect(kid))
                         return
                     } catch (ex: Exception) {
                         Timber.w(ex, "Kid sign-in failed")
-                        signOutAbandoned(auth)
+                        releaseFailedSignIn(auth)
                         return fail(AddKidError.Generic, Retry.Connect(kid))
                     }
                 savePicture(current.user.id, auth.accessToken, displayName)

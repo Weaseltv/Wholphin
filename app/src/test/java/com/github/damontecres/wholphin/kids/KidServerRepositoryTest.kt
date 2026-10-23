@@ -263,6 +263,19 @@ class KidServerRepositoryTest {
         }
 
     @Test
+    fun `a token is in use while the session or a saved row has it`() =
+        runTest {
+            val kid = row(3)
+            every { serverDao.getUserByAccessToken(any()) } returns null
+            assertFalse(repository.isTokenInUse("token3"))
+            every { serverDao.getUserByAccessToken("saved") } returns kid
+            assertTrue(repository.isTokenInUse("saved"))
+            coEvery { userApi.getCurrentUser() } returns successResponse(userDto(kid.id, 10))
+            repository.changeUser(server, kid, authorize = {})
+            assertTrue(repository.isTokenInUse("token3"))
+        }
+
+    @Test
     fun `the current session's kid is never removed as signed out`() =
         runTest {
             val kid = row(3)

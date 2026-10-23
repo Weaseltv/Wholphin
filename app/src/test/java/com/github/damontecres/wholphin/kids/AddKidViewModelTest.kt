@@ -997,6 +997,102 @@ class AddKidViewModelTest {
             assertEquals(listOf("kid-token"), quickConnect.signedOut)
         }
 
+    // Review round 2
+
+    @Test
+    fun `a sign-in issued as the timeout fires is signed out`() =
+        test {
+            quickConnect.authTokens += "late-token"
+            quickConnect.returnDelays += AddKidViewModel.AUTHENTICATE_TIMEOUT_MS + 1
+            unlockMom()
+            viewModel.addExisting()
+            advanceUntilIdle()
+            // The late result is signed out; the next code signs the kid in
+            assertEquals(listOf("late-token"), quickConnect.signedOut)
+            assertEquals(2, quickConnect.authenticated)
+            assertSignedIn("Emma")
+        }
+
+    @Test
+    fun `a pairing sign-in kept by the tv before the gate failed is never signed out`() =
+        test {
+            // Published, then the switch journal failed: the session (and Room) hold the token
+            coEvery { serverRepository.isTokenInUse("kid-token") } returns true
+            gate.signInFailure = IllegalStateException("journal")
+            unlockMom()
+            viewModel.addExisting()
+            advanceUntilIdle()
+            assertEquals(AddKidStep.Failed(AddKidError.Generic, Retry.Pair), step)
+            viewModel.cancel()
+            advanceUntilIdle()
+            assertTrue(quickConnect.signedOut.isEmpty())
+        }
+
+    @Test
+    fun `a pairing sign-in the gate failed with before keeping it is signed out on back`() =
+        test {
+            gate.signInFailure = IllegalStateException("network")
+            unlockMom()
+            viewModel.addExisting()
+            advanceUntilIdle()
+            assertEquals(AddKidStep.Failed(AddKidError.Generic, Retry.Pair), step)
+            assertTrue(quickConnect.signedOut.isEmpty())
+            viewModel.cancel()
+            advanceUntilIdle()
+            assertEquals(listOf("kid-token"), quickConnect.signedOut)
+        }
+
+    @Test
+    fun `a retry of a sign-in the tv kept stays the tv's`() =
+        test {
+            coEvery { serverRepository.isTokenInUse("kid-token") } returns true
+            gate.signInFailure = IllegalStateException("journal")
+            unlockMom()
+            viewModel.addExisting()
+            advanceUntilIdle()
+            assertEquals(AddKidStep.Failed(AddKidError.Generic, Retry.Pair), step)
+            // Retried after the unlock ran out: the same result waits for the PIN, still the TV's
+            gate.signInFailure = null
+            gate.now += unlockExpiry
+            viewModel.retry()
+            advanceUntilIdle()
+            assertEquals(AddKidStep.EnterPin(mom), step)
+            viewModel.cancel()
+            advanceUntilIdle()
+            assertTrue(quickConnect.signedOut.isEmpty())
+        }
+
+    @Test
+    fun `a connect sign-in kept by the tv before the gate failed is never signed out`() =
+        test {
+            coEvery { serverRepository.isTokenInUse("kid-token") } returns true
+            gate.signInFailure = IllegalStateException("journal")
+            unlockMom()
+            viewModel.signInExisting(testKid("Emma"))
+            advanceUntilIdle()
+            assertEquals(AddKidStep.Failed(AddKidError.Generic, Retry.Connect(testKid("Emma"))), step)
+            assertTrue(quickConnect.signedOut.isEmpty())
+        }
+
+    @Test
+    fun `a connect sign-in the gate failed with before keeping it is signed out`() =
+        test {
+            gate.signInFailure = IllegalStateException("network")
+            unlockMom()
+            viewModel.signInExisting(testKid("Emma"))
+            advanceUntilIdle()
+            assertEquals(listOf("kid-token"), quickConnect.signedOut)
+        }
+
+    @Test
+    fun `a storage failure while saving an adult's pin says it wasn't saved`() =
+        test {
+            coEvery { accountPins.createIfNoPin(dad, any(), any()) } throws IllegalStateException("room")
+            unlockMom(listOf(mom, dad))
+            assertEquals(AdultPinOutcome.NOT_SAVED, viewModel.createAdultPin(dad, "UDLR"))
+            assertEquals(AddKidStep.AdultPins(listOf(dad)), step)
+        }
+
     @Test
     fun `kid signal, backoff and id rules`() {
         assertEquals(4_000L, AddKidViewModel.backoffMillis(1))

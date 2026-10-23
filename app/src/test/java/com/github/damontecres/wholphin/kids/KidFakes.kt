@@ -17,6 +17,7 @@ import io.mockk.just
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.model.api.AuthenticationResult
@@ -225,6 +226,12 @@ class FakeKidQuickConnect : KidQuickConnect {
     /** Awaited inside [authenticate] once the server has "issued" the token, eg to hold it while the flow is left */
     var authGate: CompletableDeferred<Unit>? = null
 
+    /** The tokens [authenticate] issues, in order; then "kid-token" */
+    val authTokens = ArrayDeque<String>()
+
+    /** How long [authenticate] takes to return after issuing, in order; then no wait */
+    val returnDelays = ArrayDeque<Long>()
+
     override suspend fun initiate(serverUrl: String): QuickConnectCode {
         initiateError?.let { throw it }
         initiated++
@@ -261,23 +268,29 @@ class FakeKidQuickConnect : KidQuickConnect {
     override suspend fun authenticate(
         serverUrl: String,
         secret: String,
+        onIssued: (AuthenticationResult) -> Unit,
     ): AuthenticationResult {
         authenticated++
         authGate?.await()
         val rating = authRating
-        return AuthenticationResult(
-            user =
-                org.jellyfin.sdk.model.api.UserDto(
-                    id = kidUserId,
-                    hasPassword = false,
-                    hasConfiguredPassword = false,
-                    hasConfiguredEasyPassword = false,
-                    name = "Emma",
-                    policy = if (authPolicy) mockk<UserPolicy> { every { maxParentalRating } returns rating } else null,
-                ),
-            accessToken = "kid-token",
-            serverId = testServer.id.toString(),
-        )
+        val result =
+            AuthenticationResult(
+                user =
+                    org.jellyfin.sdk.model.api.UserDto(
+                        id = kidUserId,
+                        hasPassword = false,
+                        hasConfiguredPassword = false,
+                        hasConfiguredEasyPassword = false,
+                        name = "Emma",
+                        policy = if (authPolicy) mockk<UserPolicy> { every { maxParentalRating } returns rating } else null,
+                    ),
+                accessToken = authTokens.removeFirstOrNull() ?: "kid-token",
+                serverId = testServer.id.toString(),
+            )
+        // Issued and decoded; then the way back may take [returnDelays]' next wait (eg past the caller's timeout)
+        onIssued(result)
+        returnDelays.removeFirstOrNull()?.let { delay(it) }
+        return result
     }
 }
 

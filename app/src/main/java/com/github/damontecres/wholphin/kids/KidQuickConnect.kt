@@ -48,9 +48,14 @@ interface KidQuickConnect {
         secret: String,
     ): Boolean
 
+    /**
+     * Signs in with an approved [secret]. [onIssued] gets the result as soon as it is decoded, before any cancellable
+     * return (review round 2): a caller that is cancelled or times out on the way back still knows the token it now owns.
+     */
     suspend fun authenticate(
         serverUrl: String,
         secret: String,
+        onIssued: (AuthenticationResult) -> Unit = {},
     ): AuthenticationResult
 
     /**
@@ -100,6 +105,7 @@ class JellyfinKidQuickConnect
         override suspend fun authenticate(
             serverUrl: String,
             secret: String,
+            onIssued: (AuthenticationResult) -> Unit,
         ): AuthenticationResult =
             withContext(WholphinDispatchers.IO) {
                 jellyfin
@@ -107,6 +113,7 @@ class JellyfinKidQuickConnect
                     .userApi
                     .authenticateWithQuickConnect(QuickConnectDto(secret = secret))
                     .content
+                    .also(onIssued)
             }
 
         override suspend fun poll(

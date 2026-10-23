@@ -767,6 +767,17 @@ class ServerRepository
             }
         }
 
+        /**
+         * Whether [accessToken] belongs to this TV now: the current session's, or saved in a profile's row (review round 2).
+         * A switch that failed may have saved or published its sign-in before failing (eg its journal write after
+         * publication); such a token must never be signed out by whoever started the switch.
+         */
+        suspend fun isTokenInUse(accessToken: String): Boolean =
+            sessionMutex.withLock {
+                _current.value?.user?.accessToken == accessToken ||
+                    withContext(ioDispatcher) { serverDao.getUserByAccessToken(accessToken) } != null
+            }
+
         suspend fun removeServer(server: JellyfinServer) {
             sessionMutex.withLock {
                 val ended =
