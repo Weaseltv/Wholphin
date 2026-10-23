@@ -142,7 +142,8 @@ fun KidTitleButtons(
         if (playShown && rowHasFocus && !keyPressed) {
             // Play is composed with the first-focus requester by now; wait for its layout, then focus it
             withFrameNanos {}
-            firstFocus.tryRequestFocus()
+            // Recheck: a key press or a move out of the row during that frame wins over the late Play (review round 3)
+            if (rowHasFocus && !keyPressed) firstFocus.tryRequestFocus()
         }
     }
     Row(
