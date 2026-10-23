@@ -79,13 +79,10 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.NavigationDrawerScope
 import androidx.tv.material3.ProvideTextStyle
 import androidx.tv.material3.Text
-import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
-import com.github.damontecres.wholphin.kids.KidSessionGate
-import com.github.damontecres.wholphin.kids.ProfileKind
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.BackdropService
@@ -140,14 +137,11 @@ class NavDrawerViewModel
         val setupNavigationManager: SetupNavigationManager,
         val backdropService: BackdropService,
         private val musicService: MusicService,
-        private val kidSessionGate: KidSessionGate,
         private val profilePictureService: ProfilePictureService,
     ) : ViewModel() {
         val serviceState = navDrawerService.state
 
         val pictureVersions = profilePictureService.versions
-
-        fun isKid(user: JellyfinUser): Boolean = BuildConfig.KID_PROFILES_ENABLED && kidSessionGate.profileKind(user) == ProfileKind.KID
 
         private val _state = MutableStateFlow(NavDrawerState())
         val state: StateFlow<NavDrawerState> = _state
@@ -393,7 +387,6 @@ fun NavDrawer(
                     ProfileIcon(
                         user = user,
                         imageUrl = userImageUrl,
-                        isKid = remember(user) { viewModel.isKid(user) },
                         serverName = server.name ?: server.url,
                         drawerOpen = isOpen,
                         interactionSource = interactionSource,
@@ -690,7 +683,6 @@ fun NavigationDrawerScope.ProfileIcon(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
-    isKid: Boolean = false,
 ) {
     NavigationDrawerItem(
         modifier = modifier,
@@ -706,7 +698,6 @@ fun NavigationDrawerScope.ProfileIcon(
                 name = user.name,
                 imageUrl = imageUrl,
                 alpha = if (drawerOpen || isWeaselTv()) 1f else .5f,
-                isKid = isKid,
                 modifier =
                     Modifier
                         .size(DrawerIconSize),
