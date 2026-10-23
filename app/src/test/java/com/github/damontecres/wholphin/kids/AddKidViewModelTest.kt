@@ -1000,17 +1000,39 @@ class AddKidViewModelTest {
     // Review round 2
 
     @Test
-    fun `a sign-in issued as the timeout fires is signed out`() =
+    fun `a slow sign-in response is never cut off by a coroutine timeout`() =
         test {
-            quickConnect.authTokens += "late-token"
-            quickConnect.returnDelays += AddKidViewModel.AUTHENTICATE_TIMEOUT_MS + 1
+            // Review round 3: only the HTTP client's timeouts bound it; a response that arrives is always read
+            quickConnect.authTokens += "slow-token"
+            quickConnect.responseDelays += 60_000L
             unlockMom()
             viewModel.addExisting()
             advanceUntilIdle()
-            // The late result is signed out; the next code signs the kid in
+            assertTrue(quickConnect.signedOut.isEmpty())
+            assertEquals(1, quickConnect.authenticated)
+            assertEquals(
+                "slow-token",
+                gate.signedIn
+                    .single()
+                    .first.accessToken,
+            )
+        }
+
+    @Test
+    fun `a response arriving after the flow was left is read and signed out`() =
+        test {
+            quickConnect.authTokens += "late-token"
+            quickConnect.responseDelays += 30_000L
+            unlockMom()
+            viewModel.addExisting()
+            runCurrent()
+            advanceTimeBy(2_001)
+            assertEquals(1, quickConnect.authenticated)
+            // Back while the server's response is still on its way
+            viewModel.cancel()
+            advanceUntilIdle()
             assertEquals(listOf("late-token"), quickConnect.signedOut)
-            assertEquals(2, quickConnect.authenticated)
-            assertSignedIn("Emma")
+            assertTrue(gate.signedIn.isEmpty())
         }
 
     @Test

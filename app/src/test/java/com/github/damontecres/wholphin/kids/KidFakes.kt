@@ -229,8 +229,8 @@ class FakeKidQuickConnect : KidQuickConnect {
     /** The tokens [authenticate] issues, in order; then "kid-token" */
     val authTokens = ArrayDeque<String>()
 
-    /** How long [authenticate] takes to return after issuing, in order; then no wait */
-    val returnDelays = ArrayDeque<Long>()
+    /** How long [authenticate]'s response takes to arrive and decode, in order; then no wait */
+    val responseDelays = ArrayDeque<Long>()
 
     override suspend fun initiate(serverUrl: String): QuickConnectCode {
         initiateError?.let { throw it }
@@ -272,6 +272,8 @@ class FakeKidQuickConnect : KidQuickConnect {
     ): AuthenticationResult {
         authenticated++
         authGate?.await()
+        // The server issued the session; its response is still on its way (the real race, review round 3)
+        responseDelays.removeFirstOrNull()?.let { delay(it) }
         val rating = authRating
         val result =
             AuthenticationResult(
@@ -287,9 +289,7 @@ class FakeKidQuickConnect : KidQuickConnect {
                 accessToken = authTokens.removeFirstOrNull() ?: "kid-token",
                 serverId = testServer.id.toString(),
             )
-        // Issued and decoded; then the way back may take [returnDelays]' next wait (eg past the caller's timeout)
         onIssued(result)
-        returnDelays.removeFirstOrNull()?.let { delay(it) }
         return result
     }
 }

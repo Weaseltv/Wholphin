@@ -50,7 +50,9 @@ interface KidQuickConnect {
 
     /**
      * Signs in with an approved [secret]. [onIssued] gets the result as soon as it is decoded, before any cancellable
-     * return (review round 2): a caller that is cancelled or times out on the way back still knows the token it now owns.
+     * return (review round 2): a caller that is cancelled on the way back still knows the token it now owns. Bounded by
+     * the HTTP client's own timeouts (review round 3), so a caller can run it without cancellation and never needs a
+     * coroutine timeout, which could drop a response that already arrived.
      */
     suspend fun authenticate(
         serverUrl: String,
@@ -109,8 +111,15 @@ class JellyfinKidQuickConnect
         ): AuthenticationResult =
             withContext(WholphinDispatchers.IO) {
                 jellyfin
-                    .createApi(serverUrl)
-                    .userApi
+                    .createApi(
+                        baseUrl = serverUrl,
+                        httpClientOptions =
+                            HttpClientOptions(
+                                requestTimeout = AUTHENTICATE_TIMEOUT,
+                                connectTimeout = AUTHENTICATE_TIMEOUT,
+                                socketTimeout = AUTHENTICATE_TIMEOUT,
+                            ),
+                    ).userApi
                     .authenticateWithQuickConnect(QuickConnectDto(secret = secret))
                     .content
                     .also(onIssued)
@@ -160,6 +169,9 @@ class JellyfinKidQuickConnect
 
         private companion object {
             val SIGN_OUT_TIMEOUT = 5.seconds
+
+            /** The sign-in's HTTP timeouts; its caller doesn't cancel it (review round 3) */
+            val AUTHENTICATE_TIMEOUT = 15.seconds
         }
     }
 

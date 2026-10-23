@@ -33,7 +33,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -47,7 +46,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 import org.jellyfin.sdk.model.api.AuthenticationResult
 import timber.log.Timber
 import java.util.UUID
@@ -462,24 +460,21 @@ class AddKidViewModel
         }
 
         /**
-         * Quick Connect's sign-in, owned by the flow from the moment the server issues the token (review round 1): the
-         * result always comes back here (bounded by [AUTHENTICATE_TIMEOUT_MS]), and if the flow was left meanwhile its
-         * token is signed out before the cancellation goes on. Throws a plain exception on failure or timeout.
+         * Quick Connect's sign-in, owned by the flow from the moment the server issues the token (review rounds 1 to 3).
+         * The request, its decoding and the capture of its result run to the end even if the flow is left meanwhile:
+         * nothing cancels them, so a response that arrived is never dropped unread. They are bounded by the HTTP client's
+         * own timeouts ([KidQuickConnect.authenticate]), never by a coroutine timeout. If the flow was left meanwhile, the
+         * token is signed out before the cancellation goes on. Throws a plain exception when the request fails.
          */
         private suspend fun authenticateOwned(secret: String): AuthenticationResult {
-            // Review round 2: set by the implementation as soon as the result is decoded, before any cancellable return,
-            // so a timeout or cancellation on the way back still finds the token
+            // Set by the implementation as soon as the result is decoded (review round 2)
             val issued = AtomicReference<AuthenticationResult?>(null)
             try {
-                val returned =
-                    withContext(NonCancellable) {
-                        withTimeout(AUTHENTICATE_TIMEOUT_MS) { quickConnect.authenticate(server.url, secret) { issued.set(it) } }
-                    }
+                val returned = withContext(NonCancellable) { quickConnect.authenticate(server.url, secret) { issued.set(it) } }
                 issued.compareAndSet(null, returned)
                 currentCoroutineContext().ensureActive()
             } catch (ex: CancellationException) {
                 issued.get()?.let { signOutAbandoned(it) }
-                if (ex is TimeoutCancellationException) throw IllegalStateException("Quick Connect sign-in timed out", ex)
                 throw ex
             }
             return issued.get() ?: throw IllegalStateException("Quick Connect sign-in returned nothing")
@@ -887,9 +882,6 @@ class AddKidViewModel
             /** Contract 12.3: how often the pairing code is polled, and the longest wait after failures */
             const val PAIR_POLL_MS = 2_000L
             const val MAX_PAIR_BACKOFF_MS = 30_000L
-
-            /** The longest a Quick Connect sign-in may take; it runs to the end even if the flow is left meanwhile */
-            const val AUTHENTICATE_TIMEOUT_MS = 20_000L
 
             /** The wait after [failures] failures in a row: doubling from twice the poll, at most [MAX_PAIR_BACKOFF_MS] */
             fun backoffMillis(failures: Int): Long = (PAIR_POLL_MS shl failures.coerceIn(1, 4)).coerceAtMost(MAX_PAIR_BACKOFF_MS)
