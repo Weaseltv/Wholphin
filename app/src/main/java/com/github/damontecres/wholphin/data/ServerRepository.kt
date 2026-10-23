@@ -751,6 +751,22 @@ class ServerRepository
             }
         }
 
+        /**
+         * Contract 12.5 (review round 1): removes [kid], a saved kid whose token the server answered with 401, only if its
+         * saved row is still that kid with that same token and it isn't the current session's profile. The session check
+         * and the conditional delete are one critical section under [sessionMutex], so no switch can publish it in between,
+         * and a row signed in again meanwhile (a new token) is kept. Returns whether it was removed.
+         */
+        suspend fun removeSignedOutKid(kid: JellyfinUser): Boolean {
+            val token = kid.accessToken ?: return false
+            if (kid.rowId <= 0) return false
+            return sessionMutex.withLock {
+                val inUse = commitSession { _current.value.isIdentity(kid.serverId, kid.id) }
+                if (inUse) return@withLock false
+                withContext(ioDispatcher) { serverDao.deleteKidWithToken(kid.rowId, token) } > 0
+            }
+        }
+
         suspend fun removeServer(server: JellyfinServer) {
             sessionMutex.withLock {
                 val ended =

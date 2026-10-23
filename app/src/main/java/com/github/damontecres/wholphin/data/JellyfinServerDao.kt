@@ -148,6 +148,18 @@ interface JellyfinServerDao {
     @Query("DELETE FROM servers WHERE id = :serverId")
     fun deleteServer(serverId: UUID)
 
+    /**
+     * Contract 12.5 (review round 1): deletes the saved kid in row [rowId] only if it still has [accessToken] and is still
+     * a kid. The check and the delete are one statement.
+     *
+     * @return the number of rows deleted: 0 if it was signed in again, reclassified or removed meanwhile
+     */
+    @Query("DELETE FROM users WHERE rowId = :rowId AND accessToken = :accessToken AND policyState = 'kid'")
+    fun deleteKidWithToken(
+        rowId: Int,
+        accessToken: String,
+    ): Int
+
     @Query("DELETE FROM users WHERE serverId = :serverId AND id = :userId")
     fun deleteUser(
         serverId: UUID,

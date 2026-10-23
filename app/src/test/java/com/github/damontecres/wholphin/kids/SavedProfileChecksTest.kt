@@ -1,16 +1,14 @@
 package com.github.damontecres.wholphin.kids
 
-import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.PolicyState
 import com.github.damontecres.wholphin.services.ProfilePictureService
 import com.github.damontecres.wholphin.ui.setup.chooserImageUrl
+import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
@@ -18,7 +16,6 @@ import org.jellyfin.sdk.api.operations.ImageApi
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
@@ -26,8 +23,7 @@ import java.util.UUID
 
 /** Contract 12.5: deleted kids leave the TV; pictures stay current */
 class SavedProfileChecksTest {
-    private val current = MutableStateFlow<CurrentUser?>(null)
-    private val serverRepository = mockk<ServerRepository>(relaxed = true) { every { current } returns this@SavedProfileChecksTest.current }
+    private val serverRepository = mockk<ServerRepository>(relaxed = true) { coEvery { removeSignedOutKid(any()) } returns true }
     private val cache = FakeProfileImageCache()
     private val statuses = mutableMapOf<UUID, ProfileStatus>()
     private val asked = mutableListOf<UUID>()
@@ -52,7 +48,7 @@ class SavedProfileChecksTest {
 
     private fun adult(name: String) = testUser(name).copy(policyState = PolicyState.ADULT)
 
-    private fun removed(user: JellyfinUser): Boolean = runCatching { coVerify { serverRepository.removeUser(user, any()) } }.isSuccess
+    private fun removed(user: JellyfinUser): Boolean = runCatching { coVerify { serverRepository.removeSignedOutKid(user) } }.isSuccess
 
     @Test
     fun `a kid signed out on the server leaves the tv with its picture state`() =
@@ -102,16 +98,17 @@ class SavedProfileChecksTest {
         }
 
     @Test
-    fun `the session in use is never ended this way`() =
+    fun `a kid whose row changed meanwhile is kept with its picture state`() =
         runTest {
+            // Signed in again with a new token, or switched into, since the check started
             val emma = kid("Emma")
+            cache.chosen[emma.id] = "bee-blue"
             statuses[emma.id] = ProfileStatus.SignedOut
-            checks.check(testServer.url, listOf(emma))
-            val authorize = slot<() -> Unit>()
-            coVerify { serverRepository.removeUser(emma, capture(authorize)) }
-            authorize.captured()
-            current.value = CurrentUser(testServer, emma)
-            assertThrows(IllegalStateException::class.java) { authorize.captured() }
+            coEvery { serverRepository.removeSignedOutKid(emma) } returns false
+            val result = checks.check(testServer.url, listOf(emma))
+            assertTrue(result.removed.isEmpty())
+            assertEquals("bee-blue", cache.chosen[emma.id])
+            assertNull(cache.versions.value[emma.id])
         }
 
     @Test

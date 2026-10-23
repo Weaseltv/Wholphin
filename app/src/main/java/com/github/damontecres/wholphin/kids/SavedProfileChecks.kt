@@ -2,7 +2,6 @@ package com.github.damontecres.wholphin.kids
 
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.ServerRepository
-import com.github.damontecres.wholphin.data.isIdentity
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.services.ProfilePictureService
 import com.github.damontecres.wholphin.util.WholphinDispatchers
@@ -102,24 +101,22 @@ class SavedProfileChecks
             return ProfileCheckResult(tags, removed)
         }
 
-        /** Removes [kid] from this TV, unless it is the current session's profile; returns whether it was removed */
+        /**
+         * Removes [kid] from this TV if its saved row is still this kid with this token and isn't the current session's
+         * (review round 1: one step under the session lock); its cached picture state goes only if it was removed
+         */
         private suspend fun removeKid(kid: JellyfinUser): Boolean =
             try {
                 Timber.i("Kid profile %s was signed out on the server; removing it from this TV", kid.rowId)
-                // A system action, under the session lock like every removal; a session in use is never ended this way
-                serverRepository.removeUser(kid) {
-                    if (serverRepository.current.value.isIdentity(kid.serverId, kid.id)) throw ProfileInUse()
+                serverRepository.removeSignedOutKid(kid).also { removed ->
+                    if (removed) pictures.forget(kid.id) else Timber.i("Kid profile %s changed meanwhile; kept", kid.rowId)
                 }
-                pictures.forget(kid.id)
-                true
             } catch (ex: CancellationException) {
                 throw ex
             } catch (ex: Exception) {
                 Timber.w(ex, "Couldn't remove kid profile %s", kid.rowId)
                 false
             }
-
-        private class ProfileInUse : IllegalStateException("The profile is the current session's")
 
         companion object {
             /** Best effort: the chooser never waits long for an answer */
