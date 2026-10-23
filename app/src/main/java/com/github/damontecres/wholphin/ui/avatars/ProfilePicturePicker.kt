@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -56,7 +58,10 @@ import com.github.damontecres.wholphin.ui.tryRequestFocus
 /**
  * The avatar grid (plan 4.6) in the kid-profile panel look: [title] and [subtitle] above a D-pad grid of square
  * tiles (lime border, glow and fill when focused), the current picture marked with a lime edge and check.
- * [onRemove] adds "Remove picture", [onSkip] "Skip for now"; [footer] shows below the grid (progress, errors).
+ *
+ * Owner mockup (2026-10-22): the grid shows [VISIBLE_ROWS] full rows on a 1080p TV (the rest scroll), and the bottom row
+ * holds the OK / BACK hints on the left with the buttons on the right: [onRemove] adds "Remove picture", [onSkip]
+ * "Skip for now". [footer] (progress, errors) sits between them, so it never pushes the grid off the panel.
  */
 @Composable
 fun ProfilePicturePicker(
@@ -91,14 +96,15 @@ fun ProfilePicturePicker(
             KidGap(10.dp)
             KidSubtitle(subtitle)
         }
-        KidGap(12.dp)
+        KidGap(10.dp)
         LazyVerticalGrid(
             state = gridState,
-            columns = GridCells.Fixed(6),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(12.dp),
-            modifier = Modifier.heightIn(max = 240.dp),
+            columns = GridCells.Fixed(COLUMNS),
+            horizontalArrangement = Arrangement.spacedBy(TILE_GAP),
+            verticalArrangement = Arrangement.spacedBy(TILE_GAP),
+            // Room for the focused tile's scale and glow
+            contentPadding = PaddingValues(GRID_PADDING),
+            modifier = Modifier.height(TILE * VISIBLE_ROWS + TILE_GAP * (VISIBLE_ROWS - 1) + GRID_PADDING * 2),
         ) {
             itemsIndexed(avatars, key = { _, it -> it.id }) { index, avatar ->
                 val selected = avatar.id == current
@@ -107,7 +113,7 @@ fun ProfilePicturePicker(
                     onClick = { onPick(avatar) },
                     enabled = enabled,
                     selected = selected,
-                    size = 84.dp,
+                    size = TILE,
                     description = avatar.id,
                     modifier = if (index == initialIndex) Modifier.focusRequester(firstFocus) else Modifier,
                 ) {
@@ -138,22 +144,32 @@ fun ProfilePicturePicker(
                 }
             }
         }
-        footer()
-        if (onRemove != null || onSkip != null) {
-            KidGap(16.dp)
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                if (onRemove != null) {
-                    KidButton(stringResource(R.string.remove_picture), onClick = onRemove, enabled = enabled)
-                }
-                if (onSkip != null) {
-                    KidButton(stringResource(R.string.skip_for_now), onClick = onSkip, enabled = enabled, arrow = true)
-                }
+        KidGap(12.dp)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+        ) {
+            OkBackHints()
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.weight(1f)) { footer() }
+            if (onRemove != null) {
+                KidButton(stringResource(R.string.remove_picture), onClick = onRemove, enabled = enabled)
+            }
+            if (onSkip != null) {
+                KidButton(stringResource(R.string.skip_for_now), onClick = onSkip, enabled = enabled, arrow = true)
             }
         }
-        KidGap(20.dp)
-        OkBackHints()
     }
 }
+
+/** Grid columns; 24 avatars make four rows, of which [VISIBLE_ROWS] show */
+private const val COLUMNS = 6
+
+/** Rows shown in full, with the panel's title, subtitle and bottom row, inside a 1080p TV's 540dp */
+private const val VISIBLE_ROWS = 3
+private val TILE = 76.dp
+private val TILE_GAP = 14.dp
+private val GRID_PADDING = 12.dp
 
 /** Change or remove [target]'s picture right away, in a dialog (chooser menu). */
 @Composable
@@ -217,13 +233,11 @@ private fun ProfilePictureContent(
         footer = {
             when (state.status) {
                 PictureStatus.Saving -> {
-                    KidGap(8.dp)
                     KidSpinner(size = 28.dp, strokeWidth = 3.dp)
                 }
 
                 PictureStatus.Failed -> {
-                    KidGap(8.dp)
-                    KidErrorText(stringResource(R.string.picture_save_failed))
+                    KidErrorText(stringResource(R.string.picture_save_failed), maxLines = 2)
                 }
 
                 else -> {}

@@ -82,9 +82,7 @@ import com.github.damontecres.wholphin.ui.kids.KidTitle
 import com.github.damontecres.wholphin.ui.kids.OkBackHints
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.preferences.SetPinFlow
-import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonBrandRow
-import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
 import com.github.damontecres.wholphin.ui.theme.NeonRule
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
@@ -221,10 +219,9 @@ fun SwitchUserContent(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         if (isWeaselTv()) {
-                            // Neon Board (T9): mascot + wordmark, the server host as an eyebrow,
-                            // the title on a volt rule.
+                            // Neon Board (T9): mascot + wordmark, then the title on a volt rule. The server-name
+                            // eyebrow only repeated the wordmark, so it went (owner mockup, 2026-10-22).
                             NeonBrandRow(mascotSize = 40.dp, wordmarkSize = 34.sp)
-                            NeonEyebrow(text = server.name ?: server.url, accent = NeonBoard.Mid)
                             Text(
                                 text = stringResource(R.string.select_user).uppercase(),
                                 style = NeonType.pageTitle(),
