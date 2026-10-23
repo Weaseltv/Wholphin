@@ -83,6 +83,9 @@ interface AvatarCatalog {
 
     /** The avatar as PNG bytes, ready to upload. */
     suspend fun pngBytes(avatar: Avatar): ByteArray
+
+    /** The bundled file's own bytes, eg to compare it with a profile's picture */
+    suspend fun assetBytes(avatar: Avatar): ByteArray
 }
 
 interface UserImageUploader {
@@ -199,6 +202,9 @@ class AssetAvatarCatalog
         }
 
         override fun avatars(group: AvatarGroup): List<Avatar> = if (profilePicturesEnabled) sets[group].orEmpty() else emptyList()
+
+        override suspend fun assetBytes(avatar: Avatar): ByteArray =
+            withContext(WholphinDispatchers.IO) { context.assets.open(avatar.assetPath).use { it.readBytes() } }
 
         override suspend fun pngBytes(avatar: Avatar): ByteArray =
             withContext(WholphinDispatchers.IO) {

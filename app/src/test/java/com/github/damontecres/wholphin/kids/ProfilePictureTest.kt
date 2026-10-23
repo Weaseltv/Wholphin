@@ -37,11 +37,13 @@ class ProfilePictureTest {
     @Before
     fun setup() {
         Dispatchers.setMain(dispatcher)
-        viewModel = ProfilePictureViewModel(service, mockk<ServerRepository>(relaxed = true))
+        viewModel = ProfilePictureViewModel(service, mockk<ServerRepository>(relaxed = true), unreachableAvatarFinder(cache))
     }
 
     @After
     fun tearDown() {
+        // Its look for the server's picture never outlives the test's Main dispatcher
+        viewModel.stop()
         Dispatchers.resetMain()
     }
 

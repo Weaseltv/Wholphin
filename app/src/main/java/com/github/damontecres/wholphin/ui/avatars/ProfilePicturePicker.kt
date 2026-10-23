@@ -22,15 +22,20 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -81,12 +86,19 @@ fun ProfilePicturePicker(
     val firstFocus = remember { FocusRequester() }
     val initialIndex = avatars.indexOfFirst { it.id == current }.coerceAtLeast(0)
     val gridState = rememberLazyGridState()
-    LaunchedEffect(avatars) {
-        if (avatars.isNotEmpty()) {
+    // The tile this picker focused itself, and whether the user has moved since: a current avatar found later moves the
+    // focus to it only until then, never away from where the user went
+    var focusedByPicker by remember(avatars) { mutableIntStateOf(-1) }
+    var settled by remember(avatars) { mutableStateOf(false) }
+    var userMoved by remember(avatars) { mutableStateOf(false) }
+    LaunchedEffect(avatars, initialIndex) {
+        if (avatars.isNotEmpty() && !userMoved) {
             // The saved picture may be past the first rows: bring it into view, wait for that layout, then focus it
+            focusedByPicker = initialIndex
             gridState.scrollToItem(initialIndex)
             withFrameNanos {}
             firstFocus.tryRequestFocus()
+            settled = true
         }
     }
     Column(
@@ -117,7 +129,10 @@ fun ProfilePicturePicker(
                     selected = selected,
                     size = TILE,
                     description = avatar.id,
-                    modifier = if (index == initialIndex) Modifier.focusRequester(firstFocus) else Modifier,
+                    modifier =
+                        Modifier
+                            .onFocusChanged { if (it.isFocused && settled && index != focusedByPicker) userMoved = true }
+                            .then(if (index == initialIndex) Modifier.focusRequester(firstFocus) else Modifier),
                 ) {
                     AsyncImage(
                         model = avatar.model,
@@ -185,6 +200,7 @@ fun ProfilePictureDialog(
     viewModel: ProfilePictureViewModel = hiltViewModel(key = "picture-${target.userId}"),
 ) {
     LaunchedEffect(target) { viewModel.start(target, mayChange) }
+    DisposableEffect(target) { onDispose { viewModel.stop() } }
     KidPanelDialog(onDismissRequest = onDismissRequest, width = 750.dp) {
         ProfilePictureContent(
             viewModel = viewModel,
@@ -247,6 +263,7 @@ fun ProfilePicturePage(
     viewModel: ProfilePictureViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(Unit) { viewModel.startForCurrentUser() }
+    DisposableEffect(Unit) { onDispose { viewModel.stop() } }
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         KidPanel(Modifier.width(750.dp)) {
             ProfilePictureContent(
