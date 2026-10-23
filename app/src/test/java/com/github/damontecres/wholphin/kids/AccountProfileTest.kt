@@ -435,11 +435,12 @@ class AccountProfileTest {
         runTest {
             Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
             try {
-                val viewModel = ProfilePictureViewModel(pictureService, mockk(relaxed = true))
+                val viewModel = ProfilePictureViewModel(pictureService, mockk(relaxed = true), unreachableAvatarFinder())
                 viewModel.start(ProfilePictureTarget(testServer.url, parent.id, "token", "Justin"), mayChange = { false })
                 viewModel.pick(pictureService.avatars(isKid = false).first())
                 assertTrue(uploader.uploads.isEmpty())
                 assertEquals(PictureStatus.Refused, viewModel.state.value.status)
+                viewModel.stop()
             } finally {
                 Dispatchers.resetMain()
             }

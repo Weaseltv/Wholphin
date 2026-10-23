@@ -7,7 +7,9 @@ import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.services.Avatar
 import com.github.damontecres.wholphin.services.AvatarCatalog
 import com.github.damontecres.wholphin.services.AvatarGroup
+import com.github.damontecres.wholphin.services.CurrentAvatarFinder
 import com.github.damontecres.wholphin.services.ProfileImageCache
+import com.github.damontecres.wholphin.services.ProfileImageFetcher
 import com.github.damontecres.wholphin.services.ProfilePictureTarget
 import com.github.damontecres.wholphin.services.UserImageUploader
 import io.mockk.Runs
@@ -294,6 +296,32 @@ class FakeKidQuickConnect : KidQuickConnect {
     }
 }
 
+/** A [CurrentAvatarFinder] whose server can't be reached: the picker keeps the TV's remembered avatar, as before */
+fun unreachableAvatarFinder(cache: ProfileImageCache = FakeProfileImageCache()) =
+    CurrentAvatarFinder(
+        catalog = FakeAvatarCatalog(),
+        status =
+            object : ProfileStatusRemote {
+                override suspend fun status(
+                    serverUrl: String,
+                    userId: UUID,
+                    accessToken: String,
+                ) = ProfileStatus.Unknown
+            },
+        fetcher =
+            object : ProfileImageFetcher {
+                override suspend fun fetch(
+                    serverUrl: String,
+                    userId: UUID,
+                    imageTag: String,
+                ): ByteArray? = null
+            },
+        thumbnails = { null },
+        cache = cache,
+        // No thread hop: nothing outlives a test's Main dispatcher
+        dispatcher = kotlinx.coroutines.Dispatchers.Unconfined,
+    )
+
 class FakeAvatarCatalog(
     kids: List<String> = listOf("bee-blue", "fox-green"),
     adults: List<String> = listOf("alien-black", "wolf-crimson"),
@@ -307,6 +335,8 @@ class FakeAvatarCatalog(
     override fun avatars(group: AvatarGroup) = sets[group].orEmpty()
 
     override suspend fun pngBytes(avatar: Avatar) = avatar.id.encodeToByteArray()
+
+    override suspend fun assetBytes(avatar: Avatar) = "asset:${avatar.id}".encodeToByteArray()
 }
 
 class FakeUserImageUploader : UserImageUploader {
