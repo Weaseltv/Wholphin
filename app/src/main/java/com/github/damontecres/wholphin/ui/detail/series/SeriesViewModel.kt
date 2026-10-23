@@ -526,8 +526,9 @@ class SeriesViewModel
         }
 
         /**
-         * The kid page's Play button: the next-up episode (resumed if started), else the first episode. Both lookups go
-         * through the kid content filter, so an episode this kid can't watch is never offered; none on failure.
+         * The kid page's Play button ([KidTitlePage.nextEpisode]): the next-up episode (resumed if started), else the next
+         * one to watch among every episode this kid may watch. All lookups go through the kid content filter, so an
+         * episode this kid can't watch is never offered; none on failure.
          */
         private suspend fun loadKidPlay(): KidPlay? =
             try {
@@ -537,9 +538,13 @@ class SeriesViewModel
                         .content.items
                 val episodes =
                     if (nextUp.isEmpty()) {
-                        api.tvShowsApi
-                            .getEpisodes(seriesId, limit = KID_FIRST_EPISODES)
-                            .content.items
+                        KidTitlePage.allowedEpisodes { startIndex, limit ->
+                            val page =
+                                api.tvShowsApi
+                                    .getEpisodes(seriesId, startIndex = startIndex, limit = limit, enableImages = false)
+                                    .content
+                            KidTitlePage.EpisodePage(page.items, page.totalRecordCount)
+                        }
                     } else {
                         emptyList()
                     }
@@ -976,6 +981,3 @@ data class SeriesState(
     /** The kid page's Play button (null: none, or not a kid page) */
     val kidPlay: KidPlay? = null,
 )
-
-/** How many episodes the kid page looks through for the first one this kid may watch */
-private const val KID_FIRST_EPISODES = 50

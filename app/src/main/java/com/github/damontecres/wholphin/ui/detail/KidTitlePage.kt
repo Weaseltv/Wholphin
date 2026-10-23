@@ -45,12 +45,15 @@ data class KidPlay(
 enum class KidAction { START_OVER, WATCHLIST, SHUFFLE }
 
 object KidTitlePage {
-    /** A movie plays from where it was left ("Keep watching"), else from the start */
+    /**
+     * A movie plays from where it was left ("Keep watching"), else from the start. Any saved position resumes (review
+     * round 1); the progress bar and time left show only when the runtime is known.
+     */
     fun moviePlay(movie: BaseItemDto): KidPlay {
         val position = movie.userData?.playbackPositionTicks?.ticks ?: Duration.ZERO
         val runtime = movie.runTimeTicks?.ticks
         val remaining = movie.timeRemaining
-        val partlyWatched = position > Duration.ZERO && remaining != null
+        val partlyWatched = position > Duration.ZERO
         return KidPlay(
             itemId = movie.id,
             label = if (partlyWatched) KidPlayLabel.KeepWatching else KidPlayLabel.Play,
@@ -76,9 +79,15 @@ object KidTitlePage {
     val seriesActions: List<KidAction> = listOf(KidAction.WATCHLIST, KidAction.SHUFFLE)
 
     /**
-     * The episode a series' Play button plays: the server's next up (which includes one in progress), else the first
-     * regular episode, else the first one at all (eg only specials). Both lists come through the kid content filter, so
-     * an episode this kid can't watch is never offered; null when there is none.
+     * The episode a series' Play button plays. Both lists come through the kid content filter (contract 10: an episode's
+     * own rating, else its series'), so every episode here, specials included, is one this kid may watch.
+     *
+     * - The server's next up (which includes one in progress), when the filter kept it.
+     * - Otherwise [episodes] (every allowed episode, in order): regular episodes, or the specials when there are no
+     *   regular ones. The next up may have been hidden (review round 1), so the first one after the last watched one
+     *   that is unwatched or started; nothing watched yet gives the first.
+     * - If none follows it, the first unwatched or started one anywhere; if every one is watched, the first, to watch
+     *   again. Null only when there is no allowed episode at all.
      */
     fun nextEpisode(
         nextUp: List<BaseItemDto>,
@@ -86,10 +95,51 @@ object KidTitlePage {
     ): BaseItemDto? {
         nextUp.firstOrNull { it.type == BaseItemKind.EPISODE }?.let { return it }
         val playable = episodes.filter { it.type == BaseItemKind.EPISODE }
-        return playable.firstOrNull { (it.parentIndexNumber ?: 1) > 0 } ?: playable.firstOrNull()
+        val pool = playable.filter { (it.parentIndexNumber ?: 1) > 0 }.ifEmpty { playable }
+        val toWatch: (BaseItemDto) -> Boolean = { it.userData?.played != true || it.resumable }
+        val lastWatched = pool.indexOfLast { it.userData?.played == true }
+        return pool.drop(lastWatched + 1).firstOrNull(toWatch)
+            ?: pool.firstOrNull(toWatch)
+            ?: pool.firstOrNull()
     }
 
-    /** A series' Play button for [episode], resuming it if it was started; null when there is no episode to play */
+    private val BaseItemDto.resumable: Boolean get() = (userData?.playbackPositionTicks ?: 0L) > 0L
+
+    /** One page of a series' episodes as the kid content filter returned it */
+    data class EpisodePage(
+        val items: List<BaseItemDto>,
+        val totalRecordCount: Int?,
+    )
+
+    /**
+     * Every episode of a series this kid may watch, in order, paging until the series ends (review round 1): a page the
+     * filter emptied isn't the end. The filter lowers a page's TotalRecordCount by the items it removed from it, so after
+     * a page that started at startIndex and returned n items the server has `total - startIndex - n` more. At most
+     * [MAX_EPISODE_PAGES] pages.
+     */
+    suspend fun allowedEpisodes(loadPage: suspend (startIndex: Int, limit: Int) -> EpisodePage): List<BaseItemDto> {
+        val episodes = mutableListOf<BaseItemDto>()
+        var startIndex = 0
+        repeat(MAX_EPISODE_PAGES) {
+            val page = loadPage(startIndex, EPISODE_PAGE)
+            episodes += page.items
+            val more =
+                page.totalRecordCount?.let { it - startIndex - page.items.size > 0 }
+                    // Without a count, only a full page says there may be more
+                    ?: (page.items.size >= EPISODE_PAGE)
+            if (!more) return episodes
+            startIndex += EPISODE_PAGE
+        }
+        return episodes
+    }
+
+    const val EPISODE_PAGE = 100
+    const val MAX_EPISODE_PAGES = 20
+
+    /**
+     * A series' Play button for [episode], resuming it from any saved position (review round 1); null when there is no
+     * episode to play
+     */
     fun seriesPlay(episode: BaseItemDto?): KidPlay? {
         episode ?: return null
         val season = episode.parentIndexNumber
