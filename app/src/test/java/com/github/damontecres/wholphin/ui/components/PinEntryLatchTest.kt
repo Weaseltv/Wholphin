@@ -17,14 +17,18 @@ import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.unit.dp
 import com.github.damontecres.wholphin.data.model.JellyfinUser
+import com.github.damontecres.wholphin.kids.PinRules
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.ui.setup.ChooserPinPrompt
 import com.github.damontecres.wholphin.ui.setup.ChooserPrompt
 import com.github.damontecres.wholphin.ui.setup.PinEntry
+import com.github.damontecres.wholphin.ui.setup.PinOutcome
 import com.github.damontecres.wholphin.ui.setup.PinPurpose
+import com.github.damontecres.wholphin.ui.setup.forgotPinUrl
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.assertEquals
+import org.junit.Assume
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -47,11 +51,19 @@ class PinEntryLatchTest {
         onSubmit: suspend (String) -> Unit,
         lockedUntilMillis: Long = 0L,
         onClickServerAuth: (() -> Unit)? = null,
+        outcome: PinOutcome = PinOutcome.OTHER,
     ) {
         compose.setContent {
             WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
                 Box(Modifier.width(600.dp)) {
-                    PinEntry(onSubmit = onSubmit, lockedUntilMillis = lockedUntilMillis, onClickServerAuth = onClickServerAuth)
+                    PinEntry(
+                        onSubmit = {
+                            onSubmit(it)
+                            outcome
+                        },
+                        lockedUntilMillis = lockedUntilMillis,
+                        onClickServerAuth = onClickServerAuth,
+                    )
                 }
             }
         }
@@ -145,6 +157,7 @@ class PinEntryLatchTest {
                 ChooserPinPrompt(prompt = prompt, onDismissRequest = {}, onClickServerAuth = {}, onSubmit = {
                     submitted += it
                     never.await()
+                    PinOutcome.OTHER
                 })
             }
         }
@@ -160,5 +173,25 @@ class PinEntryLatchTest {
         compose.waitForIdle()
         press(listOf(Key.DirectionDown, Key.DirectionDown, Key.DirectionDown, Key.DirectionDown))
         assertEquals(listOf("URDL", "DDDD"), submitted)
+    }
+
+    @Test
+    fun `the forgot-PIN hint shows from the fourth wrong entry`() {
+        Assume.assumeTrue(forgotPinUrl() != null)
+        val submitted = mutableListOf<String>()
+        entry(onSubmit = { submitted += it }, outcome = PinOutcome.WRONG)
+        repeat(PinRules.FORGOT_PIN_AFTER_WRONG) { press(arrows) }
+        assertEquals(PinRules.FORGOT_PIN_AFTER_WRONG, submitted.size)
+        compose.onNodeWithText("Forgot your PIN?", substring = true).assertDoesNotExist()
+        press(arrows)
+        compose.onNodeWithText("Forgot your PIN?", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("theweasel.tv/weaselplex/profiles", substring = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun `entries that aren't wrong never offer the forgot-PIN hint`() {
+        entry(onSubmit = {})
+        repeat(PinRules.FORGOT_PIN_AFTER_WRONG + 2) { press(arrows) }
+        compose.onNodeWithText("Forgot your PIN?", substring = true).assertDoesNotExist()
     }
 }

@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Face
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -98,6 +99,8 @@ fun UserList(
     isKid: (JellyfinUser) -> Boolean = { false },
     onChangePicture: ((JellyfinUser) -> Unit)? = null,
     pictureVersions: Map<UUID, Int> = emptyMap(),
+    onChangePin: ((JellyfinUser) -> Unit)? = null,
+    canChangePicture: (JellyfinUser) -> Boolean = { true },
 ) {
     var showDeleteDialog by remember { mutableStateOf<JellyfinUserAndImage?>(null) }
 
@@ -202,13 +205,24 @@ fun UserList(
                             onSwitchUser.invoke(user.user)
                         },
                     )
-                    if (onChangePicture != null && user.user.id == currentUser?.id) {
+                    // Contract 11: every saved profile with its own token (the change is saved with it)
+                    if (onChangePicture != null && user.known && user.user.accessToken != null && canChangePicture(user.user)) {
                         add(
                             DialogItem(
                                 stringResource(R.string.change_picture),
                                 Icons.Default.Create,
                             ) {
                                 onChangePicture.invoke(user.user)
+                            },
+                        )
+                    }
+                    if (onChangePin != null && user.known && user.user.hasPin && user.user.accessToken != null) {
+                        add(
+                            DialogItem(
+                                stringResource(R.string.change_pin),
+                                Icons.Default.Lock,
+                            ) {
+                                onChangePin.invoke(user.user)
                             },
                         )
                     }

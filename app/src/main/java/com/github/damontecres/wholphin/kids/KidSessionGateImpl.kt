@@ -57,6 +57,7 @@ class KidSessionGateImpl
         private val store: KidProtectionStore,
         @param:DefaultCoroutineScope private val scope: CoroutineScope,
         @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
+        private val accountPins: AccountPins,
     ) : KidSessionGate {
         /** Exposed for tests */
         internal var clock: () -> Long = System::currentTimeMillis
@@ -200,9 +201,15 @@ class KidSessionGateImpl
                 return PinCheckResult.LockedOut(backoff.lockedUntilMillis)
             }
             // Compare against the saved row, never a possibly stale copy held by a screen
-            val row = withContext(ioDispatcher) { serverDao.getUser(user.serverId, user.id) } ?: user
+            var row = withContext(ioDispatcher) { serverDao.getUser(user.serverId, user.id) } ?: user
+            var correct = isCorrectPin(row, pin, requireAdult)
+            if (!correct) {
+                // Contract 11.2: a wrong entry pulls the account PIN once and checks again, so a PIN reset on the website
+                // works straight away. Best effort: if the account can't be reached the cached PIN stands.
+                row = accountPins.refresh(row)
+                correct = isCorrectPin(row, pin, requireAdult)
+            }
             val isAdult = row.profileKind == ProfileKind.ADULT
-            val correct = row.hasPin && row.pin == pin && (isAdult || !requireAdult)
             if (correct) {
                 if (isAdult) {
                     // Only a verified adult PIN clears the device-wide guess counter; a kid opening their
@@ -223,6 +230,12 @@ class KidSessionGateImpl
                 PinCheckResult.Wrong(MAX_ATTEMPTS - failures)
             }
         }
+
+        private fun isCorrectPin(
+            row: JellyfinUser,
+            pin: String,
+            requireAdult: Boolean,
+        ): Boolean = row.hasPin && row.pin == pin && (row.profileKind == ProfileKind.ADULT || !requireAdult)
 
         override fun clearParentUnlock() {
             synchronized(unlockLock) {

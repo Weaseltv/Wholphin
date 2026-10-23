@@ -13,6 +13,7 @@ import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.ifSameIdentity
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
+import com.github.damontecres.wholphin.kids.AccountPins
 import com.github.damontecres.wholphin.kids.GateDecision
 import com.github.damontecres.wholphin.kids.KidProtectionStore
 import com.github.damontecres.wholphin.kids.KidSessionGateImpl
@@ -23,8 +24,13 @@ import com.github.damontecres.wholphin.kids.ProfileGateException
 import com.github.damontecres.wholphin.kids.ProfileKind
 import com.github.damontecres.wholphin.kids.UnlockPurpose
 import com.github.damontecres.wholphin.kids.profileKind
+import com.github.damontecres.wholphin.services.AccountAvatars
+import com.github.damontecres.wholphin.services.Avatar
 import com.github.damontecres.wholphin.services.ImageUrlService
 import com.github.damontecres.wholphin.services.NavigationManager
+import com.github.damontecres.wholphin.services.ProfilePictureResult
+import com.github.damontecres.wholphin.services.ProfilePictureService
+import com.github.damontecres.wholphin.services.ProfilePictureTarget
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.SetupNavigationManager
 import com.github.damontecres.wholphin.ui.launchDefault
@@ -43,6 +49,8 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -79,6 +87,9 @@ class SwitchUserViewModel
         private val kidSessionGate: KidSessionGateImpl,
         private val kidProtectionStore: KidProtectionStore,
         private val profileChooserLock: ProfileChooserLock,
+        private val accountPins: AccountPins,
+        private val accountAvatars: AccountAvatars,
+        private val pictures: ProfilePictureService,
         @Assisted val server: JellyfinServer,
     ) : ViewModel() {
         @AssistedFactory
@@ -137,6 +148,7 @@ class SwitchUserViewModel
                             serverVersionSupported = supported,
                         )
                     }
+                    if (BuildConfig.KID_PROFILES_ENABLED) viewModelScope.launchIO { syncAccountProfiles() }
                 } catch (ex: Exception) {
                     Timber.e(ex, "Error fetching users for server $server")
                     _state.update {
@@ -168,6 +180,26 @@ class SwitchUserViewModel
                     Timber.w(ex, "Error checking quick connect for server ${server.url}")
                     _state.update { it.copy(quickConnectEnabled = false) }
                 }
+            }
+        }
+
+        /**
+         * Contract 11: the saved profiles' account PINs are pulled into the cache (best effort) and the list shows them;
+         * then saved adults without a picture get their one random avatar
+         */
+        private suspend fun syncAccountProfiles() {
+            try {
+                accountPins.refreshAll(server.id)
+                val saved = getSavedUsers().associateBy { it.id }
+                _state.update { st ->
+                    st.copy(users = st.users.map { u -> saved[u.user.id]?.takeIf { u.known }?.let { u.copy(user = it) } ?: u })
+                }
+                accountAvatars.assignMissing(server.url, saved.values.toList())
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                // Best effort: the cached PINs stand
+                Timber.w(ex, "Couldn't sync the profiles with their accounts")
             }
         }
 
@@ -263,7 +295,7 @@ class SwitchUserViewModel
             }
             flow = null
             // Whatever the left flow was asking for goes with it
-            _state.update { it.copy(prompt = null, pendingPinSetup = null) }
+            _state.update { it.copy(prompt = null, pendingPinSetup = null, pendingAvatar = null, pendingPinCheck = null) }
         }
 
         /** Runs [block] only while [flow] is current, atomically with leaving it; returns whether it ran */
@@ -518,8 +550,8 @@ class SwitchUserViewModel
 
         /**
          * A sign-in that just authenticated with the server (Quick Connect or password). Counts as parental
-         * authorization for its target (plan 4.2), but on a protected device an adult without a PIN must
-         * set one before anything is published (cancel = no change).
+         * authorization for its target (plan 4.2), but an adult without a picture chooses one first (contract 11.1), and
+         * on a protected device an adult without a PIN must set one before anything is published (cancel = no change).
          */
         private suspend fun finishFreshAuth(
             flow: ChooserFlow,
@@ -533,23 +565,96 @@ class SwitchUserViewModel
                 return
             }
             val authedUser = authenticationResult.user
-            val policy = authedUser?.policy
-            val isAdult = policy != null && policy.maxParentalRating == null
             // The profile picked on the chooser counts only if it is the identity that just authenticated;
             // otherwise that identity's own saved row (or none), so nobody inherits another profile's PIN
             val serverId = authenticationResult.serverId?.toUUIDOrNull() ?: server.id
             val savedUser =
                 existingUser.ifSameIdentity(serverId, authedUser?.id)
                     ?: authedUser?.let { withContext(WholphinDispatchers.IO) { serverDao.getUser(serverId, it.id) } }
-            if (isAdult && savedUser?.pin.isNullOrBlank() && kidProtectionStore.isProtected()) {
-                Timber.i("Adult without a PIN on a protected device: PIN setup before sign-in")
-                // The flow waits for the PIN; cancelling the setup leaves it
+            val token = authenticationResult.accessToken
+            if (authedUser != null && token != null && accountAvatars.needsFirstAvatar(authedUser)) {
+                // Contract 11.1: an adult without a picture chooses one before going on (no skip; Back leaves)
+                Timber.i("Adult without a picture: choosing one before sign-in")
+                val target = ProfilePictureTarget(serverUrl, authedUser.id, token, authedUser.name, isKid = false)
                 updateState(flow) {
-                    it.copy(pendingPinSetup = PendingPinSetup(serverUrl, authenticationResult, savedUser))
+                    it.copy(pendingAvatar = PendingAvatar(serverUrl, authenticationResult, savedUser, target))
                 }
                 return
             }
-            completeFreshAuth(flow, serverUrl, authenticationResult, savedUser, null)
+            continueFreshAuth(flow, serverUrl, authenticationResult, savedUser)
+        }
+
+        /** A fresh sign-in past its avatar step: an adult without a PIN on a protected device sets one, then it publishes */
+        private suspend fun continueFreshAuth(
+            flow: ChooserFlow,
+            serverUrl: String,
+            authenticationResult: AuthenticationResult,
+            savedUser: JellyfinUser?,
+        ) {
+            val policy = authenticationResult.user?.policy
+            val isAdult = policy != null && policy.maxParentalRating == null
+            val protected = kidProtectionStore.isProtected()
+            // Review round 1: the account's PIN, read with this sign-in's own token before deciding on PIN setup, also
+            // when this TV has no row for the profile yet. A PIN on the account is cached by the switch (newPin).
+            val userId = authenticationResult.user?.id
+            val token = authenticationResult.accessToken
+            val account = if (userId != null && token != null) accountPins.readAccount(serverUrl, userId, token) else null
+            if (account == null && isAdult && protected) {
+                // Fail closed: never a new PIN over one the account may have; nothing is published until it can be read
+                Timber.i("Couldn't read the account PIN on a protected device: sign-in waits")
+                updateState(flow) {
+                    it.copy(pendingPinCheck = PendingPinCheck(serverUrl, authenticationResult, savedUser), pendingAvatar = null)
+                }
+                return
+            }
+            val accountPin = account?.pin?.takeIf { it.isNotBlank() }
+            if (accountPin == null && isAdult && savedUser?.pin.isNullOrBlank() && protected) {
+                Timber.i("Adult without a PIN on a protected device: PIN setup before sign-in")
+                // The flow waits for the PIN; cancelling the setup leaves it. Its avatar step (if any) ends in the same
+                // update, so the sign-in dialog never shows in between.
+                updateState(flow) {
+                    it.copy(
+                        pendingPinSetup = PendingPinSetup(serverUrl, authenticationResult, savedUser),
+                        pendingAvatar = null,
+                        pendingPinCheck = null,
+                    )
+                }
+                return
+            }
+            completeFreshAuth(flow, serverUrl, authenticationResult, savedUser, accountPin)
+            ifCurrent(flow) { _state.update { it.copy(pendingAvatar = null, pendingPinCheck = null) } }
+        }
+
+        /** "Try again" after the account PIN couldn't be read: the sign-in reads it again and goes on */
+        fun retryPinCheck() {
+            val flow: ChooserFlow
+            val pending: PendingPinCheck
+            synchronized(flowLock) {
+                flow = this.flow ?: return
+                pending = _state.value.pendingPinCheck ?: return
+            }
+            continueFlow(flow) {
+                launchStep(flow) {
+                    try {
+                        // Still showing while it checks, so the sign-in dialog never comes back meanwhile
+                        updateState(flow) { it.copy(pendingPinCheck = pending.copy(checking = true)) }
+                        continueFreshAuth(flow, pending.serverUrl, pending.authenticationResult, pending.existingUser)
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: Exception) {
+                        Timber.e(ex, "Error finishing sign-in")
+                        ifCurrent(flow) {
+                            _state.update { it.copy(pendingPinCheck = null) }
+                            setError("Error during login", ex)
+                        }
+                    }
+                }
+            }
+        }
+
+        /** Back on the "couldn't check the PIN" step: the sign-in is left and nothing changes */
+        fun cancelPinCheck() {
+            leaveFlow()
         }
 
         private suspend fun completeFreshAuth(
@@ -573,16 +678,24 @@ class SwitchUserViewModel
             navigateInto(flow, current)
         }
 
-        /** The in-flow PIN of a deferred adult sign-in was set: the sign-in's flow publishes it now */
-        fun completePinSetup(pin: String) {
+        /**
+         * The in-flow PIN of a deferred adult sign-in was set: it goes to the account first (contract 11.2), then the
+         * sign-in's flow publishes it. Returns false, with nothing changed, if the account couldn't be written; the PIN
+         * screen then asks again.
+         */
+        suspend fun completePinSetup(pin: String): Boolean {
             // A new PIN is exactly 4 presses; the PIN screen never sends anything else
-            if (!PinRules.isValidNewPin(pin)) return
+            if (!PinRules.isValidNewPin(pin)) return true
             val flow: ChooserFlow
             val pending: PendingPinSetup
             synchronized(flowLock) {
-                flow = this.flow ?: return
-                pending = _state.value.pendingPinSetup ?: return
+                flow = this.flow ?: return true
+                pending = _state.value.pendingPinSetup ?: return true
             }
+            val auth = pending.authenticationResult
+            val userId = auth.user?.id
+            val token = auth.accessToken
+            if (userId == null || token == null || !accountPins.upload(pending.serverUrl, userId, token, pin)) return false
             continueFlow(flow) {
                 launchStep(flow) {
                     try {
@@ -594,6 +707,71 @@ class SwitchUserViewModel
                         Timber.e(ex, "Error finishing sign-in")
                         ifCurrent(flow) {
                             _state.update { it.copy(pendingPinSetup = null) }
+                            setError("Error during login", ex)
+                        }
+                    }
+                }
+            }
+            return true
+        }
+
+        /** The adult avatars a fresh sign-in chooses from (contract 11.1) */
+        val firstAvatarChoices: List<Avatar> get() = accountAvatars.adultAvatars
+
+        /** A fresh sign-in's avatar was chosen: it is saved with that sign-in's token, then the sign-in goes on */
+        fun chooseFirstAvatar(avatar: Avatar) {
+            withPendingAvatar { flow, pending ->
+                updateState(flow) { it.copy(pendingAvatar = pending.copy(status = FirstAvatarStatus.SAVING, chosen = avatar)) }
+                when (pictures.save(pending.target, avatar)) {
+                    ProfilePictureResult.Saved -> {
+                        // The step shows until the sign-in moves on, so the sign-in dialog never comes back meanwhile
+                        continueFreshAuth(flow, pending.serverUrl, pending.authenticationResult, pending.existingUser)
+                    }
+
+                    is ProfilePictureResult.Failed -> {
+                        updateState(flow) { it.copy(pendingAvatar = pending.copy(status = FirstAvatarStatus.FAILED, chosen = avatar)) }
+                    }
+                }
+            }
+        }
+
+        /** "Try again" after a failed upload: the same avatar again */
+        fun retryFirstAvatar() {
+            val chosen = _state.value.pendingAvatar?.chosen ?: return
+            chooseFirstAvatar(chosen)
+        }
+
+        /** "Continue without a picture" after a failed upload */
+        fun continueWithoutAvatar() {
+            withPendingAvatar { flow, pending ->
+                updateState(flow) { it.copy(pendingAvatar = pending.copy(status = FirstAvatarStatus.SAVING)) }
+                continueFreshAuth(flow, pending.serverUrl, pending.authenticationResult, pending.existingUser)
+            }
+        }
+
+        /** Back on the avatar step: the sign-in is left and nothing changes */
+        fun cancelFirstAvatar() {
+            leaveFlow()
+        }
+
+        /** Runs [block] as the next step of the flow waiting on its avatar */
+        private fun withPendingAvatar(block: suspend (ChooserFlow, PendingAvatar) -> Unit) {
+            val flow: ChooserFlow
+            val pending: PendingAvatar
+            synchronized(flowLock) {
+                flow = this.flow ?: return
+                pending = _state.value.pendingAvatar ?: return
+            }
+            continueFlow(flow) {
+                launchStep(flow) {
+                    try {
+                        block(flow, pending)
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: Exception) {
+                        Timber.e(ex, "Error finishing sign-in")
+                        ifCurrent(flow) {
+                            _state.update { it.copy(pendingAvatar = null) }
                             setError("Error during login", ex)
                         }
                     }
@@ -616,10 +794,12 @@ class SwitchUserViewModel
                 // that flow can't grant one after this)
                 kidSessionGate.clearParentUnlock()
                 launchStep(flow) {
-                    if (user.hasPin) {
-                        showPrompt(flow, pinPrompt(target = user, pinOwner = user, purpose = PinPurpose.SWITCH))
+                    // Contract 11.2: the account's PIN before a prompt shows (best effort; the cached one otherwise)
+                    val fresh = accountPins.refresh(user)
+                    if (fresh.hasPin) {
+                        showPrompt(flow, pinPrompt(target = fresh, pinOwner = fresh, purpose = PinPurpose.SWITCH))
                     } else {
-                        continueSwitch(flow, user)
+                        continueSwitch(flow, fresh)
                     }
                 }
             }
@@ -656,10 +836,14 @@ class SwitchUserViewModel
             decision: GateDecision,
             purpose: PinPurpose,
         ) {
+            // Every adult who could unlock, with the account's PIN (contract 11.2)
             val parents =
-                getSavedUsers().filter {
-                    it.profileKind == ProfileKind.ADULT && it.hasPin && it.rowId != target.rowId
-                }
+                coroutineScope {
+                    getSavedUsers()
+                        .filter { it.profileKind == ProfileKind.ADULT && it.rowId != target.rowId }
+                        .map { async { accountPins.refresh(it) } }
+                        .awaitAll()
+                }.filter { it.hasPin }
             val prompt =
                 when {
                     decision == GateDecision.LockedAdult -> {
@@ -691,7 +875,10 @@ class SwitchUserViewModel
          * Checks the PIN typed into the current PIN prompt, as its flow's next step. The returned job (null when nothing
          * was started) ends with that step, so the prompt stays latched until then.
          */
-        fun submitPin(pin: String): Job? {
+        fun submitPin(
+            pin: String,
+            onWrong: () -> Unit = {},
+        ): Job? {
             val flow: ChooserFlow
             val prompt: ChooserPrompt.Pin
             synchronized(flowLock) {
@@ -728,10 +915,19 @@ class SwitchUserViewModel
                         }
 
                         is PinCheckResult.Wrong -> {
-                            showPrompt(flow, prompt.copy(message = context.getString(R.string.kid_pin_wrong, result.attemptsBeforeLockout)))
+                            onWrong()
+                            // The check pulled the account's PIN: the entry takes its length from now on
+                            showPrompt(
+                                flow,
+                                prompt.copy(
+                                    pinOwner = savedRow(prompt.pinOwner),
+                                    message = context.getString(R.string.kid_pin_wrong, result.attemptsBeforeLockout),
+                                ),
+                            )
                         }
 
                         is PinCheckResult.LockedOut -> {
+                            onWrong()
                             val seconds = ((result.retryAtMillis - System.currentTimeMillis()) / 1000).coerceAtLeast(1)
                             showPrompt(
                                 flow,
@@ -797,6 +993,20 @@ class SwitchUserViewModel
             }
         }
 
+        /** Shows the saved profiles again, eg after a PIN change */
+        fun reloadUsers() {
+            viewModelScope.launchIO {
+                try {
+                    val serverUsers = getUsers()
+                    _state.update { it.copy(users = serverUsers) }
+                } catch (ex: CancellationException) {
+                    throw ex
+                } catch (ex: Exception) {
+                    Timber.w(ex, "Error reloading users")
+                }
+            }
+        }
+
         fun clearSwitchError() {
             _state.update { it.copy(switchError = null) }
         }
@@ -811,9 +1021,11 @@ class SwitchUserViewModel
 
         private suspend fun continueRemove(
             flow: ChooserFlow,
-            user: JellyfinUser,
+            picked: JellyfinUser,
             pinChecked: Boolean,
         ) {
+            // Contract 11.2: the account's PIN before a prompt shows
+            val user = if (pinChecked || picked.profileKind == ProfileKind.KID) picked else accountPins.refresh(picked)
             when {
                 user.profileKind == ProfileKind.KID || pinChecked -> {
                     removeUserNow(flow, user)
@@ -833,6 +1045,9 @@ class SwitchUserViewModel
                 }
             }
         }
+
+        /** [user]'s saved row now, or [user] if it isn't saved */
+        private suspend fun savedRow(user: JellyfinUser): JellyfinUser = getSavedUsers().firstOrNull { it.id == user.id } ?: user
 
         private suspend fun getSavedUsers(): List<JellyfinUser> =
             withContext(WholphinDispatchers.IO) {
@@ -962,6 +1177,30 @@ sealed interface ChooserPrompt {
     ) : ChooserPrompt
 }
 
+/** Where a fresh sign-in's avatar step is */
+enum class FirstAvatarStatus { PICKING, SAVING, FAILED }
+
+/** An adult's completed sign-in held back until they choose an avatar (contract 11.1) */
+data class PendingAvatar(
+    val serverUrl: String,
+    val authenticationResult: AuthenticationResult,
+    val existingUser: JellyfinUser?,
+    val target: ProfilePictureTarget,
+    val status: FirstAvatarStatus = FirstAvatarStatus.PICKING,
+    val chosen: Avatar? = null,
+)
+
+/**
+ * An adult's completed sign-in on a protected TV held back because its account PIN couldn't be read (review round 1);
+ * [checking] while it is read again
+ */
+data class PendingPinCheck(
+    val serverUrl: String,
+    val authenticationResult: AuthenticationResult,
+    val existingUser: JellyfinUser?,
+    val checking: Boolean = false,
+)
+
 /** An adult's completed sign-in held back until they set a PIN (protected device) */
 data class PendingPinSetup(
     val serverUrl: String,
@@ -983,6 +1222,8 @@ data class SwitchUserState(
     // Kid profiles
     val prompt: ChooserPrompt? = null,
     val pendingPinSetup: PendingPinSetup? = null,
+    val pendingAvatar: PendingAvatar? = null,
+    val pendingPinCheck: PendingPinCheck? = null,
     val switchError: SwitchUserResult.Error? = null,
 )
 

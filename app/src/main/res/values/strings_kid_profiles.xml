@@ -6,8 +6,8 @@
     <string name="remove_from_this_tv">Remove from this TV</string>
     <string name="change_picture">Change picture</string>
     <string name="profile_picture">Profile picture</string>
-    <string name="profile_picture_summary">Pick a picture for this profile</string>
-    <string name="pick_a_picture">Pick a picture</string>
+    <string name="profile_picture_summary">Choose a picture for this profile</string>
+    <string name="pick_a_picture">Choose a picture</string>
     <string name="current_picture">Current picture</string>
     <string name="remove_picture">Remove picture</string>
     <string name="skip_for_now">Skip for now</string>
@@ -62,10 +62,23 @@
     <string name="kid_name_placeholder">Kid\'s name</string>
     <string name="adding_kid_to_tv">Adding %1$s to this TV…</string>
     <string name="kid_takes_a_moment">This only takes a moment.</string>
-    <string name="pick_a_picture_for">Pick a picture for %1$s</string>
+    <string name="pick_a_picture_for">Choose a picture for %1$s</string>
     <string name="pin_prompt_name">Enter %1$s\'s PIN to continue</string>
     <string name="pin_prompt_current">Enter your current PIN to continue</string>
     <string name="pin_prompt_new">Press 4 arrows on the remote to make a PIN</string>
     <string name="pin_prompt_confirm">Press the same 4 arrows again</string>
     <string name="pin_must_be_four">A PIN is exactly 4 presses</string>
+
+    <!-- Account avatar and account PIN (contract 11, 2026-10-22) -->
+    <string name="change_pin">Change PIN</string>
+    <string name="pin_changed">PIN changed</string>
+    <string name="pin_mismatch">Those PINs didn\'t match. Enter the new PIN again.</string>
+    <string name="pin_save_failed">The PIN couldn\'t be saved. Check the connection and try again.</string>
+    <string name="forgot_pin_hint">Forgot your PIN? You can reset it on the website at %1$s</string>
+    <string name="first_avatar_title">Welcome, %1$s</string>
+    <string name="first_avatar_subtitle">Choose a picture for your profile. It follows you to every TV.</string>
+    <string name="first_avatar_failed">Your picture couldn\'t be saved.</string>
+    <string name="try_again">Try again</string>
+    <string name="continue_without_picture">Continue without a picture</string>
+    <string name="pin_check_failed">Couldn\'t check your PIN with WeaselPlex. Check the connection and try again.</string>
 </resources>

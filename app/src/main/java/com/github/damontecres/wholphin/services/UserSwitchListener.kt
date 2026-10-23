@@ -36,6 +36,7 @@ class UserSwitchListener
         private val homeSettingsService: HomeSettingsService,
         private val navigationManager: NavigationManager,
         private val setupNavigationManager: SetupNavigationManager,
+        private val accountAvatars: AccountAvatars,
     ) {
         init {
             context as AppCompatActivity
@@ -113,6 +114,13 @@ class UserSwitchListener
                 // Check for home settings
                 launchIO {
                     homeSettingsService.loadCurrentSettings(user.id)
+                }
+                if (BuildConfig.KID_PROFILES_ENABLED) {
+                    // Contract 11.1: an adult without a picture gets a random one, once per user per TV (also when
+                    // the select-user page never shows)
+                    launchIO {
+                        serverRepository.currentServer?.let { accountAvatars.assignMissing(it.url, listOf(user)) }
+                    }
                 }
                 if (BuildConfig.DISCOVER_ENABLED) {
                     // Check for seerr server. The sign-in itself lives in the

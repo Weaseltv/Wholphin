@@ -834,6 +834,32 @@ class ServerRepository
         }
 
         /**
+         * Account PIN (contract 11.2): the saved PIN is a cache of the account's, and this replaces it with the PIN pulled
+         * from the account (null clears it). Only the PIN column changes, under the session lock like every auth change;
+         * if [user] is the current session's profile, only its PIN changes in the session too.
+         *
+         * Review round 1: whether the TV is kid-protected is read here, under the session lock (a kid sign-in turns
+         * protection on under it), and a protected TV never clears a saved PIN: the guard is in the Room statement itself,
+         * so a clear decided before protection came on removes nothing.
+         *
+         * @return whether the cache was written
+         */
+        suspend fun updateCachedPin(
+            user: JellyfinUser,
+            pin: String?,
+        ): Boolean =
+            sessionMutex.withLock {
+                val allowPinRemoval = !(BuildConfig.KID_PROFILES_ENABLED && kidProtectionStore.isProtected())
+                val written =
+                    withContext(ioDispatcher) { serverDao.updateUserPin(user.serverId, user.id, pin, allowPinRemoval) } > 0
+                if (!written) return@withLock false
+                commitSession {
+                    _current.update { if (it.isIdentity(user.serverId, user.id)) it?.copy(user = it.user.copy(pin = pin)) else it }
+                }
+                true
+            }
+
+        /**
          * Sets the UI language of [expected], the session it was chosen in: an update of that session, never a switch
          * (plan 4.1, review round 9). Under the session lock, it applies only while [expected] is still exactly the
          * current session and was entered; once another session was published, or this one ended or changed (eg a

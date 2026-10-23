@@ -62,6 +62,7 @@ import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.profilePicturesEnabled
 import com.github.damontecres.wholphin.services.versionedUserImageUrl
+import com.github.damontecres.wholphin.ui.avatars.FirstAvatarDialog
 import com.github.damontecres.wholphin.ui.components.BasicDialog
 import com.github.damontecres.wholphin.ui.components.CircularProgress
 import com.github.damontecres.wholphin.ui.components.EditTextBox
@@ -73,18 +74,20 @@ import com.github.damontecres.wholphin.ui.dimAndBlur
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.kids.AddKidFlow
 import com.github.damontecres.wholphin.ui.kids.ChooserChangePicture
+import com.github.damontecres.wholphin.ui.kids.ChooserChangePin
+import com.github.damontecres.wholphin.ui.kids.KidButton
+import com.github.damontecres.wholphin.ui.kids.KidErrorText
 import com.github.damontecres.wholphin.ui.kids.KidGap
 import com.github.damontecres.wholphin.ui.kids.KidListRow
 import com.github.damontecres.wholphin.ui.kids.KidPanelDialog
 import com.github.damontecres.wholphin.ui.kids.KidProfilesViewModel
+import com.github.damontecres.wholphin.ui.kids.KidSpinner
 import com.github.damontecres.wholphin.ui.kids.KidSubtitle
 import com.github.damontecres.wholphin.ui.kids.KidTitle
 import com.github.damontecres.wholphin.ui.kids.OkBackHints
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.preferences.SetPinFlow
-import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonBrandRow
-import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
 import com.github.damontecres.wholphin.ui.theme.NeonRule
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
@@ -111,12 +114,16 @@ fun SwitchUserContent(
     val state by viewModel.state.collectAsState()
 
     val currentUser by viewModel.serverRepository.currentUserFlow.collectAsState(null)
+    val savedUsers = state.users.filter { it.known }.map { it.user }
     val connectOnly = weaselPlexConnectOnly()
     // WeaselPlex kid profiles: a kid session hides Add User, Add kid and Switch server (plan 4.4).
     val kidSession by kidViewModel.isKidSession.collectAsState()
     val pictureVersions by kidViewModel.pictureVersions.collectAsState()
+    // Review round 1: a pinless adult's picture needs a parent's PIN on a protected TV (assumed protected until known)
+    val deviceProtected by kidViewModel.gate.isDeviceProtected.collectAsState(initial = true)
     var showAddKid by remember { mutableStateOf(false) }
     var changePictureFor by remember { mutableStateOf<JellyfinUser?>(null) }
+    var changePinFor by remember { mutableStateOf<JellyfinUser?>(null) }
     var showAddUser by remember { mutableStateOf(false) }
     var addUser by remember(server) { mutableStateOf<JellyfinUser?>(null) }
     var username by remember(addUser) { mutableStateOf(addUser?.name ?: "") }
@@ -179,13 +186,57 @@ fun SwitchUserContent(
     state.pendingPinSetup?.let {
         SetPinFlow(
             currentPin = null,
-            onAddPin = viewModel::completePinSetup,
+            onAddPin = { viewModel.completePinSetup(it) },
             onRemovePin = {},
             onDismissRequest = {
                 viewModel.cancelPinSetup()
                 hideAddUserDialog()
             },
         )
+    }
+
+    // Contract 11.1: an adult signing in without a picture chooses one before anything is published
+    state.pendingAvatar?.let { pending ->
+        FirstAvatarDialog(
+            pending = pending,
+            avatars = viewModel.firstAvatarChoices,
+            onPick = viewModel::chooseFirstAvatar,
+            onRetry = viewModel::retryFirstAvatar,
+            onContinue = viewModel::continueWithoutAvatar,
+            onDismissRequest = {
+                viewModel.cancelFirstAvatar()
+                hideAddUserDialog()
+            },
+        )
+    }
+
+    // Review round 1: on a protected TV a sign-in waits until its account PIN can be read
+    state.pendingPinCheck?.let { pending ->
+        KidPanelDialog(
+            onDismissRequest = {
+                viewModel.cancelPinCheck()
+                hideAddUserDialog()
+            },
+            width = 620.dp,
+        ) {
+            KidTitle(pending.authenticationResult.user?.name ?: stringResource(R.string.enter_pin))
+            KidGap(14.dp)
+            KidErrorText(stringResource(R.string.pin_check_failed))
+            KidGap(24.dp)
+            val retryFocus = remember { FocusRequester() }
+            LaunchedEffect(Unit) { retryFocus.tryRequestFocus() }
+            if (pending.checking) {
+                KidSpinner(size = 40.dp, strokeWidth = 4.dp)
+            } else {
+                KidButton(
+                    stringResource(R.string.try_again),
+                    onClick = viewModel::retryPinCheck,
+                    modifier = Modifier.focusRequester(retryFocus),
+                )
+            }
+            KidGap(24.dp)
+            OkBackHints()
+        }
     }
 
     when (val st = state.loading) {
@@ -221,10 +272,9 @@ fun SwitchUserContent(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         if (isWeaselTv()) {
-                            // Neon Board (T9): mascot + wordmark, the server host as an eyebrow,
-                            // the title on a volt rule.
+                            // Neon Board (T9): mascot + wordmark, then the title on a volt rule. The server-name
+                            // eyebrow only repeated the wordmark, so it went (owner mockup, 2026-10-22).
                             NeonBrandRow(mascotSize = 40.dp, wordmarkSize = 34.sp)
-                            NeonEyebrow(text = server.name ?: server.url, accent = NeonBoard.Mid)
                             Text(
                                 text = stringResource(R.string.select_user).uppercase(),
                                 style = NeonType.pageTitle(),
@@ -289,10 +339,13 @@ fun SwitchUserContent(
                                 null
                             },
                         isKid = kidViewModel::isKid,
+                        canChangePicture = { user -> kidViewModel.canChangePicture(user, savedUsers, deviceProtected) },
                         onChangePicture =
                             if (profilePicturesEnabled) {
                                 { user ->
-                                    if (kidViewModel.canChangePicture(user, user.id == currentUser?.id)) {
+                                    if (kidViewModel.canChangePicture(user, savedUsers, deviceProtected)) {
+                                        // A pick still in progress never publishes or navigates behind it
+                                        viewModel.leaveForOtherAction()
                                         changePictureFor = user
                                     }
                                 }
@@ -300,6 +353,17 @@ fun SwitchUserContent(
                                 null
                             },
                         pictureVersions = pictureVersions,
+                        onChangePin =
+                            if (BuildConfig.KID_PROFILES_ENABLED) {
+                                { user ->
+                                    if (kidViewModel.canChangePin(user)) {
+                                        viewModel.leaveForOtherAction()
+                                        changePinFor = user
+                                    }
+                                }
+                            } else {
+                                null
+                            },
                     )
                 }
                 when (state.serverVersionSupported) {
@@ -337,7 +401,7 @@ fun SwitchUserContent(
         }
     }
 
-    if (showAddUser && state.pendingPinSetup == null) {
+    if (showAddUser && state.pendingPinSetup == null && state.pendingAvatar == null && state.pendingPinCheck == null) {
         var useQuickConnect by remember { mutableStateOf(state.quickConnectEnabled || connectOnly) }
         LaunchedEffect(Unit) {
             viewModel.clearSwitchUserState()
@@ -553,7 +617,11 @@ fun SwitchUserContent(
                     showAddUserDialog(prompt.target)
                 },
                 // Latched until the check (and what it starts) is done
-                onSubmit = { viewModel.submitPin(it)?.join() },
+                onSubmit = {
+                    var wrong = false
+                    viewModel.submitPin(it) { wrong = true }?.join()
+                    if (wrong) PinOutcome.WRONG else PinOutcome.OTHER
+                },
             )
         }
 
@@ -614,6 +682,21 @@ fun SwitchUserContent(
             user = user,
             gate = kidViewModel.gate,
             onDone = { changePictureFor = null },
+            savedUsers = state.users.filter { it.known }.map { it.user },
+            refresh = kidViewModel::refreshed,
+        )
+    }
+    changePinFor?.let { user ->
+        ChooserChangePin(
+            user = user,
+            gate = kidViewModel.gate,
+            refresh = kidViewModel::refreshed,
+            changePin = kidViewModel::changePin,
+            onDone = {
+                changePinFor = null
+                // The list shows the saved PIN rows again
+                viewModel.reloadUsers()
+            },
         )
     }
     switchUserWithPin?.let { user ->
@@ -631,8 +714,10 @@ fun SwitchUserContent(
                     // frozen underneath
                     switchUserWithPin = null
                     trySwitchUser(user)
+                    PinOutcome.OTHER
                 } else {
                     Toast.makeText(context, context.getString(R.string.incorrect), Toast.LENGTH_SHORT).show()
+                    PinOutcome.WRONG
                 }
             },
         )
@@ -819,7 +904,7 @@ fun ChooserPinPrompt(
     prompt: ChooserPrompt.Pin,
     onDismissRequest: () -> Unit,
     onClickServerAuth: () -> Unit,
-    onSubmit: suspend (String) -> Unit,
+    onSubmit: suspend (String) -> PinOutcome,
 ) {
     key(prompt.id) {
         PinEntryDialog(

@@ -92,6 +92,7 @@ import com.github.damontecres.wholphin.ui.playOnClickSound
 import com.github.damontecres.wholphin.ui.playSoundOnFocus
 import com.github.damontecres.wholphin.ui.preferences.subtitle.SubtitleSettings
 import com.github.damontecres.wholphin.ui.setup.PinEntryDialog
+import com.github.damontecres.wholphin.ui.setup.PinOutcome
 import com.github.damontecres.wholphin.ui.setup.ReleaseNotes
 import com.github.damontecres.wholphin.ui.setup.UpdateViewModel
 import com.github.damontecres.wholphin.ui.setup.pinPromptFor
@@ -150,6 +151,9 @@ fun PreferencesContent(
     var showTurnOffProtectionPin by remember { mutableStateOf(false) }
     var turnOffProtectionMessage by remember { mutableStateOf<String?>(null) }
     var turnOffProtectionLockedUntil by remember { mutableLongStateOf(0L) }
+
+    // The last "Turn off kid protection" PIN was wrong (it counts towards the forgot-PIN hint)
+    var turnOffProtectionWrong by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.preferenceDataStore.data.collect {
@@ -522,7 +526,9 @@ fun PreferencesContent(
                                                         }
 
                                                         ProfileProtection.PIN -> {
-                                                            showPinFlow = true
+                                                            // Contract 11.2: the account's PIN first, so the flow asks for
+                                                            // the PIN that is current
+                                                            viewModel.refreshAccountPin { showPinFlow = true }
                                                         }
 
                                                         ProfileProtection.LOGIN -> {
@@ -539,7 +545,7 @@ fun PreferencesContent(
                                                 onClick = {
                                                     if (currentUser?.hasPin == true) {
                                                         turnOffProtectionMessage = null
-                                                        showTurnOffProtectionPin = true
+                                                        viewModel.refreshAccountPin { showTurnOffProtectionPin = true }
                                                     } else {
                                                         Toast
                                                             .makeText(
@@ -806,9 +812,12 @@ fun PreferencesContent(
                 SetPinFlow(
                     currentPin = user.pin,
                     onAddPin = {
+                        // Saved in the background, the account first; a failure says so and changes nothing
                         viewModel.setPin(user, it)
                         showPinFlow = false
+                        true
                     },
+                    checkCurrentPin = { viewModel.checkOwnPin(user, it) },
                     onRemovePin = {
                         viewModel.setPin(user, null)
                         showPinFlow = false
@@ -834,6 +843,7 @@ fun PreferencesContent(
                     prompt = pinPromptFor(user.shownName),
                     // Latched until the check and the write are done; a failure leaves the prompt usable
                     onSubmit = { pin ->
+                        turnOffProtectionWrong = false
                         viewModel
                             .turnOffKidProtection(
                                 user,
@@ -849,11 +859,13 @@ fun PreferencesContent(
                                     }
 
                                     result is PinCheckResult.Wrong -> {
+                                        turnOffProtectionWrong = true
                                         turnOffProtectionMessage =
                                             context.getString(R.string.kid_pin_wrong, result.attemptsBeforeLockout)
                                     }
 
                                     result is PinCheckResult.LockedOut -> {
+                                        turnOffProtectionWrong = true
                                         val seconds = ((result.retryAtMillis - System.currentTimeMillis()) / 1000).coerceAtLeast(1)
                                         turnOffProtectionMessage = context.getString(R.string.kid_pin_locked_out, seconds)
                                         turnOffProtectionLockedUntil = result.retryAtMillis
@@ -870,6 +882,7 @@ fun PreferencesContent(
                                     }
                                 }
                             }.join()
+                        if (turnOffProtectionWrong) PinOutcome.WRONG else PinOutcome.OTHER
                     },
                     title = stringResource(R.string.kid_turn_off_protection),
                     message = turnOffProtectionMessage,

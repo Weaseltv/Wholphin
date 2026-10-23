@@ -58,6 +58,7 @@ class AddKidViewModelTest {
                 pictures = ProfilePictureService(FakeAvatarCatalog(), uploader, cache),
                 serverRepository = serverRepository,
                 setupNavigationManager = navigation,
+                accountPins = localAccountPins(serverRepository),
             )
     }
 

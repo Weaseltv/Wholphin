@@ -184,7 +184,7 @@ class KidSessionCoordinatorTest {
 
     /** On a real-time [scope], so the unlock's expiry job only runs when [now] says so (never in these tests) */
     private fun gate(scope: CoroutineScope) =
-        KidSessionGateImpl(repository, serverDao, store, scope, Dispatchers.IO).also { it.clock = { now } }
+        KidSessionGateImpl(repository, serverDao, store, scope, Dispatchers.IO, localAccountPins()).also { it.clock = { now } }
 
     private suspend fun protect(sessionCeiling: ProfileCeiling) {
         store.markProtected(sessionCeiling)

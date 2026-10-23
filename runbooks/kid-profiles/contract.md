@@ -1,10 +1,11 @@
-# Kid profiles — frozen TV <-> website contract (v1.3)
+# Kid profiles — frozen TV <-> website contract (v1.4)
 
 Status: **FROZEN 2026-10-21** by the kid-profiles orchestrator. v1.1 (same day) only clarifies
 website-side details found while building tracks A and B; nothing the TV sends or reads changed.
 v1.2 (same day) applies the Phase 0 result (Jellyfin 12.2.0): `MaxParentalSubRating` is 1 at
 every level; null behaves like 0 and hid all TV-MA/NC-17 from Teens. TV behaviour unchanged. v1.3 (2026-10-22) adds section 10, the owner's
-content rules for every kids profile (TV-side filter on top of the server policy). Identical copies live in
+content rules for every kids profile (TV-side filter on top of the server policy). v1.4 (2026-10-22) adds section 11: account
+avatars and an account PIN that the website can reset, plus the website's "Your profiles" pages. Identical copies live in
 `Wholphin/runbooks/kid-profiles/contract.md` and `weaseltv-platform/docs/kid-profiles/contract.md`. Tracks build to this
 document. Changes go through the orchestrator only; a change bumps the version line above and
 is made in both repos in the same step.
@@ -14,11 +15,11 @@ avatars (Notion, 2026-10-12). Section numbers below refer to that plan.
 
 ## 1. Levels and the kid signal
 
-| Wire id (`level`) | Label (TV and portal) | Description shown | `MaxParentalRating` | `MaxParentalSubRating` | TV ceiling |
-|---|---|---|---|---|---|
-| `kids` | Kids | Up to PG and TV-PG | 10 | 1 | 10 |
-| `older_kids` | Older kids | Up to PG-13 and TV-14 | 14 | 1 | 14 |
-| `teens` | Teens | Up to R and TV-MA | 17 | 1 | 17 |
+| Wire id (`level`) | Label (TV and portal) | Description shown     | `MaxParentalRating` | `MaxParentalSubRating` | TV ceiling |
+| ----------------- | --------------------- | --------------------- | ------------------- | ---------------------- | ---------- |
+| `kids`            | Kids                  | Up to PG and TV-PG    | 10                  | 1                      | 10         |
+| `older_kids`      | Older kids            | Up to PG-13 and TV-14 | 14                  | 1                      | 14         |
+| `teens`           | Teens                 | Up to R and TV-MA     | 17                  | 1                      | 17         |
 
 - Confirmed by Phase 0 on the live server (Jellyfin **12.2.0**, 2026-10-21; see
   `runbooks/kid-profiles/phase0-results.md` in Wholphin). Numbers may change only through the
@@ -31,6 +32,7 @@ avatars (Notion, 2026-10-12). Section numbers below refer to that plan.
   ceiling for the current session and as "gated" for a target (plan 4.1, 4.2).
 
 ### 1.1 Kid policy fields (website writes, then reads back and verifies)
+
 Starting from `weaselPlexMemberPolicy(current, folderIds)` plus member configuration:
 `MaxParentalRating` and `MaxParentalSubRating` (table above),
 `BlockUnratedItems: ["Movie","Series","Trailer","Book","ChannelContent","LiveTvChannel","LiveTvProgram","Other"]`,
@@ -77,35 +79,37 @@ Read-back must verify `MaxParentalRating`, `MaxParentalSubRating`, `BlockUnrated
   "Kid profiles aren't available yet" and hides nothing else.
 
 ### 3.1 Rate limits (website; applied BEFORE any media-server call)
-| Scope | Limit | Notes |
-|---|---|---|
-| Per client IP, whole family | 30 / minute | pre-auth |
-| Per token (keyed HMAC-SHA256 digest), whole family | 60 / 10 minutes | pre-auth |
-| Create, per account | 10 / hour | after auth |
-| Connect, per account | 5 / 10 minutes | after auth, mirrors existing Quick Connect |
+
+| Scope                                              | Limit           | Notes                                      |
+| -------------------------------------------------- | --------------- | ------------------------------------------ |
+| Per client IP, whole family                        | 30 / minute     | pre-auth                                   |
+| Per token (keyed HMAC-SHA256 digest), whole family | 60 / 10 minutes | pre-auth                                   |
+| Create, per account                                | 10 / hour       | after auth                                 |
+| Connect, per account                               | 5 / 10 minutes  | after auth, mirrors existing Quick Connect |
 
 ### 3.2 Error codes
-| Status | `title` | Meaning | TV behaviour |
-|---|---|---|---|
-| 400 | `INVALID_REQUEST` | Body failed validation (name length/characters, level), body over 1 KiB, wrong content type, or a query string | Show inline form error |
-| 400 | `INVALID_JSON` | Malformed JSON | Bug; generic error |
-| 400 | `INVALID_IDEMPOTENCY_KEY` | Missing/invalid key on create | Bug; generic error |
-| 400 | `QUICK_CONNECT_INVALID_CODE` | Code unknown or expired | Re-initiate Quick Connect, retry connect once |
-| 401 | `AUTHENTICATION_REQUIRED` | Token missing, invalid or expired | "Sign this profile in again" |
-| 403 | `WEASELPLEX_ACCESS_REQUIRED` | Parent account not approved / revoked | "Your WeaselPlex access isn't active" |
-| 403 | `KID_CALLER_FORBIDDEN` | The token belongs to a kid profile | Bug guard; generic error |
-| 404 | `WEASELPLEX_KIDS_UNAVAILABLE` | Feature flag off | "Kid profiles aren't available yet" |
-| 404 | `KID_NOT_FOUND` | Unknown kid id or not this account's | Refresh list |
-| 409 | `KID_LIMIT_REACHED` | Already 5 non-deleted kids | "You already have 5 kid profiles" |
-| 409 | `KID_NAME_TAKEN` | Name used by another kid on the account | Inline name error |
-| 409 | `KID_NOT_ACTIVE` | Kid is `provisioning`, `disabled` or `deleting` | "This profile isn't available right now" |
-| 409 | `IDEMPOTENCY_CONFLICT` | Same key, different body | Bug; new key |
-| 409 | `REQUEST_IN_PROGRESS` | Same key still running | Wait 2 s, retry same key |
-| 429 | `RATE_LIMITED` | See 3.1 | "Try again in N minutes" using `retryAfterMs` |
-| 503 | `KID_PROVISIONING_FAILED` | Create failed and was rolled back | Retry allowed (same key re-runs) |
-| 503 | `MEDIA_ACCESS_PROVIDER_UNAVAILABLE` | Media server/Seerr unreachable | Generic retry |
-| 503 | `WEASELPLEX_UNAVAILABLE` | Portal disabled / DB timeout | Generic retry |
-| 500 | `INTERNAL_ERROR` | Anything else | Generic retry |
+
+| Status | `title`                             | Meaning                                                                                                        | TV behaviour                                  |
+| ------ | ----------------------------------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| 400    | `INVALID_REQUEST`                   | Body failed validation (name length/characters, level), body over 1 KiB, wrong content type, or a query string | Show inline form error                        |
+| 400    | `INVALID_JSON`                      | Malformed JSON                                                                                                 | Bug; generic error                            |
+| 400    | `INVALID_IDEMPOTENCY_KEY`           | Missing/invalid key on create                                                                                  | Bug; generic error                            |
+| 400    | `QUICK_CONNECT_INVALID_CODE`        | Code unknown or expired                                                                                        | Re-initiate Quick Connect, retry connect once |
+| 401    | `AUTHENTICATION_REQUIRED`           | Token missing, invalid or expired                                                                              | "Sign this profile in again"                  |
+| 403    | `WEASELPLEX_ACCESS_REQUIRED`        | Parent account not approved / revoked                                                                          | "Your WeaselPlex access isn't active"         |
+| 403    | `KID_CALLER_FORBIDDEN`              | The token belongs to a kid profile                                                                             | Bug guard; generic error                      |
+| 404    | `WEASELPLEX_KIDS_UNAVAILABLE`       | Feature flag off                                                                                               | "Kid profiles aren't available yet"           |
+| 404    | `KID_NOT_FOUND`                     | Unknown kid id or not this account's                                                                           | Refresh list                                  |
+| 409    | `KID_LIMIT_REACHED`                 | Already 5 non-deleted kids                                                                                     | "You already have 5 kid profiles"             |
+| 409    | `KID_NAME_TAKEN`                    | Name used by another kid on the account                                                                        | Inline name error                             |
+| 409    | `KID_NOT_ACTIVE`                    | Kid is `provisioning`, `disabled` or `deleting`                                                                | "This profile isn't available right now"      |
+| 409    | `IDEMPOTENCY_CONFLICT`              | Same key, different body                                                                                       | Bug; new key                                  |
+| 409    | `REQUEST_IN_PROGRESS`               | Same key still running                                                                                         | Wait 2 s, retry same key                      |
+| 429    | `RATE_LIMITED`                      | See 3.1                                                                                                        | "Try again in N minutes" using `retryAfterMs` |
+| 503    | `KID_PROVISIONING_FAILED`           | Create failed and was rolled back                                                                              | Retry allowed (same key re-runs)              |
+| 503    | `MEDIA_ACCESS_PROVIDER_UNAVAILABLE` | Media server/Seerr unreachable                                                                                 | Generic retry                                 |
+| 503    | `WEASELPLEX_UNAVAILABLE`            | Portal disabled / DB timeout                                                                                   | Generic retry                                 |
+| 500    | `INTERNAL_ERROR`                    | Anything else                                                                                                  | Generic retry                                 |
 
 ## 4. Kid object
 
@@ -120,6 +124,7 @@ Read-back must verify `MaxParentalRating`, `MaxParentalSubRating`, `BlockUnrated
   "createdAt": "2026-10-21T19:00:00.000Z"
 }
 ```
+
 - `id`: website UUID (the `media_kid_profiles.id`). `mediaUserId`: Jellyfin user id, 32 lower
   hex without dashes, `null` only while `provisioning`. The TV compares it with
   `UserDto.id` (normalise dashes/case).
@@ -129,12 +134,15 @@ Read-back must verify `MaxParentalRating`, `MaxParentalSubRating`, `BlockUnrated
 ## 5. TV routes
 
 ### 5.1 List — `GET /api/v1/weaselplex/tv/kids`
+
 `200 {"data":{"kids":[Kid...],"limit":5}}`, sorted by `createdAt` ascending.
 
 ### 5.2 Create — `POST /api/v1/weaselplex/tv/kids`
+
 Headers: `Idempotency-Key` required, 16–200 chars `[A-Za-z0-9._:-]` (the TV uses a UUID it
 generates once per form submission and reuses on retry). Body (strict):
 `{"displayName":"Emma","level":"kids"}`. The idempotency hash covers only these two fields.
+
 - `201 {"data":{"kid":Kid}}` with `state: "active"`. A replay returns the stored `201` with
   `X-Idempotent-Replay: true`.
 - Failures before `active` are compensated (media user deleted) and return
@@ -145,9 +153,11 @@ generates once per form submission and reuses on retry). Body (strict):
 - Create does **not** sign anything in. The TV follows with Connect (5.3).
 
 ### 5.3 Connect — `POST /api/v1/weaselplex/tv/kids/{kidId}/connect`
+
 Body (strict): `{"code":"123456"}` (6 digits, same field and rule as the existing portal Quick
 Connect route). No idempotency key (authorizing an already-used code returns
 `QUICK_CONNECT_INVALID_CODE`; the TV then starts a fresh code).
+
 - The website authorizes the Quick Connect code **as the kid** (only `active` kids) under the
   same request-row lock as the existing Quick Connect helper.
 - `200 {"data":{"authorized":true,"kid":Kid}}`.
@@ -156,6 +166,7 @@ Connect route). No idempotency key (authorizing an already-used code returns
   403, 401, 429, 503.
 
 ### 5.4 TV call sequence (add kid, plan 4.3)
+
 1. Parent unlocked on the TV (PIN -> `ParentUnlock`).
 2. `GET /tv/kids` with the parent's Room token. If kids exist, offer "Sign in <name> on this
    TV" (connect) or "Create new".
@@ -167,12 +178,13 @@ Connect route). No idempotency key (authorizing an already-used code returns
 7. Hand the result to the TV's kid sign-in (persists kid protection + the kid's ceiling before
    publishing the session; plan 4.2), with `displayName` from step 3/5.
 8. Optional avatar step (plan 4.6) runs in the kid's new session against Jellyfin directly.
-Retry/expired code: repeat 4–6 for the same kid id; never create again.
+   Retry/expired code: repeat 4–6 for the same kid id; never create again.
 
 ## 6. Portal routes (session adapter; existing Origin/CSRF + session checks)
 
 All under `/api/v1/portal/weaselplex/kids`, same envelopes and error codes. Mutations
 require `Idempotency-Key`.
+
 - `GET /api/v1/portal/weaselplex/kids` -> `200 {"data":{"kids":[Kid...],"limit":5}}`
 - `PATCH /api/v1/portal/weaselplex/kids/{kidId}` body (strict, at least one field)
   `{"displayName"?: "...", "level"?: "kids|older_kids|teens"}` -> `200 {"data":{"kid":Kid}}`.
@@ -193,7 +205,8 @@ require `Idempotency-Key`.
 - Avatars (plan 4.6): bundled in the weaselfin flavor; saved with the profile's own token via
   `POST /Users/{userId}/Images/Primary`, removed with `DELETE /Users/{userId}/Images/Primary`.
   Avatar ids are the bundled file names (lowercase-hyphen, never renamed).
-- Kid detection, session ceiling, kid protection, PIN rules: TV only (plan 4.1, 4.2, 4.5),
+- Kid detection, session ceiling, kid protection, PIN rules: TV only (except where the PIN is
+  stored and the website's PIN reset, section 11; plan 4.1, 4.2, 4.5),
   using the kid signal in section 1.
 
 ## 8. TV-internal seam between tracks C and D
@@ -201,6 +214,7 @@ require `Idempotency-Key`.
 Frozen Kotlin interfaces live in
 `app/src/main/java/com/github/damontecres/wholphin/kids/KidContracts.kt` on the integration
 branch, with stub implementations bound by `KidStubsModule` so both tracks compile.
+
 - **Track C** implements `KidSessionGate` (gate, ParentUnlock, PIN verification with backoff,
   kid sign-in, kid/adult classification) and removes the stub binding for it.
 - **Track D** implements `KidProfilesApi` (OkHttp client for section 5) and the screens; it
@@ -216,6 +230,7 @@ the weaseltv-platform integration branch (`packages/db/src/schema/media-access.t
 `seerr_user_id`, `display_name` (1–20, trimmed; unique per owner, case-insensitive, among
 rows not `deleting`), `level`, `state` (`provisioning|active|disabled|deleting`), `version`,
 `last_error`, `created_at`, `updated_at`.
+
 - **Track A** owns create/connect/list/update/delete, the TV token adapter, the kid policy
   builder (`weaselPlexKidPolicy(current, folderIds, level)` in
   `packages/provider-adapters/src/media-server-policy.ts`), and the per-account lock helper.
@@ -259,6 +274,7 @@ Teens (17) = 3. For other values: >= 18 -> 4, >= 17 -> 3, >= 13 -> 2, >= 10 -> 1
 no title is shown.
 
 **Orchestrator interpretations** (owner may overrule):
+
 - Episodes and seasons are also hidden whenever their series is hidden, even if the episode has its own
   lower rating ("its episodes hidden too").
 - A PG movie with neither `PremiereDate` nor `ProductionYear` counts as PG-13 (fail closed).
@@ -280,3 +296,59 @@ policy: `MaxParentalRating` = the level, `BlockUnratedItems` including Movie and
 "Episode" unrated type; episodes without a rating follow their series (Phase 0 gate 3). The server cannot express
 rules 1, 2 (non-US values it scores), 4 or the Teens NC-17 cut, so those live on the TV only. Other Jellyfin
 clients signed in as a kid get only the server policy.
+
+## 11. Your profile: avatar and account PIN (owner decision 2026-10-22, v1.4)
+
+Every profile (adult or kid) has an avatar and an adult may have a PIN. Both belong to the Jellyfin user, so
+they follow the person to every TV and survive signing out and back in.
+
+### 11.1 Avatar
+
+- Stored as the Jellyfin user's Primary image (section 7). Adults choose from the 24 adult avatars, kids from
+  the 24 kid avatars (`app/src/weaselfin/assets/avatars/`).
+- **First sign-in.** When an adult signs in on a TV (username/password or Quick Connect, not a profile switch)
+  and their user has no Primary image, the TV asks them to choose an avatar before going on. No skip; if the
+  upload fails it says so and offers "Try again" and "Continue without a picture".
+- **Existing profiles.** An adult already saved on a TV whose user has no Primary image gets a random adult
+  avatar, once per user per TV. An existing image is never replaced automatically.
+- **Change.** "Change picture" in the select-user long-press menu, for every saved profile with a token:
+  kids pick from the kid list, adults from the adult list. An adult with a PIN enters it first.
+
+### 11.2 Account PIN
+
+- **Store.** Jellyfin DisplayPreferences, id `weaselplex-profile`, client `weaselplex`, `CustomPrefs`:
+  `pin` (the presses, see below; empty or missing = no PIN) and `pinUpdatedAt` (ISO-8601 UTC). The TV reads
+  and writes it with the profile's own token, merging into the existing prefs; the website writes it with the
+  admin key the same way (GET, merge the two keys, POST). Other keys are left alone.
+- **Format.** New PINs are exactly 4 presses from `U D L R` (up, down, left, right), e.g. `ULLD`. Older PINs
+  saved on a TV may be other lengths or digits; they keep working until changed.
+- **TV.** The account PIN is the authority; the TV's saved PIN (Room `users.pin`) is a cache.
+  - Pull when the select-user page opens and before a PIN prompt shows (best effort, short timeout; the cache
+    is used if the server can't be reached). A server PIN replaces the cache.
+  - A wrong entry pulls once and checks again, so a PIN reset on the website works straight away.
+  - No server PIN but a cached one: the TV uploads the cached PIN (one-time migration).
+  - Setting, changing or removing a PIN writes the server first; if that fails the TV shows an error and
+    changes nothing.
+- **Change PIN** ("Change PIN" in the select-user long-press menu, profiles with a PIN): current PIN, then the
+  new PIN, then the new PIN again. A mismatch says so and asks for the new PIN again.
+- **Forgot PIN.** On every PIN screen, after more than 3 wrong entries on that screen the TV shows
+  "Forgot your PIN? You can reset it on the website at theweasel.tv/weaselplex/profiles" and a QR code for
+  `https://theweasel.tv/weaselplex/profiles`. The existing backoff still applies.
+
+### 11.3 Website
+
+- Account page (`/weaselplex`): the kid-profiles section moves to its own page. A "Your profiles" tile sits
+  under "Get the app" and above "Web player" and opens `/weaselplex/profiles`.
+- `/weaselplex/profiles`: two tiles, "Your profile" (`/weaselplex/profiles/you`) and "Kids profiles"
+  (`/weaselplex/profiles/kids`, today's kid-profiles section). Same sign-in and access rules as the account
+  page; signed-out visitors (for example from the TV's QR code) go through sign-in and come back.
+- `/weaselplex/profiles/you`: the profile name, its avatar if it has one, and "Reset PIN": four arrow buttons
+  and four boxes, entered twice, then saved.
+- Route `PUT /api/v1/portal/weaselplex/profile/pin`, body (strict) `{"pin":"ULLD"}` matching `^[UDLR]{4}$`
+  -> `200 {"data":{"hasPin":true,"pinUpdatedAt":"..."}}`. Portal Origin/CSRF/session checks, active
+  WeaselPlex access required (403 `WEASELPLEX_ACCESS_REQUIRED`), 10 per hour per account (429
+  `RATE_LIMITED`), 503 `MEDIA_ACCESS_PROVIDER_UNAVAILABLE` if Jellyfin can't be reached. Audit action
+  `weaselplex.profile.pin_reset`. The PIN is never logged or stored by the website.
+- `GET /api/v1/portal/weaselplex/profile` -> `200 {"data":{"displayName":"...","hasPin":bool,"pinUpdatedAt":"..."|null,"hasAvatar":bool}}`.
+- `GET /api/v1/portal/weaselplex/profile/avatar`: the session's own media user's Primary image (never a kid's, no
+  caller-supplied id), resized, raster `image/*` only, `Cache-Control: private, no-store`; 404 when there is none.
