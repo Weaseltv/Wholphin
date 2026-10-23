@@ -82,6 +82,10 @@ class ChooserGateViewModelTest {
     private val olderKid = profile(4, PolicyState.KID, 14)
     private val kidWithPin = profile(5, PolicyState.KID, 10, pin = "5555")
 
+    /** Never switched into since kid profiles: not known to be an adult */
+    private val unknownProfile = profile(6, PolicyState.UNKNOWN)
+    private val accountPins = localAccountPins()
+
     private lateinit var viewModel: SwitchUserViewModel
 
     @Before
@@ -90,7 +94,7 @@ class ChooserGateViewModelTest {
         Dispatchers.setMain(dispatcher)
         WholphinDispatchers.configure(dispatcher)
         every { serverDao.getServer(serverId) } returns
-            JellyfinServerUsers(server, listOf(parent, pinlessAdult, kid, olderKid, kidWithPin))
+            JellyfinServerUsers(server, listOf(parent, pinlessAdult, kid, olderKid, kidWithPin, unknownProfile))
         coEvery { store.isProtected() } returns true
         coEvery { serverRepository.removeUser(any(), any()) } just runs
         viewModel =
@@ -105,7 +109,7 @@ class ChooserGateViewModelTest {
                 kidSessionGate = gate,
                 kidProtectionStore = store,
                 profileChooserLock = chooserLock,
-                accountPins = localAccountPins(),
+                accountPins = accountPins,
                 accountAvatars = mockk(relaxed = true),
                 pictures = mockk(relaxed = true),
                 savedProfileChecks = mockk(relaxed = true),
@@ -133,16 +137,128 @@ class ChooserGateViewModelTest {
     }
 
     @Test
-    fun `pinless adult on a protected TV asks another parent`() =
+    fun `pinless adult on a protected TV needs a PIN, never another parent's`() =
         runTest(dispatcher) {
             coEvery { gate.evaluate(pinlessAdult) } returns GateDecision.LockedAdult
 
             viewModel.onProfileSelected(pinlessAdult)
 
-            val p = prompt as ChooserPrompt.PickParent
-            assertTrue(p.locked)
-            assertEquals(listOf(parent), p.parents)
+            // Contract 12.4 (v1.7)
+            assertEquals(ChooserPrompt.NeedsPin(pinlessAdult), prompt)
             coVerify(exactly = 0) { gate.switchTo(any(), any(), any(), any()) }
+            coVerify(exactly = 0) { gate.verifyParentPin(any(), any(), any(), any()) }
+        }
+
+    @Test
+    fun `back on the needs-a-PIN panel changes nothing`() =
+        runTest(dispatcher) {
+            coEvery { gate.evaluate(pinlessAdult) } returns GateDecision.LockedAdult
+            viewModel.onProfileSelected(pinlessAdult)
+            viewModel.dismissPrompt()
+            assertNull(prompt)
+            assertNull(viewModel.confirmRemoveNeedsPin())
+            coVerify(exactly = 0) { serverRepository.removeUser(any(), any()) }
+            coVerify(exactly = 0) { gate.switchTo(any(), any(), any(), any()) }
+        }
+
+    @Test
+    fun `remove from this TV on the panel asks first, then needs no PIN`() =
+        runTest(dispatcher) {
+            coEvery { gate.evaluate(pinlessAdult) } returns GateDecision.LockedAdult
+            viewModel.onProfileSelected(pinlessAdult)
+            // Nothing is removed before the question is answered
+            assertNull(viewModel.confirmRemoveNeedsPin())
+            viewModel.askRemoveNeedsPin()
+            assertEquals(ChooserPrompt.NeedsPin(pinlessAdult, confirmRemove = true), prompt)
+            viewModel.cancelRemoveNeedsPin()
+            assertEquals(ChooserPrompt.NeedsPin(pinlessAdult), prompt)
+            coVerify(exactly = 0) { serverRepository.removeUser(any(), any()) }
+
+            viewModel.askRemoveNeedsPin()
+            viewModel.confirmRemoveNeedsPin()
+            coVerify(exactly = 1) { serverRepository.removeUser(pinlessAdult, any()) }
+            coVerify(exactly = 0) { gate.verifyParentPin(any(), any(), any(), any()) }
+            assertNull(prompt)
+        }
+
+    @Test
+    fun `removing from the panel asks for a PIN the account got meanwhile`() =
+        runTest(dispatcher) {
+            coEvery { gate.evaluate(pinlessAdult) } returns GateDecision.LockedAdult
+            val withPin = pinlessAdult.copy(pin = "UDLR")
+            coEvery { accountPins.refresh(pinlessAdult) } returnsMany listOf(pinlessAdult, withPin)
+            viewModel.onProfileSelected(pinlessAdult)
+            viewModel.askRemoveNeedsPin()
+            viewModel.confirmRemoveNeedsPin()
+            coVerify(exactly = 0) { serverRepository.removeUser(any(), any()) }
+            val p = prompt as ChooserPrompt.Pin
+            assertEquals(PinPurpose.DELETE, p.purpose)
+            assertEquals(withPin, p.pinOwner)
+        }
+
+    private fun adultAuth(
+        id: UUID,
+        token: String = "adult-token",
+    ) = AuthenticationResult(
+        user =
+            UserDto(
+                id = id,
+                name = "adult",
+                hasPassword = false,
+                hasConfiguredPassword = false,
+                hasConfiguredEasyPassword = false,
+                policy = mockk<UserPolicy> { every { maxParentalRating } returns null },
+            ),
+        accessToken = token,
+        serverId = serverId.toServerString(),
+    )
+
+    @Test
+    fun `create a PIN signs that profile in again, then sets its PIN and goes in`() =
+        runTest(dispatcher) {
+            coEvery { gate.evaluate(pinlessAdult) } returns GateDecision.LockedAdult
+            every { serverDao.getUser(serverId, pinlessAdult.id) } returns pinlessAdult
+            coEvery { serverRepository.changeUser(any<String>(), any(), any(), any(), any(), any(), any(), any()) } returns
+                CurrentUser(server, pinlessAdult)
+            viewModel.onProfileSelected(pinlessAdult)
+            // "Create a PIN": the panel closes and the sign-in dialog opens for that profile
+            viewModel.dismissPrompt()
+            val auth = adultAuth(pinlessAdult.id)
+            viewModel.signIn(server.url, existingUser = pinlessAdult, onError = {}) { auth }
+
+            val pending = viewModel.state.value.pendingPinSetup
+            assertNotNull("the fresh sign-in asks for the new PIN first", pending)
+            assertEquals(pinlessAdult, pending!!.existingUser)
+            coVerify(exactly = 0) { serverRepository.changeUser(any<String>(), any(), any(), any(), any(), any(), any(), any()) }
+
+            assertTrue(viewModel.completePinSetup("UDLR"))
+            coVerify { accountPins.upload(server.url, pinlessAdult.id, "adult-token", "UDLR") }
+            coVerify(exactly = 1) {
+                serverRepository.changeUser(server.url, auth, pinlessAdult, any(), "UDLR", any(), any(), any())
+            }
+        }
+
+    @Test
+    fun `a fresh sign-in as another account never sets this profile's PIN nor publishes it`() =
+        runTest(dispatcher) {
+            val otherId = UUID.randomUUID()
+            every { serverDao.getUser(serverId, otherId) } returns null
+            coEvery { serverRepository.changeUser(any<String>(), any(), any(), any(), any(), any(), any(), any()) } returns
+                CurrentUser(server, parent)
+            viewModel.signIn(server.url, existingUser = pinlessAdult, onError = {}) { adultAuth(otherId, "other-token") }
+
+            val pending = viewModel.state.value.pendingPinSetup
+            assertNotNull(pending)
+            assertNull(pending!!.existingUser)
+            viewModel.completePinSetup("UDLR")
+
+            coVerify(exactly = 0) { accountPins.upload(any(), pinlessAdult.id, any(), any()) }
+            coVerify(exactly = 0) { accountPins.set(pinlessAdult, any(), any()) }
+            coVerify(exactly = 0) { serverRepository.updateUserAuth(pinlessAdult, any(), any()) }
+            coVerify(exactly = 0) {
+                serverRepository.changeUser(any<String>(), any(), pinlessAdult, any(), any(), any(), any(), any())
+            }
+            coVerify { accountPins.upload(server.url, otherId, "other-token", "UDLR") }
         }
 
     @Test
@@ -198,9 +314,19 @@ class ChooserGateViewModelTest {
         }
 
     @Test
-    fun `deleting a locked pinless adult needs another parent`() =
+    fun `deleting a pinless adult on a protected TV needs no PIN`() =
         runTest(dispatcher) {
+            // Contract 12.4 (v1.7): it can't be used on a TV with kids anyway
             viewModel.removeUser(pinlessAdult)
+            coVerify(exactly = 1) { serverRepository.removeUser(pinlessAdult, any()) }
+            coVerify(exactly = 0) { gate.verifyParentPin(any(), any(), any(), any()) }
+            assertNull(prompt)
+        }
+
+    @Test
+    fun `deleting a pinless profile not known to be an adult still needs another parent`() =
+        runTest(dispatcher) {
+            viewModel.removeUser(unknownProfile)
             coVerify(exactly = 0) { serverRepository.removeUser(any(), any()) }
             val pick = prompt as ChooserPrompt.PickParent
             assertTrue(pick.locked)
@@ -209,7 +335,7 @@ class ChooserGateViewModelTest {
             viewModel.pickParent(parent)
             parentPin("1234", PinCheckResult.Correct)
             viewModel.submitPin("1234")
-            coVerify(exactly = 1) { serverRepository.removeUser(pinlessAdult, any()) }
+            coVerify(exactly = 1) { serverRepository.removeUser(unknownProfile, any()) }
         }
 
     @Test
@@ -280,11 +406,11 @@ class ChooserGateViewModelTest {
     @Test
     fun `a delete PIN is bound to deleting that profile`() =
         runTest(dispatcher) {
-            viewModel.removeUser(pinlessAdult)
+            viewModel.removeUser(unknownProfile)
             viewModel.pickParent(parent)
             parentPin("1234", PinCheckResult.Correct)
             viewModel.submitPin("1234")
-            coVerify { gate.verifyParentPin(parent, "1234", UnlockPurpose.Remove(pinlessAdult.rowId), any()) }
+            coVerify { gate.verifyParentPin(parent, "1234", UnlockPurpose.Remove(unknownProfile.rowId), any()) }
         }
 
     @Test
