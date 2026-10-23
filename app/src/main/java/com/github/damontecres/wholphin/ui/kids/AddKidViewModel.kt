@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
+import com.github.damontecres.wholphin.kids.AccountPinWrite
+import com.github.damontecres.wholphin.kids.AccountPins
 import com.github.damontecres.wholphin.kids.KidApiResult
 import com.github.damontecres.wholphin.kids.KidLevel
 import com.github.damontecres.wholphin.kids.KidNames
@@ -52,6 +54,7 @@ class AddKidViewModel
         private val pictures: ProfilePictureService,
         private val serverRepository: ServerRepository,
         private val setupNavigationManager: SetupNavigationManager,
+        private val accountPins: AccountPins,
     ) : ViewModel() {
         private val _step = MutableStateFlow<AddKidStep>(AddKidStep.Loading)
         val step: StateFlow<AddKidStep> = _step
@@ -91,8 +94,11 @@ class AddKidViewModel
             }
         }
 
-        fun selectParent(user: JellyfinUser) =
+        fun selectParent(picked: JellyfinUser) =
             launch {
+                // Contract 11.2: the account's PIN before the prompt shows (best effort; the cached one otherwise)
+                _step.value = AddKidStep.Loading
+                val user = accountPins.refresh(picked)
                 parent = user
                 _step.value =
                     when {
@@ -127,6 +133,10 @@ class AddKidViewModel
                 }
             }
 
+        /** Whether the last PIN check was wrong (or locked out), as the step after it says */
+        fun lastPinWasWrong(): Boolean =
+            (_step.value as? AddKidStep.EnterPin)?.error.let { it is PinError.Wrong || it is PinError.LockedOut }
+
         /** First PIN for a pinless parent on a device that has no kids yet, then unlock with it. */
         fun createFirstPin(pin: String) =
             launch {
@@ -137,7 +147,11 @@ class AddKidViewModel
                     _step.value = AddKidStep.ParentLocked(user)
                     return@launch
                 }
-                serverRepository.updateUserAuth(user, pin, false)
+                // The account first (contract 11.2): if that fails nothing changes, and the panel says so
+                if (accountPins.set(user, pin, false) != AccountPinWrite.Saved) {
+                    _step.value = AddKidStep.CreateFirstPin(user, saveFailed = true)
+                    return@launch
+                }
                 val withPin = user.copy(pin = pin, requireLogin = false)
                 parent = withPin
                 when (verifyAsCurrentAttempt(withPin, pin)) {
@@ -511,6 +525,8 @@ sealed interface AddKidStep {
 
     data class CreateFirstPin(
         val parent: JellyfinUser,
+        /** The PIN couldn't be saved to the account; nothing changed */
+        val saveFailed: Boolean = false,
     ) : AddKidStep
 
     /** A pinless adult on a protected TV (plan 4.2): unlocking them is the chooser's job. */

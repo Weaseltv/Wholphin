@@ -37,6 +37,15 @@ fun quickConnectApproveUrl(code: String?): String? {
 fun weaselPlexConnectOnly(): Boolean = BuildConfig.QUICK_CONNECT_APPROVE_URL.isNotBlank()
 
 /**
+ * The website page where a profile's PIN is reset (contract 11.2), eg `https://theweasel.tv/weaselplex/profiles`, or
+ * null on every flavor without the WeaselPlex website.
+ */
+fun forgotPinUrl(): String? =
+    BuildConfig.WEASELPLEX_WEBSITE_URL
+        .takeIf { BuildConfig.KID_PROFILES_ENABLED && it.isNotBlank() }
+        ?.let { "${it.trimEnd('/')}/weaselplex/profiles" }
+
+/**
  * A QR code for [content], black on white so a phone camera reads it off a TV screen.
  */
 @Composable

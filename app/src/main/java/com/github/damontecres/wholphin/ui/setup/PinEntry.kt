@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -40,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
+import com.github.damontecres.wholphin.kids.PinCheckResult
 import com.github.damontecres.wholphin.kids.PinRules
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
@@ -83,6 +85,12 @@ fun pinPress(key: Key): Char? =
         else -> null
     }
 
+/** What a submitted PIN turned out to be; [WRONG] entries count towards the forgot-PIN hint (contract 11.2) */
+enum class PinOutcome { WRONG, OTHER }
+
+/** A gate check's [PinOutcome]: a lockout came from a wrong entry too */
+fun PinCheckResult.outcome(): PinOutcome = if (this == PinCheckResult.Correct) PinOutcome.OTHER else PinOutcome.WRONG
+
 /**
  * The PIN prompt (owner mockup `4-pin.png`): [length] boxes, the D-pad as a hint, and the OK / BACK keys.
  *
@@ -99,6 +107,11 @@ fun pinPress(key: Key): Char? =
  * The boxes and the key-hint footer always keep their room: the title and prompt are limited to two lines each,
  * and in a short panel the message is shortened and the D-pad hint dropped instead.
  *
+ * Forgot PIN (contract 11.2): once [onSubmit] has reported more than [PinRules.FORGOT_PIN_AFTER_WRONG] wrong entries on
+ * this entry, the D-pad hint gives way to "Forgot your PIN?" with the website's reset page and a QR code for it. Every
+ * PIN screen gets it; the gate's backoff still applies.
+ *
+ * @param onSubmit checks [PinOutcome.WRONG] for a wrong PIN, [PinOutcome.OTHER] for anything else (right, a new PIN)
  * @param length presses to collect: [PinRules.LENGTH] for a new PIN, [PinRules.entryLength] of the saved PIN
  * when checking one
  * @param allowDigits false while choosing a new PIN, which is arrows only; checking a saved PIN accepts digits
@@ -108,7 +121,7 @@ fun pinPress(key: Key): Char? =
  */
 @Composable
 fun PinEntry(
-    onSubmit: suspend (String) -> Unit,
+    onSubmit: suspend (String) -> PinOutcome,
     modifier: Modifier = Modifier,
     length: Int = PinRules.LENGTH,
     allowDigits: Boolean = true,
@@ -123,6 +136,7 @@ fun PinEntry(
     var pressed by remember { mutableStateOf<Key?>(null) }
     var busy by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
+    var wrongEntries by remember { mutableIntStateOf(0) }
     var lockedOut by remember { mutableStateOf(lockedUntilMillis > System.currentTimeMillis()) }
     val lockedUntil by rememberUpdatedState(lockedUntilMillis)
     val submitNow by rememberUpdatedState(onSubmit)
@@ -147,7 +161,7 @@ fun PinEntry(
         input = pin
         scope.launch {
             try {
-                submitNow(pin)
+                if (submitNow(pin) == PinOutcome.WRONG) wrongEntries++
             } catch (ex: CancellationException) {
                 throw ex
             } catch (ex: Exception) {
@@ -222,12 +236,18 @@ fun PinEntry(
                 KidGap(12.dp)
                 KidErrorText(shown, maxLines = 2)
             }
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.dropWhenShort(),
-            ) {
-                KidGap(18.dp)
-                DpadHint()
+            val forgotUrl = forgotPinUrl()?.takeIf { PinRules.offersForgotPin(wrongEntries) }
+            if (forgotUrl != null) {
+                KidGap(16.dp)
+                ForgotPinHint(forgotUrl)
+            } else {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.dropWhenShort(),
+                ) {
+                    KidGap(18.dp)
+                    DpadHint()
+                }
             }
         }
         KidGap(18.dp)
@@ -245,6 +265,28 @@ fun PinEntry(
             KidGap(6.dp)
             Text(stringResource(R.string.will_remove_pin), style = KidText.body(12.sp), color = KidColors.Faint)
         }
+    }
+}
+
+/** "Forgot your PIN? You can reset it on the website at theweasel.tv/weaselplex/profiles", beside a QR code for [url]. */
+@Composable
+fun ForgotPinHint(
+    url: String,
+    modifier: Modifier = Modifier,
+) {
+    val shown = url.removePrefix("https://").removePrefix("http://")
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier,
+    ) {
+        QrCode(content = url, size = 112.dp)
+        Text(
+            text = emphasise(stringResource(R.string.forgot_pin_hint, shown), shown, KidColors.Lime),
+            style = KidText.body(16.sp),
+            color = KidColors.Text,
+            modifier = Modifier.width(300.dp),
+        )
     }
 }
 
@@ -347,7 +389,7 @@ private fun DpadKey(
 @Composable
 fun PinEntryDialog(
     onDismissRequest: () -> Unit,
-    onSubmit: suspend (String) -> Unit,
+    onSubmit: suspend (String) -> PinOutcome,
     length: Int = PinRules.LENGTH,
     allowDigits: Boolean = true,
     lockedUntilMillis: Long = 0L,
@@ -383,7 +425,7 @@ fun pinPromptFor(name: String?): AnnotatedString? =
 private fun PinEntryPreview() {
     WholphinTheme {
         KidPanel(Modifier.width(590.dp).padding(16.dp)) {
-            PinEntry(onSubmit = {}, prompt = AnnotatedString("Enter Justin M's PIN to continue"))
+            PinEntry(onSubmit = { PinOutcome.OTHER }, prompt = AnnotatedString("Enter Justin M's PIN to continue"))
         }
     }
 }

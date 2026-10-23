@@ -68,4 +68,16 @@
     <string name="pin_prompt_new">Press 4 arrows on the remote to make a PIN</string>
     <string name="pin_prompt_confirm">Press the same 4 arrows again</string>
     <string name="pin_must_be_four">A PIN is exactly 4 presses</string>
+
+    <!-- Account avatar and account PIN (contract 11, 2026-10-22) -->
+    <string name="change_pin">Change PIN</string>
+    <string name="pin_changed">PIN changed</string>
+    <string name="pin_mismatch">Those PINs didn\'t match. Enter the new PIN again.</string>
+    <string name="pin_save_failed">The PIN couldn\'t be saved. Check the connection and try again.</string>
+    <string name="forgot_pin_hint">Forgot your PIN? You can reset it on the website at %1$s</string>
+    <string name="first_avatar_title">Welcome, %1$s</string>
+    <string name="first_avatar_subtitle">Choose a picture for your profile. It follows you to every TV.</string>
+    <string name="first_avatar_failed">Your picture couldn\'t be saved.</string>
+    <string name="try_again">Try again</string>
+    <string name="continue_without_picture">Continue without a picture</string>
 </resources>

@@ -62,6 +62,7 @@ import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.profilePicturesEnabled
 import com.github.damontecres.wholphin.services.versionedUserImageUrl
+import com.github.damontecres.wholphin.ui.avatars.FirstAvatarDialog
 import com.github.damontecres.wholphin.ui.components.BasicDialog
 import com.github.damontecres.wholphin.ui.components.CircularProgress
 import com.github.damontecres.wholphin.ui.components.EditTextBox
@@ -73,6 +74,7 @@ import com.github.damontecres.wholphin.ui.dimAndBlur
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.kids.AddKidFlow
 import com.github.damontecres.wholphin.ui.kids.ChooserChangePicture
+import com.github.damontecres.wholphin.ui.kids.ChooserChangePin
 import com.github.damontecres.wholphin.ui.kids.KidGap
 import com.github.damontecres.wholphin.ui.kids.KidListRow
 import com.github.damontecres.wholphin.ui.kids.KidPanelDialog
@@ -115,6 +117,7 @@ fun SwitchUserContent(
     val pictureVersions by kidViewModel.pictureVersions.collectAsState()
     var showAddKid by remember { mutableStateOf(false) }
     var changePictureFor by remember { mutableStateOf<JellyfinUser?>(null) }
+    var changePinFor by remember { mutableStateOf<JellyfinUser?>(null) }
     var showAddUser by remember { mutableStateOf(false) }
     var addUser by remember(server) { mutableStateOf<JellyfinUser?>(null) }
     var username by remember(addUser) { mutableStateOf(addUser?.name ?: "") }
@@ -177,10 +180,25 @@ fun SwitchUserContent(
     state.pendingPinSetup?.let {
         SetPinFlow(
             currentPin = null,
-            onAddPin = viewModel::completePinSetup,
+            onAddPin = { viewModel.completePinSetup(it) },
             onRemovePin = {},
             onDismissRequest = {
                 viewModel.cancelPinSetup()
+                hideAddUserDialog()
+            },
+        )
+    }
+
+    // Contract 11.1: an adult signing in without a picture chooses one before anything is published
+    state.pendingAvatar?.let { pending ->
+        FirstAvatarDialog(
+            pending = pending,
+            avatars = viewModel.firstAvatarChoices,
+            onPick = viewModel::chooseFirstAvatar,
+            onRetry = viewModel::retryFirstAvatar,
+            onContinue = viewModel::continueWithoutAvatar,
+            onDismissRequest = {
+                viewModel.cancelFirstAvatar()
                 hideAddUserDialog()
             },
         )
@@ -289,7 +307,9 @@ fun SwitchUserContent(
                         onChangePicture =
                             if (profilePicturesEnabled) {
                                 { user ->
-                                    if (kidViewModel.canChangePicture(user, user.id == currentUser?.id)) {
+                                    if (kidViewModel.canChangePicture(user)) {
+                                        // A pick still in progress never publishes or navigates behind it
+                                        viewModel.leaveForOtherAction()
                                         changePictureFor = user
                                     }
                                 }
@@ -297,6 +317,17 @@ fun SwitchUserContent(
                                 null
                             },
                         pictureVersions = pictureVersions,
+                        onChangePin =
+                            if (BuildConfig.KID_PROFILES_ENABLED) {
+                                { user ->
+                                    if (kidViewModel.canChangePin(user)) {
+                                        viewModel.leaveForOtherAction()
+                                        changePinFor = user
+                                    }
+                                }
+                            } else {
+                                null
+                            },
                     )
                 }
                 when (state.serverVersionSupported) {
@@ -334,7 +365,7 @@ fun SwitchUserContent(
         }
     }
 
-    if (showAddUser && state.pendingPinSetup == null) {
+    if (showAddUser && state.pendingPinSetup == null && state.pendingAvatar == null) {
         var useQuickConnect by remember { mutableStateOf(state.quickConnectEnabled || connectOnly) }
         LaunchedEffect(Unit) {
             viewModel.clearSwitchUserState()
@@ -550,7 +581,11 @@ fun SwitchUserContent(
                     showAddUserDialog(prompt.target)
                 },
                 // Latched until the check (and what it starts) is done
-                onSubmit = { viewModel.submitPin(it)?.join() },
+                onSubmit = {
+                    var wrong = false
+                    viewModel.submitPin(it) { wrong = true }?.join()
+                    if (wrong) PinOutcome.WRONG else PinOutcome.OTHER
+                },
             )
         }
 
@@ -611,6 +646,20 @@ fun SwitchUserContent(
             user = user,
             gate = kidViewModel.gate,
             onDone = { changePictureFor = null },
+            refresh = kidViewModel::refreshed,
+        )
+    }
+    changePinFor?.let { user ->
+        ChooserChangePin(
+            user = user,
+            gate = kidViewModel.gate,
+            refresh = kidViewModel::refreshed,
+            changePin = kidViewModel::changePin,
+            onDone = {
+                changePinFor = null
+                // The list shows the saved PIN rows again
+                viewModel.reloadUsers()
+            },
         )
     }
     switchUserWithPin?.let { user ->
@@ -628,8 +677,10 @@ fun SwitchUserContent(
                     // frozen underneath
                     switchUserWithPin = null
                     trySwitchUser(user)
+                    PinOutcome.OTHER
                 } else {
                     Toast.makeText(context, context.getString(R.string.incorrect), Toast.LENGTH_SHORT).show()
+                    PinOutcome.WRONG
                 }
             },
         )
@@ -816,7 +867,7 @@ fun ChooserPinPrompt(
     prompt: ChooserPrompt.Pin,
     onDismissRequest: () -> Unit,
     onClickServerAuth: () -> Unit,
-    onSubmit: suspend (String) -> Unit,
+    onSubmit: suspend (String) -> PinOutcome,
 ) {
     key(prompt.id) {
         PinEntryDialog(

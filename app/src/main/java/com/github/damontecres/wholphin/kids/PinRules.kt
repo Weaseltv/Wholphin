@@ -33,4 +33,13 @@ object PinRules {
         input: String,
         maxLength: Int,
     ): Boolean = input.length >= maxLength
+
+    /**
+     * Wrong entries on one PIN screen after which it offers the website's PIN reset (contract 11.2: "after more than
+     * 3 wrong entries", so from the 4th)
+     */
+    const val FORGOT_PIN_AFTER_WRONG = 3
+
+    /** Whether a PIN screen with [wrongEntries] wrong entries so far shows the forgot-PIN hint */
+    fun offersForgotPin(wrongEntries: Int): Boolean = wrongEntries > FORGOT_PIN_AFTER_WRONG
 }

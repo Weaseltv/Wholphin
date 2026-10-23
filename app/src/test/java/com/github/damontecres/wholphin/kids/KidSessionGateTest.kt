@@ -97,6 +97,7 @@ class KidSessionGateTest {
             kidStore,
             backgroundScope,
             UnconfinedTestDispatcher(testScheduler),
+            localAccountPins(),
         ).also { it.clock = { now } }
 
     private suspend fun protect(sessionCeiling: ProfileCeiling) {

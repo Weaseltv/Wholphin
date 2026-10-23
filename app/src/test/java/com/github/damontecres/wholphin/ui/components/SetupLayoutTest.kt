@@ -34,6 +34,7 @@ import com.github.damontecres.wholphin.services.AvatarGroup
 import com.github.damontecres.wholphin.ui.avatars.ProfilePicturePicker
 import com.github.damontecres.wholphin.ui.setup.PinEntry
 import com.github.damontecres.wholphin.ui.setup.PinEntryDialog
+import com.github.damontecres.wholphin.ui.setup.PinOutcome
 import com.github.damontecres.wholphin.ui.setup.seerr.AddSeerrServerUsername
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import com.github.damontecres.wholphin.util.LoadingState
@@ -77,7 +78,7 @@ class SetupLayoutTest {
         compose.setContent {
             CompositionLocalProvider(LocalDensity provides Density(1f, 1.2f)) {
                 WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
-                    PinEntryDialog(onDismissRequest = {}, onSubmit = {}, onClickServerAuth = {})
+                    PinEntryDialog(onDismissRequest = {}, onSubmit = { PinOutcome.OTHER }, onClickServerAuth = {})
                 }
             }
         }
@@ -95,7 +96,10 @@ class SetupLayoutTest {
         compose.setContent {
             WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
                 Box(Modifier.width(600.dp)) {
-                    PinEntry(onSubmit = { submitted += it }, onClickServerAuth = { serverAuth++ })
+                    PinEntry(onSubmit = {
+                        submitted += it
+                        PinOutcome.OTHER
+                    }, onClickServerAuth = { serverAuth++ })
                 }
             }
         }
@@ -129,7 +133,10 @@ class SetupLayoutTest {
         compose.setContent {
             WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
                 Column {
-                    PinEntry(onSubmit = { chosen += it }, allowDigits = false)
+                    PinEntry(onSubmit = {
+                        chosen += it
+                        PinOutcome.OTHER
+                    }, allowDigits = false)
                 }
             }
         }
@@ -147,7 +154,12 @@ class SetupLayoutTest {
         val checked = mutableListOf<String>()
         compose.setContent {
             WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
-                Column { PinEntry(onSubmit = { checked += it }) }
+                Column {
+                    PinEntry(onSubmit = {
+                        checked += it
+                        PinOutcome.OTHER
+                    })
+                }
             }
         }
         compose.onNode(isFocused()).performKeyInput { listOf(Key.One, Key.Two, Key.Three, Key.Four).forEach { pressKey(it) } }
@@ -162,7 +174,7 @@ class SetupLayoutTest {
                 WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
                     PinEntryDialog(
                         onDismissRequest = {},
-                        onSubmit = {},
+                        onSubmit = { PinOutcome.OTHER },
                         onClickServerAuth = {},
                         length = 8,
                         title = "Turn off kid protection on this TV",
@@ -196,7 +208,12 @@ class SetupLayoutTest {
         val submitted = mutableListOf<String>()
         compose.setContent {
             WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
-                Box(Modifier.width(600.dp)) { PinEntry(onSubmit = { submitted += it }, length = 6) }
+                Box(Modifier.width(600.dp)) {
+                    PinEntry(onSubmit = {
+                        submitted += it
+                        PinOutcome.OTHER
+                    }, length = 6)
+                }
             }
         }
         compose.onNode(isFocused()).performKeyInput {

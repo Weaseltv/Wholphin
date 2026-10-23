@@ -15,6 +15,8 @@ import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinUser
+import com.github.damontecres.wholphin.kids.AccountPinWrite
+import com.github.damontecres.wholphin.kids.AccountPins
 import com.github.damontecres.wholphin.kids.KidSessionGateImpl
 import com.github.damontecres.wholphin.kids.PinCheckResult
 import com.github.damontecres.wholphin.kids.PinRules
@@ -33,6 +35,7 @@ import com.github.damontecres.wholphin.services.SeerrServerRepository
 import com.github.damontecres.wholphin.services.ServerReportService
 import com.github.damontecres.wholphin.services.UpdateChecker
 import com.github.damontecres.wholphin.ui.launchIO
+import com.github.damontecres.wholphin.ui.showToast
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import com.github.damontecres.wholphin.util.LoadingState
@@ -68,6 +71,7 @@ class PreferencesViewModel
         private val serverReportService: ServerReportService,
         private val kidSessionGate: KidSessionGateImpl,
         profileChooserLock: ProfileChooserLock,
+        private val accountPins: AccountPins,
     ) : ViewModel() {
         val currentUser =
             serverRepository.currentUserFlow.stateIn(
@@ -227,7 +231,7 @@ class PreferencesViewModel
             // A new PIN is exactly 4 presses; the PIN screen never sends anything else
             if (pin != null && !PinRules.isValidNewPin(pin)) return
             queueAuthChange {
-                serverRepository.updateUserAuth(user, pin, false)
+                if (!saveAuth(user, pin, false)) return@queueAuthChange
                 if (!user.hasPin && pin != null) {
                     // A first PIN counts as parental authorization only on an unprotected TV (plan 4.1)
                     kidSessionGate.grantUnlockForFirstPin(user.copy(pin = pin))
@@ -236,12 +240,51 @@ class PreferencesViewModel
         }
 
         fun setRequireLogin(user: JellyfinUser) {
-            queueAuthChange { serverRepository.updateUserAuth(user, null, true) }
+            queueAuthChange { saveAuth(user, null, true) }
         }
 
         fun removeLoginAndPin(user: JellyfinUser) {
-            queueAuthChange { serverRepository.updateUserAuth(user, null, false) }
+            queueAuthChange { saveAuth(user, null, false) }
         }
+
+        /**
+         * Saves a PIN or login change through the account PIN (contract 11.2): the account first, and nothing changes if
+         * that fails, which says so. Returns whether it was saved.
+         */
+        private suspend fun saveAuth(
+            user: JellyfinUser,
+            pin: String?,
+            requireLogin: Boolean,
+        ): Boolean =
+            when (accountPins.set(user, pin, requireLogin)) {
+                AccountPinWrite.Saved -> {
+                    true
+                }
+
+                AccountPinWrite.Failed -> {
+                    showToast(context, context.getString(R.string.pin_save_failed))
+                    false
+                }
+
+                AccountPinWrite.RemovalBlocked -> {
+                    showToast(context, context.getString(R.string.kid_pin_removal_blocked))
+                    false
+                }
+            }
+
+        /** Pulls the signed-in profile's account PIN into the cache, then runs [then] (eg opens a PIN prompt) */
+        fun refreshAccountPin(then: () -> Unit = {}) {
+            viewModelScope.launchIO {
+                serverRepository.currentUser?.let { accountPins.refresh(it) }
+                withContext(WholphinDispatchers.Main) { then() }
+            }
+        }
+
+        /** The signed-in profile's current PIN, checked by the gate (backoff, account PIN re-check) */
+        suspend fun checkOwnPin(
+            user: JellyfinUser,
+            pin: String,
+        ): PinCheckResult = kidSessionGate.checkOwnPin(user, pin)
 
         fun resetQuickConnectStatus() {
             _quickConnectStatus.value = LoadingState.Pending

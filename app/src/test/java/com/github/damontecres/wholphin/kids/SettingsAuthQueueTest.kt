@@ -84,6 +84,7 @@ class SettingsAuthQueueTest {
                 serverReportService = mockk(relaxed = true),
                 kidSessionGate = gate,
                 profileChooserLock = chooserLock,
+                accountPins = localAccountPins(serverRepository),
             )
     }
 

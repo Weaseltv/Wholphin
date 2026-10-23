@@ -168,7 +168,11 @@ class AbandonedPublicationTest {
         WholphinDispatchers.reset()
     }
 
-    private fun TestScope.gate() = KidSessionGateImpl(repository, serverDao, store, backgroundScope, dispatcher).also { it.clock = { now } }
+    private fun TestScope.gate() =
+        KidSessionGateImpl(repository, serverDao, store, backgroundScope, dispatcher, localAccountPins()).also {
+            it.clock =
+                { now }
+        }
 
     private suspend fun protect(sessionCeiling: ProfileCeiling) {
         store.markProtected(sessionCeiling)
@@ -198,6 +202,9 @@ class AbandonedPublicationTest {
                 kidSessionGate = gate,
                 kidProtectionStore = store,
                 profileChooserLock = lock,
+                accountPins = localAccountPins(),
+                accountAvatars = mockk(relaxed = true),
+                pictures = mockk(relaxed = true),
                 server = server,
             )
         return viewModel to lock

@@ -105,6 +105,9 @@ class ChooserGateViewModelTest {
                 kidSessionGate = gate,
                 kidProtectionStore = store,
                 profileChooserLock = chooserLock,
+                accountPins = localAccountPins(),
+                accountAvatars = mockk(relaxed = true),
+                pictures = mockk(relaxed = true),
                 server = server,
             )
     }

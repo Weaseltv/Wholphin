@@ -139,7 +139,7 @@ class MissingPolicyFallbackTest {
         coEvery { systemApi.getPublicSystemInfo() } returns
             successResponse(PublicSystemInfo(id = serverId.toServerString(), serverName = "test server", version = "10.11.11"))
         repository = ServerRepository(context, jellyfin, dao, sharedApi, appPreferences, io, store)
-        gate = KidSessionGateImpl(repository, dao, store, gateScope, io)
+        gate = KidSessionGateImpl(repository, dao, store, gateScope, io, localAccountPins())
     }
 
     @After

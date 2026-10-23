@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.kids
 
 import com.github.damontecres.wholphin.data.CurrentUser
+import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.services.Avatar
@@ -9,6 +10,10 @@ import com.github.damontecres.wholphin.services.AvatarGroup
 import com.github.damontecres.wholphin.services.ProfileImageCache
 import com.github.damontecres.wholphin.services.ProfilePictureTarget
 import com.github.damontecres.wholphin.services.UserImageUploader
+import io.mockk.Runs
+import io.mockk.coEvery
+import io.mockk.just
+import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,7 +21,23 @@ import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.model.api.AuthenticationResult
 import java.util.UUID
 
-/** Test doubles for the kid-profiles seam (contract section 8). */
+// Test doubles for the kid-profiles seam (contract section 8).
+
+/**
+ * [AccountPins] whose account can't be reached (contract 11.2): pulls keep the cached PIN, and writes go straight to
+ * [serverRepository], as before the account PIN
+ */
+fun localAccountPins(serverRepository: ServerRepository? = null): AccountPins =
+    mockk {
+        coEvery { refresh(any()) } coAnswers { firstArg() }
+        coEvery { refreshAll(any()) } just Runs
+        coEvery { set(any(), any(), any()) } coAnswers {
+            serverRepository?.updateUserAuth(firstArg(), secondArg(), thirdArg())
+            AccountPinWrite.Saved
+        }
+        coEvery { upload(any(), any(), any(), any()) } returns true
+    }
+
 val testServer = JellyfinServer(UUID.randomUUID(), "WeaselPlex", "https://media.example", "10.11.0")
 
 fun testUser(

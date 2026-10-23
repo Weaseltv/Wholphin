@@ -83,6 +83,18 @@ interface JellyfinServerDao {
     ): Int
 
     /**
+     * Account PIN (contract 11.2): sets only the cached PIN of a saved profile, from the PIN pulled from its account
+     *
+     * @return the number of rows written: 0 if there is no such row
+     */
+    @Query("UPDATE users SET pin = :pin WHERE serverId = :serverId AND id = :userId")
+    fun updateUserPin(
+        serverId: UUID,
+        userId: UUID,
+        pin: String?,
+    ): Int
+
+    /**
      * Sets only the app preferences of a saved profile (review round 10): the rest of its row is read in the same
      * transaction, so a PIN or login requirement saved meanwhile is kept
      */

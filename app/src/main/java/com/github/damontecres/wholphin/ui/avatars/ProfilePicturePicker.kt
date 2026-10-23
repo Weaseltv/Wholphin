@@ -52,6 +52,8 @@ import com.github.damontecres.wholphin.ui.kids.KidSubtitle
 import com.github.damontecres.wholphin.ui.kids.KidTile
 import com.github.damontecres.wholphin.ui.kids.KidTitle
 import com.github.damontecres.wholphin.ui.kids.OkBackHints
+import com.github.damontecres.wholphin.ui.setup.FirstAvatarStatus
+import com.github.damontecres.wholphin.ui.setup.PendingAvatar
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 
@@ -183,6 +185,52 @@ fun ProfilePictureDialog(
         ProfilePictureContent(
             viewModel = viewModel,
             onDone = onDismissRequest,
+        )
+    }
+}
+
+/**
+ * An adult's first sign-in on a TV without a picture (contract 11.1): they choose one from the adult list before going
+ * on. There is no skip; Back leaves the sign-in. If the upload fails it says so and offers "Try again" and "Continue
+ * without a picture".
+ */
+@Composable
+fun FirstAvatarDialog(
+    pending: PendingAvatar,
+    avatars: List<Avatar>,
+    onPick: (Avatar) -> Unit,
+    onRetry: () -> Unit,
+    onContinue: () -> Unit,
+    onDismissRequest: () -> Unit,
+) {
+    val name = pending.target.name.orEmpty()
+    val title = if (name.isBlank()) stringResource(R.string.pick_a_picture) else stringResource(R.string.first_avatar_title, name)
+    KidPanelDialog(onDismissRequest = onDismissRequest, width = 750.dp) {
+        if (pending.status == FirstAvatarStatus.FAILED) {
+            KidTitle(title)
+            KidGap(14.dp)
+            KidErrorText(stringResource(R.string.first_avatar_failed))
+            KidGap(28.dp)
+            val retryFocus = remember { FocusRequester() }
+            LaunchedEffect(Unit) { retryFocus.tryRequestFocus() }
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                KidButton(stringResource(R.string.try_again), onClick = onRetry, modifier = Modifier.focusRequester(retryFocus))
+                KidButton(stringResource(R.string.continue_without_picture), onClick = onContinue, arrow = true)
+            }
+            KidGap(24.dp)
+            OkBackHints()
+            return@KidPanelDialog
+        }
+        ProfilePicturePicker(
+            title = title,
+            subtitle = stringResource(R.string.first_avatar_subtitle),
+            avatars = avatars,
+            current = pending.chosen?.id,
+            enabled = pending.status != FirstAvatarStatus.SAVING,
+            onPick = onPick,
+            footer = {
+                if (pending.status == FirstAvatarStatus.SAVING) KidSpinner(size = 28.dp, strokeWidth = 3.dp)
+            },
         )
     }
 }

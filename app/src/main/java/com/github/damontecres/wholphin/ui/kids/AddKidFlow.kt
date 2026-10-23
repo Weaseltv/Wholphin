@@ -43,9 +43,9 @@ import com.github.damontecres.wholphin.kids.PinRules
 import com.github.damontecres.wholphin.ui.avatars.ProfilePicturePicker
 import com.github.damontecres.wholphin.ui.preferences.SetPinFlow
 import com.github.damontecres.wholphin.ui.setup.PinEntry
+import com.github.damontecres.wholphin.ui.setup.PinOutcome
 import com.github.damontecres.wholphin.ui.setup.pinPromptFor
 import com.github.damontecres.wholphin.ui.tryRequestFocus
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import java.util.UUID
 
@@ -71,7 +71,10 @@ fun AddKidFlow(
     if (tofu != null && settingPin) {
         SetPinFlow(
             currentPin = null,
-            onAddPin = { viewModel.createFirstPin(it) },
+            onAddPin = {
+                viewModel.createFirstPin(it)
+                true
+            },
             onRemovePin = {},
             onDismissRequest = { settingPin = false },
         )
@@ -116,13 +119,20 @@ fun AddKidFlow(
             }
 
             is AddKidStep.EnterPin -> {
-                PinStep(s, onSubmit = viewModel::submitPin)
+                PinStep(s, onSubmit = { pin ->
+                    viewModel.submitPin(pin).join()
+                    if (viewModel.lastPinWasWrong()) PinOutcome.WRONG else PinOutcome.OTHER
+                })
             }
 
             is AddKidStep.CreateFirstPin -> {
                 KidTitle(title)
                 KidGap(14.dp)
                 KidSubtitle(stringResource(R.string.set_pin_first, s.parent.shownName.orEmpty()), color = KidColors.Text)
+                if (s.saveFailed) {
+                    KidGap(12.dp)
+                    KidErrorText(stringResource(R.string.pin_save_failed))
+                }
                 KidGap(28.dp)
                 KidButton(
                     text = stringResource(R.string.set_pin_button),
@@ -296,7 +306,7 @@ private fun TileRow(content: @Composable () -> Unit) {
 @Composable
 private fun PinStep(
     step: AddKidStep.EnterPin,
-    onSubmit: (String) -> Job,
+    onSubmit: suspend (String) -> PinOutcome,
 ) {
     val name = step.parent.shownName.orEmpty()
     val message =
@@ -335,7 +345,7 @@ private fun PinStep(
         lockedUntilMillis = (step.error as? PinError.LockedOut)?.retryAtMillis ?: 0L,
         message = message,
         // Latched until the check is done; a wrong PIN then clears the boxes
-        onSubmit = { if (it.isNotEmpty()) onSubmit(it).join() },
+        onSubmit = { if (it.isNotEmpty()) onSubmit(it) else PinOutcome.OTHER },
     )
 }
 
