@@ -139,6 +139,36 @@ class PinPersistenceRaceTest {
 
     private fun saved(): JellyfinUser = dao.getUser(serverId, adult.id)!!
 
+    // Contract 12.4 (v1.7, review): a removal that needs no PIN deletes only a row that is still pinless
+
+    @Test
+    fun `a pinless removal keeps a row whose PIN was cached meanwhile`() =
+        runTest(dispatcher) {
+            // The chooser pulled the account and saw no PIN; the account sync then cached one
+            val snapshot = saved()
+            assertTrue(repository.updateCachedPin(snapshot, "UDLR"))
+            assertFalse(repository.removePinlessUser(snapshot, adultOnly = true))
+            assertEquals("UDLR", saved().pin)
+        }
+
+    @Test
+    fun `a pinless adult is removed while it is still pinless and an adult`() =
+        runTest(dispatcher) {
+            val snapshot = saved()
+            dao.updateUserPolicy(snapshot.rowId, 10, PolicyState.KID)
+            assertFalse(repository.removePinlessUser(snapshot, adultOnly = true))
+            assertTrue(repository.removePinlessUser(snapshot, adultOnly = false))
+            assertNull(dao.getUser(serverId, adult.id))
+        }
+
+    @Test
+    fun `a pinless removal refused by its flow deletes nothing`() =
+        runTest(dispatcher) {
+            val left = runCatching { repository.removePinlessUser(saved(), adultOnly = true) { throw IllegalStateException("left") } }
+            assertTrue(left.isFailure)
+            assertEquals(adult.id, saved().id)
+        }
+
     /** The adult's session is current; returns that session's profile */
     private suspend fun enterAdult(): JellyfinUser = repository.changeUser(server, adult, authorize = {}).user
 

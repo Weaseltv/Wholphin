@@ -1100,18 +1100,44 @@ class SwitchUserViewModel
                 }
 
                 !kidProtectionStore.isProtected() -> {
-                    removeUserNow(flow, user)
+                    removePinlessNow(flow, user, adultOnly = false)
                 }
 
                 user.profileKind == ProfileKind.ADULT -> {
                     // Contract 12.4 (v1.7): a pinless adult can't be used on a TV with kids anyway, so it leaves with no PIN
-                    removeUserNow(flow, user)
+                    removePinlessNow(flow, user, adultOnly = true)
                 }
 
                 else -> {
                     // Not known to be an adult: another adult's PIN, as before
                     askForDecision(flow, user, GateDecision.LockedAdult, PinPurpose.DELETE)
                 }
+            }
+        }
+
+        /**
+         * Removes pinless [user] with no PIN, only while its saved row is still pinless ([adultOnly]: and an adult), checked
+         * with the delete (review). A PIN saved meanwhile (eg by the account sync) keeps the row and is asked for, as for any
+         * profile with a PIN; any other change keeps it too, and the list shows it again.
+         */
+        private suspend fun removePinlessNow(
+            flow: ChooserFlow,
+            user: JellyfinUser,
+            adultOnly: Boolean,
+        ) {
+            if (serverRepository.removePinlessUser(user, adultOnly, authorize = { ensureCurrent(flow) })) {
+                val serverUsers = getUsers()
+                _state.update { it.copy(users = serverUsers) }
+                return
+            }
+            val row = getSavedUsers().firstOrNull { it.rowId == user.rowId }
+            if (row != null && row.hasPin) {
+                Timber.i("Profile %s got a PIN before its removal; asking for it", row.rowId)
+                showPrompt(flow, pinPrompt(target = row, pinOwner = row, purpose = PinPurpose.DELETE))
+            } else {
+                Timber.i("Profile %s changed before its removal; kept", user.rowId)
+                val serverUsers = getUsers()
+                updateState(flow) { it.copy(users = serverUsers) }
             }
         }
 

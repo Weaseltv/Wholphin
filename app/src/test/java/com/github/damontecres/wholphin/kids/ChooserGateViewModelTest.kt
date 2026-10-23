@@ -97,6 +97,7 @@ class ChooserGateViewModelTest {
             JellyfinServerUsers(server, listOf(parent, pinlessAdult, kid, olderKid, kidWithPin, unknownProfile))
         coEvery { store.isProtected() } returns true
         coEvery { serverRepository.removeUser(any(), any()) } just runs
+        coEvery { serverRepository.removePinlessUser(any(), any(), any()) } returns true
         viewModel =
             SwitchUserViewModel(
                 context = context,
@@ -172,11 +173,12 @@ class ChooserGateViewModelTest {
             assertEquals(ChooserPrompt.NeedsPin(pinlessAdult, confirmRemove = true), prompt)
             viewModel.cancelRemoveNeedsPin()
             assertEquals(ChooserPrompt.NeedsPin(pinlessAdult), prompt)
-            coVerify(exactly = 0) { serverRepository.removeUser(any(), any()) }
+            coVerify(exactly = 0) { serverRepository.removePinlessUser(any(), any(), any()) }
 
             viewModel.askRemoveNeedsPin()
             viewModel.confirmRemoveNeedsPin()
-            coVerify(exactly = 1) { serverRepository.removeUser(pinlessAdult, any()) }
+            coVerify(exactly = 1) { serverRepository.removePinlessUser(pinlessAdult, true, any()) }
+            coVerify(exactly = 0) { serverRepository.removeUser(any(), any()) }
             coVerify(exactly = 0) { gate.verifyParentPin(any(), any(), any(), any()) }
             assertNull(prompt)
         }
@@ -191,6 +193,7 @@ class ChooserGateViewModelTest {
             viewModel.askRemoveNeedsPin()
             viewModel.confirmRemoveNeedsPin()
             coVerify(exactly = 0) { serverRepository.removeUser(any(), any()) }
+            coVerify(exactly = 0) { serverRepository.removePinlessUser(any(), any(), any()) }
             val p = prompt as ChooserPrompt.Pin
             assertEquals(PinPurpose.DELETE, p.purpose)
             assertEquals(withPin, p.pinOwner)
@@ -318,9 +321,35 @@ class ChooserGateViewModelTest {
         runTest(dispatcher) {
             // Contract 12.4 (v1.7): it can't be used on a TV with kids anyway
             viewModel.removeUser(pinlessAdult)
-            coVerify(exactly = 1) { serverRepository.removeUser(pinlessAdult, any()) }
+            coVerify(exactly = 1) { serverRepository.removePinlessUser(pinlessAdult, true, any()) }
+            coVerify(exactly = 0) { serverRepository.removeUser(any(), any()) }
             coVerify(exactly = 0) { gate.verifyParentPin(any(), any(), any(), any()) }
             assertNull(prompt)
+        }
+
+    @Test
+    fun `a PIN cached between the pull and the removal keeps the adult and is asked for`() =
+        runTest(dispatcher) {
+            // The pull found no PIN; the chooser's account sync then cached one, so the conditional delete keeps the row
+            val withPin = pinlessAdult.copy(pin = "UDLR")
+            coEvery { serverRepository.removePinlessUser(pinlessAdult, true, any()) } answers {
+                every { serverDao.getServer(serverId) } returns
+                    JellyfinServerUsers(server, listOf(parent, withPin, kid, olderKid, kidWithPin, unknownProfile))
+                false
+            }
+            viewModel.removeUser(pinlessAdult)
+            coVerify(exactly = 0) { serverRepository.removeUser(any(), any()) }
+            val p = prompt as ChooserPrompt.Pin
+            assertEquals(PinPurpose.DELETE, p.purpose)
+            assertEquals(withPin, p.pinOwner)
+
+            // Its own PIN then removes it, as for any adult with a PIN
+            coEvery { gate.verifyParentPin(withPin, "UDLR", any(), any()) } answers {
+                arg<(() -> Unit) -> Unit>(3).invoke {}
+                PinCheckResult.Correct
+            }
+            viewModel.submitPin("UDLR")
+            coVerify(exactly = 1) { serverRepository.removeUser(withPin, any()) }
         }
 
     @Test
@@ -343,7 +372,7 @@ class ChooserGateViewModelTest {
         runTest(dispatcher) {
             coEvery { store.isProtected() } returns false
             viewModel.removeUser(pinlessAdult)
-            coVerify(exactly = 1) { serverRepository.removeUser(pinlessAdult, any()) }
+            coVerify(exactly = 1) { serverRepository.removePinlessUser(pinlessAdult, false, any()) }
         }
 
     @Test
