@@ -145,6 +145,12 @@ class ProfilePictureService
 
         fun chosenAvatar(userId: UUID): String? = cache.chosenAvatar(userId)
 
+        /**
+         * [userId] left this TV (contract 12.5): the avatar remembered for it goes, and its cache version moves on, so a
+         * picture cached before is never shown for it again
+         */
+        fun forget(userId: UUID) = cache.onPictureChanged(userId, null)
+
         suspend fun save(
             target: ProfilePictureTarget,
             avatar: Avatar,
@@ -273,8 +279,11 @@ class SharedPrefsProfileImageCache
             val dashless = userId.toString().replace("-", "")
             loader.memoryCache?.let { memory ->
                 memory.keys
-                    .filter { key -> key.key.contains("/Users/$userId/", true) || key.key.contains("/Users/$dashless/", true) }
-                    .forEach { memory.remove(it) }
+                    .filter { key ->
+                        // Older servers' /Users/{id}/Images and the SDK's /UserImage?userId={id}
+                        listOf("/Users/$userId/", "/Users/$dashless/", "userId=$userId", "userId=$dashless")
+                            .any { key.key.contains(it, true) }
+                    }.forEach { memory.remove(it) }
             }
         }
 

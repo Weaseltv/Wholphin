@@ -22,6 +22,7 @@ import com.github.damontecres.wholphin.kids.PinRules
 import com.github.damontecres.wholphin.kids.ProfileChooserLock
 import com.github.damontecres.wholphin.kids.ProfileGateException
 import com.github.damontecres.wholphin.kids.ProfileKind
+import com.github.damontecres.wholphin.kids.SavedProfileChecks
 import com.github.damontecres.wholphin.kids.UnlockPurpose
 import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.services.AccountAvatars
@@ -64,12 +65,14 @@ import org.jellyfin.sdk.api.client.extensions.imageApi
 import org.jellyfin.sdk.api.client.extensions.quickConnectApi
 import org.jellyfin.sdk.api.client.extensions.systemApi
 import org.jellyfin.sdk.api.client.extensions.userApi
+import org.jellyfin.sdk.api.operations.ImageApi
 import org.jellyfin.sdk.model.ServerVersion
 import org.jellyfin.sdk.model.api.AuthenticationResult
 import org.jellyfin.sdk.model.api.QuickConnectDto
 import org.jellyfin.sdk.model.api.QuickConnectResult
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration.Companion.seconds
 
@@ -90,6 +93,7 @@ class SwitchUserViewModel
         private val accountPins: AccountPins,
         private val accountAvatars: AccountAvatars,
         private val pictures: ProfilePictureService,
+        private val savedProfileChecks: SavedProfileChecks,
         @Assisted val server: JellyfinServer,
     ) : ViewModel() {
         @AssistedFactory
@@ -113,6 +117,10 @@ class SwitchUserViewModel
 
         /** The step of the flow left last, which a new flow waits for (review round 6); guarded by [flowLock] */
         private var leftStep: Job? = null
+
+        /** Contract 12.5: the picture tags the saved profiles' own tokens last reported, for their image URLs */
+        @Volatile
+        private var imageTags: Map<UUID, String?> = emptyMap()
 
         fun clearSwitchUserState() {
             _state.update { it.copy(switchUserState = LoadingState.Pending) }
@@ -184,15 +192,27 @@ class SwitchUserViewModel
         }
 
         /**
-         * Contract 11: the saved profiles' account PINs are pulled into the cache (best effort) and the list shows them;
-         * then saved adults without a picture get their one random avatar
+         * Contract 12.5: saved kids signed out on the server leave the TV, and every saved profile with a token gets its
+         * current picture tag in its image URL. Contract 11: the saved profiles' account PINs are pulled into the cache
+         * (best effort) and the list shows them; then saved adults without a picture get their one random avatar
          */
         private suspend fun syncAccountProfiles() {
             try {
+                val checked = savedProfileChecks.check(server.url, getSavedUsers())
+                imageTags = checked.imageTags
                 accountPins.refreshAll(server.id)
                 val saved = getSavedUsers().associateBy { it.id }
+                val images = jellyfin.createApi(server.url).imageApi
                 _state.update { st ->
-                    st.copy(users = st.users.map { u -> saved[u.user.id]?.takeIf { u.known }?.let { u.copy(user = it) } ?: u })
+                    st.copy(
+                        users =
+                            st.users
+                                .filter { it.user.id !in checked.removed }
+                                .map { u ->
+                                    val row = saved[u.user.id]?.takeIf { u.known } ?: return@map u
+                                    u.copy(user = row, imageUrl = chooserImageUrl(images, row, imageTags))
+                                },
+                    )
                 }
                 accountAvatars.assignMissing(server.url, saved.values.toList())
             } catch (ex: CancellationException) {
@@ -1057,6 +1077,7 @@ class SwitchUserViewModel
         private suspend fun getUsers(): List<JellyfinUserAndImage> =
             withContext(WholphinDispatchers.IO) {
                 val api = jellyfin.createApi(server.url)
+                val tags = imageTags
                 val knownUsers =
                     serverDao
                         .getServer(server.id)
@@ -1065,7 +1086,7 @@ class SwitchUserViewModel
                         .map {
                             JellyfinUserAndImage(
                                 user = it,
-                                imageUrl = api.imageApi.getUserImageUrl(it.id),
+                                imageUrl = chooserImageUrl(api.imageApi, it, tags),
                                 known = true,
                             )
                         }
@@ -1118,6 +1139,16 @@ class SwitchUserViewModel
             }
         }
     }
+
+/**
+ * A saved profile's image URL on the chooser: with the picture tag its own token last reported (contract 12.5), so a
+ * picture changed on the website or another TV shows. Profiles without a token, or not checked yet, keep the untagged URL.
+ */
+fun chooserImageUrl(
+    images: ImageApi,
+    user: JellyfinUser,
+    tags: Map<UUID, String?>,
+): String = images.getUserImageUrl(user.id, tag = tags[user.id]?.takeIf { user.accessToken != null })
 
 /**
  * Kid profiles: one flow the user started on the chooser (review round 4), owned by [SwitchUserViewModel]: its

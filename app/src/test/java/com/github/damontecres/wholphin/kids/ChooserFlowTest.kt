@@ -136,6 +136,7 @@ class ChooserFlowTest {
                 accountPins = accountPins,
                 accountAvatars = mockk(relaxed = true),
                 pictures = mockk(relaxed = true),
+                savedProfileChecks = mockk(relaxed = true),
                 server = server,
             )
     }
