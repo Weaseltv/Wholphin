@@ -30,7 +30,14 @@ class ProfilePictureViewModel
 
         private var job: Job? = null
 
-        fun start(target: ProfilePictureTarget) {
+        /** Checked right before every save or remove (review round 2); null: always allowed */
+        private var mayChange: (suspend () -> Boolean)? = null
+
+        fun start(
+            target: ProfilePictureTarget,
+            mayChange: (suspend () -> Boolean)? = null,
+        ) {
+            this.mayChange = mayChange
             _state.value =
                 ProfilePictureState(
                     target = target,
@@ -66,6 +73,11 @@ class ProfilePictureViewModel
             _state.update { it.copy(status = PictureStatus.Saving) }
             job =
                 viewModelScope.launch {
+                    if (mayChange?.invoke() == false) {
+                        // What opened the picker no longer allows it: nothing is saved
+                        _state.update { it.copy(status = PictureStatus.Refused) }
+                        return@launch
+                    }
                     val (result, avatarId) = action(target)
                     _state.update {
                         when (result) {
@@ -77,7 +89,8 @@ class ProfilePictureViewModel
         }
     }
 
-enum class PictureStatus { Idle, Saving, Saved, Failed }
+/** [Refused]: the save-time check said no; nothing changed */
+enum class PictureStatus { Idle, Saving, Saved, Failed, Refused }
 
 data class ProfilePictureState(
     val target: ProfilePictureTarget? = null,

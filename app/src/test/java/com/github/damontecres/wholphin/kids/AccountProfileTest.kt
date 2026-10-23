@@ -11,8 +11,14 @@ import com.github.damontecres.wholphin.services.AccountAvatars
 import com.github.damontecres.wholphin.services.AvatarAssignments
 import com.github.damontecres.wholphin.services.PrimaryImageLookup
 import com.github.damontecres.wholphin.services.ProfilePictureService
+import com.github.damontecres.wholphin.services.ProfilePictureTarget
+import com.github.damontecres.wholphin.ui.avatars.PictureStatus
+import com.github.damontecres.wholphin.ui.avatars.ProfilePictureViewModel
+import com.github.damontecres.wholphin.ui.kids.ChooserPictureAccess
 import com.github.damontecres.wholphin.ui.kids.KidProfilesViewModel
+import com.github.damontecres.wholphin.ui.kids.PictureAccessState
 import com.github.damontecres.wholphin.ui.kids.PictureLock
+import com.github.damontecres.wholphin.ui.kids.PinEntered
 import com.github.damontecres.wholphin.ui.preferences.PinFlowState
 import com.github.damontecres.wholphin.ui.preferences.PinFlowStep
 import com.github.damontecres.wholphin.ui.preferences.pinFlowStep
@@ -22,12 +28,16 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import org.jellyfin.sdk.model.api.UserDto
 import org.jellyfin.sdk.model.api.UserPolicy
 import org.junit.Assert.assertEquals
@@ -302,6 +312,68 @@ class AccountProfileTest {
         assertFalse(viewModel.canChangePicture(pinless, listOf(pinless), deviceProtected = true))
         assertTrue(viewModel.canChangePicture(pinless, listOf(pinless), deviceProtected = false))
     }
+
+    @Test
+    fun `protection turning on while a pinless adult's picker is open drops it for a parent's PIN`() =
+        runTest {
+            val pinless = adult("Free")
+            val gate = FakeKidSessionGate()
+            val access = ChooserPictureAccess(pinless, ProfileKind.ADULT, gate, listOf(parent, pinless)) { it }
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { access.follow() }
+            assertEquals(PictureAccessState.Unlocked(pinless, PinEntered.NONE), access.state.value)
+
+            // A kid is added meanwhile: protection comes on
+            gate.isDeviceProtected.value = true
+            assertEquals(PictureAccessState.Locked(pinless, PictureLock.ParentPin(listOf(parent)), parent), access.state.value)
+            assertFalse(access.mayChange())
+
+            // The parent's PIN (through the gate, no unlock kept) opens it again
+            assertEquals(PinCheckResult.Correct, access.submitPin("1234"))
+            assertEquals(PictureAccessState.Unlocked(pinless, PinEntered.PARENT), access.state.value)
+            assertTrue(access.mayChange())
+            assertEquals(null, gate.parentUnlock.value)
+        }
+
+    @Test
+    fun `protection turning on with nobody to unlock closes the picker`() =
+        runTest {
+            val pinless = adult("Free")
+            val gate = FakeKidSessionGate()
+            val access = ChooserPictureAccess(pinless, ProfileKind.ADULT, gate, listOf(pinless)) { it }
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { access.follow() }
+            assertTrue(access.state.value is PictureAccessState.Unlocked)
+            gate.isDeviceProtected.value = true
+            assertEquals(PictureAccessState.Closed, access.state.value)
+        }
+
+    @Test
+    fun `every save checks again, and refuses what would now need a PIN`() =
+        runTest {
+            val pinless = adult("Free")
+            val gate = FakeKidSessionGate()
+            // Not following protection: only the save-time check stands between
+            val access = ChooserPictureAccess(pinless, ProfileKind.ADULT, gate, listOf(parent, pinless)) { it }
+            access.decideNow()
+            assertTrue(access.mayChange())
+            gate.isDeviceProtected.value = true
+            assertFalse(access.mayChange())
+            assertEquals(PictureAccessState.Closed, access.state.value)
+        }
+
+    @Test
+    fun `a refused save-time check uploads nothing`() =
+        runTest {
+            Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+            try {
+                val viewModel = ProfilePictureViewModel(pictureService, mockk(relaxed = true))
+                viewModel.start(ProfilePictureTarget(testServer.url, parent.id, "token", "Justin"), mayChange = { false })
+                viewModel.pick(pictureService.avatars(isKid = false).first())
+                assertTrue(uploader.uploads.isEmpty())
+                assertEquals(PictureStatus.Refused, viewModel.state.value.status)
+            } finally {
+                Dispatchers.resetMain()
+            }
+        }
 
     // --- Account avatars ---
 

@@ -173,14 +173,18 @@ private val TILE = 76.dp
 private val TILE_GAP = 14.dp
 private val GRID_PADDING = 12.dp
 
-/** Change or remove [target]'s picture right away, in a dialog (chooser menu). */
+/**
+ * Change or remove [target]'s picture right away, in a dialog (chooser menu). [mayChange] runs right before every save or
+ * remove; false refuses it and closes the dialog with no change (review round 2).
+ */
 @Composable
 fun ProfilePictureDialog(
     target: ProfilePictureTarget,
     onDismissRequest: () -> Unit,
+    mayChange: (suspend () -> Boolean)? = null,
     viewModel: ProfilePictureViewModel = hiltViewModel(key = "picture-${target.userId}"),
 ) {
-    LaunchedEffect(target) { viewModel.start(target) }
+    LaunchedEffect(target) { viewModel.start(target, mayChange) }
     KidPanelDialog(onDismissRequest = onDismissRequest, width = 750.dp) {
         ProfilePictureContent(
             viewModel = viewModel,
@@ -265,6 +269,9 @@ private fun ProfilePictureContent(
     LaunchedEffect(state.status) {
         if (state.status == PictureStatus.Saved) {
             Toast.makeText(context, savedMessage, Toast.LENGTH_SHORT).show()
+            viewModel.clearResult()
+            onDone()
+        } else if (state.status == PictureStatus.Refused) {
             viewModel.clearResult()
             onDone()
         }
