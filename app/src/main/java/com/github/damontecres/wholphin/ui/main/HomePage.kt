@@ -5,11 +5,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusGroup
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -28,7 +25,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -58,7 +54,6 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -402,11 +397,8 @@ fun HomePageContent(
             )
         }
 
-    // WeaselPlex: Continue Watching stays on Home when it's empty, saying what it will hold
-    val showsEmptyWatching = splitHomeTitles && isWeaselTv()
     val hasContent: (HomeRowLoadingState) -> Boolean = {
-        it is HomeRowLoadingState.Success &&
-            (it.items.isNotEmpty() || (showsEmptyWatching && it.rowType is HomeRowConfig.ContinueWatchingCombined))
+        it is HomeRowLoadingState.Success && it.items.isNotEmpty()
     }
     val rowFocusRequesters = remember(homeRows.size) { List(homeRows.size) { FocusRequester() } }
     val rowTitleHeights = remember { mutableStateMapOf<Int, Int>() }
@@ -443,7 +435,6 @@ fun HomePageContent(
     }
     BoxWithConstraints(modifier = modifier) {
         val density = LocalDensity.current
-        val pageWidth = maxWidth
         val focusedRowIndex = position.row.coerceAtLeast(0)
         val nextRowIndex =
             ((focusedRowIndex + 1) until homeRows.size).firstOrNull { hasContent(homeRows[it]) }
@@ -561,7 +552,6 @@ fun HomePageContent(
 
                                 is HomeRowLoadingState.Success -> {
                                     if (hasContent(row)) {
-                                        val emptyWatching = row.items.isEmpty()
                                         val viewOptions = row.viewOptions
                                         val heading =
                                             if (rowHeading != null && isWeaselTv()) {
@@ -584,8 +574,7 @@ fun HomePageContent(
                                                 },
                                             onTitleHeightChanged = { rowTitleHeights[rowIndex] = it },
                                             titleAccent = homeRowAccent(row.rowType, libraries),
-                                            items = if (emptyWatching) listOf(null) else row.items,
-                                            showCount = !emptyWatching,
+                                            items = row.items,
                                             onClickItem =
                                                 remember(rowIndex, onClickItem) {
                                                     { index, item ->
@@ -657,16 +646,6 @@ fun HomePageContent(
                                                             }
                                                         }
                                                     }
-                                                if (emptyWatching) {
-                                                    ContinueWatchingEmptyCard(
-                                                        viewOptions = viewOptions,
-                                                        modifier =
-                                                            cardModifier
-                                                                .width(pageWidth * .7f)
-                                                                .onFocusChanged { onFocus(it.isFocused) },
-                                                    )
-                                                    return@ItemRow
-                                                }
                                                 val onKey =
                                                     remember(item) {
                                                         { event: KeyEvent ->
@@ -1161,40 +1140,6 @@ private fun mediaKindBadge(kind: BaseItemKind?): String? =
         BaseItemKind.SERIES, BaseItemKind.SEASON, BaseItemKind.EPISODE -> stringResource(R.string.show)
         else -> null
     }
-
-/**
- * Continue Watching with nothing in it yet: a card-height panel saying what the row will hold.
- * It takes focus like a card, so the row can be reached.
- */
-@Composable
-private fun ContinueWatchingEmptyCard(
-    viewOptions: HomeRowViewOptions,
-    modifier: Modifier,
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val focused by interactionSource.collectIsFocusedAsState()
-    val shape = RoundedCornerShape(viewOptions.cardAppearance.cornerRadiusDp.dp)
-    Box(
-        contentAlignment = Alignment.CenterStart,
-        modifier =
-            modifier
-                .heightIn(min = viewOptions.heightDp.dp)
-                .focusable(interactionSource = interactionSource)
-                .background(NeonBoard.Card.copy(alpha = .72f), shape)
-                .border(1.dp, if (focused) LocalNeonAccent.current else NeonBoard.Line2, shape)
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            stringArrayResource(R.array.home_continue_watching_empty).forEach { line ->
-                Row {
-                    Text(text = "•", style = NeonType.body(), color = Color.White)
-                    Spacer(Modifier.width(10.dp))
-                    Text(text = line, style = NeonType.body(), color = Color.White)
-                }
-            }
-        }
-    }
-}
 
 @Composable
 fun HomePageViewMoreCard(
