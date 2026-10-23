@@ -1,10 +1,11 @@
-# Kid profiles — frozen TV <-> website contract (v1.3)
+# Kid profiles — frozen TV <-> website contract (v1.4)
 
 Status: **FROZEN 2026-10-21** by the kid-profiles orchestrator. v1.1 (same day) only clarifies
 website-side details found while building tracks A and B; nothing the TV sends or reads changed.
 v1.2 (same day) applies the Phase 0 result (Jellyfin 12.2.0): `MaxParentalSubRating` is 1 at
 every level; null behaves like 0 and hid all TV-MA/NC-17 from Teens. TV behaviour unchanged. v1.3 (2026-10-22) adds section 10, the owner's
-content rules for every kids profile (TV-side filter on top of the server policy). Identical copies live in
+content rules for every kids profile (TV-side filter on top of the server policy). v1.4 (2026-10-22) adds section 11: account
+avatars and an account PIN that the website can reset, plus the website's "Your profiles" pages. Identical copies live in
 `Wholphin/runbooks/kid-profiles/contract.md` and `weaseltv-platform/docs/kid-profiles/contract.md`. Tracks build to this
 document. Changes go through the orchestrator only; a change bumps the version line above and
 is made in both repos in the same step.
@@ -193,7 +194,8 @@ require `Idempotency-Key`.
 - Avatars (plan 4.6): bundled in the weaselfin flavor; saved with the profile's own token via
   `POST /Users/{userId}/Images/Primary`, removed with `DELETE /Users/{userId}/Images/Primary`.
   Avatar ids are the bundled file names (lowercase-hyphen, never renamed).
-- Kid detection, session ceiling, kid protection, PIN rules: TV only (plan 4.1, 4.2, 4.5),
+- Kid detection, session ceiling, kid protection, PIN rules: TV only (except where the PIN is
+  stored and the website's PIN reset, section 11; plan 4.1, 4.2, 4.5),
   using the kid signal in section 1.
 
 ## 8. TV-internal seam between tracks C and D
@@ -280,3 +282,54 @@ policy: `MaxParentalRating` = the level, `BlockUnratedItems` including Movie and
 "Episode" unrated type; episodes without a rating follow their series (Phase 0 gate 3). The server cannot express
 rules 1, 2 (non-US values it scores), 4 or the Teens NC-17 cut, so those live on the TV only. Other Jellyfin
 clients signed in as a kid get only the server policy.
+
+## 11. Your profile: avatar and account PIN (owner decision 2026-10-22, v1.4)
+
+Every profile (adult or kid) has an avatar and an adult may have a PIN. Both belong to the Jellyfin user, so
+they follow the person to every TV and survive signing out and back in.
+
+### 11.1 Avatar
+- Stored as the Jellyfin user's Primary image (section 7). Adults choose from the 24 adult avatars, kids from
+  the 24 kid avatars (`app/src/weaselfin/assets/avatars/`).
+- **First sign-in.** When an adult signs in on a TV (username/password or Quick Connect, not a profile switch)
+  and their user has no Primary image, the TV asks them to choose an avatar before going on. No skip; if the
+  upload fails it says so and offers "Try again" and "Continue without a picture".
+- **Existing profiles.** An adult already saved on a TV whose user has no Primary image gets a random adult
+  avatar, once per user per TV. An existing image is never replaced automatically.
+- **Change.** "Change picture" in the select-user long-press menu, for every saved profile with a token:
+  kids pick from the kid list, adults from the adult list. An adult with a PIN enters it first.
+
+### 11.2 Account PIN
+- **Store.** Jellyfin DisplayPreferences, id `weaselplex-profile`, client `weaselplex`, `CustomPrefs`:
+  `pin` (the presses, see below; empty or missing = no PIN) and `pinUpdatedAt` (ISO-8601 UTC). The TV reads
+  and writes it with the profile's own token, merging into the existing prefs; the website writes it with the
+  admin key the same way (GET, merge the two keys, POST). Other keys are left alone.
+- **Format.** New PINs are exactly 4 presses from `U D L R` (up, down, left, right), e.g. `ULLD`. Older PINs
+  saved on a TV may be other lengths or digits; they keep working until changed.
+- **TV.** The account PIN is the authority; the TV's saved PIN (Room `users.pin`) is a cache.
+  - Pull when the select-user page opens and before a PIN prompt shows (best effort, short timeout; the cache
+    is used if the server can't be reached). A server PIN replaces the cache.
+  - A wrong entry pulls once and checks again, so a PIN reset on the website works straight away.
+  - No server PIN but a cached one: the TV uploads the cached PIN (one-time migration).
+  - Setting, changing or removing a PIN writes the server first; if that fails the TV shows an error and
+    changes nothing.
+- **Change PIN** ("Change PIN" in the select-user long-press menu, profiles with a PIN): current PIN, then the
+  new PIN, then the new PIN again. A mismatch says so and asks for the new PIN again.
+- **Forgot PIN.** On every PIN screen, after more than 3 wrong entries on that screen the TV shows
+  "Forgot your PIN? You can reset it on the website at theweasel.tv/weaselplex/profiles" and a QR code for
+  `https://theweasel.tv/weaselplex/profiles`. The existing backoff still applies.
+
+### 11.3 Website
+- Account page (`/weaselplex`): the kid-profiles section moves to its own page. A "Your profiles" tile sits
+  under "Get the app" and above "Web player" and opens `/weaselplex/profiles`.
+- `/weaselplex/profiles`: two tiles, "Your profile" (`/weaselplex/profiles/you`) and "Kids profiles"
+  (`/weaselplex/profiles/kids`, today's kid-profiles section). Same sign-in and access rules as the account
+  page; signed-out visitors (for example from the TV's QR code) go through sign-in and come back.
+- `/weaselplex/profiles/you`: the profile name, its avatar if it has one, and "Reset PIN": four arrow buttons
+  and four boxes, entered twice, then saved.
+- Route `PUT /api/v1/portal/weaselplex/profile/pin`, body (strict) `{"pin":"ULLD"}` matching `^[UDLR]{4}$`
+  -> `200 {"data":{"hasPin":true,"pinUpdatedAt":"..."}}`. Portal Origin/CSRF/session checks, active
+  WeaselPlex access required (403 `WEASELPLEX_ACCESS_REQUIRED`), 10 per hour per account (429
+  `RATE_LIMITED`), 503 `MEDIA_ACCESS_PROVIDER_UNAVAILABLE` if Jellyfin can't be reached. Audit action
+  `weaselplex.profile.pin_reset`. The PIN is never logged or stored by the website.
+- `GET /api/v1/portal/weaselplex/profile` -> `200 {"data":{"displayName":"...","hasPin":bool,"pinUpdatedAt":"..."|null}}`.
