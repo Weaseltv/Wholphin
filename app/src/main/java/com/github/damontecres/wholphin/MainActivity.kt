@@ -34,6 +34,8 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.kids.KidSessionGateImpl
+import com.github.damontecres.wholphin.kids.ProfileKind
+import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.kids.ProfileChooserLock
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.PlayerBackend
@@ -66,6 +68,8 @@ import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.playback.PlayExternalViewModel
 import com.github.damontecres.wholphin.ui.showToast
+import com.github.damontecres.wholphin.ui.theme.LoadingArtworkRotation
+import com.github.damontecres.wholphin.ui.theme.LocalKidsLoadingArtwork
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import com.github.damontecres.wholphin.ui.theme.colors.PurpleThemeColors
 import com.github.damontecres.wholphin.ui.util.ProvideLocalClock
@@ -275,7 +279,17 @@ class MainActivity : AppCompatActivity() {
                             LaunchedEffect(appPreferences.debugLogging) {
                                 DebugLogTree.INSTANCE.enabled = appPreferences.debugLogging
                             }
-                            CompositionLocalProvider(LocalImageUrlService provides imageUrlService) {
+                            // Kids profiles get their own loading artwork; remembered for the next app start
+                            val current by viewModel.serverRepository.current.collectAsState()
+                            val kidsArtwork =
+                                current?.user?.let { BuildConfig.KID_PROFILES_ENABLED && it.profileKind == ProfileKind.KID }
+                            LaunchedEffect(kidsArtwork) {
+                                kidsArtwork?.let { LoadingArtworkRotation.rememberProfile(this@MainActivity, it) }
+                            }
+                            CompositionLocalProvider(
+                                LocalImageUrlService provides imageUrlService,
+                                LocalKidsLoadingArtwork provides kidsArtwork,
+                            ) {
                                 WholphinTheme(
                                     true,
                                     appThemeColors = appPreferences.interfacePreferences.appThemeColors,
