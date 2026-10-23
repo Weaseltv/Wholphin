@@ -17,6 +17,7 @@ import com.github.damontecres.wholphin.kids.KidProfilesApi
 import com.github.damontecres.wholphin.kids.KidQuickConnect
 import com.github.damontecres.wholphin.kids.KidSessionGate
 import com.github.damontecres.wholphin.kids.PinCheckResult
+import com.github.damontecres.wholphin.kids.PinCreate
 import com.github.damontecres.wholphin.kids.PinRules
 import com.github.damontecres.wholphin.kids.ProfileGateException
 import com.github.damontecres.wholphin.kids.ProfileKind
@@ -32,16 +33,21 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.jellyfin.sdk.model.api.AuthenticationResult
 import timber.log.Timber
 import java.util.UUID
@@ -86,7 +92,10 @@ class AddKidViewModel
         /** The TV's saved profiles: the other adults (contract 12.4) and the kids already here (12.3) */
         private var users: List<JellyfinUser> = emptyList()
 
-        /** Contract 12.3: a paired kid's sign-in, kept while the parent's PIN is asked again */
+        /**
+         * Contract 12.3: a paired kid's sign-in, kept while the parent's PIN is asked again. The flow owns it until it is
+         * handed to the gate: if the flow is left first, it is signed out (review round 1).
+         */
         private var pendingPair: AuthenticationResult? = null
 
         val avatars: List<Avatar> get() = pictures.avatars(isKid = true)
@@ -99,7 +108,7 @@ class AddKidViewModel
             job?.cancel()
             parent = null
             avatar = null
-            pendingPair = null
+            abandonPendingPair()
             form = AddKidStep.Form()
             this.users = users
             val parents = parentsOf(users, gate)
@@ -185,23 +194,70 @@ class AddKidViewModel
         fun addExisting() = launch { pair() }
 
         /**
-         * Contract 12.4 "Create PIN" for [adult], who is listed: saved to that adult's account with their own token first
-         * (11.2). Returns whether it was saved; if not, nothing changed and the PIN screen says so and asks again.
+         * Contract 12.4 "Create PIN" for [adult], who is listed, saved to that adult's account with their own token first
+         * (11.2). Review round 1: create-only, so a PIN the account already has is adopted, never overwritten; and the save
+         * is the flow's own work, cancelled when the flow is left (or the PIN screen dismissed), with the parent's add-kid
+         * unlock checked right before the account is written and again before the TV's cache is.
          */
         suspend fun createAdultPin(
             adult: JellyfinUser,
             pin: String,
-        ): Boolean =
-            viewModelScope
-                .async {
-                    val listed = _step.value as? AddKidStep.AdultPins ?: return@async false
-                    if (!PinRules.isValidNewPin(pin) || listed.adults.none { it.rowId == adult.rowId }) return@async false
-                    if (!unlocked()) return@async false
-                    if (accountPins.set(adult, pin, adult.requireLogin) != AccountPinWrite.Saved) return@async false
+        ): AdultPinOutcome {
+            var outcome = AdultPinOutcome.NOT_SAVED
+            val save = launch { outcome = saveAdultPin(adult, pin) }
+            try {
+                save.join()
+            } catch (ex: CancellationException) {
+                save.cancel()
+                throw ex
+            }
+            return outcome
+        }
+
+        private suspend fun saveAdultPin(
+            adult: JellyfinUser,
+            pin: String,
+        ): AdultPinOutcome {
+            val listed = _step.value as? AddKidStep.AdultPins ?: return AdultPinOutcome.NOT_SAVED
+            val user = parent ?: return AdultPinOutcome.NOT_SAVED
+            if (!PinRules.isValidNewPin(pin) || listed.adults.none { it.rowId == adult.rowId }) return AdultPinOutcome.NOT_SAVED
+            if (!unlocked()) return AdultPinOutcome.NOT_SAVED
+            val save = currentCoroutineContext().job
+            val result =
+                accountPins.createIfNoPin(adult, pin) {
+                    save.isActive && gate.validUnlockFor(user.rowId, UnlockPurpose.AddKid) != null
+                }
+            val others = listed.adults.filter { it.rowId != adult.rowId }
+            return when (result) {
+                PinCreate.CREATED -> {
                     users = users.map { if (it.rowId == adult.rowId) it.copy(pin = pin) else it }
-                    showAdultPins(listed.adults.filter { it.rowId != adult.rowId })
-                    true
-                }.await()
+                    showAdultPins(others)
+                    AdultPinOutcome.SAVED
+                }
+
+                PinCreate.ALREADY_SET -> {
+                    showAdultPins(others)
+                    AdultPinOutcome.ALREADY_HAD_PIN
+                }
+
+                PinCreate.NOT_ELIGIBLE -> {
+                    // Gone from this TV, signed out or no longer an adult: nothing to ask of them
+                    users = users.filter { it.rowId != adult.rowId }
+                    showAdultPins(others)
+                    AdultPinOutcome.NOT_SAVED
+                }
+
+                PinCreate.REFUSED -> {
+                    // The unlock ran out (asks for the PIN again) or the flow was left
+                    unlocked()
+                    AdultPinOutcome.NOT_SAVED
+                }
+
+                PinCreate.FAILED -> {
+                    AdultPinOutcome.NOT_SAVED
+                }
+            }
+        }
 
         /**
          * Contract 12.4 "Remove from this TV" for [adult], who is listed. The parent's add-kid unlock authorizes it (on the
@@ -319,7 +375,7 @@ class AddKidViewModel
             synchronized(attemptLock) {
                 currentAttempt = null
                 job?.cancel()
-                pendingPair = null
+                abandonPendingPair()
                 gate.clearParentUnlock()
             }
         }
@@ -327,8 +383,47 @@ class AddKidViewModel
         override fun onCleared() {
             synchronized(attemptLock) {
                 currentAttempt = null
+                abandonPendingPair()
                 gate.clearParentUnlock()
             }
+        }
+
+        /** Review round 1: a kid's sign-in the flow kept but won't use is signed out, not left as an orphan session */
+        private fun abandonPendingPair() {
+            val abandoned = pendingPair ?: return
+            pendingPair = null
+            signOutAbandoned(abandoned)
+        }
+
+        /** Signs [auth]'s token out (best effort, bounded by [KidQuickConnect.signOut]), even after the flow is gone */
+        private fun signOutAbandoned(auth: AuthenticationResult) {
+            val token = auth.accessToken ?: return
+            val url = server.url
+            Timber.i("Signing out a Quick Connect sign-in no flow will use")
+            // Its own job, so leaving the flow (or clearing the view model) doesn't cancel it
+            viewModelScope.launch(NonCancellable) { quickConnect.signOut(url, token) }
+        }
+
+        /**
+         * Quick Connect's sign-in, owned by the flow from the moment the server issues the token (review round 1): the
+         * result always comes back here (bounded by [AUTHENTICATE_TIMEOUT_MS]), and if the flow was left meanwhile its
+         * token is signed out before the cancellation goes on. Throws a plain exception on failure or timeout.
+         */
+        private suspend fun authenticateOwned(secret: String): AuthenticationResult {
+            // Kept outside the non-cancellable block, so a cancellation on its way out still finds the token
+            var issued: AuthenticationResult? = null
+            try {
+                withContext(NonCancellable) {
+                    issued = withTimeout(AUTHENTICATE_TIMEOUT_MS) { quickConnect.authenticate(server.url, secret) }
+                }
+                currentCoroutineContext().ensureActive()
+            } catch (ex: TimeoutCancellationException) {
+                throw IllegalStateException("Quick Connect sign-in timed out", ex)
+            } catch (ex: CancellationException) {
+                issued?.let { signOutAbandoned(it) }
+                throw ex
+            }
+            return issued ?: throw IllegalStateException("Quick Connect sign-in returned nothing")
         }
 
         private fun showForm(
@@ -391,7 +486,7 @@ class AddKidViewModel
          */
         private suspend fun pair() {
             if (!unlocked()) return
-            pendingPair = null
+            abandonPendingPair()
             _step.value = AddKidStep.Pairing()
             coroutineScope {
                 val kids = launch { loadOwnKids() }
@@ -453,7 +548,7 @@ class AddKidViewModel
                 }
                 val auth =
                     try {
-                        quickConnect.authenticate(server.url, code.secret)
+                        authenticateOwned(code.secret)
                     } catch (ex: CancellationException) {
                         throw ex
                     } catch (ex: Exception) {
@@ -461,6 +556,7 @@ class AddKidViewModel
                         delay(backoffMillis(++failures))
                         continue
                     }
+                // No suspension from here until the result is refused (signed out) or kept by the flow
                 return if (isKid(auth)) finishPairing(auth) else refuse(auth)
             }
         }
@@ -505,6 +601,8 @@ class AddKidViewModel
             if (!unlocked()) return
             val name = auth.user?.name?.takeIf { it.isNotBlank() }
             _step.value = AddKidStep.Working(Work.Connecting, name.orEmpty())
+            // Handed to the gate, which may publish it: from here leaving the flow must not sign it out
+            pendingPair = null
             val current =
                 try {
                     gate.signInKid(server.url, auth, name)
@@ -513,13 +611,14 @@ class AddKidViewModel
                 } catch (ex: ProfileGateException) {
                     // The unlock ran out while signing in: nothing was published, ask for the PIN again
                     Timber.i("Paired kid sign-in refused: %s", ex.decision)
+                    pendingPair = auth
                     parent?.let { _step.value = AddKidStep.EnterPin(it) }
                     return
                 } catch (ex: Exception) {
                     Timber.w(ex, "Paired kid sign-in failed")
+                    pendingPair = auth
                     return fail(AddKidError.Generic, Retry.Pair)
                 }
-            pendingPair = null
             gate.clearParentUnlock()
             _step.value = AddKidStep.Done
             setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
@@ -637,7 +736,7 @@ class AddKidViewModel
                 }
                 val auth =
                     try {
-                        quickConnect.authenticate(server.url, code.secret)
+                        authenticateOwned(code.secret)
                     } catch (ex: CancellationException) {
                         throw ex
                     } catch (ex: Exception) {
@@ -645,8 +744,9 @@ class AddKidViewModel
                         return fail(AddKidError.Generic, Retry.Connect(kid))
                     }
                 val displayName = connected.displayName.ifBlank { kid.displayName }
-                // Signing the kid in is the last use of the parent's authority: still valid?
-                if (authorizedToken() == null) return
+                // Signing the kid in is the last use of the parent's authority: still valid? A retry gets a new code, so
+                // a sign-in that isn't used is signed out (review round 1)
+                if (authorizedToken() == null) return signOutAbandoned(auth)
                 val current =
                     try {
                         gate.signInKid(server.url, auth, displayName)
@@ -655,11 +755,13 @@ class AddKidViewModel
                     } catch (ex: ProfileGateException) {
                         // The parent's unlock ran out while signing in: nothing was published, ask for the PIN again
                         Timber.i("Kid sign-in refused: %s", ex.decision)
+                        signOutAbandoned(auth)
                         val user = parent
                         if (user != null) _step.value = AddKidStep.EnterPin(user) else fail(AddKidError.Generic, Retry.Connect(kid))
                         return
                     } catch (ex: Exception) {
                         Timber.w(ex, "Kid sign-in failed")
+                        signOutAbandoned(auth)
                         return fail(AddKidError.Generic, Retry.Connect(kid))
                     }
                 savePicture(current.user.id, auth.accessToken, displayName)
@@ -720,6 +822,9 @@ class AddKidViewModel
             /** Contract 12.3: how often the pairing code is polled, and the longest wait after failures */
             const val PAIR_POLL_MS = 2_000L
             const val MAX_PAIR_BACKOFF_MS = 30_000L
+
+            /** The longest a Quick Connect sign-in may take; it runs to the end even if the flow is left meanwhile */
+            const val AUTHENTICATE_TIMEOUT_MS = 20_000L
 
             /** The wait after [failures] failures in a row: doubling from twice the poll, at most [MAX_PAIR_BACKOFF_MS] */
             fun backoffMillis(failures: Int): Long = (PAIR_POLL_MS shl failures.coerceIn(1, 4)).coerceAtMost(MAX_PAIR_BACKOFF_MS)
@@ -827,6 +932,17 @@ sealed interface AddKidStep {
 }
 
 enum class Work { Creating, Connecting }
+
+/** What [AddKidViewModel.createAdultPin] did (contract 12.4) */
+enum class AdultPinOutcome {
+    SAVED,
+
+    /** The adult's account already had a PIN; it was adopted and nothing was written */
+    ALREADY_HAD_PIN,
+
+    /** Nothing was saved */
+    NOT_SAVED,
+}
 
 enum class NameError { Invalid, Taken }
 

@@ -38,6 +38,15 @@ fun localAccountPins(serverRepository: ServerRepository? = null): AccountPins =
             AccountPinWrite.Saved
         }
         coEvery { upload(any(), any(), any(), any()) } returns true
+        // Create-only: the account has no PIN; written while authorized
+        coEvery { createIfNoPin(any(), any(), any()) } coAnswers {
+            if (!thirdArg<() -> Boolean>()()) {
+                PinCreate.REFUSED
+            } else {
+                serverRepository?.updateUserAuth(firstArg(), secondArg(), firstArg<JellyfinUser>().requireLogin)
+                PinCreate.CREATED
+            }
+        }
         // The account is reachable and has no PIN
         coEvery { readAccount(any(), any(), any()) } returns AccountPinValue(null, null)
     }
@@ -213,6 +222,9 @@ class FakeKidQuickConnect : KidQuickConnect {
     var authRating: Int? = 10
     var authPolicy = true
 
+    /** Awaited inside [authenticate] once the server has "issued" the token, eg to hold it while the flow is left */
+    var authGate: CompletableDeferred<Unit>? = null
+
     override suspend fun initiate(serverUrl: String): QuickConnectCode {
         initiateError?.let { throw it }
         initiated++
@@ -251,6 +263,7 @@ class FakeKidQuickConnect : KidQuickConnect {
         secret: String,
     ): AuthenticationResult {
         authenticated++
+        authGate?.await()
         val rating = authRating
         return AuthenticationResult(
             user =

@@ -8,6 +8,7 @@ import com.github.damontecres.wholphin.services.SetupNavigationManager
 import com.github.damontecres.wholphin.ui.kids.AddKidError
 import com.github.damontecres.wholphin.ui.kids.AddKidStep
 import com.github.damontecres.wholphin.ui.kids.AddKidViewModel
+import com.github.damontecres.wholphin.ui.kids.AdultPinOutcome
 import com.github.damontecres.wholphin.ui.kids.NameError
 import com.github.damontecres.wholphin.ui.kids.PinError
 import com.github.damontecres.wholphin.ui.kids.Retry
@@ -19,6 +20,8 @@ import io.mockk.verify
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -27,6 +30,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -606,10 +610,11 @@ class AddKidViewModelTest {
     fun `create pin saves to the adult's account first, then the kid step is next`() =
         test {
             unlockMom(listOf(mom, dad))
-            assertFalse(viewModel.createAdultPin(dad, "432"))
-            val saved = viewModel.createAdultPin(dad, "UDLR")
-            assertTrue(saved)
-            coVerify(exactly = 1) { accountPins.set(dad, "UDLR", false) }
+            assertEquals(AdultPinOutcome.NOT_SAVED, viewModel.createAdultPin(dad, "432"))
+            assertEquals(AdultPinOutcome.SAVED, viewModel.createAdultPin(dad, "UDLR"))
+            // Create-only (review round 1), never the overwriting set
+            coVerify(exactly = 1) { accountPins.createIfNoPin(dad, "UDLR", any()) }
+            coVerify(exactly = 0) { accountPins.set(dad, any(), any()) }
             coVerify { serverRepository.updateUserAuth(dad, "UDLR", false) }
             assertEquals(AddKidStep.ChooseHow, step)
         }
@@ -617,12 +622,103 @@ class AddKidViewModelTest {
     @Test
     fun `a pin the account couldn't save changes nothing`() =
         test {
-            coEvery { accountPins.set(dad, any(), any()) } returns AccountPinWrite.Failed
+            coEvery { accountPins.createIfNoPin(dad, any(), any()) } returns PinCreate.FAILED
             unlockMom(listOf(mom, dad))
-            val saved = viewModel.createAdultPin(dad, "UDLR")
-            assertFalse(saved)
+            assertEquals(AdultPinOutcome.NOT_SAVED, viewModel.createAdultPin(dad, "UDLR"))
             coVerify(exactly = 0) { serverRepository.updateUserAuth(any(), any(), any()) }
             assertEquals(AddKidStep.AdultPins(listOf(dad)), step)
+        }
+
+    @Test
+    fun `an account that already has a pin is adopted, never overwritten`() =
+        test {
+            coEvery { accountPins.createIfNoPin(dad, any(), any()) } returns PinCreate.ALREADY_SET
+            unlockMom(listOf(mom, dad))
+            assertEquals(AdultPinOutcome.ALREADY_HAD_PIN, viewModel.createAdultPin(dad, "UDLR"))
+            assertEquals(AddKidStep.ChooseHow, step)
+        }
+
+    @Test
+    fun `an adult no longer eligible drops off the list`() =
+        test {
+            val uncle = testUser("Uncle")
+            coEvery { accountPins.createIfNoPin(dad, any(), any()) } returns PinCreate.NOT_ELIGIBLE
+            unlockMom(listOf(mom, dad, uncle))
+            assertEquals(AdultPinOutcome.NOT_SAVED, viewModel.createAdultPin(dad, "UDLR"))
+            assertEquals(AddKidStep.AdultPins(listOf(uncle)), step)
+        }
+
+    /** The account write held until [written] completes; records what the authorization said after it */
+    private fun holdPinWrite(
+        written: CompletableDeferred<Unit>,
+        authorized: MutableList<Boolean>,
+    ) {
+        coEvery { accountPins.createIfNoPin(dad, any(), any()) } coAnswers {
+            withContext(NonCancellable) {
+                written.await()
+                val ok = thirdArg<() -> Boolean>()()
+                authorized += ok
+                if (ok) {
+                    serverRepository.updateUserAuth(dad, secondArg(), false)
+                    PinCreate.CREATED
+                } else {
+                    PinCreate.REFUSED
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `leaving the flow while a pin is saving cancels it and writes nothing more`() =
+        test {
+            val written = CompletableDeferred<Unit>()
+            val authorized = mutableListOf<Boolean>()
+            holdPinWrite(written, authorized)
+            unlockMom(listOf(mom, dad))
+            var outcome: AdultPinOutcome? = null
+            launch { outcome = viewModel.createAdultPin(dad, "UDLR") }
+            runCurrent()
+            viewModel.cancel()
+            written.complete(Unit)
+            advanceUntilIdle()
+            assertEquals(listOf(false), authorized)
+            assertEquals(AdultPinOutcome.NOT_SAVED, outcome)
+            coVerify(exactly = 0) { serverRepository.updateUserAuth(any(), any(), any()) }
+        }
+
+    @Test
+    fun `an unlock running out while a pin is saving writes nothing more`() =
+        test {
+            val written = CompletableDeferred<Unit>()
+            val authorized = mutableListOf<Boolean>()
+            holdPinWrite(written, authorized)
+            unlockMom(listOf(mom, dad))
+            var outcome: AdultPinOutcome? = null
+            launch { outcome = viewModel.createAdultPin(dad, "UDLR") }
+            runCurrent()
+            gate.now += unlockExpiry
+            written.complete(Unit)
+            advanceUntilIdle()
+            assertEquals(listOf(false), authorized)
+            assertEquals(AdultPinOutcome.NOT_SAVED, outcome)
+            coVerify(exactly = 0) { serverRepository.updateUserAuth(any(), any(), any()) }
+            assertEquals(AddKidStep.EnterPin(mom), step)
+        }
+
+    @Test
+    fun `dismissing the pin screen while saving cancels the save`() =
+        test {
+            val written = CompletableDeferred<Unit>()
+            val authorized = mutableListOf<Boolean>()
+            holdPinWrite(written, authorized)
+            unlockMom(listOf(mom, dad))
+            val screen = launch { viewModel.createAdultPin(dad, "UDLR") }
+            runCurrent()
+            screen.cancel()
+            written.complete(Unit)
+            advanceUntilIdle()
+            assertEquals(listOf(false), authorized)
+            coVerify(exactly = 0) { serverRepository.updateUserAuth(any(), any(), any()) }
         }
 
     @Test
@@ -675,9 +771,8 @@ class AddKidViewModelTest {
             unlockAgain()
             assertEquals(AddKidStep.AdultPins(listOf(dad)), step)
             gate.now += unlockExpiry
-            val saved = viewModel.createAdultPin(dad, "UDLR")
-            assertFalse(saved)
-            coVerify(exactly = 0) { accountPins.set(any(), any(), any()) }
+            assertEquals(AdultPinOutcome.NOT_SAVED, viewModel.createAdultPin(dad, "UDLR"))
+            coVerify(exactly = 0) { accountPins.createIfNoPin(any(), any(), any()) }
             assertEquals(AddKidStep.EnterPin(mom), step)
         }
 
@@ -807,6 +902,9 @@ class AddKidViewModelTest {
             assertTrue(api.createCalls.isEmpty())
             assertTrue(api.connectCalls.isEmpty())
             assertTrue(uploader.uploads.isEmpty())
+            // Handed to the session: closing the flow afterwards never signs it out
+            viewModel.cancel()
+            advanceUntilIdle()
             assertTrue(quickConnect.signedOut.isEmpty())
         }
 
@@ -838,6 +936,65 @@ class AddKidViewModelTest {
             unlockAgain()
             assertSignedIn("Emma")
             assertEquals(1, quickConnect.authenticated)
+        }
+
+    // Review round 1: a sign-in the flow won't use is signed out, never left behind
+
+    @Test
+    fun `backing out while a kid's sign-in arrives signs that token out`() =
+        test {
+            quickConnect.authGate = CompletableDeferred()
+            unlockMom()
+            viewModel.addExisting()
+            runCurrent()
+            advanceTimeBy(2_001)
+            assertEquals(1, quickConnect.authenticated)
+            viewModel.cancel()
+            quickConnect.authGate?.complete(Unit)
+            advanceUntilIdle()
+            assertEquals(listOf("kid-token"), quickConnect.signedOut)
+            assertTrue(gate.signedIn.isEmpty())
+        }
+
+    @Test
+    fun `backing out while a grown-up's sign-in arrives signs that token out`() =
+        test {
+            quickConnect.authRating = null
+            quickConnect.authGate = CompletableDeferred()
+            unlockMom()
+            viewModel.addExisting()
+            runCurrent()
+            advanceTimeBy(2_001)
+            viewModel.cancel()
+            quickConnect.authGate?.complete(Unit)
+            advanceUntilIdle()
+            assertEquals(listOf("kid-token"), quickConnect.signedOut)
+            assertTrue(gate.signedIn.isEmpty())
+        }
+
+    @Test
+    fun `a kid's sign-in kept for the parent's pin is signed out when they back out`() =
+        test {
+            unlockMom()
+            quickConnect.onPoll = { gate.now += unlockExpiry }
+            viewModel.addExisting()
+            advanceUntilIdle()
+            assertEquals(AddKidStep.EnterPin(mom), step)
+            assertTrue(quickConnect.signedOut.isEmpty())
+            viewModel.cancel()
+            advanceUntilIdle()
+            assertEquals(listOf("kid-token"), quickConnect.signedOut)
+        }
+
+    @Test
+    fun `a connect sign-in the expired unlock can't use is signed out`() =
+        test {
+            unlockMom()
+            quickConnect.onPoll = { gate.now += unlockExpiry }
+            viewModel.signInExisting(testKid("Emma"))
+            advanceUntilIdle()
+            assertEquals(AddKidStep.EnterPin(mom), step)
+            assertEquals(listOf("kid-token"), quickConnect.signedOut)
         }
 
     @Test

@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.ui.kids
 
+import android.widget.Toast
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -92,10 +94,27 @@ fun AddKidFlow(
     // Contract 12.4: "Create PIN" for another adult, until the step moves on (saved) or it is dismissed
     var creatingPinFor by remember(step) { mutableStateOf<JellyfinUser?>(null) }
     creatingPinFor?.let { adult ->
+        val context = LocalContext.current
         SetPinFlow(
             title = stringResource(R.string.adult_pin_title, adult.shownName.orEmpty()),
             currentPin = null,
-            onAddPin = { viewModel.createAdultPin(adult, it) },
+            onAddPin = {
+                when (viewModel.createAdultPin(adult, it)) {
+                    AdultPinOutcome.SAVED -> {
+                        true
+                    }
+
+                    AdultPinOutcome.ALREADY_HAD_PIN -> {
+                        val message = context.getString(R.string.adult_already_has_pin, adult.shownName.orEmpty())
+                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                        true
+                    }
+
+                    AdultPinOutcome.NOT_SAVED -> {
+                        false
+                    }
+                }
+            },
             onRemovePin = {},
             onDismissRequest = { creatingPinFor = null },
         )
