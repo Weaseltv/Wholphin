@@ -12,13 +12,16 @@ import com.github.damontecres.wholphin.services.ProfilePictureTarget
 import com.github.damontecres.wholphin.services.UserImageUploader
 import io.mockk.Runs
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.model.api.AuthenticationResult
+import org.jellyfin.sdk.model.api.UserPolicy
 import java.util.UUID
 
 // Test doubles for the kid-profiles seam (contract section 8).
@@ -36,6 +39,15 @@ fun localAccountPins(serverRepository: ServerRepository? = null): AccountPins =
             AccountPinWrite.Saved
         }
         coEvery { upload(any(), any(), any(), any()) } returns true
+        // Create-only: the account has no PIN; written while authorized
+        coEvery { createIfNoPin(any(), any(), any()) } coAnswers {
+            if (!thirdArg<() -> Boolean>()()) {
+                PinCreate.REFUSED
+            } else {
+                serverRepository?.updateUserAuth(firstArg(), secondArg(), firstArg<JellyfinUser>().requireLogin)
+                PinCreate.CREATED
+            }
+        }
         // The account is reachable and has no PIN
         coEvery { readAccount(any(), any(), any()) } returns AccountPinValue(null, null)
     }
@@ -197,10 +209,52 @@ class FakeKidQuickConnect : KidQuickConnect {
     /** Runs on every poll (eg to let the parent unlock expire mid-flow) */
     var onPoll: () -> Unit = {}
 
+    /** What [poll] answers first, in order: a [QuickConnectPoll], or an exception it throws; then as [isAuthenticated] */
+    val pollResults = ArrayDeque<Any>()
+
+    /** The secrets [poll] was asked about */
+    val polled = mutableListOf<String>()
+
+    /** The tokens [signOut] ended */
+    val signedOut = mutableListOf<String>()
+    var authenticated = 0
+
+    /** The MaxParentalRating of the policy [authenticate]'s user has (null: an adult); no policy at all without [authPolicy] */
+    var authRating: Int? = 10
+    var authPolicy = true
+
+    /** Awaited inside [authenticate] once the server has "issued" the token, eg to hold it while the flow is left */
+    var authGate: CompletableDeferred<Unit>? = null
+
+    /** The tokens [authenticate] issues, in order; then "kid-token" */
+    val authTokens = ArrayDeque<String>()
+
+    /** How long [authenticate]'s response takes to arrive and decode, in order; then no wait */
+    val responseDelays = ArrayDeque<Long>()
+
     override suspend fun initiate(serverUrl: String): QuickConnectCode {
         initiateError?.let { throw it }
         initiated++
         return QuickConnectCode("00000$initiated", "secret-$initiated")
+    }
+
+    override suspend fun poll(
+        serverUrl: String,
+        secret: String,
+    ): QuickConnectPoll {
+        polled += secret
+        when (val next = pollResults.removeFirstOrNull()) {
+            is QuickConnectPoll -> return next
+            is Exception -> throw next
+        }
+        return if (isAuthenticated(serverUrl, secret)) QuickConnectPoll.AUTHENTICATED else QuickConnectPoll.WAITING
+    }
+
+    override suspend fun signOut(
+        serverUrl: String,
+        accessToken: String,
+    ) {
+        signedOut += accessToken
     }
 
     override suspend fun isAuthenticated(
@@ -214,18 +268,30 @@ class FakeKidQuickConnect : KidQuickConnect {
     override suspend fun authenticate(
         serverUrl: String,
         secret: String,
-    ) = AuthenticationResult(
-        user =
-            org.jellyfin.sdk.model.api.UserDto(
-                id = kidUserId,
-                hasPassword = false,
-                hasConfiguredPassword = false,
-                hasConfiguredEasyPassword = false,
-                name = "Emma",
-            ),
-        accessToken = "kid-token",
-        serverId = testServer.id.toString(),
-    )
+        onIssued: (AuthenticationResult) -> Unit,
+    ): AuthenticationResult {
+        authenticated++
+        authGate?.await()
+        // The server issued the session; its response is still on its way (the real race, review round 3)
+        responseDelays.removeFirstOrNull()?.let { delay(it) }
+        val rating = authRating
+        val result =
+            AuthenticationResult(
+                user =
+                    org.jellyfin.sdk.model.api.UserDto(
+                        id = kidUserId,
+                        hasPassword = false,
+                        hasConfiguredPassword = false,
+                        hasConfiguredEasyPassword = false,
+                        name = "Emma",
+                        policy = if (authPolicy) mockk<UserPolicy> { every { maxParentalRating } returns rating } else null,
+                    ),
+                accessToken = authTokens.removeFirstOrNull() ?: "kid-token",
+                serverId = testServer.id.toString(),
+            )
+        onIssued(result)
+        return result
+    }
 }
 
 class FakeAvatarCatalog(

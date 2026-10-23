@@ -673,7 +673,11 @@ fun SwitchUserContent(
             server = server,
             users = state.users.filter { it.known }.map { it.user },
             imageUrls = state.users.associate { it.user.id to versionedUserImageUrl(it.imageUrl, it.user.id, pictureVersions) },
-            onClose = { showAddKid = false },
+            onClose = {
+                showAddKid = false
+                // Contract 12.4: adults may have set a PIN or left the TV in the flow
+                viewModel.reloadUsers()
+            },
         )
     }
     changePictureFor?.let { user ->

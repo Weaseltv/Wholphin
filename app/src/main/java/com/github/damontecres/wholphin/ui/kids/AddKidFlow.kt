@@ -1,13 +1,17 @@
 package com.github.damontecres.wholphin.ui.kids
 
+import android.widget.Toast
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
@@ -23,14 +27,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.tv.material3.Text
@@ -44,6 +51,9 @@ import com.github.damontecres.wholphin.ui.avatars.ProfilePicturePicker
 import com.github.damontecres.wholphin.ui.preferences.SetPinFlow
 import com.github.damontecres.wholphin.ui.setup.PinEntry
 import com.github.damontecres.wholphin.ui.setup.PinOutcome
+import com.github.damontecres.wholphin.ui.setup.QrCode
+import com.github.damontecres.wholphin.ui.setup.forgotPinUrl
+import com.github.damontecres.wholphin.ui.setup.pairKidUrl
 import com.github.damontecres.wholphin.ui.setup.pinPromptFor
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import kotlinx.coroutines.delay
@@ -77,6 +87,36 @@ fun AddKidFlow(
             },
             onRemovePin = {},
             onDismissRequest = { settingPin = false },
+        )
+        return
+    }
+
+    // Contract 12.4: "Create PIN" for another adult, until the step moves on (saved) or it is dismissed
+    var creatingPinFor by remember(step) { mutableStateOf<JellyfinUser?>(null) }
+    creatingPinFor?.let { adult ->
+        val context = LocalContext.current
+        SetPinFlow(
+            title = stringResource(R.string.adult_pin_title, adult.shownName.orEmpty()),
+            currentPin = null,
+            onAddPin = {
+                when (viewModel.createAdultPin(adult, it)) {
+                    AdultPinOutcome.SAVED -> {
+                        true
+                    }
+
+                    AdultPinOutcome.ALREADY_HAD_PIN -> {
+                        val message = context.getString(R.string.adult_already_has_pin, adult.shownName.orEmpty())
+                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                        true
+                    }
+
+                    AdultPinOutcome.NOT_SAVED -> {
+                        false
+                    }
+                }
+            },
+            onRemovePin = {},
+            onDismissRequest = { creatingPinFor = null },
         )
         return
     }
@@ -152,41 +192,81 @@ fun AddKidFlow(
                 KidButton(stringResource(R.string.cancel), onClick = close, modifier = Modifier.initialFocus(true))
             }
 
-            is AddKidStep.ChooseKid -> {
+            is AddKidStep.AdultPins -> {
                 KidTitle(title)
                 KidGap(10.dp)
-                KidSubtitle(stringResource(R.string.kid_pick_subtitle))
-                KidGap(28.dp)
-                val tiles = s.kids.size + if (s.kids.size < s.limit) 1 else 0
-                TileRow {
-                    s.kids.forEachIndexed { index, kid ->
-                        val active = kid.state == "active"
-                        KidTile(
-                            label = kid.displayName,
-                            size = tileSize(tiles),
-                            onClick = { viewModel.signInExisting(kid) },
-                            enabled = active,
-                            caption = if (active) null else stringResource(R.string.kids_error_kid_not_active),
-                            description =
-                                if (active) {
-                                    stringResource(R.string.sign_in_kid_on_tv, kid.displayName)
-                                } else {
-                                    stringResource(R.string.kid_not_available_short, kid.displayName)
-                                },
-                            modifier = Modifier.initialFocus(index == s.kids.indexOfFirst { it.state == "active" }),
-                        ) { KidAvatar(kid.displayName, kidImageUrl(server, kid)) }
-                    }
-                    if (s.kids.size < s.limit) {
-                        KidTile(
-                            label = stringResource(R.string.add_a_new_kid),
-                            size = tileSize(tiles),
-                            onClick = viewModel::createNew,
-                            dashed = true,
-                            modifier = Modifier.initialFocus(s.kids.none { it.state == "active" }),
-                        ) { focused -> KidPlus(color = if (focused) KidColors.Lime else KidColors.Muted) }
+                KidSubtitle(stringResource(R.string.adult_pins_subtitle))
+                if (s.removeFailed) {
+                    KidGap(10.dp)
+                    KidErrorText(stringResource(R.string.adult_remove_failed))
+                }
+                KidGap(24.dp)
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    modifier = Modifier.fillMaxWidth().focusGroup(),
+                ) {
+                    s.adults.forEachIndexed { index, adult ->
+                        key(adult.rowId) {
+                            AdultPinRow(
+                                adult = adult,
+                                imageUrl = imageUrls[adult.id],
+                                onCreatePin = { creatingPinFor = adult },
+                                onRemove = { viewModel.removeAdult(adult) },
+                                focus = index == 0,
+                            )
+                        }
                     }
                 }
-                KidGap(26.dp)
+                KidGap(24.dp)
+                OkBackHints()
+            }
+
+            AddKidStep.ChooseHow -> {
+                KidTitle(title)
+                KidGap(10.dp)
+                KidSubtitle(stringResource(R.string.kid_how_subtitle))
+                KidGap(24.dp)
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    KidListRow(
+                        text = stringResource(R.string.create_new_kid_profile),
+                        glyph = stringResource(R.string.fa_user),
+                        onClick = viewModel::createNew,
+                        modifier = Modifier.initialFocus(true),
+                    )
+                    KidListRow(
+                        text = stringResource(R.string.add_existing_kid_profile),
+                        glyph = stringResource(R.string.fa_tv),
+                        onClick = { viewModel.addExisting() },
+                    )
+                }
+                KidGap(24.dp)
+                OkBackHints()
+            }
+
+            is AddKidStep.Pairing -> {
+                PairingStep(s, title, onSignInKid = viewModel::signInExisting)
+            }
+
+            AddKidStep.PairingRefused -> {
+                KidEyebrow(title)
+                KidGap(22.dp)
+                Text(
+                    text = stringResource(R.string.pair_refused),
+                    style = KidText.body(22.sp, FontWeight.Bold),
+                    color = KidColors.Text,
+                    textAlign = TextAlign.Center,
+                )
+                KidGap(28.dp)
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    KidButton(
+                        stringResource(R.string.pair_new_code),
+                        onClick = { viewModel.addExisting() },
+                        minWidth = 200.dp,
+                        modifier = Modifier.initialFocus(true),
+                    )
+                    KidButton(stringResource(R.string.cancel), onClick = close, minWidth = 180.dp)
+                }
+                KidGap(24.dp)
                 OkBackHints()
             }
 
@@ -264,17 +344,11 @@ fun AddKidFlow(
 
 private fun panelWidth(step: AddKidStep): Dp =
     when (step) {
-        is AddKidStep.Form, is AddKidStep.PickPicture -> 750.dp
-        is AddKidStep.ChooseKid, is AddKidStep.PickParent -> 680.dp
+        is AddKidStep.Form, is AddKidStep.PickPicture, is AddKidStep.AdultPins, is AddKidStep.Pairing -> 750.dp
+        is AddKidStep.ChooseHow, is AddKidStep.PickParent -> 680.dp
         is AddKidStep.EnterPin -> 590.dp
         else -> 540.dp
     }
-
-/** The kid's own Jellyfin picture (public), if the account has one; [KidAvatar] falls back to the initial. */
-private fun kidImageUrl(
-    server: JellyfinServer,
-    kid: KidProfile,
-): String? = kid.mediaUserId?.takeIf { it.isNotBlank() }?.let { "${server.url.trimEnd('/')}/UserImage?userId=$it" }
 
 /** Three tiles fit at the mockup's size; more get smaller tiles (and the row scrolls past four). */
 private fun tileSize(count: Int): Dp = if (count <= 3) 150.dp else 112.dp
@@ -301,6 +375,103 @@ private fun TileRow(content: @Composable () -> Unit) {
     ) {
         content()
     }
+}
+
+/** Contract 12.4: one adult without a PIN, with "Create PIN" and "Remove from this TV" */
+@Composable
+private fun AdultPinRow(
+    adult: JellyfinUser,
+    imageUrl: String?,
+    onCreatePin: () -> Unit,
+    onRemove: () -> Unit,
+    focus: Boolean,
+) {
+    val name = adult.shownName ?: adult.id.toString()
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Box(Modifier.size(56.dp)) { KidAvatar(name, imageUrl, letterSize = 26.sp) }
+        Text(
+            text = name,
+            style = KidText.body(19.sp, FontWeight.SemiBold),
+            color = KidColors.Text,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        KidButton(
+            stringResource(R.string.create_pin),
+            onClick = onCreatePin,
+            minWidth = 150.dp,
+            modifier = Modifier.initialFocus(focus),
+        )
+        KidButton(stringResource(R.string.remove_from_this_tv), onClick = onRemove, minWidth = 150.dp)
+    }
+}
+
+/**
+ * Contract 12.3 "Add an existing kid profile": the pairing code, big, with where to enter it and a QR code for the
+ * website's Kids profiles page, then this account's own kids that aren't on this TV yet.
+ */
+@Composable
+private fun PairingStep(
+    step: AddKidStep.Pairing,
+    title: String,
+    onSignInKid: (KidProfile) -> Unit,
+) {
+    KidEyebrow(title)
+    KidGap(12.dp)
+    KidTitle(stringResource(R.string.add_existing_kid_profile))
+    KidGap(22.dp)
+    Row(horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.CenterVertically) {
+        pairKidUrl()?.let { QrCode(content = it, size = 150.dp) }
+        Column(modifier = Modifier.width(420.dp)) {
+            val code = step.code
+            if (code != null) {
+                Text(
+                    text = AddKidViewModel.formatCode(code),
+                    style = KidText.display(52.sp, tracking = .08.em),
+                    color = KidColors.Lime,
+                )
+            } else {
+                KidSpinner(size = 44.dp, strokeWidth = 4.dp)
+            }
+            KidGap(12.dp)
+            val site = forgotPinUrl()?.removePrefix("https://")?.removePrefix("http://").orEmpty()
+            Text(
+                text = emphasise(stringResource(R.string.pair_code_instructions, site), site, KidColors.Lime),
+                style = KidText.body(17.sp),
+                color = KidColors.Text,
+            )
+            if (step.trouble) {
+                KidGap(10.dp)
+                KidErrorText(stringResource(R.string.pair_trouble))
+            }
+        }
+    }
+    if (step.kids.isNotEmpty()) {
+        KidGap(22.dp)
+        KidDivider()
+        KidGap(16.dp)
+        KidSectionTitle(stringResource(R.string.pair_your_kids), Modifier.fillMaxWidth())
+        KidGap(12.dp)
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.focusGroup()) {
+            step.kids.forEachIndexed { index, kid ->
+                key(kid.id) {
+                    KidListRow(
+                        text = stringResource(R.string.sign_in_kid_on_tv, kid.displayName),
+                        glyph = stringResource(R.string.fa_user),
+                        onClick = { onSignInKid(kid) },
+                        modifier = Modifier.initialFocus(index == 0),
+                    )
+                }
+            }
+        }
+    }
+    KidGap(22.dp)
+    OkBackHints()
 }
 
 @Composable

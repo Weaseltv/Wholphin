@@ -250,6 +250,45 @@ class KidServerRepositoryTest {
         }
 
     @Test
+    fun `a signed-out kid is removed only while its row still has that token`() =
+        runTest {
+            val kid = row(3).copy(policyState = PolicyState.KID, maxParentalRating = 10)
+            every { serverDao.deleteKidWithToken(3, "token3") } returns 1
+            assertTrue(repository.removeSignedOutKid(kid))
+            // Signed in again (new token) or reclassified meanwhile: the conditional delete finds nothing
+            every { serverDao.deleteKidWithToken(3, "token3") } returns 0
+            assertFalse(repository.removeSignedOutKid(kid))
+            assertFalse(repository.removeSignedOutKid(kid.copy(accessToken = null)))
+            verify(exactly = 2) { serverDao.deleteKidWithToken(any(), any()) }
+        }
+
+    @Test
+    fun `a token is in use while the session or a saved row has it`() =
+        runTest {
+            val kid = row(3)
+            every { serverDao.getUserByAccessToken(any()) } returns null
+            assertFalse(repository.isTokenInUse("token3"))
+            every { serverDao.getUserByAccessToken("saved") } returns kid
+            assertTrue(repository.isTokenInUse("saved"))
+            coEvery { userApi.getCurrentUser() } returns successResponse(userDto(kid.id, 10))
+            repository.changeUser(server, kid, authorize = {})
+            assertTrue(repository.isTokenInUse("token3"))
+        }
+
+    @Test
+    fun `the current session's kid is never removed as signed out`() =
+        runTest {
+            val kid = row(3)
+            coEvery { userApi.getCurrentUser() } returns successResponse(userDto(kid.id, 10))
+            every { serverDao.deleteKidWithToken(any(), any()) } returns 1
+            repository.changeUser(server, kid, authorize = {})
+
+            assertFalse(repository.removeSignedOutKid(repository.currentUser!!))
+            verify(exactly = 0) { serverDao.deleteKidWithToken(any(), any()) }
+            assertEquals(kid.id, repository.currentUser?.id)
+        }
+
+    @Test
     fun `removing the current kid keeps protection and the ceiling`() =
         runTest {
             val kid = row(3)

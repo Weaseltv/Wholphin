@@ -214,6 +214,76 @@ class AccountProfileTest {
             assertEquals("1234", rows.getValue(parent.id).pin)
         }
 
+    // --- Create-only PIN for another adult (contract 12.4, review round 1) ---
+
+    private val dad = adult("Dad")
+
+    @Test
+    fun `create PIN writes a pinless account, then the TV`() =
+        runTest {
+            rows[dad.id] = dad
+            assertEquals(PinCreate.CREATED, pins().createIfNoPin(dad, "UDLR") { true })
+            assertEquals("UDLR", remote.accounts.getValue(dad.id).pin)
+            assertEquals("UDLR", rows.getValue(dad.id).pin)
+        }
+
+    @Test
+    fun `create PIN never overwrites a PIN the account has, and adopts it`() =
+        runTest {
+            rows[dad.id] = dad
+            // Saved on the website while the screen waited: the TV's earlier pull didn't see it
+            remote.accounts[dad.id] = AccountPinValue("LLRR", "t")
+            assertEquals(PinCreate.ALREADY_SET, pins().createIfNoPin(dad, "UDLR") { true })
+            assertEquals("LLRR", remote.accounts.getValue(dad.id).pin)
+            assertTrue(remote.writes.isEmpty())
+            assertEquals("LLRR", rows.getValue(dad.id).pin)
+        }
+
+    @Test
+    fun `create PIN fails closed when the account can't be read`() =
+        runTest {
+            rows[dad.id] = dad
+            remote.readFailure = IllegalStateException("offline")
+            assertEquals(PinCreate.FAILED, pins().createIfNoPin(dad, "UDLR") { true })
+            assertTrue(remote.writes.isEmpty())
+            assertEquals(null, rows.getValue(dad.id).pin)
+            coVerify(exactly = 0) { serverRepository.updateUserAuth(any(), any(), any()) }
+        }
+
+    @Test
+    fun `create PIN checks eligibility again under the lock`() =
+        runTest {
+            // Removed from the TV, now a kid, signed out, or a PIN cached meanwhile
+            assertEquals(PinCreate.NOT_ELIGIBLE, pins().createIfNoPin(dad, "UDLR") { true })
+            rows[dad.id] = dad.copy(policyState = PolicyState.KID, maxParentalRating = 10)
+            assertEquals(PinCreate.NOT_ELIGIBLE, pins().createIfNoPin(dad, "UDLR") { true })
+            rows[dad.id] = dad.copy(accessToken = null)
+            assertEquals(PinCreate.NOT_ELIGIBLE, pins().createIfNoPin(dad, "UDLR") { true })
+            rows[dad.id] = dad.copy(pin = "LLRR")
+            assertEquals(PinCreate.ALREADY_SET, pins().createIfNoPin(dad, "UDLR") { true })
+            assertTrue(remote.writes.isEmpty())
+        }
+
+    @Test
+    fun `create PIN writes nothing once the authorization ends`() =
+        runTest {
+            rows[dad.id] = dad
+            assertEquals(PinCreate.REFUSED, pins().createIfNoPin(dad, "UDLR") { false })
+            assertTrue(remote.writes.isEmpty())
+            // Right before the write itself (after its fresh read)
+            var allowed = true
+            remote.beforeWrite = { allowed = false }
+            assertEquals(PinCreate.REFUSED, pins().createIfNoPin(dad, "UDLR") { allowed })
+            assertTrue(remote.writes.isEmpty())
+            // Between the account write and the cache
+            var checks = 0
+            remote.beforeWrite = {}
+            assertEquals(PinCreate.REFUSED, pins().createIfNoPin(dad, "UDLR") { ++checks <= 2 })
+            assertEquals("UDLR", remote.accounts.getValue(dad.id).pin)
+            assertEquals(null, rows.getValue(dad.id).pin)
+            coVerify(exactly = 0) { serverRepository.updateUserAuth(any(), any(), any()) }
+        }
+
     @Test
     fun `removing a PIN writes an empty account PIN with its time`() =
         runTest {
@@ -487,5 +557,24 @@ class FakeAccountPinRemote : AccountPinRemote {
         writes += Triple(userId, pin, updatedAt)
         accounts[userId] = AccountPinValue(pin, updatedAt)
         return null
+    }
+
+    override suspend fun writeIfNoPin(
+        serverUrl: String,
+        userId: UUID,
+        accessToken: String,
+        pin: String,
+        updatedAt: String,
+        mayWrite: () -> Boolean,
+    ): CreateOnlyWrite {
+        readFailure?.let { throw it }
+        writeFailure?.let { throw it }
+        beforeWrite()
+        val found = accounts[userId] ?: AccountPinValue(null, null)
+        if (!found.pin.isNullOrBlank()) return CreateOnlyWrite.HasPin(found)
+        if (!mayWrite()) return CreateOnlyWrite.Refused
+        writes += Triple(userId, pin, updatedAt)
+        accounts[userId] = AccountPinValue(pin, updatedAt)
+        return CreateOnlyWrite.Written
     }
 }

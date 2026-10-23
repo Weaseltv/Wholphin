@@ -121,6 +121,33 @@ interface AccountPinRemote {
         pin: String,
         updatedAt: String,
     ): AccountPinValue?
+
+    /**
+     * Create-only (contract 12.4, review round 1): [write], but only if the write's own fresh read finds no PIN on the
+     * account, and only if [mayWrite] still says yes right before the write itself. Throws when the account can't be read
+     * or written.
+     */
+    suspend fun writeIfNoPin(
+        serverUrl: String,
+        userId: UUID,
+        accessToken: String,
+        pin: String,
+        updatedAt: String,
+        mayWrite: () -> Boolean,
+    ): CreateOnlyWrite
+}
+
+/** What [AccountPinRemote.writeIfNoPin] did */
+sealed interface CreateOnlyWrite {
+    data object Written : CreateOnlyWrite
+
+    /** The account already has [found]'s PIN; nothing was written */
+    data class HasPin(
+        val found: AccountPinValue,
+    ) : CreateOnlyWrite
+
+    /** Its `mayWrite` said no; nothing was written */
+    data object Refused : CreateOnlyWrite
 }
 
 /** Whether the account ever had a PIN: one now, or a time it was last set or removed */
@@ -135,6 +162,24 @@ sealed interface AccountPinWrite {
 
     /** A kid-protected TV never removes a PIN (plan 4.2): nothing changed */
     data object RemovalBlocked : AccountPinWrite
+}
+
+/** Result of [AccountPins.createIfNoPin] */
+enum class PinCreate {
+    /** Written to the account, then the cache */
+    CREATED,
+
+    /** The account (or the cache) already has a PIN, which the cache now holds; nothing was written */
+    ALREADY_SET,
+
+    /** No longer a saved adult with a token and no PIN; nothing was written */
+    NOT_ELIGIBLE,
+
+    /** The authorization ended before the account (or the cache) was written */
+    REFUSED,
+
+    /** The account couldn't be read or written: nothing changed */
+    FAILED,
 }
 
 /**
@@ -257,6 +302,59 @@ class AccountPins
                 }
                 serverRepository.updateUserAuth(user, newPin, requireLogin)
                 AccountPinWrite.Saved
+            }
+        }
+
+        /**
+         * Contract 12.4 "Create PIN" for another adult (review round 1): create-only. Under [user]'s write lock it checks
+         * again that [user] is still a saved adult with a token and no cached PIN; the write's own fresh read of the account
+         * must find no PIN (one found is adopted into the cache instead, [PinCreate.ALREADY_SET]); a read or write that
+         * fails changes nothing ([PinCreate.FAILED]). [authorize] is checked right before the account is written and again
+         * before the cache is: once it says no, nothing more is written ([PinCreate.REFUSED]).
+         */
+        suspend fun createIfNoPin(
+            user: JellyfinUser,
+            pin: String,
+            authorize: () -> Boolean,
+        ): PinCreate {
+            if (!enabled) return PinCreate.FAILED
+            return lockFor(user.serverId, user.id).withLock {
+                val row = savedRow(user) ?: return@withLock PinCreate.NOT_ELIGIBLE
+                if (row.profileKind != ProfileKind.ADULT) return@withLock PinCreate.NOT_ELIGIBLE
+                if (row.hasPin) return@withLock PinCreate.ALREADY_SET
+                val token = row.accessToken ?: return@withLock PinCreate.NOT_ELIGIBLE
+                val url = serverUrl(row) ?: return@withLock PinCreate.FAILED
+                if (!authorize()) return@withLock PinCreate.REFUSED
+                val written =
+                    try {
+                        withTimeout(WRITE_TIMEOUT) { remote.writeIfNoPin(url, row.id, token, pin, clock().toString(), authorize) }
+                    } catch (ex: TimeoutCancellationException) {
+                        Timber.w(ex, "Account PIN create timed out")
+                        return@withLock PinCreate.FAILED
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: Exception) {
+                        Timber.w(ex, "Account PIN create failed")
+                        return@withLock PinCreate.FAILED
+                    }
+                when (written) {
+                    CreateOnlyWrite.Written -> {
+                        // The account has it now; the TV's cache only while the authorization still holds
+                        if (!authorize()) return@withLock PinCreate.REFUSED
+                        serverRepository.updateUserAuth(row, pin, row.requireLogin)
+                        PinCreate.CREATED
+                    }
+
+                    is CreateOnlyWrite.HasPin -> {
+                        Timber.i("Profile %s's account already has a PIN; adopting it", row.rowId)
+                        cache(row, written.found.pin)
+                        PinCreate.ALREADY_SET
+                    }
+
+                    CreateOnlyWrite.Refused -> {
+                        PinCreate.REFUSED
+                    }
+                }
             }
         }
 
@@ -396,7 +494,43 @@ class JellyfinAccountPinRemote
             updatedAt: String,
         ): AccountPinValue? = merge(serverUrl, userId, accessToken, pin, updatedAt, onlyIfUnset = true)
 
-        /** GET, merge, POST; with [onlyIfUnset], returns what the GET found instead of writing when the account had a PIN */
+        override suspend fun writeIfNoPin(
+            serverUrl: String,
+            userId: UUID,
+            accessToken: String,
+            pin: String,
+            updatedAt: String,
+            mayWrite: () -> Boolean,
+        ): CreateOnlyWrite {
+            var refused = false
+            val found =
+                merge(serverUrl, userId, accessToken, pin, updatedAt, onlyIfUnset = false) { found ->
+                    when {
+                        !found.pin.isNullOrBlank() -> {
+                            false
+                        }
+
+                        !mayWrite() -> {
+                            refused = true
+                            false
+                        }
+
+                        else -> {
+                            true
+                        }
+                    }
+                }
+            return when {
+                found == null -> CreateOnlyWrite.Written
+                refused -> CreateOnlyWrite.Refused
+                else -> CreateOnlyWrite.HasPin(found)
+            }
+        }
+
+        /**
+         * GET, merge, POST; with [onlyIfUnset], returns what the GET found instead of writing when the account had a PIN,
+         * and likewise when [writeIf] (given what the GET found) says no
+         */
         private suspend fun merge(
             serverUrl: String,
             userId: UUID,
@@ -404,6 +538,7 @@ class JellyfinAccountPinRemote
             pin: String?,
             updatedAt: String,
             onlyIfUnset: Boolean,
+            writeIf: (AccountPinValue) -> Boolean = { true },
         ): AccountPinValue? =
             withContext(WholphinDispatchers.IO) {
                 val api = api(serverUrl, accessToken).displayPreferencesApi
@@ -417,6 +552,7 @@ class JellyfinAccountPinRemote
                 val found =
                     AccountPinValue(current.customPrefs[AccountPinPrefs.KEY_PIN], current.customPrefs[AccountPinPrefs.KEY_UPDATED_AT])
                 if (onlyIfUnset && found.everSet) return@withContext found
+                if (!writeIf(found)) return@withContext found
                 val customPrefs =
                     current.customPrefs.toMutableMap().apply {
                         put(AccountPinPrefs.KEY_PIN, pin.orEmpty())
