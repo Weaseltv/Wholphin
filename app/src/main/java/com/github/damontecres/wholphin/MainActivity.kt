@@ -34,9 +34,9 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.kids.KidSessionGateImpl
+import com.github.damontecres.wholphin.kids.ProfileChooserLock
 import com.github.damontecres.wholphin.kids.ProfileKind
 import com.github.damontecres.wholphin.kids.profileKind
-import com.github.damontecres.wholphin.kids.ProfileChooserLock
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.PlayerBackend
 import com.github.damontecres.wholphin.services.AppUpgradeHandler
