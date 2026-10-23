@@ -24,8 +24,12 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -35,6 +39,9 @@ import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -61,6 +68,7 @@ import com.github.damontecres.wholphin.ui.roundMinutes
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.neonGlowAccent
+import com.github.damontecres.wholphin.ui.tryRequestFocus
 
 /*
  * The kid title page's pieces (owner mockup kid-title-page.html, 2026-10-23): the metadata line with an age-rating badge,
@@ -111,8 +119,10 @@ fun kidSeasonCount(count: Int): String = pluralStringResource(R.plurals.kid_seas
 
 /**
  * The kid page's buttons: the big Play button ([play], none when there's nothing to play) with its progress or next-up
- * line, then the round [actions]. Focus starts on Play (else the first round button) through [firstFocus]. Each button
- * reports focus to [onFocusChanged] (to bring the header into view).
+ * line, then the round [actions]. Focus starts on Play (else the first round button) through [firstFocus]. A series'
+ * Play button can arrive after the page shows (review round 2): it then takes the focus from the first round button,
+ * but only while the focus is still in this row and no key was pressed since. Each button reports focus to
+ * [onFocusChanged] (to bring the header into view).
  */
 @Composable
 fun KidTitleButtons(
@@ -125,6 +135,16 @@ fun KidTitleButtons(
     firstFocus: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
+    var rowHasFocus by remember { mutableStateOf(false) }
+    var keyPressed by remember { mutableStateOf(false) }
+    val playShown = play != null
+    LaunchedEffect(playShown) {
+        if (playShown && rowHasFocus && !keyPressed) {
+            // Play is composed with the first-focus requester by now; wait for its layout, then focus it
+            withFrameNanos {}
+            firstFocus.tryRequestFocus()
+        }
+    }
     Row(
         horizontalArrangement = Arrangement.spacedBy(22.dp),
         verticalAlignment = Alignment.Top,
@@ -132,7 +152,11 @@ fun KidTitleButtons(
             Modifier
                 .reportDetailActionHeight()
                 .then(modifier)
-                .focusRestorer(firstFocus)
+                .onFocusChanged { rowHasFocus = it.hasFocus }
+                .onPreviewKeyEvent {
+                    if (it.type == KeyEventType.KeyDown) keyPressed = true
+                    false
+                }.focusRestorer(firstFocus)
                 .focusGroup()
                 // Room for the Play button's ring and glow
                 .padding(start = HeaderUtils.startPadding + 6.dp, top = 10.dp, bottom = 16.dp),

@@ -31,7 +31,9 @@ import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.deleteItem
 import com.github.damontecres.wholphin.ui.ItemRowFields
 import com.github.damontecres.wholphin.ui.components.isKidOrUnknown
+import com.github.damontecres.wholphin.ui.detail.KidEpisodeSource
 import com.github.damontecres.wholphin.ui.detail.KidPlay
+import com.github.damontecres.wholphin.ui.detail.KidSeriesPlay
 import com.github.damontecres.wholphin.ui.detail.KidTitlePage
 import com.github.damontecres.wholphin.ui.equalsNotNull
 import com.github.damontecres.wholphin.ui.gt
@@ -127,6 +129,36 @@ class SeriesViewModel
         /** The kid title page (owner mockup 2026-10-23) for a kid or unknown session (fail closed); adults keep theirs */
         val kidPage: Boolean = isKidOrUnknown(serverRepository.currentUser)
 
+        /** The kid page's Play button, found after the page shows (review round 2) */
+        private val kidSeriesPlay: KidSeriesPlay? =
+            if (kidPage && seriesPageType == SeriesPageType.DETAILS) {
+                KidSeriesPlay(
+                    scope = viewModelScope,
+                    source =
+                        object : KidEpisodeSource {
+                            override suspend fun nextUp() =
+                                api.tvShowsApi
+                                    .getNextUp(seriesId = seriesId)
+                                    .content.items
+
+                            override suspend fun episodes(
+                                startIndex: Int,
+                                limit: Int,
+                            ): KidTitlePage.EpisodePage {
+                                val page =
+                                    api.tvShowsApi
+                                        .getEpisodes(seriesId, startIndex = startIndex, limit = limit, enableImages = false)
+                                        .content
+                                return KidTitlePage.EpisodePage(page.items, page.totalRecordCount)
+                            }
+                        },
+                    publish = { play -> _state.update { it.copy(kidPlay = play) } },
+                    context = WholphinDispatchers.IO,
+                )
+            } else {
+                null
+            }
+
         init {
             viewModelScope.launchIO {
                 Timber.v("Start")
@@ -214,8 +246,6 @@ class SeriesViewModel
                     }
                 }
                 val remoteTrailers = trailerService.getRemoteTrailers(series)
-                // The kid page's Play button is there from the start, so it takes the first focus
-                val kidPlay = if (kidPage && seriesPageType == SeriesPageType.DETAILS) loadKidPlay() else null
                 this@SeriesViewModel.position.update {
                     it.copy(
                         episodeRowIndex =
@@ -228,9 +258,10 @@ class SeriesViewModel
                         seasons = seasons,
                         episodes = episodes,
                         trailers = remoteTrailers,
-                        kidPlay = kidPlay,
                     )
                 }
+                // The kid page's Play button follows the page (review round 2)
+                kidSeriesPlay?.open()
 
                 if (seriesPageType == SeriesPageType.DETAILS) {
                     viewModelScope.launchIO {
@@ -307,13 +338,8 @@ class SeriesViewModel
 
         fun onResumePage() {
             state.value.series.successValue?.let { item ->
-                if (kidPage && seriesPageType == SeriesPageType.DETAILS) {
-                    // Back from watching: the next episode has moved on
-                    viewModelScope.launchIO {
-                        val kidPlay = loadKidPlay()
-                        _state.update { it.copy(kidPlay = kidPlay) }
-                    }
-                }
+                // Back from watching, the next episode has moved on; not on the first display, which [open] covers
+                kidSeriesPlay?.resumed()
                 viewModelScope.launchDefault { backdropService.submit(item) }
                 viewModelScope.launchDefault {
                     themeSongPlayer.playThemeFor(seriesId)
@@ -524,37 +550,6 @@ class SeriesViewModel
             state.value.series.successValue
                 ?.let { backdropService.submit(it) }
         }
-
-        /**
-         * The kid page's Play button ([KidTitlePage.nextEpisode]): the next-up episode (resumed if started), else the next
-         * one to watch among every episode this kid may watch. All lookups go through the kid content filter, so an
-         * episode this kid can't watch is never offered; none on failure.
-         */
-        private suspend fun loadKidPlay(): KidPlay? =
-            try {
-                val nextUp =
-                    api.tvShowsApi
-                        .getNextUp(seriesId = seriesId)
-                        .content.items
-                val episodes =
-                    if (nextUp.isEmpty()) {
-                        KidTitlePage.allowedEpisodes { startIndex, limit ->
-                            val page =
-                                api.tvShowsApi
-                                    .getEpisodes(seriesId, startIndex = startIndex, limit = limit, enableImages = false)
-                                    .content
-                            KidTitlePage.EpisodePage(page.items, page.totalRecordCount)
-                        }
-                    } else {
-                        emptyList()
-                    }
-                KidTitlePage.seriesPlay(KidTitlePage.nextEpisode(nextUp, episodes))
-            } catch (ex: CancellationException) {
-                throw ex
-            } catch (ex: Exception) {
-                Timber.w(ex, "Couldn't find the next episode of %s", seriesId)
-                null
-            }
 
         /**
          * Play whichever episode is next up for series or else the first episode

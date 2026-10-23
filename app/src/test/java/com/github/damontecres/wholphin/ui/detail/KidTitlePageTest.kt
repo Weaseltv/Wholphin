@@ -86,7 +86,44 @@ class KidTitlePageTest {
         assertEquals(listOf(KidAction.START_OVER, KidAction.WATCHLIST), KidTitlePage.movieActions(play))
     }
 
+    @Test
+    fun `a stale position at or past the end plays from the start`() {
+        for (position in listOf(100, 130)) {
+            val play = KidTitlePage.moviePlay(movie(runtimeMinutes = 100, positionMinutes = position))
+            assertEquals(KidPlayLabel.Play, play.label)
+            assertEquals(0L, play.positionMs)
+            assertNull(play.progress)
+            assertNull(play.remaining)
+            assertEquals(listOf(KidAction.WATCHLIST), KidTitlePage.movieActions(play))
+            // An episode too: its runtime is 22 minutes
+            assertEquals(0L, KidTitlePage.seriesPlay(episode(1, 1, positionMinutes = position))!!.positionMs)
+        }
+        assertEquals(0L, KidTitlePage.seriesPlay(episode(1, 1, positionMinutes = 22))!!.positionMs)
+        assertEquals(21.minutes.inWholeMilliseconds, KidTitlePage.seriesPlay(episode(1, 1, positionMinutes = 21))!!.positionMs)
+    }
+
     // --- Series ---
+
+    @Test
+    fun `seasons in order with specials interleaved give the next regular episode, across seasons`() {
+        // As the server orders them: specials can sit between seasons' episodes
+        val s1e1 = episode(1, 1, played = true)
+        val s0e1 = episode(0, 1)
+        val s1e2 = episode(1, 2, played = true)
+        val s0e2 = episode(0, 2)
+        val s2e1 = episode(2, 1)
+        val s2e2 = episode(2, 2)
+        assertEquals(s2e1, KidTitlePage.nextEpisode(emptyList(), listOf(s1e1, s0e1, s1e2, s0e2, s2e1, s2e2)))
+    }
+
+    @Test
+    fun `a started episode before the last watched one is resumed when nothing follows`() {
+        val started = episode(1, 1, positionMinutes = 9)
+        val watched = episode(1, 2, played = true)
+        val chosen = KidTitlePage.nextEpisode(emptyList(), listOf(started, watched))
+        assertEquals(started, chosen)
+        assertEquals(9.minutes.inWholeMilliseconds, KidTitlePage.seriesPlay(chosen)!!.positionMs)
+    }
 
     @Test
     fun `a hidden next-up never sends Play backward`() {
@@ -130,16 +167,42 @@ class KidTitlePageTest {
         }
 
     @Test
-    fun `paging stops at the end, on a short page without a count, and after the most pages`() =
+    fun `paging stops at the end, on an empty page without a count, and only for a server that never ends`() =
         runTest {
             val one = listOf(episode(1, 1))
             var pages = 0
             assertEquals(one, KidTitlePage.allowedEpisodes { _, _ -> KidTitlePage.EpisodePage(one, 1).also { pages++ } })
             assertEquals(1, pages)
-            assertEquals(one, KidTitlePage.allowedEpisodes { _, _ -> KidTitlePage.EpisodePage(one, null) })
+            // Without a count, a partly filtered page goes on; an empty one ends it
+            pages = 0
+            val noCount =
+                KidTitlePage.allowedEpisodes { startIndex, _ ->
+                    pages++
+                    KidTitlePage.EpisodePage(if (startIndex == 0) one else emptyList(), null)
+                }
+            assertEquals(one, noCount)
+            assertEquals(2, pages)
             pages = 0
             KidTitlePage.allowedEpisodes { _, _ -> KidTitlePage.EpisodePage(emptyList(), Int.MAX_VALUE).also { pages++ } }
-            assertEquals(KidTitlePage.MAX_EPISODE_PAGES, pages)
+            assertEquals(KidTitlePage.SAFETY_PAGES, pages)
+        }
+
+    @Test
+    fun `episodes past the first 2000 are found`() =
+        runTest {
+            // 2500 episodes; this kid may watch only the last 100 (the filter lowers each page's count by what it removed)
+            val server = 2500
+            val allowed = (2401..2500).map { episode(30, it) }
+            val episodes =
+                KidTitlePage.allowedEpisodes { startIndex, limit ->
+                    if (startIndex >= 2400) {
+                        KidTitlePage.EpisodePage(allowed.drop(startIndex - 2400).take(limit), server)
+                    } else {
+                        KidTitlePage.EpisodePage(emptyList(), server - minOf(limit, server - startIndex))
+                    }
+                }
+            assertEquals(allowed, episodes)
+            assertEquals(allowed.first(), KidTitlePage.nextEpisode(emptyList(), episodes))
         }
 
     @Test

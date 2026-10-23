@@ -1,9 +1,9 @@
 package com.github.damontecres.wholphin.ui.detail
 
-import com.github.damontecres.wholphin.ui.timeRemaining
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.extensions.ticks
+import timber.log.Timber
 import java.util.UUID
 import kotlin.time.Duration
 
@@ -46,25 +46,28 @@ enum class KidAction { START_OVER, WATCHLIST, SHUFFLE }
 
 object KidTitlePage {
     /**
-     * A movie plays from where it was left ("Keep watching"), else from the start. Any saved position resumes (review
-     * round 1); the progress bar and time left show only when the runtime is known.
+     * Where [item] resumes, or null to play it from the start (review rounds 1 and 2): a saved position resumes when the
+     * runtime is unknown, or when it is before the end; a stale one at or past the end doesn't
+     */
+    fun resumePosition(item: BaseItemDto): Duration? {
+        val position = item.userData?.playbackPositionTicks?.ticks ?: return null
+        val runtime = item.runTimeTicks?.ticks?.takeIf { it > Duration.ZERO }
+        return position.takeIf { it > Duration.ZERO && (runtime == null || it < runtime) }
+    }
+
+    /**
+     * A movie plays from where it was left ("Keep watching"), else from the start ([resumePosition]). The progress bar
+     * and time left show only when the runtime is known.
      */
     fun moviePlay(movie: BaseItemDto): KidPlay {
-        val position = movie.userData?.playbackPositionTicks?.ticks ?: Duration.ZERO
-        val runtime = movie.runTimeTicks?.ticks
-        val remaining = movie.timeRemaining
-        val partlyWatched = position > Duration.ZERO
+        val resume = resumePosition(movie)
+        val runtime = movie.runTimeTicks?.ticks?.takeIf { it > Duration.ZERO }
         return KidPlay(
             itemId = movie.id,
-            label = if (partlyWatched) KidPlayLabel.KeepWatching else KidPlayLabel.Play,
-            positionMs = if (partlyWatched) position.inWholeMilliseconds else 0L,
-            progress =
-                if (partlyWatched && runtime != null && runtime > Duration.ZERO) {
-                    (position / runtime).toFloat().coerceIn(0f, 1f)
-                } else {
-                    null
-                },
-            remaining = if (partlyWatched) remaining else null,
+            label = if (resume != null) KidPlayLabel.KeepWatching else KidPlayLabel.Play,
+            positionMs = resume?.inWholeMilliseconds ?: 0L,
+            progress = if (resume != null && runtime != null) (resume / runtime).toFloat().coerceIn(0f, 1f) else null,
+            remaining = if (resume != null && runtime != null) runtime - resume else null,
         )
     }
 
@@ -103,7 +106,7 @@ object KidTitlePage {
             ?: pool.firstOrNull()
     }
 
-    private val BaseItemDto.resumable: Boolean get() = (userData?.playbackPositionTicks ?: 0L) > 0L
+    private val BaseItemDto.resumable: Boolean get() = resumePosition(this) != null
 
     /** One page of a series' episodes as the kid content filter returned it */
     data class EpisodePage(
@@ -112,34 +115,32 @@ object KidTitlePage {
     )
 
     /**
-     * Every episode of a series this kid may watch, in order, paging until the series ends (review round 1): a page the
-     * filter emptied isn't the end. The filter lowers a page's TotalRecordCount by the items it removed from it, so after
-     * a page that started at startIndex and returned n items the server has `total - startIndex - n` more. At most
-     * [MAX_EPISODE_PAGES] pages.
+     * Every episode of a series this kid may watch, in order, paging to the series' real end (review rounds 1 and 2): a
+     * page the filter emptied or cut isn't the end. The filter lowers a page's TotalRecordCount by the items it removed
+     * from it, so after a page that started at startIndex and returned n items the server has `total - startIndex - n`
+     * more, exactly. A page without a count (the request asks for one, so a server that drops it) ends paging only when
+     * it returned nothing; a partly filtered page never does. [SAFETY_PAGES] stops a server that never ends, and says so.
      */
     suspend fun allowedEpisodes(loadPage: suspend (startIndex: Int, limit: Int) -> EpisodePage): List<BaseItemDto> {
         val episodes = mutableListOf<BaseItemDto>()
         var startIndex = 0
-        repeat(MAX_EPISODE_PAGES) {
+        repeat(SAFETY_PAGES) {
             val page = loadPage(startIndex, EPISODE_PAGE)
             episodes += page.items
-            val more =
-                page.totalRecordCount?.let { it - startIndex - page.items.size > 0 }
-                    // Without a count, only a full page says there may be more
-                    ?: (page.items.size >= EPISODE_PAGE)
+            val more = page.totalRecordCount?.let { it - startIndex - page.items.size > 0 } ?: page.items.isNotEmpty()
             if (!more) return episodes
             startIndex += EPISODE_PAGE
         }
+        Timber.w("Stopped looking through a series' episodes after %d pages", SAFETY_PAGES)
         return episodes
     }
 
     const val EPISODE_PAGE = 100
-    const val MAX_EPISODE_PAGES = 20
 
-    /**
-     * A series' Play button for [episode], resuming it from any saved position (review round 1); null when there is no
-     * episode to play
-     */
+    /** Only for a server that never ends: 20,000 episodes */
+    const val SAFETY_PAGES = 200
+
+    /** A series' Play button for [episode], resuming it as [resumePosition] says; null when there is no episode to play */
     fun seriesPlay(episode: BaseItemDto?): KidPlay? {
         episode ?: return null
         val season = episode.parentIndexNumber
@@ -147,11 +148,7 @@ object KidTitlePage {
         return KidPlay(
             itemId = episode.id,
             label = if (season != null && number != null) KidPlayLabel.Episode(season, number) else KidPlayLabel.Play,
-            positionMs =
-                episode.userData
-                    ?.playbackPositionTicks
-                    ?.ticks
-                    ?.inWholeMilliseconds ?: 0L,
+            positionMs = resumePosition(episode)?.inWholeMilliseconds ?: 0L,
             episodeTitle = episode.name?.takeIf { it.isNotBlank() },
         )
     }
