@@ -161,6 +161,37 @@ class PinPersistenceRaceTest {
     }
 
     @Test
+    fun `a cached-PIN clear decided before protection came on removes nothing`() =
+        runTest(dispatcher) {
+            val withPin = dao.addOrUpdateUser(adult.copy(pin = "1234"))
+            // The pull decided "removed elsewhere" while unprotected; a kid sign-in turns protection on first
+            store.markProtected(ProfileCeiling.Rating(10))
+            assertFalse(repository.updateCachedPin(withPin, null))
+            assertEquals("1234", saved().pin)
+            // A new account PIN still replaces the cache
+            assertTrue(repository.updateCachedPin(withPin, "ULLD"))
+            assertEquals("ULLD", saved().pin)
+        }
+
+    @Test
+    fun `an unprotected TV follows a PIN removed elsewhere`() =
+        runTest(dispatcher) {
+            val withPin = dao.addOrUpdateUser(adult.copy(pin = "1234"))
+            assertTrue(repository.updateCachedPin(withPin, null))
+            assertEquals(null, saved().pin)
+        }
+
+    @Test
+    fun `the cached-PIN guard is in the Room statement itself`() {
+        dao.addOrUpdateUser(adult.copy(pin = "1234"))
+        assertEquals(0, dao.updateUserPin(serverId, adult.id, null, allowPinRemoval = false))
+        assertEquals(0, dao.updateUserPin(serverId, adult.id, " ", allowPinRemoval = false))
+        assertEquals("1234", saved().pin)
+        assertEquals(1, dao.updateUserPin(serverId, adult.id, null, allowPinRemoval = true))
+        assertEquals(null, saved().pin)
+    }
+
+    @Test
     fun `a stale PIN removal whose check ran before a first PIN was saved never removes it`() =
         runTest(dispatcher) {
             store.markProtected(ProfileCeiling.Unlimited)

@@ -36,6 +36,8 @@ fun localAccountPins(serverRepository: ServerRepository? = null): AccountPins =
             AccountPinWrite.Saved
         }
         coEvery { upload(any(), any(), any(), any()) } returns true
+        // The account is reachable and has no PIN
+        coEvery { readAccount(any(), any(), any()) } returns AccountPinValue(null, null)
     }
 
 val testServer = JellyfinServer(UUID.randomUUID(), "WeaselPlex", "https://media.example", "10.11.0")

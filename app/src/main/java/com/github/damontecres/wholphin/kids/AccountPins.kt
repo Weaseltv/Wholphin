@@ -109,7 +109,22 @@ interface AccountPinRemote {
         pin: String?,
         updatedAt: String,
     )
+
+    /**
+     * The one-time migration (review round 1): [write], but only if the write's own fresh read finds no PIN and no
+     * `pinUpdatedAt` (the account never had a PIN). Returns null when written, else what it found, unchanged.
+     */
+    suspend fun writeIfUnset(
+        serverUrl: String,
+        userId: UUID,
+        accessToken: String,
+        pin: String,
+        updatedAt: String,
+    ): AccountPinValue?
 }
+
+/** Whether the account ever had a PIN: one now, or a time it was last set or removed */
+val AccountPinValue.everSet: Boolean get() = !pin.isNullOrBlank() || !updatedAt.isNullOrBlank()
 
 /** Result of setting, changing or removing a PIN through [AccountPins.set] */
 sealed interface AccountPinWrite {
@@ -160,25 +175,53 @@ class AccountPins
                 val row = savedRow(user) ?: return@withLock user
                 val token = row.accessToken ?: return@withLock row
                 val url = serverUrl(row) ?: return@withLock row
-                val account = pull(url, row, token) ?: return@withLock row
+                val account = pull(url, row.id, token) ?: return@withLock row
                 when (val sync = AccountPinRules.sync(account, row.pin, store.isProtected())) {
                     PinSync.Keep -> {
                         row
                     }
 
                     is PinSync.Cache -> {
-                        serverRepository.updateCachedPin(row, sync.pin)
-                        savedRow(row) ?: row
+                        cache(row, sync.pin)
                     }
 
                     is PinSync.Upload -> {
                         Timber.i("Uploading profile %s's PIN to its account", row.rowId)
-                        push(url, row.id, token, sync.pin)
-                        row
+                        // Review round 1: only while the account still never had a PIN; a PIN saved meanwhile (website,
+                        // another TV) is adopted instead of overwritten
+                        when (val found = migrate(url, row.id, token, sync.pin)) {
+                            null -> {
+                                row
+                            }
+
+                            else -> {
+                                val adopt = AccountPinRules.sync(found, row.pin, store.isProtected())
+                                if (adopt is PinSync.Cache) cache(row, adopt.pin) else row
+                            }
+                        }
                     }
                 }
             }
         }
+
+        /** The cache becomes [pin]; returns the saved row afterwards */
+        private suspend fun cache(
+            row: JellyfinUser,
+            pin: String?,
+        ): JellyfinUser {
+            serverRepository.updateCachedPin(row, pin)
+            return savedRow(row) ?: row
+        }
+
+        /**
+         * The account PIN of a profile that isn't published yet, with the token of its fresh sign-in (review round 1: a
+         * sign-in reads it before deciding on PIN setup). Null when the account can't be reached.
+         */
+        suspend fun readAccount(
+            serverUrl: String,
+            userId: UUID,
+            accessToken: String,
+        ): AccountPinValue? = if (!enabled) AccountPinValue(null, null) else pull(serverUrl, userId, accessToken)
 
         /** [refresh] for every saved profile of [serverId] (the select-user page opened) */
         suspend fun refreshAll(serverId: UUID) {
@@ -230,11 +273,11 @@ class AccountPins
 
         private suspend fun pull(
             url: String,
-            row: JellyfinUser,
+            userId: UUID,
             token: String,
         ): AccountPinValue? =
             try {
-                withTimeoutOrNull(PULL_TIMEOUT) { remote.read(url, row.id, token) }
+                withTimeoutOrNull(PULL_TIMEOUT) { remote.read(url, userId, token) }
                     .also { if (it == null) Timber.i("Account PIN pull timed out; using the cached PIN") }
             } catch (ex: CancellationException) {
                 throw ex
@@ -260,6 +303,28 @@ class AccountPins
             } catch (ex: Exception) {
                 Timber.w(ex, "Account PIN write failed")
                 false
+            }
+
+        /**
+         * The one-time migration of a cached [pin]: returns null when it was written (or couldn't be, best effort), else
+         * the account's PIN found in the write's own fresh read, which was left alone
+         */
+        private suspend fun migrate(
+            url: String,
+            userId: UUID,
+            token: String,
+            pin: String,
+        ): AccountPinValue? =
+            try {
+                withTimeout(WRITE_TIMEOUT) { remote.writeIfUnset(url, userId, token, pin, clock().toString()) }
+            } catch (ex: TimeoutCancellationException) {
+                Timber.w(ex, "Account PIN migration timed out")
+                null
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                Timber.w(ex, "Account PIN migration failed")
+                null
             }
 
         private suspend fun savedRow(user: JellyfinUser): JellyfinUser? =
@@ -320,6 +385,26 @@ class JellyfinAccountPinRemote
             pin: String?,
             updatedAt: String,
         ) {
+            merge(serverUrl, userId, accessToken, pin, updatedAt, onlyIfUnset = false)
+        }
+
+        override suspend fun writeIfUnset(
+            serverUrl: String,
+            userId: UUID,
+            accessToken: String,
+            pin: String,
+            updatedAt: String,
+        ): AccountPinValue? = merge(serverUrl, userId, accessToken, pin, updatedAt, onlyIfUnset = true)
+
+        /** GET, merge, POST; with [onlyIfUnset], returns what the GET found instead of writing when the account had a PIN */
+        private suspend fun merge(
+            serverUrl: String,
+            userId: UUID,
+            accessToken: String,
+            pin: String?,
+            updatedAt: String,
+            onlyIfUnset: Boolean,
+        ): AccountPinValue? =
             withContext(WholphinDispatchers.IO) {
                 val api = api(serverUrl, accessToken).displayPreferencesApi
                 val current =
@@ -329,6 +414,9 @@ class JellyfinAccountPinRemote
                             userId = userId,
                             client = AccountPinPrefs.CLIENT,
                         ).content
+                val found =
+                    AccountPinValue(current.customPrefs[AccountPinPrefs.KEY_PIN], current.customPrefs[AccountPinPrefs.KEY_UPDATED_AT])
+                if (onlyIfUnset && found.everSet) return@withContext found
                 val customPrefs =
                     current.customPrefs.toMutableMap().apply {
                         put(AccountPinPrefs.KEY_PIN, pin.orEmpty())
@@ -340,8 +428,8 @@ class JellyfinAccountPinRemote
                     client = AccountPinPrefs.CLIENT,
                     data = current.copy(customPrefs = customPrefs),
                 )
+                null
             }
-        }
 
         private companion object {
             val TIMEOUT = 5.seconds

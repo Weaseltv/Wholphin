@@ -83,15 +83,21 @@ interface JellyfinServerDao {
     ): Int
 
     /**
-     * Account PIN (contract 11.2): sets only the cached PIN of a saved profile, from the PIN pulled from its account
+     * Account PIN (contract 11.2): sets only the cached PIN of a saved profile, from the PIN pulled from its account, unless
+     * that would remove the PIN its row has right then and [allowPinRemoval] is false (a kid-protected TV never drops a
+     * PIN, review round 1). The check and the write are one statement, like [updateUserAuthUnlessPinRemoved].
      *
-     * @return the number of rows written: 0 if there is no such row
+     * @return the number of rows written: 0 if refused, or if there is no such row
      */
-    @Query("UPDATE users SET pin = :pin WHERE serverId = :serverId AND id = :userId")
+    @Query(
+        "UPDATE users SET pin = :pin WHERE serverId = :serverId AND id = :userId AND " +
+            "(:allowPinRemoval OR TRIM(COALESCE(:pin, '')) != '' OR TRIM(COALESCE(pin, '')) = '')",
+    )
     fun updateUserPin(
         serverId: UUID,
         userId: UUID,
         pin: String?,
+        allowPinRemoval: Boolean,
     ): Int
 
     /**

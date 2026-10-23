@@ -11,6 +11,8 @@ import com.github.damontecres.wholphin.services.AccountAvatars
 import com.github.damontecres.wholphin.services.AvatarAssignments
 import com.github.damontecres.wholphin.services.PrimaryImageLookup
 import com.github.damontecres.wholphin.services.ProfilePictureService
+import com.github.damontecres.wholphin.ui.kids.KidProfilesViewModel
+import com.github.damontecres.wholphin.ui.kids.PictureLock
 import com.github.damontecres.wholphin.ui.preferences.PinFlowState
 import com.github.damontecres.wholphin.ui.preferences.PinFlowStep
 import com.github.damontecres.wholphin.ui.preferences.pinFlowStep
@@ -67,6 +69,7 @@ class AccountProfileTest {
         coEvery { serverRepository.updateCachedPin(any(), any()) } coAnswers {
             val user = firstArg<JellyfinUser>()
             rows[user.id] = rows.getValue(user.id).copy(pin = secondArg())
+            true
         }
         coEvery { serverRepository.updateUserAuth(any(), any(), any()) } coAnswers {
             val user = firstArg<JellyfinUser>()
@@ -121,6 +124,30 @@ class AccountProfileTest {
             assertEquals(listOf(parent.id to "1234"), remote.writes.map { it.first to it.second })
             assertEquals("2026-10-22T12:00:00Z", remote.accounts.getValue(parent.id).updatedAt)
             assertEquals("1234", rows.getValue(parent.id).pin)
+        }
+
+    @Test
+    fun `a migration never overwrites a PIN saved meanwhile, and adopts it`() =
+        runTest {
+            // The pull finds no PIN; the website saves one before the migration's own read
+            remote.accounts[parent.id] = AccountPinValue(null, null)
+            remote.beforeWrite = { remote.accounts[parent.id] = AccountPinValue("ULLD", "2026-10-22T11:59:00Z") }
+            val fresh = pins().refresh(parent)
+            assertTrue(remote.writes.isEmpty())
+            assertEquals(AccountPinValue("ULLD", "2026-10-22T11:59:00Z"), remote.accounts.getValue(parent.id))
+            assertEquals("ULLD", fresh.pin)
+        }
+
+    @Test
+    fun `a migration stops at a PIN removed meanwhile too`() =
+        runTest {
+            remote.accounts[parent.id] = AccountPinValue(null, null)
+            remote.beforeWrite = { remote.accounts[parent.id] = AccountPinValue("", "2026-10-22T11:59:00Z") }
+            pins().refresh(parent)
+            assertTrue(remote.writes.isEmpty())
+            assertEquals(AccountPinValue("", "2026-10-22T11:59:00Z"), remote.accounts.getValue(parent.id))
+            // Removed elsewhere: the cache follows (unprotected TV)
+            assertEquals(null, rows.getValue(parent.id).pin)
         }
 
     @Test
@@ -244,6 +271,38 @@ class AccountProfileTest {
         assertEquals(PinFlowStep.NotFourPresses, pinFlowStep(PinFlowState.ENTER_PIN, "ULLDU", "1234", ""))
     }
 
+    // --- Change picture from the chooser (review round 1) ---
+
+    @Test
+    fun `a pinless adult's picture needs a parent's PIN on a protected TV, and isn't offered without one`() {
+        val pinless = adult("Free")
+        val kid = testUser("Kid").copy(policyState = PolicyState.KID, maxParentalRating = 10)
+        // Unprotected: open, as before
+        assertEquals(PictureLock.Open, KidProfilesViewModel.pictureLock(pinless, ProfileKind.ADULT, false, listOf(parent)))
+        // Protected: another adult's PIN
+        assertEquals(
+            PictureLock.ParentPin(listOf(parent)),
+            KidProfilesViewModel.pictureLock(pinless, ProfileKind.ADULT, true, listOf(parent, adult("Other"))),
+        )
+        // Protected, no adult with a PIN: hidden
+        assertEquals(PictureLock.Hidden, KidProfilesViewModel.pictureLock(pinless, ProfileKind.ADULT, true, listOf(adult("Other"))))
+        // An unknown profile is not a kid: it needs the same unlock
+        assertEquals(PictureLock.Hidden, KidProfilesViewModel.pictureLock(pinless, ProfileKind.UNKNOWN, true, emptyList()))
+        // Its own PIN, and kids stay open
+        assertEquals(PictureLock.OwnPin, KidProfilesViewModel.pictureLock(parent, ProfileKind.ADULT, true, emptyList()))
+        assertEquals(PictureLock.Open, KidProfilesViewModel.pictureLock(kid, ProfileKind.KID, true, emptyList()))
+    }
+
+    @Test
+    fun `the chooser menu hides Change picture where nobody could unlock it`() {
+        val pinless = adult("Free")
+        val gate = FakeKidSessionGate()
+        val viewModel = KidProfilesViewModel(gate, pictureService, localAccountPins())
+        assertTrue(viewModel.canChangePicture(pinless, listOf(parent, pinless), deviceProtected = true))
+        assertFalse(viewModel.canChangePicture(pinless, listOf(pinless), deviceProtected = true))
+        assertTrue(viewModel.canChangePicture(pinless, listOf(pinless), deviceProtected = false))
+    }
+
     // --- Account avatars ---
 
     private val uploader = FakeUserImageUploader()
@@ -317,6 +376,9 @@ class FakeAccountPinRemote : AccountPinRemote {
     var readFailure: Exception? = null
     var writeFailure: Exception? = null
 
+    /** Runs inside a write, before its own fresh read (eg another device saving meanwhile) */
+    var beforeWrite: () -> Unit = {}
+
     override suspend fun read(
         serverUrl: String,
         userId: UUID,
@@ -334,7 +396,24 @@ class FakeAccountPinRemote : AccountPinRemote {
         updatedAt: String,
     ) {
         writeFailure?.let { throw it }
+        beforeWrite()
         writes += Triple(userId, pin, updatedAt)
         accounts[userId] = AccountPinValue(pin.orEmpty(), updatedAt)
+    }
+
+    override suspend fun writeIfUnset(
+        serverUrl: String,
+        userId: UUID,
+        accessToken: String,
+        pin: String,
+        updatedAt: String,
+    ): AccountPinValue? {
+        writeFailure?.let { throw it }
+        beforeWrite()
+        val found = accounts[userId] ?: AccountPinValue(null, null)
+        if (found.everSet) return found
+        writes += Triple(userId, pin, updatedAt)
+        accounts[userId] = AccountPinValue(pin, updatedAt)
+        return null
     }
 }

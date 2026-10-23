@@ -1,14 +1,21 @@
 package com.github.damontecres.wholphin.ui.kids
 
 import android.widget.Toast
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
@@ -28,8 +35,10 @@ import com.github.damontecres.wholphin.ui.preferences.SetPinFlow
 import com.github.damontecres.wholphin.ui.setup.PinEntryDialog
 import com.github.damontecres.wholphin.ui.setup.outcome
 import com.github.damontecres.wholphin.ui.setup.pinPromptFor
+import com.github.damontecres.wholphin.ui.tryRequestFocus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import java.util.UUID
 import javax.inject.Inject
 
@@ -58,8 +67,18 @@ class KidProfilesViewModel
                 !kidSession &&
                 AddKidViewModel.parentsOf(savedUsers, gate).isNotEmpty()
 
-        /** Chooser "Change picture" (contract 11.1): every saved profile with its own token. */
-        fun canChangePicture(user: JellyfinUser): Boolean = profilePicturesEnabled && user.accessToken != null
+        /**
+         * Chooser "Change picture" (contract 11.1): every saved profile with its own token, except a pinless adult on a
+         * kid-protected TV where no other adult has a PIN to unlock it (review round 1). [savedUsers] are the TV's saved
+         * profiles.
+         */
+        fun canChangePicture(
+            user: JellyfinUser,
+            savedUsers: List<JellyfinUser>,
+            deviceProtected: Boolean,
+        ): Boolean =
+            profilePicturesEnabled &&
+                pictureLock(user, gate.profileKind(user), deviceProtected, possibleParents(user, savedUsers, gate)) != PictureLock.Hidden
 
         /** Chooser "Change PIN" (contract 11.2): a saved profile with a PIN and its own token to write the account with. */
         fun canChangePin(user: JellyfinUser): Boolean = BuildConfig.KID_PROFILES_ENABLED && user.hasPin && user.accessToken != null
@@ -67,12 +86,59 @@ class KidProfilesViewModel
         /** [user] with its account's PIN pulled into the cache (best effort), before a PIN prompt shows (contract 11.2) */
         suspend fun refreshed(user: JellyfinUser): JellyfinUser = accountPins.refresh(user)
 
+        companion object {
+            /** The saved adults other than [target] who could unlock its picture with their PIN */
+            fun possibleParents(
+                target: JellyfinUser,
+                savedUsers: List<JellyfinUser>,
+                gate: KidSessionGate,
+            ): List<JellyfinUser> = savedUsers.filter { it.rowId != target.rowId && gate.profileKind(it) == ProfileKind.ADULT }
+
+            /**
+             * What changing [target]'s picture from the chooser takes (contract 11.1, review round 1): a kid's is open; a
+             * profile with a PIN asks for it; a pinless adult's is open on an unprotected TV, and on a protected one needs
+             * the PIN of one of [parents] that has a PIN, or isn't offered at all when none has.
+             */
+            fun pictureLock(
+                target: JellyfinUser,
+                kind: ProfileKind,
+                deviceProtected: Boolean,
+                parents: List<JellyfinUser>,
+            ): PictureLock {
+                val unlockers = parents.filter { it.rowId != target.rowId && it.hasPin }
+                return when {
+                    target.accessToken == null -> PictureLock.Hidden
+                    kind == ProfileKind.KID -> PictureLock.Open
+                    target.hasPin -> PictureLock.OwnPin
+                    !deviceProtected -> PictureLock.Open
+                    unlockers.isEmpty() -> PictureLock.Hidden
+                    else -> PictureLock.ParentPin(unlockers)
+                }
+            }
+        }
+
         /** Saves [user]'s new PIN, the account first; returns whether it was saved (nothing changed if not) */
         suspend fun changePin(
             user: JellyfinUser,
             pin: String,
         ): Boolean = accountPins.set(user, pin, user.requireLogin) == AccountPinWrite.Saved
     }
+
+/** What changing a profile's picture from the chooser takes (see [KidProfilesViewModel.pictureLock]) */
+sealed interface PictureLock {
+    data object Open : PictureLock
+
+    /** The profile's own PIN */
+    data object OwnPin : PictureLock
+
+    /** A pinless adult on a protected TV: one of [parents]' PIN */
+    data class ParentPin(
+        val parents: List<JellyfinUser>,
+    ) : PictureLock
+
+    /** Not offered */
+    data object Hidden : PictureLock
+}
 
 /**
  * Runs [content] with [user]'s saved row once its account PIN was pulled (contract 11.2: before a PIN prompt shows).
@@ -91,8 +157,9 @@ private fun WithAccountPin(
 
 /**
  * "Change picture" from the chooser's profile menu (contract 11.1): kids pick from the kid list without a PIN; adults
- * pick from the adult list, and an adult with a PIN proves they are its owner first. That check grants no unlock
- * (review round 5), so nothing outlives a dismissed dialog.
+ * pick from the adult list, and an adult with a PIN proves they are its owner first. On a kid-protected TV a pinless
+ * adult's picture needs a parent's PIN (review round 1, [PictureLock.ParentPin]). These checks grant no unlock (review
+ * round 5), so nothing outlives a dismissed dialog. [savedUsers] are the TV's saved profiles, the possible parents.
  */
 @Composable
 fun ChooserChangePicture(
@@ -100,6 +167,7 @@ fun ChooserChangePicture(
     user: JellyfinUser,
     gate: KidSessionGate,
     onDone: () -> Unit,
+    savedUsers: List<JellyfinUser> = emptyList(),
     refresh: suspend (JellyfinUser) -> JellyfinUser = { it },
 ) {
     val token = user.accessToken ?: return onDone()
@@ -111,21 +179,91 @@ fun ChooserChangePicture(
         )
         return
     }
-    WithAccountPin(user, refresh) { row ->
-        var unlocked by remember(row) { mutableStateOf(!row.hasPin) }
-        if (unlocked) {
+    // The account PINs (contract 11.2) and the TV's protection, read fresh before deciding what it takes
+    var decided by remember(user) { mutableStateOf<Pair<JellyfinUser, PictureLock>?>(null) }
+    LaunchedEffect(user) {
+        val row = refresh(user)
+        val protected = gate.isDeviceProtected.first()
+        val parents =
+            if (protected && !row.hasPin) {
+                KidProfilesViewModel.possibleParents(row, savedUsers, gate).map { refresh(it) }
+            } else {
+                emptyList()
+            }
+        decided = row to KidProfilesViewModel.pictureLock(row, kind, protected, parents)
+    }
+    val (row, lock) = decided ?: return
+    var unlocked by remember(row, lock) { mutableStateOf(lock == PictureLock.Open) }
+    var parent by remember(row, lock) { mutableStateOf((lock as? PictureLock.ParentPin)?.parents?.singleOrNull()) }
+    when {
+        lock == PictureLock.Hidden -> {
+            LaunchedEffect(Unit) { onDone() }
+        }
+
+        unlocked -> {
             ProfilePictureDialog(
                 target = ProfilePictureTarget(server.url, row.id, token, row.shownName, isKid = kind != ProfileKind.ADULT),
                 onDismissRequest = onDone,
             )
-            return@WithAccountPin
         }
-        var error by remember { mutableStateOf<PinCheckResult?>(null) }
+
+        lock == PictureLock.OwnPin -> {
+            PicturePin(owner = row, onDismissRequest = onDone, check = { gate.checkOwnPin(row, it) }, onCorrect = { unlocked = true })
+        }
+
+        lock is PictureLock.ParentPin && parent == null -> {
+            KidPanelDialog(onDismissRequest = onDone, width = 620.dp) {
+                val name = row.shownName.orEmpty()
+                KidTitle(stringResource(R.string.change_picture))
+                KidGap(10.dp)
+                KidSubtitle(stringResource(R.string.kid_ask_parent, name))
+                KidGap(24.dp)
+                val firstFocus = remember { FocusRequester() }
+                LaunchedEffect(Unit) { firstFocus.tryRequestFocus() }
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    lock.parents.forEachIndexed { index, candidate ->
+                        KidListRow(
+                            text = stringResource(R.string.kid_parent_pin_title, candidate.shownName.orEmpty()),
+                            glyph = stringResource(R.string.fa_user),
+                            onClick = { parent = candidate },
+                            modifier = if (index == 0) Modifier.focusRequester(firstFocus) else Modifier,
+                        )
+                    }
+                }
+                KidGap(24.dp)
+                OkBackHints()
+            }
+        }
+
+        else -> {
+            val owner = parent ?: return
+            // The parent's PIN through the gate, adults only, with its backoff; the unlock it would grant is never
+            // taken, so nothing outlives this dialog
+            PicturePin(
+                owner = owner,
+                onDismissRequest = onDone,
+                check = { gate.verifyParentPin(owner, it, null) {} },
+                onCorrect = { unlocked = true },
+            )
+        }
+    }
+}
+
+/** [owner]'s PIN before a picture changes; the entry stays latched while [check] runs */
+@Composable
+private fun PicturePin(
+    owner: JellyfinUser,
+    onDismissRequest: () -> Unit,
+    check: suspend (String) -> PinCheckResult,
+    onCorrect: () -> Unit,
+) {
+    var error by remember(owner) { mutableStateOf<PinCheckResult?>(null) }
+    key(owner.rowId) {
         PinEntryDialog(
-            onDismissRequest = onDone,
+            onDismissRequest = onDismissRequest,
             title = stringResource(R.string.change_picture),
-            prompt = pinPromptFor(row.shownName),
-            length = PinRules.entryLength(row.pin),
+            prompt = pinPromptFor(owner.shownName),
+            length = PinRules.entryLength(owner.pin),
             lockedUntilMillis = (error as? PinCheckResult.LockedOut)?.retryAtMillis ?: 0L,
             message =
                 when (error) {
@@ -133,11 +271,10 @@ fun ChooserChangePicture(
                     is PinCheckResult.LockedOut -> stringResource(R.string.kids_error_rate_limited_unknown)
                     else -> null
                 },
-            // Suspends for the check, so the entry stays latched until it is done
             onSubmit = { pin ->
-                val result = gate.checkOwnPin(row, pin)
+                val result = check(pin)
                 when (result) {
-                    PinCheckResult.Correct -> unlocked = true
+                    PinCheckResult.Correct -> onCorrect()
                     else -> error = result
                 }
                 result.outcome()

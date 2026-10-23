@@ -48,6 +48,7 @@ import java.util.UUID
 class ChooserFlowTest {
     private val dispatcher = UnconfinedTestDispatcher()
     private val serverRepository = mockk<ServerRepository>(relaxed = true)
+    private val accountPins = localAccountPins()
     private val serverDao = mockk<JellyfinServerDao>()
     private val gate = mockk<KidSessionGateImpl>(relaxed = true)
     private val store = mockk<KidProtectionStore>()
@@ -132,7 +133,7 @@ class ChooserFlowTest {
                 kidSessionGate = gate,
                 kidProtectionStore = store,
                 profileChooserLock = chooserLock,
-                accountPins = localAccountPins(),
+                accountPins = accountPins,
                 accountAvatars = mockk(relaxed = true),
                 pictures = mockk(relaxed = true),
                 server = server,
@@ -160,6 +161,80 @@ class ChooserFlowTest {
             result
         }
     }
+
+    /** A new adult's completed sign-in, with no row on this TV */
+    private fun newAdultAuth(adultId: UUID = UUID.randomUUID()) =
+        AuthenticationResult(
+            user =
+                UserDto(
+                    id = adultId,
+                    name = "new adult",
+                    hasPassword = false,
+                    hasConfiguredPassword = false,
+                    hasConfiguredEasyPassword = false,
+                    policy = mockk<UserPolicy> { every { maxParentalRating } returns null },
+                ),
+            accessToken = "adult-token",
+            serverId = serverId.toServerString(),
+        )
+
+    @Test
+    fun `a fresh sign-in on a protected TV caches the account's PIN instead of asking for a new one`() =
+        runTest(dispatcher) {
+            val auth = newAdultAuth()
+            val adult =
+                CurrentUser(
+                    server,
+                    JellyfinUser(id = auth.user!!.id, name = "new adult", serverId = serverId, accessToken = "adult-token", pin = "ULLD"),
+                )
+            coEvery { accountPins.readAccount(server.url, auth.user!!.id, "adult-token") } returns
+                AccountPinValue("ULLD", "2026-10-21T00:00:00Z")
+            coEvery { serverRepository.changeUser(server.url, auth, null, any(), "ULLD", any(), any(), any()) } coAnswers
+                { publish(adult, arg(6)) }
+
+            viewModel.signIn(server.url, existingUser = null, onError = {}) { auth }
+
+            assertNull("no new PIN over the account's", state.pendingPinSetup)
+            assertEquals(listOf(adult), published)
+            coVerify(exactly = 0) { accountPins.upload(any(), any(), any(), any()) }
+        }
+
+    @Test
+    fun `a sign-in whose account PIN can't be read on a protected TV publishes nothing until it can`() =
+        runTest(dispatcher) {
+            val auth = newAdultAuth()
+            val adult =
+                CurrentUser(
+                    server,
+                    JellyfinUser(id = auth.user!!.id, name = "new adult", serverId = serverId, accessToken = "adult-token", pin = "ULLD"),
+                )
+            coEvery { accountPins.readAccount(any(), any(), any()) } returns null
+            coEvery { serverRepository.changeUser(server.url, auth, null, any(), "ULLD", any(), any(), any()) } coAnswers
+                { publish(adult, arg(6)) }
+
+            viewModel.signIn(server.url, existingUser = null, onError = {}) { auth }
+
+            assertNotNull(state.pendingPinCheck)
+            assertNull("never a new PIN over one the account may have", state.pendingPinSetup)
+            assertTrue(published.isEmpty())
+
+            // Try again, once the account can be read
+            coEvery { accountPins.readAccount(any(), any(), any()) } returns AccountPinValue("ULLD", "t")
+            viewModel.retryPinCheck()
+            assertNull(state.pendingPinCheck)
+            assertEquals(listOf(adult), published)
+            assertEquals(listOf(adult), navigated)
+        }
+
+    @Test
+    fun `Back from the PIN check leaves the sign-in`() =
+        runTest(dispatcher) {
+            coEvery { accountPins.readAccount(any(), any(), any()) } returns null
+            viewModel.signIn(server.url, existingUser = null, onError = {}) { newAdultAuth() }
+            viewModel.cancelPinCheck()
+            assertNull(state.pendingPinCheck)
+            assertTrue(published.isEmpty())
+        }
 
     /** A new adult without a PIN signs in on this protected TV: the chooser asks them to set a PIN first */
     private fun signInPinlessAdult(): Pair<AuthenticationResult, CurrentUser> {

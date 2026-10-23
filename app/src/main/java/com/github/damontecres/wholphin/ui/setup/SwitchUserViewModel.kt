@@ -295,7 +295,7 @@ class SwitchUserViewModel
             }
             flow = null
             // Whatever the left flow was asking for goes with it
-            _state.update { it.copy(prompt = null, pendingPinSetup = null, pendingAvatar = null) }
+            _state.update { it.copy(prompt = null, pendingPinSetup = null, pendingAvatar = null, pendingPinCheck = null) }
         }
 
         /** Runs [block] only while [flow] is current, atomically with leaving it; returns whether it ran */
@@ -593,17 +593,68 @@ class SwitchUserViewModel
         ) {
             val policy = authenticationResult.user?.policy
             val isAdult = policy != null && policy.maxParentalRating == null
-            if (isAdult && savedUser?.pin.isNullOrBlank() && kidProtectionStore.isProtected()) {
+            val protected = kidProtectionStore.isProtected()
+            // Review round 1: the account's PIN, read with this sign-in's own token before deciding on PIN setup, also
+            // when this TV has no row for the profile yet. A PIN on the account is cached by the switch (newPin).
+            val userId = authenticationResult.user?.id
+            val token = authenticationResult.accessToken
+            val account = if (userId != null && token != null) accountPins.readAccount(serverUrl, userId, token) else null
+            if (account == null && isAdult && protected) {
+                // Fail closed: never a new PIN over one the account may have; nothing is published until it can be read
+                Timber.i("Couldn't read the account PIN on a protected device: sign-in waits")
+                updateState(flow) {
+                    it.copy(pendingPinCheck = PendingPinCheck(serverUrl, authenticationResult, savedUser), pendingAvatar = null)
+                }
+                return
+            }
+            val accountPin = account?.pin?.takeIf { it.isNotBlank() }
+            if (accountPin == null && isAdult && savedUser?.pin.isNullOrBlank() && protected) {
                 Timber.i("Adult without a PIN on a protected device: PIN setup before sign-in")
                 // The flow waits for the PIN; cancelling the setup leaves it. Its avatar step (if any) ends in the same
                 // update, so the sign-in dialog never shows in between.
                 updateState(flow) {
-                    it.copy(pendingPinSetup = PendingPinSetup(serverUrl, authenticationResult, savedUser), pendingAvatar = null)
+                    it.copy(
+                        pendingPinSetup = PendingPinSetup(serverUrl, authenticationResult, savedUser),
+                        pendingAvatar = null,
+                        pendingPinCheck = null,
+                    )
                 }
                 return
             }
-            completeFreshAuth(flow, serverUrl, authenticationResult, savedUser, null)
-            ifCurrent(flow) { _state.update { it.copy(pendingAvatar = null) } }
+            completeFreshAuth(flow, serverUrl, authenticationResult, savedUser, accountPin)
+            ifCurrent(flow) { _state.update { it.copy(pendingAvatar = null, pendingPinCheck = null) } }
+        }
+
+        /** "Try again" after the account PIN couldn't be read: the sign-in reads it again and goes on */
+        fun retryPinCheck() {
+            val flow: ChooserFlow
+            val pending: PendingPinCheck
+            synchronized(flowLock) {
+                flow = this.flow ?: return
+                pending = _state.value.pendingPinCheck ?: return
+            }
+            continueFlow(flow) {
+                launchStep(flow) {
+                    try {
+                        // Still showing while it checks, so the sign-in dialog never comes back meanwhile
+                        updateState(flow) { it.copy(pendingPinCheck = pending.copy(checking = true)) }
+                        continueFreshAuth(flow, pending.serverUrl, pending.authenticationResult, pending.existingUser)
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: Exception) {
+                        Timber.e(ex, "Error finishing sign-in")
+                        ifCurrent(flow) {
+                            _state.update { it.copy(pendingPinCheck = null) }
+                            setError("Error during login", ex)
+                        }
+                    }
+                }
+            }
+        }
+
+        /** Back on the "couldn't check the PIN" step: the sign-in is left and nothing changes */
+        fun cancelPinCheck() {
+            leaveFlow()
         }
 
         private suspend fun completeFreshAuth(
@@ -1139,6 +1190,17 @@ data class PendingAvatar(
     val chosen: Avatar? = null,
 )
 
+/**
+ * An adult's completed sign-in on a protected TV held back because its account PIN couldn't be read (review round 1);
+ * [checking] while it is read again
+ */
+data class PendingPinCheck(
+    val serverUrl: String,
+    val authenticationResult: AuthenticationResult,
+    val existingUser: JellyfinUser?,
+    val checking: Boolean = false,
+)
+
 /** An adult's completed sign-in held back until they set a PIN (protected device) */
 data class PendingPinSetup(
     val serverUrl: String,
@@ -1161,6 +1223,7 @@ data class SwitchUserState(
     val prompt: ChooserPrompt? = null,
     val pendingPinSetup: PendingPinSetup? = null,
     val pendingAvatar: PendingAvatar? = null,
+    val pendingPinCheck: PendingPinCheck? = null,
     val switchError: SwitchUserResult.Error? = null,
 )
 

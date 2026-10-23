@@ -100,6 +100,7 @@ fun UserList(
     onChangePicture: ((JellyfinUser) -> Unit)? = null,
     pictureVersions: Map<UUID, Int> = emptyMap(),
     onChangePin: ((JellyfinUser) -> Unit)? = null,
+    canChangePicture: (JellyfinUser) -> Boolean = { true },
 ) {
     var showDeleteDialog by remember { mutableStateOf<JellyfinUserAndImage?>(null) }
 
@@ -205,7 +206,7 @@ fun UserList(
                         },
                     )
                     // Contract 11: every saved profile with its own token (the change is saved with it)
-                    if (onChangePicture != null && user.known && user.user.accessToken != null) {
+                    if (onChangePicture != null && user.known && user.user.accessToken != null && canChangePicture(user.user)) {
                         add(
                             DialogItem(
                                 stringResource(R.string.change_picture),

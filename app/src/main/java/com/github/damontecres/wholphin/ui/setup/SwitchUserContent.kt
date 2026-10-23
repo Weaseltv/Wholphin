@@ -75,10 +75,13 @@ import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.kids.AddKidFlow
 import com.github.damontecres.wholphin.ui.kids.ChooserChangePicture
 import com.github.damontecres.wholphin.ui.kids.ChooserChangePin
+import com.github.damontecres.wholphin.ui.kids.KidButton
+import com.github.damontecres.wholphin.ui.kids.KidErrorText
 import com.github.damontecres.wholphin.ui.kids.KidGap
 import com.github.damontecres.wholphin.ui.kids.KidListRow
 import com.github.damontecres.wholphin.ui.kids.KidPanelDialog
 import com.github.damontecres.wholphin.ui.kids.KidProfilesViewModel
+import com.github.damontecres.wholphin.ui.kids.KidSpinner
 import com.github.damontecres.wholphin.ui.kids.KidSubtitle
 import com.github.damontecres.wholphin.ui.kids.KidTitle
 import com.github.damontecres.wholphin.ui.kids.OkBackHints
@@ -111,10 +114,13 @@ fun SwitchUserContent(
     val state by viewModel.state.collectAsState()
 
     val currentUser by viewModel.serverRepository.currentUserFlow.collectAsState(null)
+    val savedUsers = state.users.filter { it.known }.map { it.user }
     val connectOnly = weaselPlexConnectOnly()
     // WeaselPlex kid profiles: a kid session hides Add User, Add kid and Switch server (plan 4.4).
     val kidSession by kidViewModel.isKidSession.collectAsState()
     val pictureVersions by kidViewModel.pictureVersions.collectAsState()
+    // Review round 1: a pinless adult's picture needs a parent's PIN on a protected TV (assumed protected until known)
+    val deviceProtected by kidViewModel.gate.isDeviceProtected.collectAsState(initial = true)
     var showAddKid by remember { mutableStateOf(false) }
     var changePictureFor by remember { mutableStateOf<JellyfinUser?>(null) }
     var changePinFor by remember { mutableStateOf<JellyfinUser?>(null) }
@@ -202,6 +208,35 @@ fun SwitchUserContent(
                 hideAddUserDialog()
             },
         )
+    }
+
+    // Review round 1: on a protected TV a sign-in waits until its account PIN can be read
+    state.pendingPinCheck?.let { pending ->
+        KidPanelDialog(
+            onDismissRequest = {
+                viewModel.cancelPinCheck()
+                hideAddUserDialog()
+            },
+            width = 620.dp,
+        ) {
+            KidTitle(pending.authenticationResult.user?.name ?: stringResource(R.string.enter_pin))
+            KidGap(14.dp)
+            KidErrorText(stringResource(R.string.pin_check_failed))
+            KidGap(24.dp)
+            val retryFocus = remember { FocusRequester() }
+            LaunchedEffect(Unit) { retryFocus.tryRequestFocus() }
+            if (pending.checking) {
+                KidSpinner(size = 40.dp, strokeWidth = 4.dp)
+            } else {
+                KidButton(
+                    stringResource(R.string.try_again),
+                    onClick = viewModel::retryPinCheck,
+                    modifier = Modifier.focusRequester(retryFocus),
+                )
+            }
+            KidGap(24.dp)
+            OkBackHints()
+        }
     }
 
     when (val st = state.loading) {
@@ -304,10 +339,11 @@ fun SwitchUserContent(
                                 null
                             },
                         isKid = kidViewModel::isKid,
+                        canChangePicture = { user -> kidViewModel.canChangePicture(user, savedUsers, deviceProtected) },
                         onChangePicture =
                             if (profilePicturesEnabled) {
                                 { user ->
-                                    if (kidViewModel.canChangePicture(user)) {
+                                    if (kidViewModel.canChangePicture(user, savedUsers, deviceProtected)) {
                                         // A pick still in progress never publishes or navigates behind it
                                         viewModel.leaveForOtherAction()
                                         changePictureFor = user
@@ -365,7 +401,7 @@ fun SwitchUserContent(
         }
     }
 
-    if (showAddUser && state.pendingPinSetup == null && state.pendingAvatar == null) {
+    if (showAddUser && state.pendingPinSetup == null && state.pendingAvatar == null && state.pendingPinCheck == null) {
         var useQuickConnect by remember { mutableStateOf(state.quickConnectEnabled || connectOnly) }
         LaunchedEffect(Unit) {
             viewModel.clearSwitchUserState()
@@ -646,6 +682,7 @@ fun SwitchUserContent(
             user = user,
             gate = kidViewModel.gate,
             onDone = { changePictureFor = null },
+            savedUsers = state.users.filter { it.known }.map { it.user },
             refresh = kidViewModel::refreshed,
         )
     }
