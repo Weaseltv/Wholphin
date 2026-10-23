@@ -48,11 +48,13 @@ Read-back must verify `MaxParentalRating`, `MaxParentalSubRating`, `BlockUnrated
 
 **Libraries (v1.9, owner 2026-10-23).** Kids get only **Movies, TV Shows and Collections**
 (`EnableAllFolders: false`, `EnabledFolders` = exactly those three; the kid's display order lists only them). Never
-Sports or Stand Up Comedy; adults keep all five member libraries. The website finds the three by name (Collections by
-its collection type), the same way it finds the member libraries, and also verifies `EnabledFolders` on read-back. If
-they can't be found it changes nothing, except that disabling a kid for a revoked parent still goes ahead with no
-folders at all. Existing kids are fixed once by `ops/weaselplex-kid-libraries/backfill-kid-libraries.mjs` (website
-repo). TV behaviour unchanged.
+Sports or Stand Up Comedy; adults keep all five member libraries. The website finds the three by name and collection
+type (Movies `movies` and TV Shows `tvshows`, the same in both of the server's library lists; Collections `boxsets`), the
+same way it finds the member libraries, and also verifies `EnabledFolders` on read-back. If they can't be found, or a
+type doesn't match, it changes nothing, except that disabling a kid for a revoked parent still goes ahead with no
+folders at all. Existing website kids (`media_kid_profiles`, never a user picked by its parental limit) are fixed once
+by `ops/ovh/weaselplex-kid-libraries-control.sh` (website repo), under the same per-account lock as every kid policy
+writer. TV behaviour unchanged.
 
 ## 2. Display names
 
