@@ -625,6 +625,22 @@ fun SwitchUserContent(
             )
         }
 
+        is ChooserPrompt.NeedsPin -> {
+            NeedsPinPanel(
+                prompt = prompt,
+                onCreatePin = {
+                    // Contract 12.4 (v1.7): only the profile's owner sets its PIN, so it signs in again first; that
+                    // sign-in asks for the new PIN (protected TV, no PIN) and then goes in
+                    viewModel.dismissPrompt()
+                    showAddUserDialog(prompt.target)
+                },
+                onRemove = viewModel::askRemoveNeedsPin,
+                onConfirmRemove = { viewModel.confirmRemoveNeedsPin() },
+                onCancelRemove = viewModel::cancelRemoveNeedsPin,
+                onDismissRequest = viewModel::dismissPrompt,
+            )
+        }
+
         is ChooserPrompt.PickParent -> {
             val targetName = prompt.target.shownName.orEmpty()
             KidPanelDialog(onDismissRequest = viewModel::dismissPrompt, width = 620.dp) {
@@ -933,5 +949,63 @@ fun ChooserPinPrompt(
             message = prompt.message,
             serverAuthRemovesPin = false,
         )
+    }
+}
+
+/**
+ * Contract 12.4 (v1.7): "<Name> needs a PIN" for a pinless adult on a TV with kids, with "Create a PIN" and "Remove from
+ * this TV" (which asks first). Back closes it with no change; Back on the question goes back to the panel.
+ */
+@Composable
+private fun NeedsPinPanel(
+    prompt: ChooserPrompt.NeedsPin,
+    onCreatePin: () -> Unit,
+    onRemove: () -> Unit,
+    onConfirmRemove: () -> Unit,
+    onCancelRemove: () -> Unit,
+    onDismissRequest: () -> Unit,
+) {
+    val name = prompt.target.shownName.orEmpty()
+    KidPanelDialog(
+        onDismissRequest = if (prompt.confirmRemove) onCancelRemove else onDismissRequest,
+        width = 620.dp,
+    ) {
+        key(prompt.confirmRemove) {
+            val firstFocus = remember { FocusRequester() }
+            LaunchedEffect(Unit) { firstFocus.tryRequestFocus() }
+            if (prompt.confirmRemove) {
+                KidTitle(stringResource(R.string.remove_from_tv_question, name))
+                KidGap(28.dp)
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    KidButton(
+                        stringResource(R.string.remove),
+                        onClick = onConfirmRemove,
+                        minWidth = 180.dp,
+                        modifier = Modifier.focusRequester(firstFocus),
+                    )
+                    KidButton(stringResource(R.string.cancel), onClick = onCancelRemove, minWidth = 180.dp)
+                }
+            } else {
+                KidTitle(stringResource(R.string.needs_a_pin, name))
+                KidGap(10.dp)
+                KidSubtitle(stringResource(R.string.needs_a_pin_subtitle))
+                KidGap(24.dp)
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    KidListRow(
+                        text = stringResource(R.string.create_a_pin),
+                        glyph = stringResource(R.string.fa_user),
+                        onClick = onCreatePin,
+                        modifier = Modifier.focusRequester(firstFocus),
+                    )
+                    KidListRow(
+                        text = stringResource(R.string.remove_from_this_tv),
+                        glyph = stringResource(R.string.fa_xmark),
+                        onClick = onRemove,
+                    )
+                }
+            }
+            KidGap(24.dp)
+            OkBackHints()
+        }
     }
 }

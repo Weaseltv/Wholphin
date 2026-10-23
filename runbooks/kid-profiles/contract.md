@@ -1,4 +1,4 @@
-# Kid profiles — frozen TV <-> website contract (v1.6)
+# Kid profiles — frozen TV <-> website contract (v1.7)
 
 Status: **FROZEN 2026-10-21** by the kid-profiles orchestrator. v1.1 (same day) only clarifies
 website-side details found while building tracks A and B; nothing the TV sends or reads changed.
@@ -6,7 +6,8 @@ v1.2 (same day) applies the Phase 0 result (Jellyfin 12.2.0): `MaxParentalSubRat
 every level; null behaves like 0 and hid all TV-MA/NC-17 from Teens. TV behaviour unchanged. v1.3 (2026-10-22) adds section 10, the owner's
 content rules for every kids profile (TV-side filter on top of the server policy). v1.4 (2026-10-22) adds section 11: account
 avatars and an account PIN that the website can reset, plus the website's "Your profiles" pages. v1.5 (2026-10-23) adds section 12: kid pages on the website (picture, watch history,
-pairing a kid to another TV), PINs for every adult on a TV with kids, and deleted kids leaving the TV. v1.6 (2026-10-23) adds the owner's second avatar set (48 adult, 48 kid). Identical copies live in
+pairing a kid to another TV), PINs for every adult on a TV with kids, and deleted kids leaving the TV. v1.6 (2026-10-23) adds the owner's second avatar set (48 adult, 48 kid). v1.7 (2026-10-23) changes what a pinless adult sees on a TV with kids (12.4), adds Change picture to the website's
+Your profile page and renames the account page's tile to "Profiles" (11.3). Identical copies live in
 `Wholphin/runbooks/kid-profiles/contract.md` and `weaseltv-platform/docs/kid-profiles/contract.md`. Tracks build to this
 document. Changes go through the orchestrator only; a change bumps the version line above and
 is made in both repos in the same step.
@@ -353,6 +354,14 @@ they follow the person to every TV and survive signing out and back in.
 - `GET /api/v1/portal/weaselplex/profile` -> `200 {"data":{"displayName":"...","hasPin":bool,"pinUpdatedAt":"..."|null,"hasAvatar":bool}}`.
 - `GET /api/v1/portal/weaselplex/profile/avatar`: the session's own media user's Primary image (never a kid's, no
   caller-supplied id), resized, raster `image/*` only, `Cache-Control: private, no-store`; 404 when there is none.
+- **v1.7 (owner 2026-10-23):** the account page's tile is titled "Profiles" (was "Your profiles"); the page
+  title of `/weaselplex/profiles` follows. `/weaselplex/profiles/you` gets **Change picture**: the 48 adult avatars
+  (same ids as the TV's `avatars/adults/`). `PUT /api/v1/portal/weaselplex/profile/avatar`, body (strict)
+  `{"avatarId":"wolf-crimson"}` -> `200 {"data":{"avatarId":"wolf-crimson"}}`; uploads the PNG as the session's own
+  media user's Primary image with the admin key (12.1's format). Same portal checks and errors as the PIN route
+  (403 `WEASELPLEX_ACCESS_REQUIRED`, 400 `INVALID_REQUEST` for an unknown id, 429 `RATE_LIMITED` at 30 per hour
+  per account, 503 `MEDIA_ACCESS_PROVIDER_UNAVAILABLE`); never a kid's user, no caller-supplied user id. Audit
+  `weaselplex.profile.avatar_changed`. No PIN is asked (the account owner is signed in on the website).
 
 ## 12. Kid pages, pairing a kid to another TV, adult PINs, deleted kids (owner decision 2026-10-23, v1.5)
 
@@ -418,6 +427,13 @@ follow because they belong to the kid's media user.
   none remain. Back leaves the add-kid flow without adding a kid.
 - Saved adults without a token need their password or Quick Connect to get in; when they sign in on a TV with kids
   they set a PIN first (11.2, unchanged).
+- **Picking a pinless adult on a TV with kids (v1.7, owner 2026-10-23)** no longer asks for another adult's PIN. It
+  shows "<Name> needs a PIN" ("This TV has kid profiles, so every grown-up needs a PIN.") with **Create a PIN** and
+  **Remove from this TV**. Create a PIN first signs that profile in again (Quick Connect or password, the same
+  sign-in a signed-out profile gets), so only its owner can set it; the fresh sign-in then asks for the new PIN
+  (11.2) and goes in. Remove from this TV needs no PIN (the profile can't be used without one anyway). The same
+  applies to removing a pinless adult from the long-press menu. Account PINs are pulled first, so an account that
+  already has a PIN just asks for it.
 
 ### 12.5 Deleted kids leave the TV; pictures stay current
 

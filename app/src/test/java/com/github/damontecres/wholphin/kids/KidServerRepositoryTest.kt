@@ -263,6 +263,20 @@ class KidServerRepositoryTest {
         }
 
     @Test
+    fun `the current session's profile is never removed without a PIN`() =
+        runTest {
+            val adult = row(1)
+            coEvery { userApi.getCurrentUser() } returns successResponse(userDto(adult.id, null))
+            every { serverDao.deletePinlessUser(any(), any()) } returns 1
+            repository.changeUser(server, adult, authorize = {})
+
+            assertFalse(repository.removePinlessUser(repository.currentUser!!, adultOnly = true))
+            verify(exactly = 0) { serverDao.deletePinlessUser(any(), any()) }
+            assertTrue(repository.removePinlessUser(row(2), adultOnly = true))
+            verify(exactly = 1) { serverDao.deletePinlessUser(2, "adult") }
+        }
+
+    @Test
     fun `a token is in use while the session or a saved row has it`() =
         runTest {
             val kid = row(3)

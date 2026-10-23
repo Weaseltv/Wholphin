@@ -856,6 +856,12 @@ class SwitchUserViewModel
             decision: GateDecision,
             purpose: PinPurpose,
         ) {
+            if (decision == GateDecision.LockedAdult && purpose == PinPurpose.SWITCH) {
+                // Contract 12.4 (v1.7): a pinless adult on a TV with kids creates a PIN (signing in again first) or leaves
+                // this TV; nobody else's PIN is asked for
+                showPrompt(flow, ChooserPrompt.NeedsPin(target))
+                return
+            }
             // Every adult who could unlock, with the account's PIN (contract 11.2)
             val parents =
                 coroutineScope {
@@ -879,6 +885,42 @@ class SwitchUserViewModel
                     }
                 }
             showPrompt(flow, prompt)
+        }
+
+        /** "Remove from this TV" on the needs-a-PIN panel: asks "Remove <Name> from this TV?" first (contract 12.4) */
+        fun askRemoveNeedsPin() {
+            synchronized(flowLock) {
+                val prompt = _state.value.prompt as? ChooserPrompt.NeedsPin ?: return
+                _state.update { it.copy(prompt = prompt.copy(confirmRemove = true)) }
+            }
+        }
+
+        /** "Cancel" (or Back) on that question: back to the panel, nothing changed */
+        fun cancelRemoveNeedsPin() {
+            synchronized(flowLock) {
+                val prompt = _state.value.prompt as? ChooserPrompt.NeedsPin ?: return
+                _state.update { it.copy(prompt = prompt.copy(confirmRemove = false)) }
+            }
+        }
+
+        /**
+         * The removal was confirmed, as its flow's next step: a pinless adult on a TV with kids leaves it with no PIN
+         * (contract 12.4, v1.7). Its account PIN is pulled first: one found there is asked for, as for any adult with a PIN.
+         */
+        fun confirmRemoveNeedsPin(): Job? {
+            val flow: ChooserFlow
+            val prompt: ChooserPrompt.NeedsPin
+            synchronized(flowLock) {
+                flow = this.flow ?: return null
+                prompt = _state.value.prompt as? ChooserPrompt.NeedsPin ?: return null
+                if (!prompt.confirmRemove) return null
+            }
+            return continueFlow(flow) {
+                launchStep(flow) {
+                    showPrompt(flow, null)
+                    continueRemove(flow, prompt.target, pinChecked = false)
+                }
+            }
         }
 
         fun pickParent(parent: JellyfinUser) {
@@ -1032,8 +1074,9 @@ class SwitchUserViewModel
         }
 
         /**
-         * Long-press delete (plan 4.2): a kid row goes freely ("Remove from this TV"); any other row needs that
-         * profile's PIN; a pinless adult on a protected device needs another adult's unlock.
+         * Long-press delete (plan 4.2): a kid row goes freely ("Remove from this TV"); a row with a PIN needs that PIN; a
+         * pinless adult goes freely too (contract 12.4, v1.7); a pinless profile not known to be an adult on a protected
+         * device needs another adult's unlock.
          */
         private fun requestRemoveUser(user: JellyfinUser) {
             beginFlow { flow -> launchStep(flow) { continueRemove(flow, user, pinChecked = false) } }
@@ -1057,12 +1100,44 @@ class SwitchUserViewModel
                 }
 
                 !kidProtectionStore.isProtected() -> {
-                    removeUserNow(flow, user)
+                    removePinlessNow(flow, user, adultOnly = false)
+                }
+
+                user.profileKind == ProfileKind.ADULT -> {
+                    // Contract 12.4 (v1.7): a pinless adult can't be used on a TV with kids anyway, so it leaves with no PIN
+                    removePinlessNow(flow, user, adultOnly = true)
                 }
 
                 else -> {
+                    // Not known to be an adult: another adult's PIN, as before
                     askForDecision(flow, user, GateDecision.LockedAdult, PinPurpose.DELETE)
                 }
+            }
+        }
+
+        /**
+         * Removes pinless [user] with no PIN, only while its saved row is still pinless ([adultOnly]: and an adult), checked
+         * with the delete (review). A PIN saved meanwhile (eg by the account sync) keeps the row and is asked for, as for any
+         * profile with a PIN; any other change keeps it too, and the list shows it again.
+         */
+        private suspend fun removePinlessNow(
+            flow: ChooserFlow,
+            user: JellyfinUser,
+            adultOnly: Boolean,
+        ) {
+            if (serverRepository.removePinlessUser(user, adultOnly, authorize = { ensureCurrent(flow) })) {
+                val serverUsers = getUsers()
+                _state.update { it.copy(users = serverUsers) }
+                return
+            }
+            val row = getSavedUsers().firstOrNull { it.rowId == user.rowId }
+            if (row != null && row.hasPin) {
+                Timber.i("Profile %s got a PIN before its removal; asking for it", row.rowId)
+                showPrompt(flow, pinPrompt(target = row, pinOwner = row, purpose = PinPurpose.DELETE))
+            } else {
+                Timber.i("Profile %s changed before its removal; kept", user.rowId)
+                val serverUsers = getUsers()
+                updateState(flow) { it.copy(users = serverUsers) }
             }
         }
 
@@ -1198,6 +1273,15 @@ sealed interface ChooserPrompt {
     ) : ChooserPrompt {
         val isParentPin: Boolean get() = pinOwner.rowId != target.rowId
     }
+
+    /**
+     * Contract 12.4 (v1.7): [target], a pinless adult on a TV with kids, needs a PIN: "Create a PIN" (a fresh sign-in of
+     * that profile, then the PIN) or "Remove from this TV"; [confirmRemove] while "Remove <Name> from this TV?" asks
+     */
+    data class NeedsPin(
+        override val target: JellyfinUser,
+        val confirmRemove: Boolean = false,
+    ) : ChooserPrompt
 
     /** Pick which parent unlocks [target]; [locked] = a pinless adult on a protected device */
     data class PickParent(

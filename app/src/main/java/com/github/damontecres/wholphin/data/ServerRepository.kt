@@ -768,6 +768,31 @@ class ServerRepository
         }
 
         /**
+         * A removal that needs no PIN (contract 12.4, v1.7, review): removes [user] only while its saved row still has no
+         * PIN (a PIN cached meanwhile, eg by the chooser's account sync, keeps it) and, with [adultOnly], is still an adult,
+         * and only if it isn't the current session's profile. [authorize] runs first in the main-thread step and may throw
+         * to refuse (the chooser flow that asked was left). The checks and the conditional delete are one critical section
+         * under [sessionMutex]. Returns whether it was removed.
+         */
+        suspend fun removePinlessUser(
+            user: JellyfinUser,
+            adultOnly: Boolean,
+            authorize: (() -> Unit)? = null,
+        ): Boolean {
+            if (user.rowId <= 0) return false
+            return sessionMutex.withLock {
+                val inUse =
+                    commitSession {
+                        authorize?.invoke()
+                        _current.value.isIdentity(user.serverId, user.id)
+                    }
+                if (inUse) return@withLock false
+                val policyState = if (adultOnly) PolicyState.ADULT.dbValue else null
+                withContext(ioDispatcher) { serverDao.deletePinlessUser(user.rowId, policyState) } > 0
+            }
+        }
+
+        /**
          * Whether [accessToken] belongs to this TV now: the current session's, or saved in a profile's row (review round 2).
          * A switch that failed may have saved or published its sign-in before failing (eg its journal write after
          * publication); such a token must never be signed out by whoever started the switch.

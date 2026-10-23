@@ -83,6 +83,10 @@
     <string name="adult_pins_subtitle">Every grown-up on this TV needs a PIN before a kid is added. Create one, or remove that profile from this TV.</string>
     <string name="create_pin">Create PIN</string>
     <string name="adult_pin_title">PIN for %1$s</string>
+    <string name="needs_a_pin">%1$s needs a PIN</string>
+    <string name="needs_a_pin_subtitle">This TV has kid profiles, so every grown-up needs a PIN.</string>
+    <string name="create_a_pin">Create a PIN</string>
+    <string name="remove_from_tv_question">Remove %1$s from this TV?</string>
     <string name="adult_already_has_pin">%1$s already has a PIN.</string>
     <string name="adult_remove_failed">That profile couldn\'t be removed. Try again.</string>
     <string name="kid_how_subtitle">How do you want to add a kid?</string>

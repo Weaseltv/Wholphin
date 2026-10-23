@@ -160,6 +160,21 @@ interface JellyfinServerDao {
         accessToken: String,
     ): Int
 
+    /**
+     * Contract 12.4 (v1.7, review): deletes the saved profile in row [rowId] only while it still has no PIN, and, when
+     * [policyState] is given, still has that classification. The check and the delete are one statement.
+     *
+     * @return the number of rows deleted: 0 if a PIN was saved (or it was reclassified or removed) meanwhile
+     */
+    @Query(
+        "DELETE FROM users WHERE rowId = :rowId AND TRIM(COALESCE(pin, '')) = '' AND " +
+            "(:policyState IS NULL OR policyState = :policyState)",
+    )
+    fun deletePinlessUser(
+        rowId: Int,
+        policyState: String?,
+    ): Int
+
     @Query("DELETE FROM users WHERE serverId = :serverId AND id = :userId")
     fun deleteUser(
         serverId: UUID,

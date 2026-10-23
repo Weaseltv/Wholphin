@@ -383,7 +383,6 @@ fun UserIconCardImage(
     imageUrl: String?,
     modifier: Modifier = Modifier,
     alpha: Float = 1f,
-    isKid: Boolean = false,
 ) {
     var imageError by remember(imageUrl) { mutableStateOf(false) }
     val userColor = rememberIdColor(id, alpha)
@@ -422,15 +421,6 @@ fun UserIconCardImage(
                 fontWeight = if (neon) FontWeight.Bold else FontWeight.Normal,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
-            )
-        }
-        if (isKid) {
-            // Too small for the word: a dot in the badge colour marks a kid's avatar.
-            Box(
-                Modifier
-                    .align(Alignment.TopEnd)
-                    .size(8.dp)
-                    .background(KidBadgeColor, CircleShape),
             )
         }
     }
