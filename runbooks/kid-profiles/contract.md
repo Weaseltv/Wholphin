@@ -1,4 +1,4 @@
-# Kid profiles — frozen TV <-> website contract (v1.8)
+# Kid profiles — frozen TV <-> website contract (v1.9)
 
 Status: **FROZEN 2026-10-21** by the kid-profiles orchestrator. v1.1 (same day) only clarifies
 website-side details found while building tracks A and B; nothing the TV sends or reads changed.
@@ -8,7 +8,8 @@ content rules for every kids profile (TV-side filter on top of the server policy
 avatars and an account PIN that the website can reset, plus the website's "Your profiles" pages. v1.5 (2026-10-23) adds section 12: kid pages on the website (picture, watch history,
 pairing a kid to another TV), PINs for every adult on a TV with kids, and deleted kids leaving the TV. v1.6 (2026-10-23) adds the owner's second avatar set (48 adult, 48 kid). v1.7 (2026-10-23) changes what a pinless adult sees on a TV with kids (12.4), adds Change picture to the website's
 Your profile page and renames the account page's tile to "Profiles" (11.3). v1.8 (2026-10-23) adds the owner's 12 women
-adult avatars (60 adult, 48 kid). Identical copies live in
+adult avatars (60 adult, 48 kid). v1.9 (2026-10-23): kids no longer get the Sports and Stand Up Comedy libraries
+(1.1). Identical copies live in
 `Wholphin/runbooks/kid-profiles/contract.md` and `weaseltv-platform/docs/kid-profiles/contract.md`. Tracks build to this
 document. Changes go through the orchestrator only; a change bumps the version line above and
 is made in both repos in the same step.
@@ -44,6 +45,16 @@ Starting from `weaselPlexMemberPolicy(current, folderIds)` plus member configura
 parent is revoked). `IsHidden` and `EnableSharedDeviceControl` keep the member values.
 Read-back must verify `MaxParentalRating`, `MaxParentalSubRating`, `BlockUnratedItems`,
 `IsAdministrator=false`, `EnableLiveTvAccess=false`.
+
+**Libraries (v1.9, owner 2026-10-23).** Kids get only **Movies, TV Shows and Collections**
+(`EnableAllFolders: false`, `EnabledFolders` = exactly those three; the kid's display order lists only them). Never
+Sports or Stand Up Comedy; adults keep all five member libraries. The website finds the three by name and collection
+type (Movies `movies` and TV Shows `tvshows`, the same in both of the server's library lists; Collections `boxsets`), the
+same way it finds the member libraries, and also verifies `EnabledFolders` on read-back. If they can't be found, or a
+type doesn't match, it changes nothing, except that disabling a kid for a revoked parent still goes ahead with no
+folders at all. Existing website kids (`media_kid_profiles`, never a user picked by its parental limit) are fixed once
+by `ops/ovh/weaselplex-kid-libraries-control.sh` (website repo), under the same per-account lock as every kid policy
+writer. TV behaviour unchanged.
 
 ## 2. Display names
 

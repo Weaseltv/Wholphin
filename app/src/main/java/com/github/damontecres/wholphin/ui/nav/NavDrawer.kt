@@ -83,6 +83,8 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
+import com.github.damontecres.wholphin.kids.KidNavigation
+import com.github.damontecres.wholphin.kids.KidSessionGate
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.BackdropService
@@ -138,8 +140,12 @@ class NavDrawerViewModel
         val backdropService: BackdropService,
         private val musicService: MusicService,
         private val profilePictureService: ProfilePictureService,
+        kidSessionGate: KidSessionGate,
     ) : ViewModel() {
         val serviceState = navDrawerService.state
+
+        /** A kid (or unknown) session's menu has no Settings (owner 2026-10-23, [KidNavigation]) */
+        val isKidSession: StateFlow<Boolean> = kidSessionGate.isKidSession
 
         val pictureVersions = profilePictureService.versions
 
@@ -332,6 +338,7 @@ fun NavDrawer(
         focusRequester.requestFocus()
     }
     val serviceState by viewModel.serviceState.collectAsState()
+    val kidSession by viewModel.isKidSession.collectAsState()
     // The highlight is a position in the list, so pick it again whenever the items change,
     // e.g. when Playlists appears after a first playlist or goes away with the last one.
     LaunchedEffect(serviceState.items, serviceState.moreItems) { viewModel.updateSelectedIndex() }
@@ -562,25 +569,28 @@ fun NavDrawer(
                                 )
                             }
                         }
-                        item {
-                            val interactionSource = remember { MutableInteractionSource() }
-                            IconNavItem(
-                                text = stringResource(R.string.settings),
-                                weaselIcon = WeaselNavIcons.SETTINGS,
-                                accent = RailAccents.Settings,
-                                icon = Icons.Default.Settings,
-                                selected = false,
-                                drawerOpen = isOpen,
-                                interactionSource = interactionSource,
-                                onClick = {
-                                    viewModel.navigationManager.navigateTo(
-                                        Destination.Settings(
-                                            PreferenceScreenOption.BASIC,
-                                        ),
-                                    )
-                                },
-                                modifier = Modifier,
-                            )
+                        // Never selected or a focus target, so leaving it out moves no focus
+                        if (!kidSession) {
+                            item {
+                                val interactionSource = remember { MutableInteractionSource() }
+                                IconNavItem(
+                                    text = stringResource(R.string.settings),
+                                    weaselIcon = WeaselNavIcons.SETTINGS,
+                                    accent = RailAccents.Settings,
+                                    icon = Icons.Default.Settings,
+                                    selected = false,
+                                    drawerOpen = isOpen,
+                                    interactionSource = interactionSource,
+                                    onClick = {
+                                        viewModel.navigationManager.navigateTo(
+                                            Destination.Settings(
+                                                PreferenceScreenOption.BASIC,
+                                            ),
+                                        )
+                                    },
+                                    modifier = Modifier,
+                                )
+                            }
                         }
                     }
                 }

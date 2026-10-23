@@ -1,8 +1,10 @@
 package com.github.damontecres.wholphin.services
 
 import android.content.Context
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.data.model.PolicyState
 import com.github.damontecres.wholphin.kids.ProfileChooserLock
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.UserPreferences
@@ -11,6 +13,7 @@ import com.github.damontecres.wholphin.test.currentUser
 import com.github.damontecres.wholphin.test.server
 import com.github.damontecres.wholphin.test.user
 import com.github.damontecres.wholphin.ui.nav.Destination
+import com.github.damontecres.wholphin.ui.preferences.PreferenceScreenOption
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import com.github.damontecres.wholphin.util.configure
 import com.github.damontecres.wholphin.util.reset
@@ -222,6 +225,27 @@ class RemotePlaybackServiceTest {
 
             verify(exactly = 1) { navigationManager.navigateTo(Destination.Playback(itemId, 0L)) }
             verify(exactly = 1) { setupNavigationManager.navigateTo(SetupDestination.AppContent(currentUser)) }
+        }
+
+    @Test
+    fun `Go to settings is refused for a kid or unknown session and works for an adult`() =
+        runTest(testDispatcher) {
+            val goToSettings = GeneralCommand(GeneralCommandType.GO_TO_SETTINGS, controllingUserId, emptyMap())
+            val settings = Destination.Settings(PreferenceScreenOption.BASIC)
+            // Owner 2026-10-23: a kids profile has no Settings; a profile not known to be an adult counts as a kid. Builds
+            // without kid profiles (eg the default flavor) open Settings for everyone.
+            val kidsAllowed = !BuildConfig.KID_PROFILES_ENABLED
+            for (state in listOf(PolicyState.KID, PolicyState.UNKNOWN)) {
+                every { serverRepository.current } returns
+                    MutableStateFlow<CurrentUser?>(currentUser.copy(user = currentUser.user.copy(policyState = state)))
+                assertEquals(kidsAllowed, service.onGeneralCommand(goToSettings))
+            }
+            verify(exactly = if (kidsAllowed) 2 else 0) { navigationManager.navigateTo(settings) }
+
+            every { serverRepository.current } returns
+                MutableStateFlow<CurrentUser?>(currentUser.copy(user = currentUser.user.copy(policyState = PolicyState.ADULT)))
+            assertTrue(service.onGeneralCommand(goToSettings))
+            verify(exactly = if (kidsAllowed) 3 else 1) { navigationManager.navigateTo(settings) }
         }
 
     @Test
