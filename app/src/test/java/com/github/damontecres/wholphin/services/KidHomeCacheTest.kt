@@ -113,7 +113,12 @@ class KidHomeCacheTest {
         val read = cache.read(kid, "kid-rules-v1:5")!!
         assertTrue(read.rows.size <= KidHomeCache.MAX_ROWS + 2)
         assertTrue(read.rows.values.all { it.items.size <= KidHomeCache.MAX_ITEMS_PER_ROW })
-        val item = read.rows.values.first().items.first().dto
+        val item =
+            read.rows.values
+                .first()
+                .items
+                .first()
+                .dto
         assertNull(item.overview)
         assertNull(item.genres)
         assertEquals(big.name, item.name)
