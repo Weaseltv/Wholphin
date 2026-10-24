@@ -57,12 +57,14 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.UserDto
 import timber.log.Timber
 import java.util.UUID
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.seconds
 
 @HiltViewModel
 class HomeViewModel
@@ -183,10 +185,12 @@ class HomeViewModel
         private suspend fun load(generation: Long) {
             Timber.d("init HomeViewModel")
             try {
+                // One generation: these settings, this user, its libraries and these preferences. The session first:
+                // Home's preferences are the device's (AppPreferences, not per profile), read once it's settled.
+                val (settings, userDto) =
+                    withTimeoutOrNull(SESSION_WAIT) { currentSession() } ?: throw HomeSessionTimeout()
                 val preferences = userPreferencesService.getCurrent()
                 val prefs = preferences.appPreferences.homePagePreferences
-                // One generation: these settings, this user, its libraries and these preferences
-                val (settings, userDto) = currentSession()
                 val libraries = navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
                 val state = state.value
 
@@ -362,6 +366,11 @@ class HomeViewModel
                         if (inUse.any { !homeSettingsService.isCurrent(it) }) {
                             Timber.i("Kid content rules: Home settings are for an earlier session, reloading")
                             invalidate()
+                            requestLoad()
+                        } else if (state.value.loadingState is LoadingState.Error && running == null &&
+                            homeSettingsService.isCurrent(settings)
+                        ) {
+                            // Review round 3: a load that gave up waiting (or failed) tries again once settings arrive
                             requestLoad()
                         } else if (settings.owner?.kid == true && settings != shown && homeSettingsService.isCurrent(settings)) {
                             viewModelScope.launchIO { exclusive { applyKidSettings(it) } }
@@ -562,6 +571,12 @@ private fun isWatchingRow(row: HomeRowConfig) =
         row is HomeRowConfig.NextUp ||
         row is HomeRowConfig.ContinueWatchingCombined
 
+/** How long a Home load waits for settings made for the session before it shows an error (review round 3) */
+private val SESSION_WAIT = 30.seconds
+
+/** No settings for the session arrived in [SESSION_WAIT]; Home shows an error and tries again when they do */
+internal class HomeSessionTimeout : IllegalStateException("Home is still waiting for this profile. Please try again.")
+
 /**
  * The rows for [new] settings: each row [old] already had (by its config) keeps its state, the others are pending
  */
@@ -587,6 +602,61 @@ internal fun kidHomeRowKeys(settings: HomePageResolvedSettings): List<String>? {
     if (settings.owner?.kid != true) return null
     return settings.rows.mapIndexed { index, row ->
         (row.config as? HomeRowConfig.ByParent)?.parentId?.let { "collection:$it" } ?: "row:$index"
+    }
+}
+
+/**
+ * Kid content rules (PR #97 review rounds 2 and 3): a kids Home's focused row, by key. [onRows] says what to do when the
+ * rows or their content change: follow the row to its new index, or, when it's gone, recover focus on the nearest row
+ * with content. With none yet (eg the new rows are still loading) the target stays unresolved and the next content
+ * change tries again.
+ */
+internal class KidRowFocus {
+    sealed interface Action {
+        data object None : Action
+
+        data class Follow(
+            val row: Int,
+        ) : Action
+
+        data class Recover(
+            val row: Int,
+        ) : Action
+    }
+
+    var focusedKey: String? = null
+        private set
+
+    /** The focused row is gone and no row could take focus yet */
+    var unresolved = false
+        private set
+
+    fun onFocusedRow(
+        row: Int,
+        keys: List<String>,
+    ) {
+        keys.getOrNull(row)?.let {
+            focusedKey = it
+            unresolved = false
+        }
+    }
+
+    fun onRows(
+        keys: List<String>,
+        currentRow: Int,
+        hasContent: (Int) -> Boolean,
+    ): Action {
+        val key = focusedKey ?: return Action.None
+        val index = keys.indexOf(key)
+        if (index >= 0) return if (index != currentRow) Action.Follow(index) else Action.None
+        val target = remapFocusedRow(key, currentRow, keys, hasContent)
+        if (target == null) {
+            unresolved = true
+            return Action.None
+        }
+        focusedKey = keys[target]
+        unresolved = false
+        return Action.Recover(target)
     }
 }
 

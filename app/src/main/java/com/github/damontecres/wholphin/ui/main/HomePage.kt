@@ -35,6 +35,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -126,6 +127,8 @@ import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import com.github.damontecres.wholphin.util.LoadingState
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import org.jellyfin.sdk.model.DateTime
 import org.jellyfin.sdk.model.api.BaseItemKind
 import timber.log.Timber
@@ -446,20 +449,31 @@ fun HomePageContent(
         }
     }
     if (keyed) {
-        // The focused row's key; when rows are added or removed around it, the position follows it, or moves to the
-        // nearest row (with focus) when it's gone
-        var focusedKey by remember { mutableStateOf<String?>(null) }
+        // The focused row, by key ([KidRowFocus]): it follows its row when rows are added or removed around it, or
+        // moves (with focus) to the nearest row with content when it's gone, also once that content arrives later
+        val rowFocus = remember { KidRowFocus() }
         val currentRowKeys by rememberUpdatedState(rowKeys!!)
-        LaunchedEffect(position.row) { focusedKey = currentRowKeys.getOrNull(position.row) }
-        LaunchedEffect(rowKeys) {
-            val key = focusedKey ?: return@LaunchedEffect
-            val row = remapFocusedRow(key, currentPosition.row, rowKeys!!) { hasContent(homeRows[it]) } ?: return@LaunchedEffect
-            if (rowKeys[row] == key) {
-                if (row != currentPosition.row) currentOnFocusPosition(currentPosition.copy(row = row))
-            } else {
-                currentOnFocusPosition(RowColumn(row, 0))
-                focusedKey = rowKeys[row]
-                rowFocusRequesters.getOrNull(row)?.tryRequestFocus()
+        val currentRequesters by rememberUpdatedState(rowFocusRequesters)
+        val rowsWithContent = homeRows.map(hasContent)
+        LaunchedEffect(position.row) { rowFocus.onFocusedRow(position.row, currentRowKeys) }
+        LaunchedEffect(rowKeys, rowsWithContent) {
+            when (val action = rowFocus.onRows(rowKeys!!, currentPosition.row) { rowsWithContent.getOrElse(it) { false } }) {
+                KidRowFocus.Action.None -> {
+                    Unit
+                }
+
+                is KidRowFocus.Action.Follow -> {
+                    currentOnFocusPosition(currentPosition.copy(row = action.row))
+                }
+
+                is KidRowFocus.Action.Recover -> {
+                    currentOnFocusPosition(RowColumn(action.row, 0))
+                    // Into composition first, so its focus requester is attached
+                    val visible = { listState.layoutInfo.visibleItemsInfo.any { it.index == action.row } }
+                    if (!visible()) listState.scrollToItem(action.row)
+                    withTimeoutOrNull(1_000) { snapshotFlow { visible() }.first { it } }
+                    currentRequesters.getOrNull(action.row)?.tryRequestFocus()
+                }
             }
         }
     }

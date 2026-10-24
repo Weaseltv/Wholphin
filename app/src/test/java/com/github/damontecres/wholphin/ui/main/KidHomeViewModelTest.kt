@@ -14,6 +14,7 @@ import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.PolicyState
 import com.github.damontecres.wholphin.data.model.SUPPORTED_HOME_PAGE_SETTINGS_VERSION
 import com.github.damontecres.wholphin.preferences.AppPreferences
+import com.github.damontecres.wholphin.preferences.HomePagePreferences
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.HomePageResolvedSettings
 import com.github.damontecres.wholphin.services.HomeSettingsOwner
@@ -44,6 +45,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
@@ -99,6 +101,7 @@ class KidHomeViewModelTest {
     private val gates = mutableMapOf<Any, CompletableDeferred<Unit>>()
     private val cancelled = mutableListOf<HomeRowConfig>()
     private val fetched = mutableListOf<HomeRowConfig>()
+    private val limits = mutableListOf<Int>()
     private var librariesGate: CompletableDeferred<Unit>? = null
     private var now = 0L
 
@@ -129,6 +132,7 @@ class KidHomeViewModelTest {
         coEvery { homeSettings.fetchDataForRow(any(), any(), any(), any(), any(), any(), any(), any()) } coAnswers {
             val row = firstArg<HomeRowConfig>()
             fetched.add(row)
+            limits.add(arg(5))
             try {
                 gates[gateKey(row)]?.await()
             } catch (ex: kotlinx.coroutines.CancellationException) {
@@ -211,9 +215,17 @@ class KidHomeViewModelTest {
         )
     }
 
-    private fun viewModel(): HomeViewModel {
-        val preferences = UserPreferences(AppPreferences.getDefaultInstance(), null)
-        return HomeViewModel(
+    private fun homePreferences(maxItemsPerRow: Int = 0) =
+        UserPreferences(
+            AppPreferences
+                .newBuilder()
+                .setHomePagePreferences(HomePagePreferences.newBuilder().setMaxItemsPerRow(maxItemsPerRow))
+                .build(),
+            null,
+        )
+
+    private fun viewModel(preferences: () -> UserPreferences = { homePreferences() }): HomeViewModel =
+        HomeViewModel(
             context = mockk(relaxed = true),
             navigationManager = mockk(relaxed = true),
             serverRepository = repository,
@@ -229,13 +241,12 @@ class KidHomeViewModelTest {
             favoriteWatchManager = mockk(relaxed = true),
             datePlayedService = mockk(relaxed = true),
             backdropService = mockk(relaxed = true),
-            userPreferencesService = mockk { coEvery { getCurrent() } returns preferences },
+            userPreferencesService = mockk { coEvery { getCurrent() } answers { preferences() } },
             mediaManagementService = mockk(relaxed = true),
             latestNextUpService = mockk(relaxed = true),
             streamingOrderService = mockk(relaxed = true),
             quickListService = mockk(relaxed = true),
         )
-    }
 
     private suspend fun saveAdultLayout(user: JellyfinUser) =
         homeSettings.saveToLocal(user.id, HomePageSettings(listOf(HomeRowConfig.NextUp()), SUPPORTED_HOME_PAGE_SETTINGS_VERSION))
@@ -470,6 +481,78 @@ class KidHomeViewModelTest {
             assertEquals(LoadingState.Success, state.loadingState)
             assertEquals(second.id, state.settings.owner?.userId)
             assertEquals(true, state.settings.owner?.kid)
+            viewModel.close()
+        }
+
+    @Test
+    fun `Focus taken from a removed collection lands on its replacement once that row has loaded`() {
+        val before = listOf("row:0", "row:1", "collection:a")
+        val after = listOf("row:0", "row:1", "collection:b")
+        val focus = KidRowFocus()
+        focus.onFocusedRow(2, before)
+        assertEquals("collection:a", focus.focusedKey)
+
+        // A is gone; the rows left are empty and B is still pending: nothing can take focus yet
+        assertEquals(KidRowFocus.Action.None, focus.onRows(after, 2) { false })
+        assertTrue(focus.unresolved)
+        // B's content arrives (same keys): focus goes to it
+        assertEquals(KidRowFocus.Action.Recover(2), focus.onRows(after, 2) { it == 2 })
+        assertFalse(focus.unresolved)
+        assertEquals("collection:b", focus.focusedKey)
+        assertEquals(KidRowFocus.Action.None, focus.onRows(after, 2) { true })
+
+        // A row added above follows; the focused row moves with it
+        val added = listOf("row:0", "row:1", "collection:c", "collection:b")
+        assertEquals(KidRowFocus.Action.Follow(3), focus.onRows(added, 2) { true })
+    }
+
+    @Test
+    fun `Home reads its preferences once the session's settings are there, not before`() =
+        runTest(dispatcher) {
+            val kid = user("Kai", PolicyState.KID)
+            val viewModel =
+                viewModel {
+                    if (session.value ==
+                        null
+                    ) {
+                        homePreferences(maxItemsPerRow = 7)
+                    } else {
+                        homePreferences(maxItemsPerRow = 11)
+                    }
+                }
+            viewModel.init()
+            runCurrent()
+            listener()
+            signIn(kid)
+            advanceUntilIdle()
+            assertEquals(LoadingState.Success, viewModel.state.value.loadingState)
+            assertTrue(limits.isNotEmpty())
+            assertTrue(limits.all { it == 11 })
+            viewModel.close()
+        }
+
+    @Test
+    fun `A load that never gets settings gives up after a while and tries again when they arrive`() =
+        runTest(dispatcher) {
+            val kid = user("Kai", PolicyState.KID)
+            val viewModel = viewModel()
+            viewModel.init()
+            runCurrent()
+            advanceTimeBy(29_000)
+            assertFalse(viewModel.state.value.loadingState is LoadingState.Error)
+            advanceTimeBy(2_000)
+            runCurrent()
+            assertTrue(viewModel.state.value.loadingState is LoadingState.Error)
+
+            listener()
+            signIn(kid)
+            advanceUntilIdle()
+            assertEquals(LoadingState.Success, viewModel.state.value.loadingState)
+            assertEquals(
+                kid.id,
+                viewModel.state.value.settings.owner
+                    ?.userId,
+            )
             viewModel.close()
         }
 }
