@@ -21,6 +21,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
 import java.util.UUID
+import java.util.concurrent.CountDownLatch
 
 /** The kids Home saved on the TV (owner, 2026-10-23: kids Home speed): one profile incarnation, server and ceiling each */
 class KidHomeCacheTest {
@@ -163,5 +164,34 @@ class KidHomeCacheTest {
         assertEquals("continue", KidHomeCache.rowKey(HomeRowConfig.ContinueWatchingCombined()))
         assertEquals("watchAgain", KidHomeCache.rowKey(KidHomeCollections.watchAgainRow("Watch again")))
         assertEquals("collection:$id", KidHomeCache.rowKey(KidHomeCollections.collectionRow(id)))
+    }
+
+    @Test
+    fun `A removal during a save waits for it, and the profile's file is gone after`() {
+        val entered = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val writer =
+            Thread {
+                cache.write(saved()) {
+                    entered.countDown()
+                    release.await()
+                    true
+                }
+            }.apply { start() }
+        entered.await()
+        val purge = Thread { KidHomeCache.purgeUser(context, kid.serverId, kid.id) }.apply { start() }
+        // The purge waits for the save in progress
+        while (purge.state != Thread.State.BLOCKED && purge.isAlive) Thread.sleep(5)
+        assertTrue(purge.isAlive)
+        release.countDown()
+        writer.join()
+        purge.join()
+        assertTrue(files().isEmpty())
+    }
+
+    @Test
+    fun `A save that finds its profile removed when it gets the lock writes nothing`() {
+        cache.write(saved()) { false }
+        assertTrue(files().isEmpty())
     }
 }

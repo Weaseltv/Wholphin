@@ -127,6 +127,16 @@ class KidResponseFilter(
         return Result(rebuilt, changed = true, removedFromList = removedFromList)
     }
 
+    /**
+     * Many items by their facts at once (PR #98 review round 2): one lookup for every series they need (fresh ones
+     * when this filter is fresh), shared between them, instead of one per item
+     */
+    suspend fun decideAll(facts: List<ItemFacts>): List<Decision> {
+        val objects = facts.map { JsonObject(emptyMap()) }
+        val decisions = decideAll(objects, objects.zip(facts).toMap(IdentityHashMap()))
+        return objects.map { decisions.getValue(it) }
+    }
+
     /** One item by its facts (eg a path item) */
     suspend fun decide(facts: ItemFacts): Decision {
         val obj = JsonObject(emptyMap())

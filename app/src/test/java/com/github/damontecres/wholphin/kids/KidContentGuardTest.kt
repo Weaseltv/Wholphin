@@ -510,6 +510,26 @@ class KidContentGuardTest {
     }
 
     @Test
+    fun `a fresh check of a row of episodes looks up their series once, together`() =
+        runTest {
+            val ratings = items.toMutableMap()
+            val seriesId = UUID.randomUUID()
+            ratings[key(seriesId)] = """{"Id":"${key(seriesId)}","Name":"Bluey","ServerId":"s","Type":"Series","OfficialRating":"TV-Y",""" +
+                """"Genres":["Animation"],"LockedFields":[]}"""
+            val episodes = (0 until 40).map { UUID.randomUUID() }
+            episodes.forEach { id ->
+                ratings[key(id)] = """{"Id":"${key(id)}","Name":"Episode","ServerId":"s","Type":"Episode","OfficialRating":"TV-Y",""" +
+                    """"SeriesId":"${key(seriesId)}","Genres":[],"LockedFields":[]}"""
+            }
+            val rows = FakeServer(ratings, kid.accessToken)
+            val client = CoroutineContextApiClient(rows, Dispatchers.Unconfined, guard)
+            assertEquals(episodes.toSet(), guard.visibleIds(client, episodes, fresh = true))
+            // One batch for the 40 episodes, one for their one series: not one series request per episode
+            assertEquals(2, rows.requests.count { it.first == "/Items" && it.second["ids"] != null })
+            assertEquals(0, rows.requests.count { it.first == "/Items/{itemId}" })
+        }
+
+    @Test
     fun `the saved kids Home is checked with fresh facts, so a re-rated title never paints from it`() =
         runTest {
             val ratings = items.toMutableMap()

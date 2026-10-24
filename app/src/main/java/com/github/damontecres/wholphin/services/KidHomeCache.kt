@@ -100,8 +100,16 @@ class KidHomeCache
             }
         }
 
-        /** Saves [saved] within the bounds, then trims old and surplus files */
-        fun write(saved: Saved) {
+        /**
+         * Saves [saved] within the bounds, then trims old and surplus files. Serialised with [purgeUser] and
+         * [purgeServer] (review round 2): [stillValid] is asked inside that lock right before the file is written, so
+         * a profile removed meanwhile (whose session ended first) is never written back.
+         */
+        fun write(
+            saved: Saved,
+            stillValid: () -> Boolean = { true },
+        ) = synchronized(fileLock) {
+            if (!stillValid()) return@synchronized
             try {
                 val bounded =
                     saved.copy(
@@ -133,7 +141,7 @@ class KidHomeCache
             serverId: UUID,
             userId: UUID,
         ) {
-            file(context, serverId, userId).delete()
+            synchronized(fileLock) { file(context, serverId, userId).delete() }
         }
 
         /** [items] the current kid session may see now, decided with fresh facts; empty if that can't be decided (fail closed) */
@@ -152,6 +160,9 @@ class KidHomeCache
 
         companion object {
             private val json = Json { ignoreUnknownKeys = true }
+
+            /** Writes, deletes and purges of saved Homes, one at a time: a purge waits for a write in progress */
+            private val fileLock = Any()
 
             const val MAX_ITEMS_PER_ROW = 40
             const val MAX_ROWS = 20
@@ -174,7 +185,7 @@ class KidHomeCache
                 userId: UUID,
             ) {
                 // Never in the way of the removal itself
-                runCatching { file(context, serverId, userId).delete() }
+                runCatching { synchronized(fileLock) { file(context, serverId, userId).delete() } }
                     .onFailure { Timber.w(it, "Couldn't remove the saved kids Home") }
             }
 
@@ -183,8 +194,14 @@ class KidHomeCache
                 context: Context,
                 serverId: UUID,
             ) {
-                runCatching { dir(context).listFiles { file -> file.name.startsWith("${serverId}_") }?.forEach { it.delete() } }
-                    .onFailure { Timber.w(it, "Couldn't remove the saved kids Homes") }
+                runCatching {
+                    synchronized(fileLock) {
+                        dir(context)
+                            .listFiles { file ->
+                                file.name.startsWith("${serverId}_")
+                            }?.forEach { it.delete() }
+                    }
+                }.onFailure { Timber.w(it, "Couldn't remove the saved kids Homes") }
             }
 
             /** Removes saved Homes past [MAX_AGE] (eg of profiles no longer here), then the oldest beyond [MAX_FILES] */

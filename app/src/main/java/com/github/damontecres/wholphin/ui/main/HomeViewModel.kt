@@ -434,7 +434,8 @@ class HomeViewModel
                             val rows = content?.takeIf { it.owner == owner } ?: KidHomeContent(owner)
                             val homeRows = current.rows.map { rows.rows[it.config] ?: HomeRowLoadingState.Pending(it.title) }
                             val hasContent = rows.hasContent(current)
-                            val ready = hasContent || rows.loaded
+                            // Something to show, or nothing more coming, or the watchdog / a failure says why not
+                            val ready = hasContent || rows.loaded || rows.failed != null
                             var firstShown = false
                             update(generation, current) {
                                 val shown = ready || it.loadingState == LoadingState.Success

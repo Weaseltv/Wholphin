@@ -281,12 +281,14 @@ class KidContentGuard
                     return emptySet()
                 }
             val filter = KidResponseFilter(policy.maxLevel, loader, fresh)
-            val visible = HashSet<UUID>()
-            for ((id, uuid) in byId) {
-                val item = facts[id] ?: continue
-                if (filter.decide(item) == Decision.Show) visible.add(uuid)
-            }
-            return visible
+            // Decided together: the series they need are looked up once, in one batch (review round 2)
+            val found = byId.entries.mapNotNull { (id, uuid) -> facts[id]?.let { uuid to it } }
+            val decisions = filter.decideAll(found.map { it.second })
+            return found
+                .zip(decisions)
+                .filter { (_, decision) -> decision == Decision.Show }
+                .map { it.first.first }
+                .toSet()
         }
 
         private suspend fun isVisible(

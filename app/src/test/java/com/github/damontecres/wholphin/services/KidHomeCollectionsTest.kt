@@ -15,6 +15,7 @@ import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
 import com.github.damontecres.wholphin.util.GetItemsRequestHandler
+import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -493,7 +494,7 @@ class KidHomeCollectionsTest {
                     rows = emptyMap(),
                 )
             every { cache.delete(any(), any()) } just Runs
-            every { cache.write(any()) } just Runs
+            every { cache.write(any(), any()) } just Runs
             val service = service(this)
             service.loadCurrentSettings(kid.id, kid)
             verify { cache.delete(server.id, kid.id) }
@@ -593,5 +594,31 @@ class KidHomeCollectionsTest {
                     )
                 }
             assertTrue(failure.exceptionOrNull() is IllegalStateException)
+        }
+
+    @Test
+    fun `Returning Home soon after retries a collection row that failed, without asking for the list again`() =
+        runTest {
+            val kid = user(PolicyState.KID)
+            signIn(kid)
+            val cartoons = collection("Cartoon Adventures")
+            serverCollections(cartoons)
+            val movie = BaseItemDto(id = UUID.randomUUID(), type = BaseItemKind.MOVIE, name = "Moana")
+            var calls = 0
+            coEvery { GetItemsRequestHandler.execute(api, match { it.parentId == cartoons.id }) } coAnswers {
+                if (calls++ == 0) throw IllegalStateException("busy")
+                mockQueryResult(listOf(movie))
+            }
+            val service = service(this)
+            service.loadCurrentSettings(kid.id, kid)
+            val row = KidHomeCollections.collectionRow(cartoons.id)
+            assertTrue(service.kidHome.value!!.rows[row] is HomeRowLoadingState.Error)
+
+            now += 60_000
+            service.refreshKidHome()
+            advanceUntilIdle()
+            val retried = service.kidHome.value!!.rows[row] as HomeRowLoadingState.Success
+            assertEquals(listOf(movie.id), retried.items.map { it?.id })
+            coVerify(exactly = 1) { GetItemsRequestHandler.execute(api, match { isKidsCollections(it) }) }
         }
 }
