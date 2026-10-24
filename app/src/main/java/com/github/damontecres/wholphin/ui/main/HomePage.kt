@@ -442,9 +442,11 @@ fun HomePageContent(
                     rowFocusRequesters.getOrNull(index)?.tryRequestFocus()
                     firstFocused = true
                 } else {
-                    // Waiting for the first home row to load, then focus on it
+                    // Waiting for the first home row to load, then focus on it. A kids Home's rows load in parallel:
+                    // only once every row above it is done, so it opens on the top row, not on the first to arrive
                     homeRows
                         .indexOfFirstOrNull(hasContent)
+                        ?.takeIf { first -> !keyed || homeRows.take(first).all { it.completed } }
                         ?.let {
                             rowFocusRequesters[it].tryRequestFocus()
                             firstFocused = true

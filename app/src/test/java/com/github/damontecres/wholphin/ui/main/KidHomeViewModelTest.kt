@@ -849,4 +849,84 @@ class KidHomeViewModelTest {
             assertEquals(listOf(savedEpisode.id), row.items.map { it?.id })
             viewModel.close()
         }
+
+    private fun HomeState.firstContentRow() = homeRows.indexOfFirst { it is HomeRowLoadingState.Success && it.items.isNotEmpty() }
+
+    @Test
+    fun `A kids Home opens at its top row cold, whatever order the rows arrive in`() =
+        runTest(dispatcher) {
+            val kid = user("Kai", PolicyState.KID)
+            val top = collection("Cartoon Adventures")
+            val last = collection("DreamWorks")
+            serverCollections(top, last)
+            withContent.addAll(listOf(HomeRowConfig.ContinueWatchingCombined::class, top.id, last.id))
+            // In reverse: the last collection first, the top row last
+            gates[HomeRowConfig.ContinueWatchingCombined::class] = CompletableDeferred()
+            gates[top.id] = CompletableDeferred()
+            listener()
+            signIn(kid)
+            val viewModel = viewModel()
+            viewModel.init()
+            runCurrent()
+            // Only a lower row has content: still the loading picture, so Home doesn't open (and focus) down there
+            assertEquals(LoadingState.Loading, viewModel.state.value.loadingState)
+            gates.getValue(top.id).complete(Unit)
+            runCurrent()
+            assertEquals(LoadingState.Loading, viewModel.state.value.loadingState)
+            gates.getValue(HomeRowConfig.ContinueWatchingCombined::class).complete(Unit)
+            runCurrent()
+            val opened = viewModel.state.value
+            assertEquals(LoadingState.Success, opened.loadingState)
+            assertEquals(0, opened.firstContentRow())
+            viewModel.close()
+        }
+
+    @Test
+    fun `A kids Home opens at its top row warm, from the saved Home, before the refresh lands`() =
+        runTest(dispatcher) {
+            val kid = user("Kai", PolicyState.KID)
+            val top = collection("Cartoon Adventures")
+            val last = collection("DreamWorks")
+            val saved = BaseItemDto(id = UUID.randomUUID(), type = BaseItemKind.EPISODE, name = "Saved")
+            coEvery { cache.rules() } returns "kid-rules-v1:5"
+            every { cache.read(kid, "kid-rules-v1:5") } returns
+                KidHomeCache.Saved(
+                    serverId = server.id.toString(),
+                    userId = kid.id.toString(),
+                    profileRowId = kid.rowId,
+                    rules = "kid-rules-v1:5",
+                    savedAt = 0,
+                    collections =
+                        listOf(
+                            KidHomeCache.SavedCollection(top.id.toString(), "Cartoon Adventures"),
+                            KidHomeCache.SavedCollection(last.id.toString(), "DreamWorks"),
+                        ),
+                    rows =
+                        mapOf(
+                            "continue" to KidHomeCache.SavedRow(listOf(KidHomeCache.SavedItem(saved))),
+                            // Watch Again was empty last time
+                            "watchAgain" to KidHomeCache.SavedRow(emptyList()),
+                        ),
+                )
+            coEvery { cache.visibleNow(any()) } answers { firstArg() }
+            serverCollections(top, last)
+            withContent.addAll(listOf(HomeRowConfig.ContinueWatchingCombined::class, top.id, last.id))
+            // The refresh is slow, and arrives bottom first
+            gates[HomeRowConfig.ContinueWatchingCombined::class] = CompletableDeferred()
+            gates[top.id] = CompletableDeferred()
+            listener()
+            signIn(kid)
+            val viewModel = viewModel()
+            viewModel.init()
+            runCurrent()
+            val warm = viewModel.state.value
+            assertEquals(LoadingState.Success, warm.loadingState)
+            assertEquals(0, warm.firstContentRow())
+            assertEquals(saved.id, (warm.homeRows[0] as HomeRowLoadingState.Success).items.single()?.id)
+
+            gates.values.forEach { it.complete(Unit) }
+            advanceUntilIdle()
+            assertEquals(0, viewModel.state.value.firstContentRow())
+            viewModel.close()
+        }
 }

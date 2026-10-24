@@ -435,7 +435,9 @@ class HomeViewModel
                             val homeRows = current.rows.map { rows.rows[it.config] ?: HomeRowLoadingState.Pending(it.title) }
                             val hasContent = rows.hasContent(current)
                             // Something to show, or nothing more coming, or the watchdog / a failure says why not
-                            val ready = hasContent || rows.loaded || rows.failed != null
+                            // The top row with content known (not just any row: they arrive in any order), or nothing more
+                            // coming, or the watchdog / a failure says why not
+                            val ready = rows.topRowSettled(current) || rows.loaded || rows.failed != null
                             var firstShown = false
                             update(generation, current) {
                                 val shown = ready || it.loadingState == LoadingState.Success
