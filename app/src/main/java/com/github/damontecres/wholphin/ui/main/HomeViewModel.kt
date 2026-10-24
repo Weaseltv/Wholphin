@@ -15,6 +15,8 @@ import com.github.damontecres.wholphin.services.FavoriteWatchManager
 import com.github.damontecres.wholphin.services.HomePageResolvedSettings
 import com.github.damontecres.wholphin.services.HomeRowConfigDisplay
 import com.github.damontecres.wholphin.services.HomeSettingsService
+import com.github.damontecres.wholphin.services.HomeTiming
+import com.github.damontecres.wholphin.services.KidHomeContent
 import com.github.damontecres.wholphin.services.LatestNextUpService
 import com.github.damontecres.wholphin.services.MediaManagementService
 import com.github.damontecres.wholphin.services.NavDrawerService
@@ -46,6 +48,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.update
@@ -108,16 +111,8 @@ class HomeViewModel
 
         fun init() {
             watchSettings()
-            viewModelScope.launchIO {
-                // Entering Home: the kids Home looks for new or removed collections (throttled)
-                try {
-                    homeSettingsService.refreshKidCollections()
-                } catch (ex: CancellationException) {
-                    throw ex
-                } catch (ex: Exception) {
-                    Timber.w(ex, "Kids collections refresh failed")
-                }
-            }
+            // Entering Home: the kids Home refreshes its rows in place (the collection list throttled)
+            homeSettingsService.refreshKidHome()
             requestLoad()
         }
 
@@ -189,6 +184,10 @@ class HomeViewModel
                 // Home's preferences are the device's (AppPreferences, not per profile), read once it's settled.
                 val (settings, userDto) =
                     withTimeoutOrNull(SESSION_WAIT) { currentSession() } ?: throw HomeSessionTimeout()
+                if (settings.owner?.kid == true) {
+                    followKidHome(generation, settings, userDto)
+                    return
+                }
                 val preferences = userPreferencesService.getCurrent()
                 val prefs = preferences.appPreferences.homePagePreferences
                 val libraries = navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
@@ -277,8 +276,6 @@ class HomeViewModel
                 }
                 Timber.d("Home page load complete")
                 prefetchStreamingCollections(userDto.id)
-                // Review round 2: collection rows published while this load ran
-                applyKidSettings(generation)
             } catch (ex: CancellationException) {
                 throw ex
             } catch (ex: Exception) {
@@ -362,7 +359,8 @@ class HomeViewModel
                 viewModelScope.launchIO {
                     homeSettingsService.settingsUpdates.collect { settings ->
                         val shown = state.value.settings
-                        val inUse = listOfNotNull(loadingSettings, shown.takeIf { it != HomePageResolvedSettings.EMPTY })
+                        val inUse =
+                            listOfNotNull(loadingSettings, kidFollowing, shown.takeIf { it != HomePageResolvedSettings.EMPTY })
                         if (inUse.any { !homeSettingsService.isCurrent(it) }) {
                             Timber.i("Kid content rules: Home settings are for an earlier session, reloading")
                             invalidate()
@@ -372,8 +370,6 @@ class HomeViewModel
                         ) {
                             // Review round 3: a load that gave up waiting (or failed) tries again once settings arrive
                             requestLoad()
-                        } else if (settings.owner?.kid == true && settings != shown && homeSettingsService.isCurrent(settings)) {
-                            viewModelScope.launchIO { exclusive { applyKidSettings(it) } }
                         }
                     }
                 }
@@ -384,41 +380,92 @@ class HomeViewModel
             _state.update { HomeState.EMPTY.copy(loadingState = LoadingState.Loading, generation = it.generation + 1) }
             loadingSettings = null
             running?.cancel()
+            kidFollowing = null
+            kidJob?.cancel()
         }
 
+        /** The kids Home being shown ([followKidHome]), and its job */
+        @Volatile
+        private var kidFollowing: HomePageResolvedSettings? = null
+        private var kidJob: Job? = null
+        private var kidGeneration: Long? = null
+
         /**
-         * Show the kids Home's latest settings, keeping every row already loaded (by its config) and fetching only
-         * the new ones. Nothing unless Home has loaded under [generation] and both are the session's.
+         * A kids Home (owner, 2026-10-23: kids Home speed): its rows come from [HomeSettingsService.kidHome] as they
+         * arrive (saved ones first, then fetched ones in place), already loading while the loading picture shows.
+         * The loading picture stays until a row has something to show, or everything has loaded, so the page is
+         * never just the side menu. Only under [generation] and while [settings]'s owner is the session.
          */
-        private suspend fun applyKidSettings(generation: Long) {
-            val settings = homeSettingsService.currentSettings.value
-            val current = state.value
-            if (current.generation != generation || current.loadingState != LoadingState.Success || current.settings == settings) return
-            val owner = settings.owner
-            if (owner == null || !owner.kid || !homeSettingsService.isCurrent(settings)) return
-            if (!homeSettingsService.isCurrent(current.settings)) return
-            val userDto = serverRepository.currentUserDto?.takeIf { it.id == owner.userId } ?: return
-            val prefs = userPreferencesService.getCurrent().appPreferences.homePagePreferences
-            val rows = reconcileRows(current.settings, current.homeRows, settings)
-            if (!update(generation, settings) { it.copy(settings = settings, homeRows = rows) }) return
-            val semaphore = Semaphore(4)
-            coroutineScope {
-                settings.rows
-                    .withIndex()
-                    .filter { (index, _) -> rows[index] is HomeRowLoadingState.Pending }
-                    .map { (index, row) ->
-                        async(WholphinDispatchers.IO) {
-                            val data = semaphore.withPermit { fetchRow(row, prefs, userDto, current.libraries, refresh = false) }
-                            update(generation, settings) {
-                                if (it.settings != settings) {
-                                    it
-                                } else {
-                                    it.copy(homeRows = it.homeRows.toMutableList().apply { set(index, data) })
-                                }
-                            }
-                        }
-                    }.awaitAll()
+        private fun followKidHome(
+            generation: Long,
+            settings: HomePageResolvedSettings,
+            userDto: UserDto,
+        ) {
+            val owner = settings.owner ?: return
+            if (kidJob?.isActive == true && kidFollowing?.owner == owner && kidGeneration == generation) return
+            kidJob?.cancel()
+            kidFollowing = settings
+            kidGeneration = generation
+            // Review round 1 (PR #98): every kids Home write checks the generation and the session inside the update
+            update(generation, settings) {
+                if (it.settings.owner == owner) {
+                    it
+                } else {
+                    it.copy(settings = settings, homeRows = settings.rows.map { row -> HomeRowLoadingState.Pending(row.title) })
+                }
             }
+            kidJob =
+                viewModelScope.launchIO {
+                    launch {
+                        val libraries =
+                            try {
+                                navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
+                            } catch (ex: CancellationException) {
+                                throw ex
+                            } catch (ex: Exception) {
+                                Timber.w(ex, "Kids Home: libraries")
+                                emptyList()
+                            }
+                        update(generation, settings) { it.copy(libraries = libraries) }
+                    }
+                    combine(homeSettingsService.currentSettings, homeSettingsService.kidHome) { current, content -> current to content }
+                        .collect { (current, content) ->
+                            if (current.owner != owner || !homeSettingsService.isCurrent(current)) return@collect
+                            val rows = content?.takeIf { it.owner == owner } ?: KidHomeContent(owner)
+                            val homeRows = current.rows.map { rows.rows[it.config] ?: HomeRowLoadingState.Pending(it.title) }
+                            val hasContent = rows.hasContent(current)
+                            // Something to show, or nothing more coming, or the watchdog / a failure says why not
+                            val ready = hasContent || rows.loaded || rows.failed != null
+                            var firstShown = false
+                            update(generation, current) {
+                                val shown = ready || it.loadingState == LoadingState.Success
+                                firstShown = shown && it.loadingState != LoadingState.Success
+                                val failed = rows.failed
+                                it.copy(
+                                    settings = current,
+                                    homeRows = homeRows,
+                                    loadingState =
+                                        when {
+                                            // A load that ended early with nothing to show says why
+                                            failed != null && !hasContent && it.loadingState != LoadingState.Success -> {
+                                                LoadingState.Error(failed)
+                                            }
+
+                                            shown -> {
+                                                LoadingState.Success
+                                            }
+
+                                            else -> {
+                                                LoadingState.Loading
+                                            }
+                                        },
+                                    refreshState = if (rows.loaded) LoadingState.Success else LoadingState.Loading,
+                                )
+                            }
+                            if (firstShown) HomeTiming.mark(owner.userId, "kids Home first content shown")
+                            if (rows.loaded) HomeTiming.mark(owner.userId, "kids Home all rows shown")
+                        }
+                }
         }
 
         fun setWatched(
@@ -576,22 +623,6 @@ private val SESSION_WAIT = 30.seconds
 
 /** No settings for the session arrived in [SESSION_WAIT]; Home shows an error and tries again when they do */
 internal class HomeSessionTimeout : IllegalStateException("Home is still waiting for this profile. Please try again.")
-
-/**
- * The rows for [new] settings: each row [old] already had (by its config) keeps its state, the others are pending
- */
-internal fun reconcileRows(
-    old: HomePageResolvedSettings,
-    oldRows: List<HomeRowLoadingState>,
-    new: HomePageResolvedSettings,
-): List<HomeRowLoadingState> {
-    val loaded =
-        old.rows
-            .map { it.config }
-            .zip(oldRows)
-            .toMap()
-    return new.rows.map { loaded[it.config] ?: HomeRowLoadingState.Pending(it.title) }
-}
 
 /**
  * Stable keys for a kids Home's rows (PR #97 review round 2), so a collection row keeps its focus and scroll state

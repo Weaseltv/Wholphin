@@ -6,9 +6,11 @@ import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.kids.KidContentRules.Decision
 import com.github.damontecres.wholphin.kids.KidContentRules.ItemFacts
+import com.github.damontecres.wholphin.services.KidHomeCollections
 import com.github.damontecres.wholphin.util.CoroutineContextApiClient
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
@@ -24,13 +26,17 @@ import org.jellyfin.sdk.api.client.HttpMethod
 import org.jellyfin.sdk.api.client.RawResponse
 import org.jellyfin.sdk.api.client.exception.ApiClientException
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
+import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemFields
+import org.jellyfin.sdk.model.api.ItemSortBy
 import timber.log.Timber
 import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -62,6 +68,14 @@ class KidContentGuard
 
         @Volatile
         private var cache: UserCache? = null
+
+        /**
+         * In the caller's context: this is the kids Home's own collection lookup ([KidHomeCollections.fetch]), whose box
+         * sets skip the visible-child probe ([isKidsHomeCollections]). Nothing else passes it.
+         */
+        class KidsHomeCollections : AbstractCoroutineContextElement(KidsHomeCollections) {
+            companion object Key : CoroutineContext.Key<KidsHomeCollections>
+        }
 
         /** Who a request is for: [maxLevel] is the profile's maximum level, null when its ceiling is unknown */
         data class Policy(
@@ -122,7 +136,10 @@ class KidContentGuard
                 }
             }
             val response = client.request(method, pathTemplate, pathParameters, withRuleFields(queryParameters), requestBody)
-            return stamped(filterResponse(policy, loader, pathTemplate, response), pinned.accessToken, policy, epoch)
+            // Only the kids Home's own collection lookup ([KidsHomeCollections]), and only in exactly its shape
+            val boxSetsAsRowSources =
+                currentCoroutineContext()[KidsHomeCollections] != null && isKidsHomeCollections(pathTemplate, queryParameters)
+            return stamped(filterResponse(policy, loader, pathTemplate, response, boxSetsAsRowSources), pinned.accessToken, policy, epoch)
         }
 
         /** The session epoch right now ([ServerRepository.sessionEpoch]); read it before anything it should cover */
@@ -264,12 +281,14 @@ class KidContentGuard
                     return emptySet()
                 }
             val filter = KidResponseFilter(policy.maxLevel, loader, fresh)
-            val visible = HashSet<UUID>()
-            for ((id, uuid) in byId) {
-                val item = facts[id] ?: continue
-                if (filter.decide(item) == Decision.Show) visible.add(uuid)
-            }
-            return visible
+            // Decided together: the series they need are looked up once, in one batch (review round 2)
+            val found = byId.entries.mapNotNull { (id, uuid) -> facts[id]?.let { uuid to it } }
+            val decisions = filter.decideAll(found.map { it.second })
+            return found
+                .zip(decisions)
+                .filter { (_, decision) -> decision == Decision.Show }
+                .map { it.first.first }
+                .toSet()
         }
 
         private suspend fun isVisible(
@@ -287,6 +306,7 @@ class KidContentGuard
             loader: Loader,
             pathTemplate: String,
             response: RawResponse,
+            boxSetsAsRowSources: Boolean = false,
         ): RawResponse {
             val body = response.body
             if (!looksLikeJson(response, body)) return response
@@ -297,7 +317,7 @@ class KidContentGuard
                     // Never the unfiltered body
                     throw ApiClientException("Kid content rules couldn't read a server response", ex)
                 }
-            val result = KidResponseFilter(policy.maxLevel, loader).filter(root)
+            val result = KidResponseFilter(policy.maxLevel, loader, boxSetsAsRowSources = boxSetsAsRowSources).filter(root)
             val filtered = result.root ?: throw InvalidStatusException(404)
             loader.remember(filtered)
             val scrubbed = if (pathTemplate in FILTER_PATHS) scrubHorrorGenres(filtered) else null
@@ -664,6 +684,51 @@ class KidContentGuard
             }
 
             internal fun isPlaybackPath(pathTemplate: String): Boolean = PLAYBACK_PATHS.any { pathTemplate.startsWith(it) }
+
+            /**
+             * Kid content rules (owner, 2026-10-23, kids Home speed): exactly the kids Home's collection list request,
+             * BoxSets tagged [KidHomeCollections.TAG] and nothing else, recursive, by sort name, with no other filter
+             * (no ids, parent, search, ...). With [KidsHomeCollections] in the caller's context its box sets are row
+             * sources, never shown as cards: the server hides empty ones and applies the kid's age limits, and each
+             * row's children still go through these rules. So they skip the one-visible-child probe ([KidResponseFilter]
+             * `boxSetsAsRowSources`). Every other box set request (Streaming Services, the Collections page, ...) keeps it.
+             */
+            internal fun isKidsHomeCollections(
+                pathTemplate: String,
+                queryParameters: Map<String, Any?>,
+            ): Boolean {
+                if (pathTemplate != "/Items" && pathTemplate != "/Users/{userId}/Items") return false
+                val others = queryParameters.filter { (key, value) -> value != null && key !in KIDS_HOME_COLLECTION_PARAMETERS }
+                if (others.isNotEmpty()) return false
+                return names(queryParameters["tags"]) == listOf(KidHomeCollections.TAG) &&
+                    names(queryParameters["includeItemTypes"]) == listOf(KidContentRules.BOX_SET) &&
+                    queryParameters["recursive"] == true &&
+                    names(queryParameters["sortBy"]) == listOf(ItemSortBy.SORT_NAME.serialName)
+            }
+
+            /** The parameters the kids Home's collection list may carry; any other one set means another request */
+            private val KIDS_HOME_COLLECTION_PARAMETERS =
+                setOf(
+                    "userId",
+                    "includeItemTypes",
+                    "recursive",
+                    "tags",
+                    "fields",
+                    "sortBy",
+                    "sortOrder",
+                    "enableUserData",
+                    "enableTotalRecordCount",
+                    "enableImages",
+                    "imageTypeLimit",
+                    "enableImageTypes",
+                )
+
+            private fun names(value: Any?): List<String> =
+                when (value) {
+                    null -> emptyList()
+                    is Collection<*> -> value.filterNotNull()
+                    else -> listOf(value)
+                }.map { (it as? BaseItemKind)?.serialName ?: (it as? ItemSortBy)?.serialName ?: it.toString() }
 
             /** [queryParameters] asking for the rules' fields, when the endpoint takes `fields`; otherwise unchanged */
             internal fun withRuleFields(queryParameters: Map<String, Any?>): Map<String, Any?> {

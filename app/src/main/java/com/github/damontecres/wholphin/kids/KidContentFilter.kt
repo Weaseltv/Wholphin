@@ -97,6 +97,11 @@ class KidResponseFilter(
     private val maxLevel: Int?,
     private val loader: KidFactsLoader,
     private val fresh: Boolean = false,
+    /**
+     * The kids Home's collection list ([KidContentGuard.isKidsHomeCollections]): its box sets are shown without the
+     * one-visible-child probe (with a known ceiling only; an unknown one still shows none)
+     */
+    private val boxSetsAsRowSources: Boolean = false,
 ) {
     /** The filtered response */
     data class Result(
@@ -120,6 +125,16 @@ class KidResponseFilter(
                 if (container === root || (root is JsonObject && container === root["Items"])) removedFromList += removed
             }
         return Result(rebuilt, changed = true, removedFromList = removedFromList)
+    }
+
+    /**
+     * Many items by their facts at once (PR #98 review round 2): one lookup for every series they need (fresh ones
+     * when this filter is fresh), shared between them, instead of one per item
+     */
+    suspend fun decideAll(facts: List<ItemFacts>): List<Decision> {
+        val objects = facts.map { JsonObject(emptyMap()) }
+        val decisions = decideAll(objects, objects.zip(facts).toMap(IdentityHashMap()))
+        return objects.map { decisions.getValue(it) }
     }
 
     /** One item by its facts (eg a path item) */
@@ -203,7 +218,7 @@ class KidResponseFilter(
 
                     item.type == KidContentRules.BOX_SET -> {
                         val id = item.id
-                        val visible = id != null && boxSets.getOrPut(id) { boxSetVisible(id) }
+                        val visible = id != null && (boxSetsAsRowSources || boxSets.getOrPut(id) { boxSetVisible(id) })
                         KidContentRules.decideBoxSet(visible)
                     }
 

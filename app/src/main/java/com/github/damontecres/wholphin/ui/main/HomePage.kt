@@ -281,45 +281,52 @@ fun HomePage(
                 }
 
             val rowKeys = remember(shownSettings) { kidHomeRowKeys(shownSettings) }
-            HomePageContent(
-                homeRows = homeRows,
-                libraries = libraries,
-                splitHomeTitles = true,
-                rowKeys = rowKeys,
-                position = position,
-                onFocusPosition = onFocusPosition,
-                onClickItem = onClickItem,
-                onLongClickItem = onLongClickItem,
-                onClickPlay = onClickPlay,
-                loadingState = refreshing,
-                showClock = preferences.appPreferences.interfacePreferences.showClock,
-                onUpdateBackdrop = viewModel::updateBackdrop,
-                showLogo = preferences.appPreferences.interfacePreferences.showLogos,
-                showViewMore = true,
-                onClickViewMore = onClickViewMore,
-                reorder =
-                    reorderState?.let { reordering ->
-                        HomeRowReorder(
-                            row = reordering.row,
-                            index = reordering.index,
-                            onMove = { delta ->
-                                val size =
-                                    (currentHomeRows.getOrNull(reordering.row) as? HomeRowLoadingState.Success)?.items?.size ?: 0
-                                val to = reordering.index + delta
-                                if (to in 0 until size) {
-                                    viewModel.moveRowItem(reordering.row, reordering.index, to)
-                                    reorderState = reordering.copy(index = to)
-                                    position = RowColumn(reordering.row, to)
-                                }
-                            },
-                            onDone = {
-                                viewModel.saveStreamingOrder(reordering.row)
-                                reorderState = null
-                            },
-                        )
-                    },
-                modifier = modifier,
-            )
+            // A kids Home that loaded with nothing to show says so, rather than leaving the page empty
+            if (rowKeys != null && refreshing == LoadingState.Success &&
+                homeRows.none { it is HomeRowLoadingState.Success && it.items.isNotEmpty() }
+            ) {
+                KidHomeEmpty(modifier)
+            } else {
+                HomePageContent(
+                    homeRows = homeRows,
+                    libraries = libraries,
+                    splitHomeTitles = true,
+                    rowKeys = rowKeys,
+                    position = position,
+                    onFocusPosition = onFocusPosition,
+                    onClickItem = onClickItem,
+                    onLongClickItem = onLongClickItem,
+                    onClickPlay = onClickPlay,
+                    loadingState = refreshing,
+                    showClock = preferences.appPreferences.interfacePreferences.showClock,
+                    onUpdateBackdrop = viewModel::updateBackdrop,
+                    showLogo = preferences.appPreferences.interfacePreferences.showLogos,
+                    showViewMore = true,
+                    onClickViewMore = onClickViewMore,
+                    reorder =
+                        reorderState?.let { reordering ->
+                            HomeRowReorder(
+                                row = reordering.row,
+                                index = reordering.index,
+                                onMove = { delta ->
+                                    val size =
+                                        (currentHomeRows.getOrNull(reordering.row) as? HomeRowLoadingState.Success)?.items?.size ?: 0
+                                    val to = reordering.index + delta
+                                    if (to in 0 until size) {
+                                        viewModel.moveRowItem(reordering.row, reordering.index, to)
+                                        reorderState = reordering.copy(index = to)
+                                        position = RowColumn(reordering.row, to)
+                                    }
+                                },
+                                onDone = {
+                                    viewModel.saveStreamingOrder(reordering.row)
+                                    reorderState = null
+                                },
+                            )
+                        },
+                    modifier = modifier,
+                )
+            }
             overviewDialog?.let { info ->
                 ItemDetailsDialog(
                     info = info,
@@ -1262,5 +1269,16 @@ data class HomeRowReorder(
                 false
             }
         }
+    }
+}
+
+/** A kids Home with no rows to show yet */
+@Composable
+private fun KidHomeEmpty(modifier: Modifier = Modifier) {
+    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(
+            text = stringResource(R.string.kid_home_empty),
+            style = MaterialTheme.typography.titleLarge,
+        )
     }
 }

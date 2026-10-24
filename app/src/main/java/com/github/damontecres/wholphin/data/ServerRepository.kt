@@ -15,6 +15,7 @@ import com.github.damontecres.wholphin.kids.ProfileKind
 import com.github.damontecres.wholphin.kids.profileCeiling
 import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.preferences.AppPreferences
+import com.github.damontecres.wholphin.services.KidHomeCache
 import com.github.damontecres.wholphin.services.hilt.IoDispatcher
 import com.github.damontecres.wholphin.services.tvprovider.LauncherRows
 import com.github.damontecres.wholphin.ui.toServerString
@@ -748,6 +749,7 @@ class ServerRepository
             }
             withContext(ioDispatcher) {
                 serverDao.deleteUser(user.serverId, user.id)
+                KidHomeCache.purgeUser(context, user.serverId, user.id)
             }
         }
 
@@ -763,7 +765,11 @@ class ServerRepository
             return sessionMutex.withLock {
                 val inUse = commitSession { _current.value.isIdentity(kid.serverId, kid.id) }
                 if (inUse) return@withLock false
-                withContext(ioDispatcher) { serverDao.deleteKidWithToken(kid.rowId, token) } > 0
+                withContext(ioDispatcher) {
+                    (serverDao.deleteKidWithToken(kid.rowId, token) > 0).also { removed ->
+                        if (removed) KidHomeCache.purgeUser(context, kid.serverId, kid.id)
+                    }
+                }
             }
         }
 
@@ -788,7 +794,11 @@ class ServerRepository
                     }
                 if (inUse) return@withLock false
                 val policyState = if (adultOnly) PolicyState.ADULT.dbValue else null
-                withContext(ioDispatcher) { serverDao.deletePinlessUser(user.rowId, policyState) } > 0
+                withContext(ioDispatcher) {
+                    (serverDao.deletePinlessUser(user.rowId, policyState) > 0).also { removed ->
+                        if (removed) KidHomeCache.purgeUser(context, user.serverId, user.id)
+                    }
+                }
             }
         }
 
@@ -813,6 +823,7 @@ class ServerRepository
             }
             withContext(ioDispatcher) {
                 serverDao.deleteServer(server.id)
+                KidHomeCache.purgeServer(context, server.id)
             }
         }
 

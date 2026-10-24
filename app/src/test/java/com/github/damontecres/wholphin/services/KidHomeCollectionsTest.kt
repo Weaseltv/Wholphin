@@ -11,20 +11,28 @@ import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.PolicyState
 import com.github.damontecres.wholphin.data.model.SUPPORTED_HOME_PAGE_SETTINGS_VERSION
-import com.github.damontecres.wholphin.ui.main.reconcileRows
+import com.github.damontecres.wholphin.preferences.AppPreferences
+import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
 import com.github.damontecres.wholphin.util.GetItemsRequestHandler
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
+import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
+import io.mockk.verify
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.jellyfin.sdk.api.client.ApiClient
@@ -32,6 +40,7 @@ import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
+import org.jellyfin.sdk.model.api.UserDto
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -100,7 +109,16 @@ class KidHomeCollectionsTest {
         session.value = user?.let { CurrentUser(server, it) }
     }
 
-    private fun service(): HomeSettingsService {
+    private val cache = mockk<KidHomeCache> { coEvery { rules() } returns null }
+
+    private fun service(
+        scope: CoroutineScope? = null,
+        latestNextUp: LatestNextUpService = mockk(),
+        preferences: UserPreferencesService =
+            mockk {
+                coEvery { getCurrent() } returns UserPreferences(AppPreferences.getDefaultInstance(), null)
+            },
+    ): HomeSettingsService {
         val prefs = mockk<SharedPreferences> { every { getBoolean(any(), any()) } returns true }
         val context =
             mockk<Context> {
@@ -112,20 +130,27 @@ class KidHomeCollectionsTest {
             mockk<ServerRepository> {
                 every { current } returns session
                 every { sessionEpoch } returns epoch
+                every { currentUserDto } answers {
+                    session.value?.user?.let { user -> mockk<UserDto>(relaxed = true) { every { id } returns user.id } }
+                }
             }
         return HomeSettingsService(
             context = context,
             api = api,
             serverRepository = repository,
-            userPreferencesService = mockk(),
-            navDrawerService = mockk(),
-            latestNextUpService = mockk(),
+            userPreferencesService = preferences,
+            navDrawerService = mockk { coEvery { getAllUserLibraries(any(), any()) } returns emptyList() },
+            latestNextUpService = latestNextUp,
             imageUrlService = mockk(),
             suggestionService = mockk(),
             displayPreferencesService = mockk(),
             streamingOrderService = mockk(),
             justWatchRowService = mockk(),
-        ).also { it.clock = { now } }
+            kidHomeCache = cache,
+        ).also { service ->
+            service.clock = { now }
+            scope?.let { service.kidScope = it }
+        }
     }
 
     /** An adult layout saved on this TV for [userId], which a kids Home must never show */
@@ -249,7 +274,7 @@ class KidHomeCollectionsTest {
             serverCollections(cartoons)
             for (user in listOf(user(PolicyState.KID), user(PolicyState.UNKNOWN))) {
                 signIn(user)
-                val service = service()
+                val service = service(this)
                 service.saveAdultLayout(user.id)
                 service.loadCurrentSettings(user.id, user)
                 assertEquals(KidHomeCollections.settings(owner(user), "Watch again", listOf(cartoons)), service.currentSettings.value)
@@ -266,7 +291,7 @@ class KidHomeCollectionsTest {
         runTest {
             val kid = user(PolicyState.KID)
             signIn(null)
-            val service = service()
+            val service = service(this)
             service.loadCurrentSettings(kid.id, kid)
             assertEquals(HomePageResolvedSettings.EMPTY, service.currentSettings.value)
         }
@@ -278,7 +303,7 @@ class KidHomeCollectionsTest {
             val adult = user(PolicyState.ADULT)
             val kid = adult.copy(policyState = PolicyState.KID)
             signIn(adult)
-            val service = service()
+            val service = service(this)
             service.saveAdultLayout(adult.id)
             service.loadCurrentSettings(adult.id, adult)
             val adultHome = service.currentSettings.value
@@ -344,7 +369,7 @@ class KidHomeCollectionsTest {
                 found.await()
                 mockQueryResult(listOf(cartoons))
             }
-            val service = service()
+            val service = service(this)
             val load = backgroundScope.launch { service.loadCurrentSettings(kid.id, kid) }
             runCurrent()
             assertTrue(load.isActive)
@@ -364,32 +389,37 @@ class KidHomeCollectionsTest {
             val a = collection("Cartoon Adventures")
             val b = collection("Family Fun Night")
             serverCollections(a)
-            val service = service()
+            val service = service(this)
             service.loadCurrentSettings(kid.id, kid)
             assertEquals(listOf(a.id), service.collectionIds())
 
             // Within the interval: not asked again
             serverCollections(a, b)
             now += 60_000
-            service.refreshKidCollections()
+            service.refreshKidHome()
+            advanceUntilIdle()
             assertEquals(listOf(a.id), service.collectionIds())
 
             now += KidHomeCollections.DISCOVERY_INTERVAL.inWholeMilliseconds
-            service.refreshKidCollections()
+            service.refreshKidHome()
+            advanceUntilIdle()
             assertEquals(listOf(a.id, b.id), service.collectionIds())
 
             serverCollections(b)
             now += KidHomeCollections.DISCOVERY_INTERVAL.inWholeMilliseconds
-            service.refreshKidCollections()
+            service.refreshKidHome()
+            advanceUntilIdle()
             assertEquals(listOf(b.id), service.collectionIds())
 
             // A failed look keeps the rows shown, and the next visit tries again
             serverFails()
             now += KidHomeCollections.DISCOVERY_INTERVAL.inWholeMilliseconds
-            service.refreshKidCollections()
+            service.refreshKidHome()
+            advanceUntilIdle()
             assertEquals(listOf(b.id), service.collectionIds())
             serverCollections(a, b)
-            service.refreshKidCollections()
+            service.refreshKidHome()
+            advanceUntilIdle()
             assertEquals(listOf(a.id, b.id), service.collectionIds())
         }
 
@@ -399,14 +429,15 @@ class KidHomeCollectionsTest {
             val kid = user(PolicyState.KID)
             signIn(kid)
             serverFails()
-            val service = service()
+            val service = service(this)
             service.saveAdultLayout(kid.id)
             service.loadCurrentSettings(kid.id, kid)
             assertEquals(KidHomeCollections.settings(owner(kid), "Watch again", emptyList()), service.currentSettings.value)
 
             val a = collection("Cartoon Adventures")
             serverCollections(a)
-            service.refreshKidCollections()
+            service.refreshKidHome()
+            advanceUntilIdle()
             assertEquals(listOf(a.id), service.collectionIds())
         }
 
@@ -417,7 +448,7 @@ class KidHomeCollectionsTest {
             signIn(kid)
             val a = collection("Cartoon Adventures")
             serverCollections(a)
-            val service = service()
+            val service = service(this)
             service.loadCurrentSettings(kid.id, kid)
             serverFails()
             service.currentSettings.value = HomePageResolvedSettings.EMPTY
@@ -430,7 +461,7 @@ class KidHomeCollectionsTest {
         runTest {
             val adult = user(PolicyState.ADULT)
             signIn(adult)
-            val service = service()
+            val service = service(this)
             service.saveAdultLayout(adult.id)
             service.loadCurrentSettings(adult.id, adult)
             val configs =
@@ -439,25 +470,155 @@ class KidHomeCollectionsTest {
             assertTrue(configs.first() is HomeRowConfig.NextUp)
             assertFalse(configs.any { it is HomeRowConfig.ByParent || it is HomeRowConfig.ContinueWatchingCombined })
             assertTrue(service.isCurrent(service.currentSettings.value))
-            service.refreshKidCollections()
+            service.refreshKidHome()
+            advanceUntilIdle()
             coVerify(exactly = 0) { GetItemsRequestHandler.execute(api, any()) }
         }
 
     @Test
-    fun `New kids Home settings keep the rows already loaded and only fetch the new ones`() {
-        val owner = HomeSettingsOwner(UUID.randomUUID(), 1, true)
-        val a = collection("Cartoon Adventures")
-        val b = collection("Family Fun Night")
-        val old = KidHomeCollections.settings(owner, "Watch again", listOf(a))
-        val loaded = old.rows.map { HomeRowLoadingState.Success(it.title, emptyList()) }
-        val new = KidHomeCollections.settings(owner, "Watch again", listOf(b, a))
-        val rows = reconcileRows(old, loaded, new)
-        assertEquals(loaded[0], rows[0])
-        assertEquals(loaded[1], rows[1])
-        assertTrue(rows[2] is HomeRowLoadingState.Pending)
-        assertEquals(loaded[2], rows[3])
+    fun `A saved Home that can't be used is a miss, removed, and the load still finishes`() =
+        runTest {
+            val kid = user(PolicyState.KID)
+            signIn(kid)
+            val cartoons = collection("Cartoon Adventures")
+            serverCollections(cartoons)
+            coEvery { cache.rules() } returns "kid-rules-v1:5"
+            every { cache.read(any(), "kid-rules-v1:5") } returns
+                KidHomeCache.Saved(
+                    serverId = server.id.toString(),
+                    userId = kid.id.toString(),
+                    profileRowId = kid.rowId,
+                    rules = "kid-rules-v1:5",
+                    savedAt = 0,
+                    collections = listOf(KidHomeCache.SavedCollection("not-a-uuid", "Broken")),
+                    rows = emptyMap(),
+                )
+            every { cache.delete(any(), any()) } just Runs
+            every { cache.write(any(), any()) } just Runs
+            val service = service(this)
+            service.loadCurrentSettings(kid.id, kid)
+            verify { cache.delete(server.id, kid.id) }
+            assertEquals(listOf(cartoons.id), service.collectionIds())
+            assertEquals(true, service.kidHome.value?.loaded)
+        }
 
-        val removed = reconcileRows(new, rows, old)
-        assertEquals(loaded, removed)
-    }
+    @Test
+    fun `A failure outside the rows still ends the load, so the loading picture goes`() =
+        runTest {
+            val kid = user(PolicyState.KID)
+            signIn(kid)
+            val service = service(this, preferences = mockk { coEvery { getCurrent() } throws IllegalStateException("prefs") })
+            service.loadCurrentSettings(kid.id, kid)
+            val content = service.kidHome.value!!
+            assertTrue(content.loaded)
+            assertTrue(content.failed is IllegalStateException)
+        }
+
+    @Test
+    fun `A kids Home load stops when the profile turns adult, another signs in, or it signs out`() =
+        runTest {
+            for (next in listOf<
+                (
+                    JellyfinUser,
+                ) -> JellyfinUser?,
+            >({ it.copy(policyState = PolicyState.ADULT) }, { user(PolicyState.ADULT, "Rae") }, { null })) {
+                val kid = user(PolicyState.KID)
+                signIn(kid)
+                var cancelled = false
+                coEvery { GetItemsRequestHandler.execute(api, match { isKidsCollections(it) }) } coAnswers {
+                    try {
+                        awaitCancellation()
+                    } catch (ex: CancellationException) {
+                        cancelled = true
+                        throw ex
+                    }
+                }
+                val service = service(this)
+                val load = launch { service.loadCurrentSettings(kid.id, kid) }
+                runCurrent()
+                assertFalse(cancelled)
+                signIn(next(kid))
+                runCurrent()
+                assertTrue(cancelled)
+                load.join()
+            }
+        }
+
+    @Test
+    fun `Adults' combined row asks for Resume and Next Up at once, and stops both together`() =
+        runTest {
+            val adult = user(PolicyState.ADULT)
+            signIn(adult)
+            val nextUpAsked = CompletableDeferred<Unit>()
+            var nextUpCancelled = false
+            val latestNextUp =
+                mockk<LatestNextUpService> {
+                    coEvery { getResume(any(), any(), any(), any()) } coAnswers { awaitCancellation() }
+                    coEvery { getNextUp(any(), any(), any(), any(), any(), any()) } coAnswers {
+                        nextUpAsked.complete(Unit)
+                        try {
+                            awaitCancellation()
+                        } catch (ex: CancellationException) {
+                            nextUpCancelled = true
+                            throw ex
+                        }
+                    }
+                }
+            val service = service(this, latestNextUp = latestNextUp)
+            val prefs = AppPreferences.getDefaultInstance().homePagePreferences
+            val userDto = mockk<UserDto>(relaxed = true) { every { id } returns adult.id }
+            val fetch =
+                launch {
+                    service.fetchDataForRow(HomeRowConfig.ContinueWatchingCombined(), this, prefs, userDto, emptyList(), 10, false)
+                }
+            runCurrent()
+            // Next Up is out while Resume still is
+            assertTrue(nextUpAsked.isCompleted)
+            fetch.cancel()
+            runCurrent()
+            assertTrue(nextUpCancelled)
+
+            // A failure of either still fails the row, as before
+            coEvery { latestNextUp.getResume(any(), any(), any(), any()) } throws IllegalStateException("resume")
+            coEvery { latestNextUp.getNextUp(any(), any(), any(), any(), any(), any()) } returns emptyList()
+            val failure =
+                runCatching {
+                    service.fetchDataForRow(
+                        HomeRowConfig.ContinueWatchingCombined(),
+                        this,
+                        prefs,
+                        userDto,
+                        emptyList(),
+                        10,
+                        false,
+                    )
+                }
+            assertTrue(failure.exceptionOrNull() is IllegalStateException)
+        }
+
+    @Test
+    fun `Returning Home soon after retries a collection row that failed, without asking for the list again`() =
+        runTest {
+            val kid = user(PolicyState.KID)
+            signIn(kid)
+            val cartoons = collection("Cartoon Adventures")
+            serverCollections(cartoons)
+            val movie = BaseItemDto(id = UUID.randomUUID(), type = BaseItemKind.MOVIE, name = "Moana")
+            var calls = 0
+            coEvery { GetItemsRequestHandler.execute(api, match { it.parentId == cartoons.id }) } coAnswers {
+                if (calls++ == 0) throw IllegalStateException("busy")
+                mockQueryResult(listOf(movie))
+            }
+            val service = service(this)
+            service.loadCurrentSettings(kid.id, kid)
+            val row = KidHomeCollections.collectionRow(cartoons.id)
+            assertTrue(service.kidHome.value!!.rows[row] is HomeRowLoadingState.Error)
+
+            now += 60_000
+            service.refreshKidHome()
+            advanceUntilIdle()
+            val retried = service.kidHome.value!!.rows[row] as HomeRowLoadingState.Success
+            assertEquals(listOf(movie.id), retried.items.map { it?.id })
+            coVerify(exactly = 1) { GetItemsRequestHandler.execute(api, match { isKidsCollections(it) }) }
+        }
 }

@@ -27,6 +27,7 @@ import com.github.damontecres.wholphin.kids.UnlockPurpose
 import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.services.AccountAvatars
 import com.github.damontecres.wholphin.services.Avatar
+import com.github.damontecres.wholphin.services.HomeTiming
 import com.github.damontecres.wholphin.services.ImageUrlService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.ProfilePictureResult
@@ -224,6 +225,7 @@ class SwitchUserViewModel
         }
 
         fun trySwitchUser(user: JellyfinUser): Deferred<SwitchUserResult> {
+            HomeTiming.picked(user.id)
             if (!BuildConfig.KID_PROFILES_ENABLED) {
                 return viewModelScope.async(WholphinDispatchers.IO) { switchUser(null, user) }
             }
@@ -809,6 +811,7 @@ class SwitchUserViewModel
          * switch gate decides whether a parent PIN is needed (plan 4.2, 4.5).
          */
         fun onProfileSelected(user: JellyfinUser) {
+            HomeTiming.picked(user.id)
             beginFlow { flow ->
                 // A new pick starts without any earlier unlock (cleared together with leaving the earlier flow, so
                 // that flow can't grant one after this)

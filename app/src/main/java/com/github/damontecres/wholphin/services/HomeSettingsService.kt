@@ -43,18 +43,24 @@ import com.github.damontecres.wholphin.util.GetRecordingsRequestHandler
 import com.github.damontecres.wholphin.util.GetStudiosRequestHandler
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import com.github.damontecres.wholphin.util.HomeRowLoadingState.Success
+import com.github.damontecres.wholphin.util.WholphinDispatchers
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -96,6 +102,7 @@ import java.io.File
 import java.time.LocalDateTime
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Handles getting home page settings and data
@@ -115,6 +122,7 @@ class HomeSettingsService
         private val displayPreferencesService: DisplayPreferencesService,
         private val streamingOrderService: StreamingOrderService,
         private val justWatchRowService: JustWatchRowService,
+        private val kidHomeCache: KidHomeCache,
     ) {
         @OptIn(ExperimentalSerializationApi::class)
         val jsonParser =
@@ -188,6 +196,30 @@ class HomeSettingsService
         @Volatile
         private var kidDiscovery: KidDiscovery? = null
         private val kidDiscoveryMutex = Mutex()
+
+        /** Where the kids Home loads run: not the listener's, so a repeat emission for the same session reuses one */
+        internal var kidScope: CoroutineScope = CoroutineScope(SupervisorJob() + WholphinDispatchers.IO)
+
+        /** The kids Home's rows as they arrive, for whom ([KidHomeContent]); Home shows them with [currentSettings] */
+        val kidHome = MutableStateFlow<KidHomeContent?>(null)
+
+        private data class KidLoad(
+            val owner: HomeSettingsOwner,
+            val job: Job,
+        )
+
+        private val kidLoadLock = Any()
+        private var kidLoad: KidLoad? = null
+
+        /** Kid settings publishes: the saved collection list never replaces one just found */
+        private val kidPublishLock = Any()
+
+        /** What a kids Home row fetch needs, read once the session is settled */
+        private class KidRowContext(
+            val prefs: HomePagePreferences,
+            val userDto: UserDto,
+            val libraries: Deferred<List<Library>>,
+        )
 
         /**
          * Saves a [HomePageSettings] to the server for the user under the display preference ID
@@ -384,15 +416,31 @@ class HomeSettingsService
         }
 
         /**
-         * A kids (or unknown) profile's Home ([KidHomeCollections]): never the saved (adult) rows, and nothing is
-         * saved. The first two rows (and the collections already found this session) show at once; the collection
-         * rows follow when [discoverKidCollections] finds them, and if it can't, the rows shown stay.
+         * A kids (or unknown) profile's Home ([KidHomeCollections]): never the saved (adult) rows. Owner 2026-10-23
+         * (speed): as soon as the session is ready everything starts at once, without waiting on each other: the saved
+         * Home from last time ([KidHomeCache], re-checked), the collection list, Next Up & Continue Watching, Watch
+         * Again, and each collection's first page the moment the list returns. Rows land in [kidHome] as they arrive.
+         * A repeat load for the same session (eg its saved profile row changed) reuses the one already made.
          */
         private suspend fun loadKidSettings(owner: HomeSettingsOwner) {
-            Timber.v("Kids Home for %s", owner.userId)
+            HomeTiming.mark(owner.userId, "kids Home load started")
             val known = kidDiscovery?.takeIf { it.owner == owner }?.collections.orEmpty()
             publish(kidSettings(owner, known))
-            discoverKidCollections(owner)
+            val job =
+                synchronized(kidLoadLock) {
+                    // The same session's load, running or done (one that stopped short, eg before the session
+                    // settled, starts again)
+                    kidLoad
+                        ?.takeIf {
+                            it.owner == owner &&
+                                (it.job.isActive || kidHome.value?.let { c -> c.owner == owner && c.loaded } == true)
+                        }?.job
+                        ?: kidScope.launch { runKidLoad(owner, initial = true) }.also {
+                            kidLoad?.job?.cancel()
+                            kidLoad = KidLoad(owner, it)
+                        }
+                }
+            job.join()
         }
 
         private fun kidSettings(
@@ -401,37 +449,317 @@ class HomeSettingsService
         ) = KidHomeCollections.settings(owner, context.getString(R.string.kid_home_watch_again), collections)
 
         /**
-         * On entering Home: look again for the kids collections (new or removed ones, or after a failed
-         * look), at most once per [KidHomeCollections.DISCOVERY_INTERVAL] after one that worked. Only for the
-         * kids Home of the session as it is now.
+         * On entering Home: Next Up & Continue Watching and Watch Again again, and the collections (new or removed
+         * ones, or after a failed look) with their first pages, at most once per [KidHomeCollections.DISCOVERY_INTERVAL]
+         * after one that worked. Only for the kids Home of the session as it is now, and not while one is loading.
          */
-        suspend fun refreshKidCollections() {
+        fun refreshKidHome() {
             val owner = currentSettings.value.owner ?: return
-            if (owner.kid && isCurrent(owner)) discoverKidCollections(owner)
+            if (!owner.kid || !isCurrent(owner)) return
+            synchronized(kidLoadLock) {
+                val running = kidLoad
+                if (running != null && running.owner == owner && running.job.isActive) return
+                kidLoad = KidLoad(owner, kidScope.launch { runKidLoad(owner, initial = false) })
+            }
         }
 
-        private suspend fun discoverKidCollections(owner: HomeSettingsOwner) {
-            kidDiscoveryMutex.withLock {
-                if (!isCurrent(owner)) return
-                val last = kidDiscovery
-                if (last != null && last.owner == owner &&
-                    clock() - last.foundAt < KidHomeCollections.DISCOVERY_INTERVAL.inWholeMilliseconds
-                ) {
-                    return
-                }
-                val collections =
+        /** Stops the kids Home load (eg its screen went away for good) */
+        fun cancelKidLoad() {
+            synchronized(kidLoadLock) {
+                kidLoad?.job?.cancel()
+                kidLoad = null
+            }
+        }
+
+        /**
+         * One kids Home load ([loadKidRows]): it stops as soon as [owner] isn't the session any more (another profile,
+         * an adult, signed out, a new epoch). A failure outside the rows ends it as loaded (with [KidHomeContent.failed])
+         * so the loading picture goes. A watchdog lets the loading picture go too if nothing has shown after
+         * [KID_LOAD_TIMEOUT] ([KidHomeSlow]); it never cancels rows still loading, which fill in when they arrive.
+         */
+        private suspend fun runKidLoad(
+            owner: HomeSettingsOwner,
+            initial: Boolean,
+        ) {
+            try {
+                coroutineScope {
+                    val watchdog =
+                        launch {
+                            delay(KID_LOAD_TIMEOUT)
+                            val settings = currentSettings.value.takeIf { it.owner == owner }
+                            updateKidHome(owner) {
+                                if (settings != null && it.hasContent(settings)) it else it.copy(failed = it.failed ?: KidHomeSlow())
+                            }
+                        }
                     try {
-                        KidHomeCollections.fetch(api, owner.userId)
-                    } catch (ex: CancellationException) {
-                        throw ex
-                    } catch (ex: Exception) {
-                        // Keep the rows shown; the next visit to Home tries again
-                        Timber.w(ex, "Couldn't load the kids collections")
-                        return
+                        untilStale(owner) { loadKidRows(owner, initial) }
+                    } finally {
+                        watchdog.cancel()
                     }
-                if (!isCurrent(owner)) return
-                kidDiscovery = KidDiscovery(owner, collections, clock())
-                publish(kidSettings(owner, collections))
+                }
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                Timber.w(ex, "Kids Home load failed")
+                updateKidHome(owner) { it.copy(loaded = true, failed = ex) }
+            }
+        }
+
+        /** [block], cancelled the moment [owner] stops being the session */
+        private suspend fun <T> untilStale(
+            owner: HomeSettingsOwner,
+            block: suspend () -> T,
+        ): T =
+            coroutineScope {
+                val body = async { block() }
+                val watch =
+                    launch {
+                        combine(serverRepository.sessionEpoch, serverRepository.current) { _, _ -> isCurrent(owner) }.first { !it }
+                        Timber.i("Kids Home load for an earlier session stopped")
+                        body.cancel()
+                    }
+                try {
+                    body.await()
+                } finally {
+                    watch.cancel()
+                }
+            }
+
+        private suspend fun loadKidRows(
+            owner: HomeSettingsOwner,
+            initial: Boolean,
+        ) {
+            val userDto = serverRepository.currentUserDto?.takeIf { it.id == owner.userId && isCurrent(owner) } ?: return
+            if (initial) kidHome.update { if (it?.owner == owner) it else KidHomeContent(owner) }
+            updateKidHome(owner) { it.copy(loaded = false, failed = null) }
+            val prefs = userPreferencesService.getCurrent().appPreferences.homePagePreferences
+            val rows = kidSettings(owner, emptyList()).rows
+            coroutineScope {
+                val libraries =
+                    async {
+                        try {
+                            navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
+                        } catch (ex: CancellationException) {
+                            throw ex
+                        } catch (ex: Exception) {
+                            Timber.w(ex, "Kids Home: libraries")
+                            emptyList()
+                        }
+                    }
+                val rowContext = KidRowContext(prefs, userDto, libraries)
+                if (initial) {
+                    launch { paintSavedKidHome(owner, prefs) }
+                } else {
+                    updateKidHome(owner) { it.copy(cacheRead = true) }
+                }
+                rows.forEach { row -> launch { fetchKidRow(owner, row, rowContext) } }
+                launch { discoverKidCollections(owner, rowContext) }
+            }
+            updateKidHome(owner) { it.copy(loaded = true) }
+            HomeTiming.mark(owner.userId, "kids Home rows all loaded")
+            saveKidHome(owner)
+        }
+
+        /** The saved Home from last time, for this profile and ceiling only, each row re-checked before it shows */
+        private suspend fun paintSavedKidHome(
+            owner: HomeSettingsOwner,
+            prefs: HomePagePreferences,
+        ) {
+            val user =
+                serverRepository.current.value
+                    ?.user
+                    ?.takeIf { it.id == owner.userId }
+            try {
+                user ?: return
+                val rules = kidHomeCache.rules() ?: return
+                val saved = kidHomeCache.read(user, rules) ?: return
+                val collections =
+                    saved.collections.map { BaseItemDto(id = UUID.fromString(it.id), type = BaseItemKind.BOX_SET, name = it.name) }
+                synchronized(kidPublishLock) {
+                    if (kidHome.value?.takeIf { it.owner == owner }?.discovered != true) publish(kidSettings(owner, collections))
+                }
+                coroutineScope {
+                    kidSettings(owner, collections).rows.forEach { display ->
+                        val savedRow = KidHomeCache.rowKey(display.config)?.let { saved.rows[it] } ?: return@forEach
+                        launch {
+                            val items = kidHomeCache.visibleNow(savedRow.items.map { BaseItem(it.dto, it.useSeriesForPrimary) })
+                            if (items.isEmpty()) return@launch
+                            val row =
+                                Success(
+                                    display.title,
+                                    items,
+                                    display.config.viewOptions,
+                                    rowType = display.config,
+                                    showViewMore = items.size >= prefs.maxItemsPerRow,
+                                )
+                            // In place of a pending or failed row, never of one fetched fresh
+                            updateKidHome(owner) {
+                                if (display.config in it.succeeded) it else it.copy(rows = it.rows + (display.config to row))
+                            }
+                            HomeTiming.mark(owner.userId, "kids Home first saved row")
+                        }
+                    }
+                }
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                // Anything wrong with the saved Home (eg a bad id in it) is a miss, and the file goes
+                Timber.w(ex, "Saved kids Home unusable; removed")
+                user?.let { kidHomeCache.delete(it.serverId, it.id) }
+            } finally {
+                updateKidHome(owner) { it.copy(cacheRead = true) }
+            }
+        }
+
+        private suspend fun fetchKidRow(
+            owner: HomeSettingsOwner,
+            display: HomeRowConfigDisplay,
+            rowContext: KidRowContext,
+        ) {
+            val row = display.config
+            val result =
+                try {
+                    val libraries = if (row is HomeRowConfig.ContinueWatchingCombined) rowContext.libraries.await() else emptyList()
+                    fetchDataForRow(
+                        row = row,
+                        scope = kidScope,
+                        prefs = rowContext.prefs,
+                        userDto = rowContext.userDto,
+                        libraries = libraries,
+                        limit = rowContext.prefs.maxItemsPerRow,
+                        isRefresh = false,
+                    )
+                } catch (ex: CancellationException) {
+                    throw ex
+                } catch (ex: InvalidStatusException) {
+                    if (ex.status == 404) Success(display.title, emptyList()) else HomeRowLoadingState.Error(display.title, exception = ex)
+                } catch (ex: Exception) {
+                    Timber.w(ex, "Kids Home row %s", row)
+                    HomeRowLoadingState.Error(display.title, exception = ex)
+                }
+            updateKidHome(owner) {
+                if (result is HomeRowLoadingState.Error) {
+                    // A failed attempt keeps what the row shows (eg the saved row), and is tried again next time
+                    val keep = it.rows[row] is Success
+                    it.copy(rows = if (keep) it.rows else it.rows + (row to result), succeeded = it.succeeded - row)
+                } else {
+                    it.copy(rows = it.rows + (row to result), succeeded = it.succeeded + row)
+                }
+            }
+            if (result is Success && result.items.isNotEmpty()) HomeTiming.mark(owner.userId, "kids Home first fetched row")
+        }
+
+        /** [block] on [owner]'s kids Home rows, only while [owner] is the session */
+        private fun updateKidHome(
+            owner: HomeSettingsOwner,
+            block: (KidHomeContent) -> KidHomeContent,
+        ) {
+            kidHome.update { current ->
+                if (!isCurrent(owner)) current else block(current?.takeIf { it.owner == owner } ?: KidHomeContent(owner))
+            }
+        }
+
+        /** This load's Home for next time: the collection list just found and every row fetched fresh */
+        private suspend fun saveKidHome(owner: HomeSettingsOwner) {
+            val content = kidHome.value?.takeIf { it.owner == owner } ?: return
+            val discovery = kidDiscovery?.takeIf { it.owner == owner } ?: return
+            val user =
+                serverRepository.current.value
+                    ?.user
+                    ?.takeIf { it.id == owner.userId } ?: return
+            val rules = kidHomeCache.rules() ?: return
+            if (!isCurrent(owner)) return
+            val rows =
+                kidSettings(owner, discovery.collections)
+                    .rows
+                    .mapNotNull { display ->
+                        val key = KidHomeCache.rowKey(display.config) ?: return@mapNotNull null
+                        val row = content.rows[display.config] as? Success ?: return@mapNotNull null
+                        if (display.config !in content.succeeded) return@mapNotNull null
+                        key to
+                            KidHomeCache.SavedRow(row.items.filterNotNull().map { KidHomeCache.SavedItem(it.data, it.useSeriesForPrimary) })
+                    }.toMap()
+            kidHomeCache.write(
+                KidHomeCache.Saved(
+                    serverId = user.serverId.toString(),
+                    userId = user.id.toString(),
+                    profileRowId = user.rowId,
+                    rules = rules,
+                    savedAt = clock(),
+                    collections = discovery.collections.map { KidHomeCache.SavedCollection(it.id.toString(), it.name.orEmpty()) },
+                    rows = rows,
+                ),
+                // Checked again inside the cache's lock, right before the file is written: a profile removed (its
+                // session ended) meanwhile is never saved back
+                stillValid = {
+                    isCurrent(owner) && serverRepository.current.value
+                        ?.user
+                        ?.rowId == user.rowId
+                },
+            )
+        }
+
+        /**
+         * The collection list ([KidHomeCollections.fetch]), at most once per [KidHomeCollections.DISCOVERY_INTERVAL]
+         * after one that worked, then (with [rowContext]) each collection's first page, all at once
+         */
+        private suspend fun discoverKidCollections(
+            owner: HomeSettingsOwner,
+            rowContext: KidRowContext?,
+        ) {
+            if (!isCurrent(owner)) return
+            val found =
+                kidDiscoveryMutex.withLock {
+                    try {
+                        val last = kidDiscovery
+                        if (last != null && last.owner == owner &&
+                            clock() - last.foundAt < KidHomeCollections.DISCOVERY_INTERVAL.inWholeMilliseconds
+                        ) {
+                            return@withLock null
+                        }
+                        val collections =
+                            try {
+                                KidHomeCollections.fetch(api, owner.userId)
+                            } catch (ex: CancellationException) {
+                                throw ex
+                            } catch (ex: Exception) {
+                                // Keep the rows shown; the next visit to Home tries again
+                                Timber.w(ex, "Couldn't load the kids collections")
+                                return@withLock null
+                            }
+                        if (!isCurrent(owner)) return
+                        kidDiscovery = KidDiscovery(owner, collections, clock())
+                        synchronized(kidPublishLock) {
+                            publish(kidSettings(owner, collections))
+                            updateKidHome(owner) { it.copy(discovered = true) }
+                        }
+                        collections
+                    } finally {
+                        updateKidHome(owner) { it.copy(discoveryDone = true) }
+                    }
+                }
+            if (found != null) HomeTiming.mark(owner.userId, "kids collections found")
+            rowContext ?: return
+            // A list just found: every collection's first page. Otherwise (not due yet, or it failed): the known
+            // collections whose row hasn't loaded yet, or failed (review round 2)
+            val rows =
+                if (found != null) {
+                    kidSettings(owner, found).rows.drop(2)
+                } else {
+                    val succeeded =
+                        kidHome.value
+                            ?.takeIf { it.owner == owner }
+                            ?.succeeded
+                            .orEmpty()
+                    currentSettings.value
+                        .takeIf { it.owner == owner }
+                        ?.rows
+                        ?.drop(2)
+                        .orEmpty()
+                        .filter { it.config !in succeeded }
+                }
+            coroutineScope {
+                rows.forEach { row -> launch { fetchKidRow(owner, row, rowContext) } }
             }
         }
 
@@ -976,22 +1304,31 @@ class HomeSettingsService
                 }
 
                 is HomeRowConfig.ContinueWatchingCombined -> {
-                    val resume =
-                        latestNextUpService.getResume(
-                            userDto.id,
-                            limit,
-                            true,
-                            row.viewOptions.useSeries,
-                        )
-                    val nextUp =
-                        latestNextUpService.getNextUp(
-                            userDto.id,
-                            limit,
-                            prefs.enableRewatchingNextUp,
-                            false,
-                            prefs.maxDaysNextUp,
-                            row.viewOptions.useSeries,
-                        )
+                    // Resume and Next Up at once (owner, 2026-10-23: Resume takes seconds, Next Up a moment)
+                    val (resume, nextUp) =
+                        coroutineScope {
+                            val resume =
+                                async {
+                                    latestNextUpService.getResume(
+                                        userDto.id,
+                                        limit,
+                                        true,
+                                        row.viewOptions.useSeries,
+                                    )
+                                }
+                            val nextUp =
+                                async {
+                                    latestNextUpService.getNextUp(
+                                        userDto.id,
+                                        limit,
+                                        prefs.enableRewatchingNextUp,
+                                        false,
+                                        prefs.maxDaysNextUp,
+                                        row.viewOptions.useSeries,
+                                    )
+                                }
+                            resume.await() to nextUp.await()
+                        }
                     val combined = latestNextUpService.buildCombined(resume, nextUp)
 
                     Success(
@@ -1290,9 +1627,16 @@ class HomeSettingsService
                             fields = library.itemFields,
                         )
 
-                    // Not using getItemName because we want to throw the 404
+                    // Not using getItemName because we want to throw the 404. A kids collection row has its name from the
+                    // collection list, so no lookup (and no box set probe) for it
+                    val kidCollectionName =
+                        kidDiscovery
+                            ?.takeIf { isKidOrUnknown(serverRepository.current.value?.user) }
+                            ?.collections
+                            ?.firstOrNull { it.id == row.parentId }
+                            ?.name
                     val title =
-                        api.userLibraryApi
+                        kidCollectionName?.let { StringStringProvider(it) } ?: api.userLibraryApi
                             .getItem(
                                 userId = serverRepository.currentUser?.id,
                                 itemId = row.parentId,
@@ -1642,6 +1986,37 @@ data class HomeRowConfigDisplay(
     val title: StringProvider,
     val config: HomeRowConfig,
 )
+
+/** How long a kids Home load may show nothing before the loading picture goes anyway (PR #98 review rounds 1 and 2) */
+private val KID_LOAD_TIMEOUT = 30.seconds
+
+/** Nothing to show yet after [KID_LOAD_TIMEOUT]: the loading picture goes; rows still loading fill in when they arrive */
+class KidHomeSlow : IllegalStateException("Home is taking longer than usual to load.")
+
+/**
+ * A kids Home's rows for [owner] as they arrive (owner, 2026-10-23: kids Home speed): saved ones from last time
+ * (re-checked) first, then each fetched row in its place. [succeeded]: rows fetched fresh this time; a saved row never
+ * replaces one of those, and the others (pending or failed) are tried again on the next visit to Home.
+ */
+data class KidHomeContent(
+    val owner: HomeSettingsOwner,
+    val rows: Map<HomeRowConfig, HomeRowLoadingState> = emptyMap(),
+    val succeeded: Set<HomeRowConfig> = emptySet(),
+    /** A collection list was found (and published) this session */
+    val discovered: Boolean = false,
+    /** The collection list was looked for, found or not */
+    val discoveryDone: Boolean = false,
+    /** The saved Home was read (or there was none) */
+    val cacheRead: Boolean = false,
+    /** The load (or refresh) finished: nothing more will arrive until the next one */
+    val loaded: Boolean = false,
+    /** Why the load ended early (outside any one row), if it did */
+    val failed: Throwable? = null,
+) {
+    /** Whether any of [settings]'s rows has something to show */
+    fun hasContent(settings: HomePageResolvedSettings): Boolean =
+        settings.rows.any { (rows[it.config] as? HomeRowLoadingState.Success)?.items?.isNotEmpty() == true }
+}
 
 /** The session [HomePageResolvedSettings] were made for: [userId] under session [epoch], as a kids Home or not */
 data class HomeSettingsOwner(

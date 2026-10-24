@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomePageSettings
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
 import com.github.damontecres.wholphin.data.model.JellyfinServer
@@ -19,7 +20,9 @@ import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.HomePageResolvedSettings
 import com.github.damontecres.wholphin.services.HomeSettingsOwner
 import com.github.damontecres.wholphin.services.HomeSettingsService
+import com.github.damontecres.wholphin.services.KidHomeCache
 import com.github.damontecres.wholphin.services.KidHomeCollections
+import com.github.damontecres.wholphin.services.KidHomeSlow
 import com.github.damontecres.wholphin.services.UserSwitchListener
 import com.github.damontecres.wholphin.services.mockQueryResult
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
@@ -38,6 +41,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -103,6 +107,17 @@ class KidHomeViewModelTest {
     private val fetched = mutableListOf<HomeRowConfig>()
     private val limits = mutableListOf<Int>()
     private var librariesGate: CompletableDeferred<Unit>? = null
+
+    /** Rows (by [gateKey]) whose fetch returns a title to show */
+    private val withContent = mutableSetOf<Any>()
+
+    /** Rows (by [gateKey]) whose fetch takes this long (virtual ms), or fails */
+    private val delays = mutableMapOf<Any, Long>()
+    private val failing = mutableSetOf<Any>()
+
+    /** The device's preferences right now, for Home and the kids Home loader alike */
+    private var preferencesNow: () -> UserPreferences = { homePreferences() }
+    private val cache = mockk<KidHomeCache>(relaxed = true) { coEvery { rules() } returns null }
     private var now = 0L
 
     private lateinit var repository: ServerRepository
@@ -135,11 +150,21 @@ class KidHomeViewModelTest {
             limits.add(arg(5))
             try {
                 gates[gateKey(row)]?.await()
+                delays[gateKey(row)]?.let { delay(it) }
+                if (gateKey(row) in failing) throw IllegalStateException("row failed")
             } catch (ex: kotlinx.coroutines.CancellationException) {
                 cancelled.add(row)
                 throw ex
             }
-            HomeRowLoadingState.Success(StringStringProvider(row.toString()), emptyList(), rowType = row)
+            val items =
+                if (gateKey(row) in
+                    withContent
+                ) {
+                    listOf(BaseItem(BaseItemDto(id = UUID.randomUUID(), type = BaseItemKind.MOVIE)))
+                } else {
+                    emptyList()
+                }
+            HomeRowLoadingState.Success(StringStringProvider(row.toString()), items, rowType = row)
         }
     }
 
@@ -190,14 +215,15 @@ class KidHomeViewModelTest {
             context = context,
             api = api,
             serverRepository = repository,
-            userPreferencesService = mockk(),
-            navDrawerService = mockk(),
+            userPreferencesService = mockk { coEvery { getCurrent() } answers { preferencesNow() } },
+            navDrawerService = mockk { coEvery { getAllUserLibraries(any(), any()) } returns emptyList() },
             latestNextUpService = mockk(),
             imageUrlService = mockk(),
             suggestionService = mockk(),
             displayPreferencesService = mockk(),
             streamingOrderService = mockk(),
             justWatchRowService = mockk(),
+            kidHomeCache = cache,
         )
     }
 
@@ -224,8 +250,9 @@ class KidHomeViewModelTest {
             null,
         )
 
-    private fun viewModel(preferences: () -> UserPreferences = { homePreferences() }): HomeViewModel =
-        HomeViewModel(
+    private fun viewModel(preferences: () -> UserPreferences = { homePreferences() }): HomeViewModel {
+        preferencesNow = preferences
+        return HomeViewModel(
             context = mockk(relaxed = true),
             navigationManager = mockk(relaxed = true),
             serverRepository = repository,
@@ -241,12 +268,13 @@ class KidHomeViewModelTest {
             favoriteWatchManager = mockk(relaxed = true),
             datePlayedService = mockk(relaxed = true),
             backdropService = mockk(relaxed = true),
-            userPreferencesService = mockk { coEvery { getCurrent() } answers { preferences() } },
+            userPreferencesService = mockk { coEvery { getCurrent() } answers { preferencesNow() } },
             mediaManagementService = mockk(relaxed = true),
             latestNextUpService = mockk(relaxed = true),
             streamingOrderService = mockk(relaxed = true),
             quickListService = mockk(relaxed = true),
         )
+    }
 
     private suspend fun saveAdultLayout(user: JellyfinUser) =
         homeSettings.saveToLocal(user.id, HomePageSettings(listOf(HomeRowConfig.NextUp()), SUPPORTED_HOME_PAGE_SETTINGS_VERSION))
@@ -323,10 +351,11 @@ class KidHomeViewModelTest {
         }
 
     @Test
-    fun `Collections found while the first load is starting are not lost`() =
+    fun `Collections found while Home is starting are shown`() =
         runTest(dispatcher) {
             val kid = user("Kai", PolicyState.KID)
             val cartoons = collection("Cartoon Adventures")
+            withContent.add(cartoons.id)
             val found = CompletableDeferred<Unit>()
             coEvery { GetItemsRequestHandler.execute(api, match { isKidsCollections(it) }) } coAnswers {
                 found.await()
@@ -334,19 +363,10 @@ class KidHomeViewModelTest {
             }
             listener()
             signIn(kid)
-            runCurrent()
-            // Rows 1-2 are out; the load takes them and waits for the libraries, before it shows anything
-            assertEquals(2, homeSettings.currentSettings.value.rows.size)
-            librariesGate = CompletableDeferred()
             val viewModel = viewModel()
             viewModel.init()
             runCurrent()
-            assertEquals(HomePageResolvedSettings.EMPTY, viewModel.state.value.settings)
-
-            // Discovery publishes the collection rows now, then the load goes on with its two rows
             found.complete(Unit)
-            runCurrent()
-            librariesGate!!.complete(Unit)
             advanceUntilIdle()
 
             val state = viewModel.state.value
@@ -357,7 +377,151 @@ class KidHomeViewModelTest {
         }
 
     @Test
-    fun `A collection added or removed around another keeps that row's loaded state and its key`() =
+    fun `The loading picture stays until a row has something to show, never a page with just the menu`() =
+        runTest(dispatcher) {
+            val kid = user("Kai", PolicyState.KID)
+            val cartoons = collection("Cartoon Adventures")
+            withContent.add(cartoons.id)
+            val found = CompletableDeferred<Unit>()
+            coEvery { GetItemsRequestHandler.execute(api, match { isKidsCollections(it) }) } coAnswers {
+                found.await()
+                mockQueryResult(listOf(cartoons))
+            }
+            listener()
+            signIn(kid)
+            val viewModel = viewModel()
+            val states = record(viewModel)
+            viewModel.init()
+            runCurrent()
+            // Rows 1 and 2 are back, and empty; the collections aren't found yet: still the loading picture
+            assertTrue(
+                viewModel.state.value.homeRows
+                    .take(2)
+                    .all { it is HomeRowLoadingState.Success },
+            )
+            assertEquals(LoadingState.Loading, viewModel.state.value.loadingState)
+
+            found.complete(Unit)
+            advanceUntilIdle()
+            assertEquals(LoadingState.Success, viewModel.state.value.loadingState)
+            // Home never showed Success with nothing to show
+            assertTrue(
+                states
+                    .filter { it.loadingState == LoadingState.Success }
+                    .all { st -> st.homeRows.any { it is HomeRowLoadingState.Success && it.items.isNotEmpty() } },
+            )
+            viewModel.close()
+        }
+
+    @Test
+    fun `A kids Home with nothing at all to show says so once everything has loaded`() =
+        runTest(dispatcher) {
+            val kid = user("Kai", PolicyState.KID)
+            listener()
+            signIn(kid)
+            val viewModel = viewModel()
+            viewModel.init()
+            advanceUntilIdle()
+            val state = viewModel.state.value
+            assertEquals(LoadingState.Success, state.loadingState)
+            assertEquals(LoadingState.Success, state.refreshState)
+            assertTrue(state.homeRows.none { it is HomeRowLoadingState.Success && it.items.isNotEmpty() })
+            viewModel.close()
+        }
+
+    @Test
+    fun `Everything starts at once, and each collection's first page as soon as the list is back`() =
+        runTest(dispatcher) {
+            val kid = user("Kai", PolicyState.KID)
+            val cartoons = collection("Cartoon Adventures")
+            val pixar = collection("Pixar")
+            val found = CompletableDeferred<Unit>()
+            var listAsked = false
+            coEvery { GetItemsRequestHandler.execute(api, match { isKidsCollections(it) }) } coAnswers {
+                listAsked = true
+                found.await()
+                mockQueryResult(listOf(cartoons, pixar))
+            }
+            gates[HomeRowConfig.ContinueWatchingCombined::class] = CompletableDeferred()
+            gates[HomeRowConfig.GetItems::class] = CompletableDeferred()
+            listener()
+            signIn(kid)
+            runCurrent()
+            // The list, Next Up & Continue Watching and Watch Again are all out, none waiting on another
+            assertTrue(listAsked)
+            assertTrue(fetched.any { it is HomeRowConfig.ContinueWatchingCombined })
+            assertTrue(fetched.any { it is HomeRowConfig.GetItems })
+
+            // The list returns while the other two are still out: both first pages start at once
+            found.complete(Unit)
+            runCurrent()
+            assertEquals(
+                setOf(cartoons.id, pixar.id),
+                fetched.filterIsInstance<HomeRowConfig.ByParent>().map { it.parentId }.toSet(),
+            )
+            gates.values.forEach { it.complete(Unit) }
+            advanceUntilIdle()
+        }
+
+    @Test
+    fun `Last time's rows paint before the network answers, then fresh rows replace them in place`() =
+        runTest(dispatcher) {
+            val kid = user("Kai", PolicyState.KID)
+            val cartoons = collection("Cartoon Adventures")
+            val savedMovie = BaseItemDto(id = UUID.randomUUID(), type = BaseItemKind.MOVIE, name = "Saved")
+            coEvery { cache.rules() } returns "kid-rules-v1:5"
+            every { cache.read(kid, "kid-rules-v1:5") } returns
+                KidHomeCache.Saved(
+                    serverId = server.id.toString(),
+                    userId = kid.id.toString(),
+                    profileRowId = kid.rowId,
+                    rules = "kid-rules-v1:5",
+                    savedAt = 0,
+                    collections = listOf(KidHomeCache.SavedCollection(cartoons.id.toString(), "Cartoon Adventures")),
+                    rows = mapOf("collection:${cartoons.id}" to KidHomeCache.SavedRow(listOf(KidHomeCache.SavedItem(savedMovie)))),
+                )
+            coEvery { cache.visibleNow(any()) } answers { firstArg() }
+            // The network is slow
+            val found = CompletableDeferred<Unit>()
+            coEvery { GetItemsRequestHandler.execute(api, match { isKidsCollections(it) }) } coAnswers {
+                found.await()
+                mockQueryResult(listOf(cartoons))
+            }
+            gates[cartoons.id] = CompletableDeferred()
+            withContent.add(cartoons.id)
+            listener()
+            signIn(kid)
+            val viewModel = viewModel()
+            viewModel.init()
+            runCurrent()
+            val warm = viewModel.state.value
+            assertEquals(LoadingState.Success, warm.loadingState)
+            assertEquals(listOf(cartoons.id), warm.collectionIds())
+            assertEquals(savedMovie.id, (warm.homeRows[2] as HomeRowLoadingState.Success).items.single()?.id)
+
+            found.complete(Unit)
+            gates.getValue(cartoons.id).complete(Unit)
+            advanceUntilIdle()
+            val fresh = viewModel.state.value
+            assertEquals(kidHomeRowKeys(warm.settings), kidHomeRowKeys(fresh.settings))
+            assertFalse((fresh.homeRows[2] as HomeRowLoadingState.Success).items.single()?.id == savedMovie.id)
+            viewModel.close()
+        }
+
+    @Test
+    fun `A saved Home is only read for this profile on this server under its own rules`() =
+        runTest(dispatcher) {
+            val kid = user("Kai", PolicyState.KID)
+            coEvery { cache.rules() } returns "kid-rules-v1:5"
+            listener()
+            signIn(kid)
+            advanceUntilIdle()
+            io.mockk.verify { cache.read(kid, "kid-rules-v1:5") }
+            io.mockk.verify(exactly = 0) { cache.read(neq(kid), any()) }
+        }
+
+    @Test
+    fun `A collection added or removed around another keeps that row in place and its key`() =
         runTest(dispatcher) {
             val kid = user("Kai", PolicyState.KID)
             val a = collection("Cartoon Adventures")
@@ -374,29 +538,31 @@ class KidHomeViewModelTest {
             val cRow = before.homeRows[3]
             val keysBefore = kidHomeRowKeys(before.settings)!!
 
-            // B arrives above C: C's row is the same object, B is fetched alone, and C's key moves with it
+            // B arrives above C. While C's fresh page is still out, C keeps the row it had, and its key moves with it
             serverCollections(a, b, c)
             now += KidHomeCollections.DISCOVERY_INTERVAL.inWholeMilliseconds
-            fetched.clear()
-            homeSettings.refreshKidCollections()
-            advanceUntilIdle()
-            val after = viewModel.state.value
-            assertEquals(listOf(a.id, b.id, c.id), after.collectionIds())
-            assertSame(cRow, after.homeRows[4])
-            assertEquals(listOf<Any>(b.id), fetched.map { (it as HomeRowConfig.ByParent).parentId })
-            val keysAfter = kidHomeRowKeys(after.settings)!!
+            gates[c.id] = CompletableDeferred()
+            homeSettings.refreshKidHome()
+            runCurrent()
+            val during = viewModel.state.value
+            assertEquals(listOf(a.id, b.id, c.id), during.collectionIds())
+            assertSame(cRow, during.homeRows[4])
+            val keysAfter = kidHomeRowKeys(during.settings)!!
             assertEquals(keysBefore[3], keysAfter[4])
             // Focus on C (row 3 before) follows it to row 4
             assertEquals(4, remapFocusedRow(keysBefore[3], 3, keysAfter) { true })
+            gates.getValue(c.id).complete(Unit)
+            advanceUntilIdle()
+            assertTrue(viewModel.state.value.homeRows[4] is HomeRowLoadingState.Success)
 
-            // A is removed: C moves up to row 3 and keeps its state
+            // A is removed: C moves up to row 3
             serverCollections(b, c)
             now += KidHomeCollections.DISCOVERY_INTERVAL.inWholeMilliseconds
-            homeSettings.refreshKidCollections()
+            homeSettings.refreshKidHome()
             advanceUntilIdle()
             val removed = viewModel.state.value
             assertEquals(listOf(b.id, c.id), removed.collectionIds())
-            assertSame(cRow, removed.homeRows[3])
+            assertTrue(removed.homeRows[3] is HomeRowLoadingState.Success)
             val keysRemoved = kidHomeRowKeys(removed.settings)!!
             assertEquals(3, remapFocusedRow(keysAfter[4], 4, keysRemoved) { true })
             // Focus on A (row 2), now gone, goes to the row in its place (B)
@@ -553,6 +719,134 @@ class KidHomeViewModelTest {
                 viewModel.state.value.settings.owner
                     ?.userId,
             )
+            viewModel.close()
+        }
+
+    @Test
+    fun `Kids Home rows from a session that ends right before they're shown are never shown`() =
+        runTest(dispatcher) {
+            val kid = user("Kai", PolicyState.KID)
+            val cartoons = collection("Cartoon Adventures")
+            serverCollections(cartoons)
+            withContent.add(HomeRowConfig.GetItems::class)
+            listener()
+            signIn(kid)
+            val viewModel = viewModel()
+            viewModel.init()
+            advanceUntilIdle()
+            val shown = viewModel.state.value
+            assertEquals(LoadingState.Success, shown.loadingState)
+
+            val states = record(viewModel)
+            // New rows arrive; the ceiling changes between Home's check and its write
+            var flip = true
+            every { homeSettings.isCurrent(any<HomePageResolvedSettings>()) } answers {
+                val current = callOriginal()
+                if (flip) {
+                    flip = false
+                    epoch.value += 1
+                }
+                current
+            }
+            val content = homeSettings.kidHome.value!!
+            val extra = BaseItem(BaseItemDto(id = UUID.randomUUID(), type = BaseItemKind.MOVIE), false)
+            val watchAgain = shown.settings.rows[1].config
+            homeSettings.kidHome.value =
+                content.copy(rows = content.rows + (watchAgain to HomeRowLoadingState.Success(StringStringProvider("x"), listOf(extra))))
+            advanceUntilIdle()
+            // Not even for a moment
+            assertTrue(
+                states.none { state ->
+                    state.homeRows.any { row -> (row as? HomeRowLoadingState.Success)?.items?.any { it?.id == extra.id } == true }
+                },
+            )
+            viewModel.close()
+        }
+
+    @Test
+    fun `With nothing to show after 30 seconds the loading picture goes, and slow rows still arrive`() =
+        runTest(dispatcher) {
+            val kid = user("Kai", PolicyState.KID)
+            val cartoons = collection("Cartoon Adventures")
+            serverCollections(cartoons)
+            withContent.add(cartoons.id)
+            delays[cartoons.id] = 35_000
+            listener()
+            signIn(kid)
+            val viewModel = viewModel()
+            viewModel.init()
+            runCurrent()
+            assertEquals(LoadingState.Loading, viewModel.state.value.loadingState)
+            advanceTimeBy(31_000)
+            runCurrent()
+            // The picture goes: Home says it's slow, rather than waiting on
+            val slow = viewModel.state.value.loadingState
+            assertTrue(slow is LoadingState.Error && slow.exception is KidHomeSlow)
+            advanceTimeBy(5_000)
+            runCurrent()
+            assertEquals(LoadingState.Success, viewModel.state.value.loadingState)
+            assertTrue(cancelled.isEmpty())
+            assertTrue((viewModel.state.value.homeRows[2] as HomeRowLoadingState.Success).items.isNotEmpty())
+            viewModel.close()
+        }
+
+    @Test
+    fun `A row still loading after 30 seconds isn't cancelled when another has shown`() =
+        runTest(dispatcher) {
+            val kid = user("Kai", PolicyState.KID)
+            val cartoons = collection("Cartoon Adventures")
+            serverCollections(cartoons)
+            withContent.add(HomeRowConfig.GetItems::class)
+            withContent.add(cartoons.id)
+            delays[cartoons.id] = 35_000
+            listener()
+            signIn(kid)
+            val viewModel = viewModel()
+            viewModel.init()
+            advanceTimeBy(36_000)
+            runCurrent()
+            assertTrue(cancelled.isEmpty())
+            assertTrue((viewModel.state.value.homeRows[2] as HomeRowLoadingState.Success).items.isNotEmpty())
+            viewModel.close()
+        }
+
+    @Test
+    fun `A fast failure of a fresh row doesn't throw away its re-checked saved row`() =
+        runTest(dispatcher) {
+            val kid = user("Kai", PolicyState.KID)
+            val savedEpisode = BaseItemDto(id = UUID.randomUUID(), type = BaseItemKind.EPISODE, name = "Saved")
+            coEvery { cache.rules() } returns "kid-rules-v1:5"
+            every { cache.read(kid, "kid-rules-v1:5") } returns
+                KidHomeCache.Saved(
+                    serverId = server.id.toString(),
+                    userId = kid.id.toString(),
+                    profileRowId = kid.rowId,
+                    rules = "kid-rules-v1:5",
+                    savedAt = 0,
+                    collections = emptyList(),
+                    rows = mapOf("continue" to KidHomeCache.SavedRow(listOf(KidHomeCache.SavedItem(savedEpisode)))),
+                )
+            val checked = CompletableDeferred<Unit>()
+            coEvery { cache.visibleNow(any()) } coAnswers {
+                checked.await()
+                firstArg()
+            }
+            // Next Up & Continue Watching fails at once, before the saved row is re-checked
+            failing.add(HomeRowConfig.ContinueWatchingCombined::class)
+            listener()
+            signIn(kid)
+            val viewModel = viewModel()
+            viewModel.init()
+            runCurrent()
+            val continueRow =
+                homeSettings.currentSettings.value.rows[0]
+                    .config
+            assertTrue(homeSettings.kidHome.value!!.rows[continueRow] is HomeRowLoadingState.Error)
+
+            checked.complete(Unit)
+            runCurrent()
+            val row = viewModel.state.value.homeRows[0] as HomeRowLoadingState.Success
+            assertEquals(listOf(savedEpisode.id), row.items.map { it?.id })
             viewModel.close()
         }
 }
