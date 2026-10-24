@@ -253,6 +253,10 @@ class HomeSettingsService
          * Does not persist either the server nor default
          */
         suspend fun loadCurrentSettings(userId: UUID) {
+            if (isKidOrUnknown(serverRepository.currentUser)) {
+                currentSettings.update { loadKidSettings(userId) }
+                return
+            }
             Timber.v("Getting setting for %s", userId)
             // User local then server/remote otherwise create a default
             val settings =
@@ -297,6 +301,24 @@ class HomeSettingsService
                 }
             currentSettings.update { homeSettings }
             if (BuildConfig.FLAVOR == "weaselfin") syncApprovedLayoutToServer(userId, homeSettings)
+        }
+
+        /**
+         * A kids (or unknown) profile's Home ([KidHomeCollections]): never the saved (adult) rows, and
+         * nothing is saved. If the kids' collections can't be loaded, the first two rows still show.
+         */
+        private suspend fun loadKidSettings(userId: UUID): HomePageResolvedSettings {
+            Timber.v("Kids Home for %s", userId)
+            val collections =
+                try {
+                    KidHomeCollections.fetch(api, userId)
+                } catch (ex: CancellationException) {
+                    throw ex
+                } catch (ex: Exception) {
+                    Timber.w(ex, "Couldn't load the kids collections")
+                    emptyList()
+                }
+            return KidHomeCollections.settings(context.getString(R.string.kid_home_watch_again), collections)
         }
 
         /** Apply the owner-approved layout once; later user edits are retained. */
