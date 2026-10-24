@@ -28,6 +28,7 @@ import com.github.damontecres.wholphin.ui.components.OverviewText
 import com.github.damontecres.wholphin.ui.components.QuickDetails
 import com.github.damontecres.wholphin.ui.components.SeriesName
 import com.github.damontecres.wholphin.ui.components.VideoStreamDetails
+import com.github.damontecres.wholphin.ui.detail.KidEpisodeInfo
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import org.jellyfin.sdk.model.api.PersonKind
 
@@ -39,6 +40,9 @@ fun EpisodeDetailsHeader(
     bringIntoViewRequester: BringIntoViewRequester,
     overviewOnClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The kid design (owner 2026-10-23): "S1 E9 • 23m • [rating]" and the full description; [seriesRating] is the fallback */
+    kid: Boolean = false,
+    seriesRating: String? = null,
 ) {
     val dto = ep.data
     val context = LocalContext.current
@@ -49,6 +53,10 @@ fun EpisodeDetailsHeader(
     ) {
         SeriesName(dto.seriesName, Modifier.fillMaxWidth(.75f))
         EpisodeName(dto, Modifier.fillMaxWidth(.75f))
+        if (kid) {
+            KidEpisodeInfo(dto, seriesRating, Modifier.fillMaxWidth(.60f))
+            return@Column
+        }
 
         Column(
             verticalArrangement = Arrangement.spacedBy(4.dp),

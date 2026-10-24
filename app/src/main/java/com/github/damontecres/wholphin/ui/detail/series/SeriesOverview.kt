@@ -157,7 +157,8 @@ fun SeriesOverview(
 
         focusedEpisode?.let {
             viewModel.lookUpChosenTracks(it.id, it)
-            viewModel.lookupPeopleInEpisode(it)
+            // A kid's page has no cast rows (owner 2026-10-23)
+            if (!viewModel.kidPage) viewModel.lookupPeopleInEpisode(it)
         }
     }
     val chosenStreams = state.chosenStreams
@@ -197,6 +198,7 @@ fun SeriesOverview(
 
             ProvideNeonAccent(neonAccentFor(st.data)) {
                 SeriesOverviewContent(
+                    kid = viewModel.kidPage,
                     preferences = preferences,
                     series = st.data,
                     seasons = state.seasons,

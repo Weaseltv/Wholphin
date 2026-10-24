@@ -44,6 +44,9 @@ import com.github.damontecres.wholphin.ui.data.AddPlaylistViewModel
 import com.github.damontecres.wholphin.ui.data.ChooseVersionParams
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialog
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialogInfo
+import com.github.damontecres.wholphin.ui.detail.KidAction
+import com.github.damontecres.wholphin.ui.detail.KidTitleButtons
+import com.github.damontecres.wholphin.ui.detail.KidTitlePage
 import com.github.damontecres.wholphin.ui.detail.PlaylistDialog
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberInt
@@ -57,6 +60,7 @@ import org.jellyfin.sdk.model.extensions.ticks
 import org.jellyfin.sdk.model.serializer.toUUID
 import java.util.UUID
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun EpisodeDetails(
@@ -176,6 +180,8 @@ fun EpisodeDetails(
                     canDelete = canDelete,
                     onConfirmDelete = { viewModel.deleteItem(ep) },
                     onChooseVersion = { contextActions.onChooseVersion.invoke(ep, it) },
+                    kid = viewModel.kidPage,
+                    seriesRating = state.seriesRating,
                     modifier = modifier,
                 )
             }
@@ -235,8 +241,12 @@ fun EpisodeDetailsContent(
     onConfirmDelete: () -> Unit,
     onChooseVersion: (MediaSourceInfo) -> Unit,
     modifier: Modifier = Modifier,
+    /** The kid design (owner 2026-10-23): a short header with the full description and the kid buttons */
+    kid: Boolean = false,
+    seriesRating: String? = null,
 ) {
     val context = LocalContext.current
+    val kidFirstFocus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
     var position by rememberInt(0)
     val focusRequesters = remember { List(1) { FocusRequester() } }
@@ -266,50 +276,87 @@ fun EpisodeDetailsContent(
                             chosenStreams = chosenStreams,
                             bringIntoViewRequester = bringIntoViewRequester,
                             overviewOnClick = overviewOnClick,
+                            kid = kid,
+                            seriesRating = seriesRating,
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
                                     .padding(top = HeaderUtils.detailTopPadding(), bottom = 8.dp),
                         )
                     }
-                    ExpandablePlayButtons(
-                        title = ep.title ?: "",
-                        resumePosition = resumePosition,
-                        watched = dto.userData?.played ?: false,
-                        favorite = dto.userData?.isFavorite ?: false,
-                        playOnClick = {
-                            position = HEADER_ROW
-                            playOnClick.invoke(it)
-                        },
-                        moreOnClick = moreOnClick,
-                        watchOnClick = watchOnClick,
-                        favoriteOnClick = favoriteOnClick,
-                        buttonOnFocusChanged = {
-                            if (it.isFocused) {
+                    if (kid) {
+                        val play = remember(ep) { KidTitlePage.episodePlay(dto) }
+                        KidTitleButtons(
+                            play = play,
+                            actions = KidTitlePage.movieActions(play),
+                            onWatchlist = dto.userData?.isFavorite ?: false,
+                            onPlay = {
                                 position = HEADER_ROW
-                                scope.launch(ExceptionHandler()) {
-                                    bringIntoViewRequester.bringIntoView()
-                                }
-                            }
-                        },
-                        trailers = null,
-                        trailerOnClick = {},
-                        canDelete = canDelete,
-                        onConfirmDelete = onConfirmDelete,
-                        chooseVersionParams =
-                            remember(chosenStreams, ep, onChooseVersion) {
-                                ChooseVersionParams(
-                                    chosenStreams = chosenStreams,
-                                    mediaSources = ep.data.mediaSources.orEmpty(),
-                                    onChooseVersion = onChooseVersion,
-                                )
+                                playOnClick.invoke(it.positionMs.milliseconds)
                             },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 16.dp)
-                                .focusRequester(focusRequesters[HEADER_ROW]),
-                    )
+                            onAction = { action ->
+                                position = HEADER_ROW
+                                when (action) {
+                                    KidAction.START_OVER -> {
+                                        playOnClick.invoke(Duration.ZERO)
+                                    }
+
+                                    KidAction.WATCHLIST -> {
+                                        favoriteOnClick.invoke()
+                                    }
+
+                                    KidAction.SHUFFLE -> {}
+                                }
+                            },
+                            onFocusChanged = {
+                                if (it.isFocused) {
+                                    position = HEADER_ROW
+                                    scope.launch(ExceptionHandler()) { bringIntoViewRequester.bringIntoView() }
+                                }
+                            },
+                            firstFocus = kidFirstFocus,
+                            modifier = Modifier.fillMaxWidth().focusRequester(focusRequesters[HEADER_ROW]),
+                        )
+                    } else {
+                        ExpandablePlayButtons(
+                            title = ep.title ?: "",
+                            resumePosition = resumePosition,
+                            watched = dto.userData?.played ?: false,
+                            favorite = dto.userData?.isFavorite ?: false,
+                            playOnClick = {
+                                position = HEADER_ROW
+                                playOnClick.invoke(it)
+                            },
+                            moreOnClick = moreOnClick,
+                            watchOnClick = watchOnClick,
+                            favoriteOnClick = favoriteOnClick,
+                            buttonOnFocusChanged = {
+                                if (it.isFocused) {
+                                    position = HEADER_ROW
+                                    scope.launch(ExceptionHandler()) {
+                                        bringIntoViewRequester.bringIntoView()
+                                    }
+                                }
+                            },
+                            trailers = null,
+                            trailerOnClick = {},
+                            canDelete = canDelete,
+                            onConfirmDelete = onConfirmDelete,
+                            chooseVersionParams =
+                                remember(chosenStreams, ep, onChooseVersion) {
+                                    ChooseVersionParams(
+                                        chosenStreams = chosenStreams,
+                                        mediaSources = ep.data.mediaSources.orEmpty(),
+                                        onChooseVersion = onChooseVersion,
+                                    )
+                                },
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 16.dp)
+                                    .focusRequester(focusRequesters[HEADER_ROW]),
+                        )
+                    }
                 }
             }
         }

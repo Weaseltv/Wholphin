@@ -48,6 +48,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -62,13 +63,18 @@ import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.components.HeaderUtils
+import com.github.damontecres.wholphin.ui.components.OverviewText
 import com.github.damontecres.wholphin.ui.components.reportDetailActionHeight
+import com.github.damontecres.wholphin.ui.components.scaled
 import com.github.damontecres.wholphin.ui.formatDuration
 import com.github.damontecres.wholphin.ui.roundMinutes
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.neonGlowAccent
 import com.github.damontecres.wholphin.ui.tryRequestFocus
+import org.jellyfin.sdk.model.api.BaseItemDto
+import org.jellyfin.sdk.model.extensions.ticks
+import kotlin.time.Duration
 
 /*
  * The kid title page's pieces (owner mockup kid-title-page.html, 2026-10-23): the metadata line with an age-rating badge,
@@ -108,6 +114,54 @@ fun KidMetadataLine(
                     Modifier
                         .border(2.dp, NeonBoard.Text, RoundedCornerShape(6.dp))
                         .padding(horizontal = 8.dp, vertical = 1.dp),
+            )
+        }
+    }
+}
+
+/**
+ * The kid pages' episode details (owner 2026-10-23): "S1 E9 • 23m • [rating]" (the episode's rating, else
+ * [seriesRating]), then the episode's description up to [KidTitlePage.overviewLines]. No date, "Ends at", scores or
+ * stream chips.
+ */
+@Composable
+fun KidEpisodeInfo(
+    episode: BaseItemDto,
+    seriesRating: String?,
+    modifier: Modifier = Modifier,
+    textScale: Float = 1f,
+) {
+    val resources = LocalResources.current
+    val typography = MaterialTheme.typography
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = modifier,
+    ) {
+        val parts =
+            remember(episode.id, episode.parentIndexNumber, episode.indexNumber, episode.runTimeTicks) {
+                listOfNotNull(
+                    KidTitlePage.episodeCode(episode),
+                    episode.runTimeTicks
+                        ?.ticks
+                        ?.roundMinutes
+                        ?.takeIf { it > Duration.ZERO }
+                        ?.let { resources.formatDuration(it) },
+                )
+            }
+        KidMetadataLine(
+            parts = parts,
+            rating = KidTitlePage.episodeRating(episode, seriesRating),
+            textStyle = typography.titleSmall.scaled(textScale),
+            modifier = Modifier.padding(start = HeaderUtils.startPadding),
+        )
+        episode.overview?.takeIf { it.isNotBlank() }?.let { overview ->
+            OverviewText(
+                overview = overview,
+                maxLines = KidTitlePage.overviewLines(compact = false),
+                compactMaxLines = KidTitlePage.overviewLines(compact = true),
+                onClick = {},
+                textBoxHeight = Dp.Unspecified,
+                textStyle = typography.bodyMedium.scaled(textScale),
             )
         }
     }
