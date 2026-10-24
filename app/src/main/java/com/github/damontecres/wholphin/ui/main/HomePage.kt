@@ -149,6 +149,7 @@ fun HomePage(
     val refreshing = state.refreshState
     val homeRows = state.homeRows
     val libraries = state.libraries
+    val shownSettings = state.settings
 
     when (val state = loading) {
         is LoadingState.Error -> {
@@ -276,10 +277,12 @@ fun HomePage(
                     }
                 }
 
+            val rowKeys = remember(shownSettings) { kidHomeRowKeys(shownSettings) }
             HomePageContent(
                 homeRows = homeRows,
                 libraries = libraries,
                 splitHomeTitles = true,
+                rowKeys = rowKeys,
                 position = position,
                 onFocusPosition = onFocusPosition,
                 onClickItem = onClickItem,
@@ -389,6 +392,7 @@ fun HomePageContent(
     rowHeading: (@Composable (HomeRowLoadingState.Success) -> Pair<String, String?>)? = null,
     onClickViewMore: (RowColumn, HomeRowLoadingState.Success) -> Unit = { _, _ -> },
     reorder: HomeRowReorder? = null,
+    rowKeys: List<String>? = null,
 ) {
     val focusedItem =
         remember(homeRows, position) {
@@ -400,9 +404,20 @@ fun HomePageContent(
     val hasContent: (HomeRowLoadingState) -> Boolean = {
         it is HomeRowLoadingState.Success && it.items.isNotEmpty()
     }
-    val rowFocusRequesters = remember(homeRows.size) { List(homeRows.size) { FocusRequester() } }
-    val rowTitleHeights = remember { mutableStateMapOf<Int, Int>() }
-    val rowHeights = remember { mutableStateMapOf<Int, Int>() }
+    // A kids Home's rows are keyed by row ([rowKeys]): focus requesters and measured heights follow a row that moves.
+    // Any other Home keeps them by position.
+    val keyed = rowKeys != null && rowKeys.size == homeRows.size
+    val rowKey: (Int) -> Any = { index -> if (keyed) rowKeys!!.getOrNull(index) ?: index else index }
+    val positionalRequesters = remember(homeRows.size) { List(homeRows.size) { FocusRequester() } }
+    val keyedRequesters = remember { mutableMapOf<Any, FocusRequester>() }
+    val rowFocusRequesters =
+        if (keyed) {
+            remember(rowKeys) { rowKeys!!.map { keyedRequesters.getOrPut(it) { FocusRequester() } } }
+        } else {
+            positionalRequesters
+        }
+    val rowTitleHeights = remember { mutableStateMapOf<Any, Int>() }
+    val rowHeights = remember { mutableStateMapOf<Any, Int>() }
     var firstFocused by remember { mutableStateOf(false) }
 
     val currentPosition by rememberUpdatedState(position)
@@ -430,6 +445,24 @@ fun HomePageContent(
             }
         }
     }
+    if (keyed) {
+        // The focused row's key; when rows are added or removed around it, the position follows it, or moves to the
+        // nearest row (with focus) when it's gone
+        var focusedKey by remember { mutableStateOf<String?>(null) }
+        val currentRowKeys by rememberUpdatedState(rowKeys!!)
+        LaunchedEffect(position.row) { focusedKey = currentRowKeys.getOrNull(position.row) }
+        LaunchedEffect(rowKeys) {
+            val key = focusedKey ?: return@LaunchedEffect
+            val row = remapFocusedRow(key, currentPosition.row, rowKeys!!) { hasContent(homeRows[it]) } ?: return@LaunchedEffect
+            if (rowKeys[row] == key) {
+                if (row != currentPosition.row) currentOnFocusPosition(currentPosition.copy(row = row))
+            } else {
+                currentOnFocusPosition(RowColumn(row, 0))
+                focusedKey = rowKeys[row]
+                rowFocusRequesters.getOrNull(row)?.tryRequestFocus()
+            }
+        }
+    }
     LaunchedEffect(onUpdateBackdrop, focusedItem) {
         focusedItem?.let { onUpdateBackdrop.invoke(it) }
     }
@@ -438,9 +471,9 @@ fun HomePageContent(
         val focusedRowIndex = position.row.coerceAtLeast(0)
         val nextRowIndex =
             ((focusedRowIndex + 1) until homeRows.size).firstOrNull { hasContent(homeRows[it]) }
-        val focusedRowHeight = rowHeights[focusedRowIndex]
-        val focusedTitleHeight = rowTitleHeights[focusedRowIndex]
-        val nextTitleHeight = nextRowIndex?.let { rowTitleHeights[it] ?: focusedTitleHeight }
+        val focusedRowHeight = rowHeights[rowKey(focusedRowIndex)]
+        val focusedTitleHeight = rowTitleHeights[rowKey(focusedRowIndex)]
+        val nextTitleHeight = nextRowIndex?.let { rowTitleHeights[rowKey(it)] ?: focusedTitleHeight }
         // Keep the next kicker, title and rule above the viewport edge. Use actual row
         // measurements so font, card, caption and spacing tuning all share this budget.
         val headerMaxHeight =
@@ -510,12 +543,12 @@ fun HomePageContent(
                         Modifier
                             .focusRestorer(),
                 ) {
-                    itemsIndexed(homeRows) { rowIndex, row ->
+                    itemsIndexed(homeRows, key = if (keyed) { index, _ -> rowKeys!![index] } else null) { rowIndex, row ->
                         val reordering = reorder?.row == rowIndex
                         val rowModifier =
                             Modifier
                                 .animateItem(placementSpec = null)
-                                .onSizeChanged { rowHeights[rowIndex] = it.height }
+                                .onSizeChanged { rowHeights[rowKey(rowIndex)] = it.height }
                                 .then(if (reordering) Modifier.onPreviewKeyEvent { reorder!!.onKey(it) } else Modifier)
                                 .padding(
                                     bottom =
@@ -572,7 +605,7 @@ fun HomePageContent(
                                                 } else {
                                                     null
                                                 },
-                                            onTitleHeightChanged = { rowTitleHeights[rowIndex] = it },
+                                            onTitleHeightChanged = { rowTitleHeights[rowKey(rowIndex)] = it },
                                             titleAccent = homeRowAccent(row.rowType, libraries),
                                             items = row.items,
                                             onClickItem =

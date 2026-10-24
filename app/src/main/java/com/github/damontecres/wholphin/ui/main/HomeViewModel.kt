@@ -42,10 +42,14 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
@@ -90,6 +94,14 @@ class HomeViewModel
         /** Serializes Home loads with the kids Home's row updates, so rows land at the index they were fetched for */
         private val loadMutex = Mutex()
 
+        /** The load or kids Home update holding [loadMutex], cancelled with its row requests when the session moves on */
+        @Volatile
+        private var running: Job? = null
+
+        /** The settings the running load took, before it shows them; the watcher checks them like the shown ones */
+        @Volatile
+        private var loadingSettings: HomePageResolvedSettings? = null
+
         private var settingsWatch: Job? = null
 
         fun init() {
@@ -104,34 +116,91 @@ class HomeViewModel
                     Timber.w(ex, "Kids collections refresh failed")
                 }
             }
+            requestLoad()
+        }
+
+        private fun requestLoad() {
             viewModelScope.launchIO {
-                loadMutex.withLock { load() }
+                exclusive { load(it) }
             }
         }
 
-        private suspend fun load() {
+        /** Runs [block] under [loadMutex] for the generation current then, as the [running] job */
+        private suspend fun exclusive(block: suspend (generation: Long) -> Unit) {
+            loadMutex.withLock {
+                running = currentCoroutineContext().job
+                try {
+                    block(state.value.generation)
+                } finally {
+                    running = null
+                    loadingSettings = null
+                }
+            }
+        }
+
+        /**
+         * Kid content rules (PR #97 review round 2): [block]'s state, only while [generation] is still Home's and the
+         * settings it was made for are still the session's. False when it was dropped.
+         */
+        private fun update(
+            generation: Long,
+            settings: HomePageResolvedSettings,
+            block: (HomeState) -> HomeState,
+        ): Boolean {
+            var applied = false
+            _state.update {
+                applied = it.generation == generation && homeSettingsService.isCurrent(settings)
+                if (applied) block(it) else it
+            }
+            return applied
+        }
+
+        /**
+         * Settings for the session as it is now, with that session's user. Waits while there are none (eg a restored
+         * process before the listener loads them), and marks them as [loadingSettings] while they are still current.
+         */
+        private suspend fun currentSession(): Pair<HomePageResolvedSettings, UserDto> {
+            while (true) {
+                val (settings, userDto) =
+                    homeSettingsService.settingsUpdates
+                        .mapNotNull { settings ->
+                            val userDto = serverRepository.currentUserDto
+                            val owner = settings.owner
+                            if (userDto != null && homeSettingsService.isCurrent(settings) &&
+                                (owner == null || owner.userId == userDto.id)
+                            ) {
+                                settings to userDto
+                            } else {
+                                null
+                            }
+                        }.first()
+                loadingSettings = settings
+                // A session change from here on finds them in loadingSettings; one before, and they're taken again
+                if (homeSettingsService.isCurrent(settings)) return settings to userDto
+            }
+        }
+
+        private suspend fun load(generation: Long) {
             Timber.d("init HomeViewModel")
             try {
                 val preferences = userPreferencesService.getCurrent()
                 val prefs = preferences.appPreferences.homePagePreferences
+                // One generation: these settings, this user, its libraries and these preferences
+                val (settings, userDto) = currentSession()
+                val libraries = navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
+                val state = state.value
 
-                serverRepository.currentUserDto?.let { userDto ->
-                    val libraries =
-                        navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
-                    // Kid content rules (PR #97 review round 1): only settings made for this session
-                    val settings = homeSettingsService.awaitCurrentSettings()
-                    val state = state.value
-
-                    // Refreshing if a load has already occurred and the rows haven't significantly changed
-                    val refresh =
-                        state.loadingState == LoadingState.Success && state.settings == settings
-                    Timber.v(
-                        "refresh=%s, state.loadingState=%s, %s rows",
-                        refresh,
-                        state.loadingState,
-                        settings.rows.size,
-                    )
-                    _state.update {
+                // Refreshing if a load has already occurred and the rows haven't significantly changed
+                val refresh =
+                    state.loadingState == LoadingState.Success && state.settings == settings
+                Timber.v(
+                    "refresh=%s, state.loadingState=%s, %s rows",
+                    refresh,
+                    state.loadingState,
+                    settings.rows.size,
+                )
+                val started =
+                    update(generation, settings) {
                         it.copy(
                             loadingState = if (refresh) LoadingState.Success else LoadingState.Loading,
                             refreshState = LoadingState.Loading,
@@ -147,13 +216,15 @@ class HomeViewModel
                                 },
                         )
                     }
+                if (!started) return
 
-                    val semaphore = Semaphore(4)
-
+                val semaphore = Semaphore(4)
+                // The row requests are this load's children: cancelled with it
+                coroutineScope {
                     val deferred =
                         settings.rows
                             .map { row ->
-                                viewModelScope.async(WholphinDispatchers.IO) {
+                                async(WholphinDispatchers.IO) {
                                     semaphore.withPermit { fetchRow(row, prefs, userDto, libraries, refresh) }
                                 }
                             }
@@ -172,7 +243,7 @@ class HomeViewModel
                                 }
                             Timber.v("Got row data index=%s", rowIndex)
                             remaining.removeIf { it.index == rowIndex }
-                            _state.update { state ->
+                            update(generation, settings) { state ->
                                 val newRows =
                                     state.homeRows.toMutableList().apply {
                                         set(rowIndex, rowData)
@@ -182,7 +253,7 @@ class HomeViewModel
                                 )
                             }
                         }
-                        _state.update {
+                        update(generation, settings) {
                             it.copy(
                                 loadingState = LoadingState.Success,
                                 refreshState = LoadingState.Success,
@@ -191,7 +262,7 @@ class HomeViewModel
                     } else {
                         val rows = deferred.awaitAll()
                         Timber.v("Got all rows")
-                        _state.update {
+                        update(generation, settings) {
                             it.copy(
                                 loadingState = LoadingState.Success,
                                 refreshState = LoadingState.Success,
@@ -199,19 +270,29 @@ class HomeViewModel
                             )
                         }
                     }
-                    Timber.d("Home page load complete")
-                    prefetchStreamingCollections(userDto.id)
                 }
+                Timber.d("Home page load complete")
+                prefetchStreamingCollections(userDto.id)
+                // Review round 2: collection rows published while this load ran
+                applyKidSettings(generation)
             } catch (ex: CancellationException) {
                 throw ex
             } catch (ex: Exception) {
                 Timber.e(ex, "Exception during home page loading")
-                if (state.value.loadingState == LoadingState.Success) {
-                    if (!ex.isStaleSession()) showToast(context, "Error refreshing home: ${ex.localizedMessage}")
-                    _state.update { it.copy(refreshState = LoadingState.Error(ex)) }
-                } else {
-                    _state.update {
-                        it.copy(loadingState = LoadingState.Error(ex))
+                _state.update {
+                    when {
+                        it.generation != generation -> {
+                            it
+                        }
+
+                        it.loadingState == LoadingState.Success -> {
+                            if (!ex.isStaleSession()) showToast(context, "Error refreshing home: ${ex.localizedMessage}")
+                            it.copy(refreshState = LoadingState.Error(ex))
+                        }
+
+                        else -> {
+                            it.copy(loadingState = LoadingState.Error(ex))
+                        }
                     }
                 }
             }
@@ -266,10 +347,10 @@ class HomeViewModel
         }
 
         /**
-         * Kid content rules (PR #97 review round 1): Home drops what it shows as soon as it stops being for the
-         * session (a policy refresh turned the profile into a kid, or a new epoch) and loads again. A kids Home also
+         * Kid content rules (PR #97 review rounds 1 and 2): as soon as what Home shows, or what its running load took,
+         * stops being for the session (a policy refresh made the profile a kid, another profile, a new epoch), Home
+         * drops it, cancels that load and its row requests, and loads again under a new generation. A kids Home also
          * takes its collection rows as they're found, and later additions and removals, keeping the rows it has.
-         * Adults' Home is otherwise unchanged.
          */
         private fun watchSettings() {
             if (settingsWatch != null) return
@@ -277,43 +358,58 @@ class HomeViewModel
                 viewModelScope.launchIO {
                     homeSettingsService.settingsUpdates.collect { settings ->
                         val shown = state.value.settings
-                        if (shown == HomePageResolvedSettings.EMPTY) return@collect
-                        if (!homeSettingsService.isCurrent(shown)) {
+                        val inUse = listOfNotNull(loadingSettings, shown.takeIf { it != HomePageResolvedSettings.EMPTY })
+                        if (inUse.any { !homeSettingsService.isCurrent(it) }) {
                             Timber.i("Kid content rules: Home settings are for an earlier session, reloading")
-                            _state.update { HomeState.EMPTY.copy(loadingState = LoadingState.Loading) }
-                            init()
+                            invalidate()
+                            requestLoad()
                         } else if (settings.owner?.kid == true && settings != shown && homeSettingsService.isCurrent(settings)) {
-                            loadMutex.withLock { applyKidSettings(settings) }
+                            viewModelScope.launchIO { exclusive { applyKidSettings(it) } }
                         }
                     }
                 }
         }
 
-        /** Show the kids Home's [settings], keeping every row already loaded and fetching only the new ones */
-        private suspend fun applyKidSettings(settings: HomePageResolvedSettings) {
+        /** A new generation: nothing shown, and whatever was loading for the old one stops */
+        private fun invalidate() {
+            _state.update { HomeState.EMPTY.copy(loadingState = LoadingState.Loading, generation = it.generation + 1) }
+            loadingSettings = null
+            running?.cancel()
+        }
+
+        /**
+         * Show the kids Home's latest settings, keeping every row already loaded (by its config) and fetching only
+         * the new ones. Nothing unless Home has loaded under [generation] and both are the session's.
+         */
+        private suspend fun applyKidSettings(generation: Long) {
+            val settings = homeSettingsService.currentSettings.value
             val current = state.value
-            if (current.loadingState != LoadingState.Success || current.settings == settings) return
-            if (!homeSettingsService.isCurrent(settings)) return
-            val userDto = serverRepository.currentUserDto ?: return
+            if (current.generation != generation || current.loadingState != LoadingState.Success || current.settings == settings) return
+            val owner = settings.owner
+            if (owner == null || !owner.kid || !homeSettingsService.isCurrent(settings)) return
+            if (!homeSettingsService.isCurrent(current.settings)) return
+            val userDto = serverRepository.currentUserDto?.takeIf { it.id == owner.userId } ?: return
             val prefs = userPreferencesService.getCurrent().appPreferences.homePagePreferences
             val rows = reconcileRows(current.settings, current.homeRows, settings)
-            _state.update { it.copy(settings = settings, homeRows = rows) }
+            if (!update(generation, settings) { it.copy(settings = settings, homeRows = rows) }) return
             val semaphore = Semaphore(4)
-            settings.rows
-                .withIndex()
-                .filter { (index, _) -> rows[index] is HomeRowLoadingState.Pending }
-                .map { (index, row) ->
-                    viewModelScope.async(WholphinDispatchers.IO) {
-                        val data = semaphore.withPermit { fetchRow(row, prefs, userDto, current.libraries, refresh = false) }
-                        _state.update {
-                            if (it.settings != settings) {
-                                it
-                            } else {
-                                it.copy(homeRows = it.homeRows.toMutableList().apply { set(index, data) })
+            coroutineScope {
+                settings.rows
+                    .withIndex()
+                    .filter { (index, _) -> rows[index] is HomeRowLoadingState.Pending }
+                    .map { (index, row) ->
+                        async(WholphinDispatchers.IO) {
+                            val data = semaphore.withPermit { fetchRow(row, prefs, userDto, current.libraries, refresh = false) }
+                            update(generation, settings) {
+                                if (it.settings != settings) {
+                                    it
+                                } else {
+                                    it.copy(homeRows = it.homeRows.toMutableList().apply { set(index, data) })
+                                }
                             }
                         }
-                    }
-                }.awaitAll()
+                    }.awaitAll()
+            }
         }
 
         fun setWatched(
@@ -444,6 +540,8 @@ data class HomeState(
     val homeRows: List<HomeRowLoadingState>,
     val settings: HomePageResolvedSettings,
     val libraries: List<Library> = emptyList(),
+    /** Kid content rules (PR #97 review round 2): goes up whenever what Home shows stops being for the session */
+    val generation: Long = 0,
 ) {
     companion object {
         val EMPTY =
@@ -478,4 +576,38 @@ internal fun reconcileRows(
             .zip(oldRows)
             .toMap()
     return new.rows.map { loaded[it.config] ?: HomeRowLoadingState.Pending(it.title) }
+}
+
+/**
+ * Stable keys for a kids Home's rows (PR #97 review round 2), so a collection row keeps its focus and scroll state
+ * when rows are added or removed around it: a collection row by its collection, the two rows before them by place.
+ * Null for any other Home, which keeps its positional rows.
+ */
+internal fun kidHomeRowKeys(settings: HomePageResolvedSettings): List<String>? {
+    if (settings.owner?.kid != true) return null
+    return settings.rows.mapIndexed { index, row ->
+        (row.config as? HomeRowConfig.ByParent)?.parentId?.let { "collection:$it" } ?: "row:$index"
+    }
+}
+
+/**
+ * Where the focused row [focusedKey] (at [focusedRow] before) is now in [keys]: its new index, or when it's gone, the
+ * nearest row with content ([hasContent]) to where it was, the one now in its place first. Null if no row has content.
+ */
+internal fun remapFocusedRow(
+    focusedKey: String,
+    focusedRow: Int,
+    keys: List<String>,
+    hasContent: (Int) -> Boolean,
+): Int? {
+    val index = keys.indexOf(focusedKey)
+    if (index >= 0) return index
+    if (keys.isEmpty()) return null
+    val start = focusedRow.coerceIn(0, keys.lastIndex)
+    for (distance in 0..keys.size) {
+        listOf(start + distance, start - distance - 1)
+            .firstOrNull { it in keys.indices && hasContent(it) }
+            ?.let { return it }
+    }
+    return null
 }
