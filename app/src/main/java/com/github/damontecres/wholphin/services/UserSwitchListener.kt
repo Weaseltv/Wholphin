@@ -113,7 +113,7 @@ class UserSwitchListener
 
                 // Check for home settings
                 launchIO {
-                    homeSettingsService.loadCurrentSettings(user.id)
+                    homeSettingsService.loadCurrentSettings(user.id, user)
                 }
                 if (BuildConfig.KID_PROFILES_ENABLED) {
                     // Contract 11.1: an adult without a picture gets a random one, once per user per TV (also when

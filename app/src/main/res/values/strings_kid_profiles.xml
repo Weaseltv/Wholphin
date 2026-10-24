@@ -109,4 +109,7 @@
         <item quantity="one">%d season</item>
         <item quantity="other">%d seasons</item>
     </plurals>
+    <!-- Kids profile Home: the two rows the app builds; the themed rows are the server's collections -->
+    <string name="kid_home_continue">Next up &amp; continue watching</string>
+    <string name="kid_home_watch_again">Watch again</string>
 </resources>
