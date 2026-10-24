@@ -161,6 +161,15 @@ object KidTitlePage {
         )
     }
 
+    /**
+     * The long-press (and More) menus on the kid pages (review, owner 2026-10-23): none, so a kid can't mark items
+     * watched, choose versions or streams, see media information or delete there. OK still opens or plays the item.
+     */
+    fun <T : Any> contextMenuFor(
+        kidPage: Boolean,
+        menu: T?,
+    ): T? = menu.takeUnless { kidPage }
+
     /** "S1 E9" for an episode's metadata line, or null without both numbers */
     fun episodeCode(episode: BaseItemDto): String? {
         val season = episode.parentIndexNumber ?: return null

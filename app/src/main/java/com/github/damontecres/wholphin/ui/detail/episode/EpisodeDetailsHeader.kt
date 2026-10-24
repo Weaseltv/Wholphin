@@ -27,7 +27,9 @@ import com.github.damontecres.wholphin.ui.components.EpisodeName
 import com.github.damontecres.wholphin.ui.components.OverviewText
 import com.github.damontecres.wholphin.ui.components.QuickDetails
 import com.github.damontecres.wholphin.ui.components.SeriesName
+import com.github.damontecres.wholphin.ui.components.TitleOrLogo
 import com.github.damontecres.wholphin.ui.components.VideoStreamDetails
+import com.github.damontecres.wholphin.ui.components.rememberLogoUrl
 import com.github.damontecres.wholphin.ui.detail.KidEpisodeInfo
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import org.jellyfin.sdk.model.api.PersonKind
@@ -51,7 +53,17 @@ fun EpisodeDetailsHeader(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier,
     ) {
-        SeriesName(dto.seriesName, Modifier.fillMaxWidth(.75f))
+        if (kid) {
+            // The series' logo (falling back to its name), as on the season/episode page
+            TitleOrLogo(
+                title = dto.seriesName,
+                logoImageUrl = rememberLogoUrl(ep),
+                showLogo = preferences.appPreferences.interfacePreferences.showLogos,
+                modifier = Modifier.fillMaxWidth(.75f),
+            )
+        } else {
+            SeriesName(dto.seriesName, Modifier.fillMaxWidth(.75f))
+        }
         EpisodeName(dto, Modifier.fillMaxWidth(.75f))
         if (kid) {
             KidEpisodeInfo(dto, seriesRating, Modifier.fillMaxWidth(.60f))

@@ -28,6 +28,7 @@ import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.data.AddPlaylistViewModel
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialog
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialogInfo
+import com.github.damontecres.wholphin.ui.detail.KidTitlePage
 import com.github.damontecres.wholphin.ui.detail.PlaylistDialog
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberInt
@@ -321,7 +322,8 @@ fun SeriesOverview(
             }
         }
     }
-    showContextMenu?.let { contextMenu ->
+    // A kid's page has no long-press or More menu
+    KidTitlePage.contextMenuFor(viewModel.kidPage, showContextMenu)?.let { contextMenu ->
         ContextMenuDialog(
             onDismissRequest = { showContextMenu = null },
             getMediaSource = viewModel.streamChoiceService::chooseSource,

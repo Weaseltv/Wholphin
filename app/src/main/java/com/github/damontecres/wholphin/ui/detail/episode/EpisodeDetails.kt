@@ -197,7 +197,8 @@ fun EpisodeDetails(
             onDismissRequest = { overviewDialog = null },
         )
     }
-    showContextMenu?.let { contextMenu ->
+    // A kid's page has no long-press or More menu
+    KidTitlePage.contextMenuFor(viewModel.kidPage, showContextMenu)?.let { contextMenu ->
         ContextMenuDialog(
             onDismissRequest = { showContextMenu = null },
             getMediaSource = viewModel.streamChoiceService::chooseSource,

@@ -130,6 +130,14 @@ class KidTitlePageTest {
         assertNull(KidTitlePage.episodeRating(episode(1, 9), null))
     }
 
+    @Test
+    fun `a kid page has no long-press or More menu, an adult page keeps it`() {
+        val menu = "the context menu"
+        assertNull(KidTitlePage.contextMenuFor(kidPage = true, menu = menu))
+        assertEquals(menu, KidTitlePage.contextMenuFor(kidPage = false, menu = menu))
+        assertNull(KidTitlePage.contextMenuFor<String>(kidPage = false, menu = null))
+    }
+
     // --- Series ---
 
     @Test
