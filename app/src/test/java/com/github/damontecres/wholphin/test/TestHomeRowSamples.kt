@@ -139,6 +139,7 @@ class TestHomeRowSamples {
                 displayPreferencesService = mockk(),
                 streamingOrderService = mockk(),
                 justWatchRowService = mockk(),
+                kidHomeCache = mockk(),
             )
 
         val str = """{

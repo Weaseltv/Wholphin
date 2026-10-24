@@ -112,4 +112,5 @@
     <!-- Kids profile Home: the two rows the app builds; the themed rows are the server's collections -->
     <string name="kid_home_continue">Next up &amp; continue watching</string>
     <string name="kid_home_watch_again">Watch again</string>
+    <string name="kid_home_empty">Nothing to watch here yet</string>
 </resources>

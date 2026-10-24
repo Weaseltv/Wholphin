@@ -97,6 +97,11 @@ class KidResponseFilter(
     private val maxLevel: Int?,
     private val loader: KidFactsLoader,
     private val fresh: Boolean = false,
+    /**
+     * The kids Home's collection list ([KidContentGuard.isKidsHomeCollections]): its box sets are shown without the
+     * one-visible-child probe (with a known ceiling only; an unknown one still shows none)
+     */
+    private val boxSetsAsRowSources: Boolean = false,
 ) {
     /** The filtered response */
     data class Result(
@@ -203,7 +208,7 @@ class KidResponseFilter(
 
                     item.type == KidContentRules.BOX_SET -> {
                         val id = item.id
-                        val visible = id != null && boxSets.getOrPut(id) { boxSetVisible(id) }
+                        val visible = id != null && (boxSetsAsRowSources || boxSets.getOrPut(id) { boxSetVisible(id) })
                         KidContentRules.decideBoxSet(visible)
                     }
 

@@ -4,6 +4,7 @@ import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.JellyfinServerDao
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.PolicyState
+import com.github.damontecres.wholphin.services.KidHomeCollections
 import com.github.damontecres.wholphin.util.CoroutineContextApiClient
 import io.mockk.coEvery
 import io.mockk.every
@@ -25,6 +26,7 @@ import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.sockets.SocketApi
 import org.jellyfin.sdk.model.ClientInfo
 import org.jellyfin.sdk.model.DeviceInfo
+import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemFields
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -425,6 +427,37 @@ class KidContentGuardTest {
                 """{"Items":[${listOf("paged", "allhidden", "outer", "a", "d1").joinToString(",") { boxSet(it) }}],"TotalRecordCount":5}"""
             assertEquals(listOf("paged", "outer"), ids(api.get("/Items", query = mapOf("fields" to null))))
         }
+
+    @Test
+    fun `the kids Home collection list skips the box set probe, every other box set list keeps it`() =
+        runTest {
+            server.children = mapOf("empty" to emptyList(), "full" to listOf(items.getValue(key(moonstruckId))))
+            server.listResponse = """{"Items":[${boxSet("empty")},${boxSet("full")}],"TotalRecordCount":2}"""
+            val kids = mapOf("fields" to null, "includeItemTypes" to listOf(BaseItemKind.BOX_SET), "tags" to listOf(KidHomeCollections.TAG))
+            assertEquals(listOf("empty", "full"), ids(api.get("/Items", query = kids)))
+            assertEquals(0, server.requests.count { it.second["parentId"] != null })
+
+            // Streaming Services, the Collections page, ...: probed as before
+            val streaming = kids + ("tags" to listOf("WeaselPlex Streaming"))
+            assertEquals(listOf("full"), ids(api.get("/Items", query = streaming)))
+            assertTrue(server.requests.count { it.second["parentId"] != null } > 0)
+        }
+
+    @Test
+    fun `only exactly the kids Home collection query is a row source list`() {
+        val kids = mapOf("includeItemTypes" to listOf(BaseItemKind.BOX_SET), "tags" to listOf(KidHomeCollections.TAG))
+        assertTrue(KidContentGuard.isKidsHomeCollections("/Items", kids))
+        assertTrue(KidContentGuard.isKidsHomeCollections("/Users/{userId}/Items", kids))
+        assertFalse(KidContentGuard.isKidsHomeCollections("/Items", kids + ("tags" to listOf(KidHomeCollections.TAG, "Other"))))
+        assertFalse(
+            KidContentGuard.isKidsHomeCollections(
+                "/Items",
+                kids + ("includeItemTypes" to listOf(BaseItemKind.BOX_SET, BaseItemKind.MOVIE)),
+            ),
+        )
+        assertFalse(KidContentGuard.isKidsHomeCollections("/Items", mapOf("tags" to listOf(KidHomeCollections.TAG))))
+        assertFalse(KidContentGuard.isKidsHomeCollections("/Items/{itemId}", kids))
+    }
 
     @Test
     fun `list lookups expire after two minutes`() {

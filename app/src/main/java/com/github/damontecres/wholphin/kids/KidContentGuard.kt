@@ -6,6 +6,7 @@ import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.kids.KidContentRules.Decision
 import com.github.damontecres.wholphin.kids.KidContentRules.ItemFacts
+import com.github.damontecres.wholphin.services.KidHomeCollections
 import com.github.damontecres.wholphin.util.CoroutineContextApiClient
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import kotlinx.coroutines.CancellationException
@@ -24,6 +25,7 @@ import org.jellyfin.sdk.api.client.HttpMethod
 import org.jellyfin.sdk.api.client.RawResponse
 import org.jellyfin.sdk.api.client.exception.ApiClientException
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
+import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemFields
 import timber.log.Timber
 import java.security.MessageDigest
@@ -122,7 +124,8 @@ class KidContentGuard
                 }
             }
             val response = client.request(method, pathTemplate, pathParameters, withRuleFields(queryParameters), requestBody)
-            return stamped(filterResponse(policy, loader, pathTemplate, response), pinned.accessToken, policy, epoch)
+            val boxSetsAsRowSources = isKidsHomeCollections(pathTemplate, queryParameters)
+            return stamped(filterResponse(policy, loader, pathTemplate, response, boxSetsAsRowSources), pinned.accessToken, policy, epoch)
         }
 
         /** The session epoch right now ([ServerRepository.sessionEpoch]); read it before anything it should cover */
@@ -287,6 +290,7 @@ class KidContentGuard
             loader: Loader,
             pathTemplate: String,
             response: RawResponse,
+            boxSetsAsRowSources: Boolean = false,
         ): RawResponse {
             val body = response.body
             if (!looksLikeJson(response, body)) return response
@@ -297,7 +301,7 @@ class KidContentGuard
                     // Never the unfiltered body
                     throw ApiClientException("Kid content rules couldn't read a server response", ex)
                 }
-            val result = KidResponseFilter(policy.maxLevel, loader).filter(root)
+            val result = KidResponseFilter(policy.maxLevel, loader, boxSetsAsRowSources = boxSetsAsRowSources).filter(root)
             val filtered = result.root ?: throw InvalidStatusException(404)
             loader.remember(filtered)
             val scrubbed = if (pathTemplate in FILTER_PATHS) scrubHorrorGenres(filtered) else null
@@ -664,6 +668,29 @@ class KidContentGuard
             }
 
             internal fun isPlaybackPath(pathTemplate: String): Boolean = PLAYBACK_PATHS.any { pathTemplate.startsWith(it) }
+
+            /**
+             * Kid content rules (owner, 2026-10-23, kids Home speed): the kids Home's collection list, ie BoxSets tagged
+             * [KidHomeCollections.TAG] and nothing else. Its box sets are row sources, never shown as cards: the server
+             * hides empty ones and applies the kid's age limits, and each row's children still go through these rules.
+             * So they skip the one-visible-child probe ([KidResponseFilter] `boxSetsAsRowSources`). Every other box set
+             * request (Streaming Services, the Collections page, ...) keeps it.
+             */
+            internal fun isKidsHomeCollections(
+                pathTemplate: String,
+                queryParameters: Map<String, Any?>,
+            ): Boolean {
+                if (pathTemplate != "/Items" && pathTemplate != "/Users/{userId}/Items") return false
+                return names(queryParameters["tags"]) == listOf(KidHomeCollections.TAG) &&
+                    names(queryParameters["includeItemTypes"]) == listOf(KidContentRules.BOX_SET)
+            }
+
+            private fun names(value: Any?): List<String> =
+                when (value) {
+                    null -> emptyList()
+                    is Collection<*> -> value.filterNotNull()
+                    else -> listOf(value)
+                }.map { (it as? BaseItemKind)?.serialName ?: it.toString() }
 
             /** [queryParameters] asking for the rules' fields, when the endpoint takes `fields`; otherwise unchanged */
             internal fun withRuleFields(queryParameters: Map<String, Any?>): Map<String, Any?> {

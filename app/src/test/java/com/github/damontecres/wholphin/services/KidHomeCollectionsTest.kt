@@ -11,10 +11,10 @@ import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.PolicyState
 import com.github.damontecres.wholphin.data.model.SUPPORTED_HOME_PAGE_SETTINGS_VERSION
-import com.github.damontecres.wholphin.ui.main.reconcileRows
+import com.github.damontecres.wholphin.preferences.AppPreferences
+import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
 import com.github.damontecres.wholphin.util.GetItemsRequestHandler
-import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -22,9 +22,11 @@ import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.jellyfin.sdk.api.client.ApiClient
@@ -32,6 +34,7 @@ import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
+import org.jellyfin.sdk.model.api.UserDto
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -100,7 +103,9 @@ class KidHomeCollectionsTest {
         session.value = user?.let { CurrentUser(server, it) }
     }
 
-    private fun service(): HomeSettingsService {
+    private val cache = mockk<KidHomeCache> { coEvery { rules() } returns null }
+
+    private fun service(scope: CoroutineScope? = null): HomeSettingsService {
         val prefs = mockk<SharedPreferences> { every { getBoolean(any(), any()) } returns true }
         val context =
             mockk<Context> {
@@ -112,20 +117,30 @@ class KidHomeCollectionsTest {
             mockk<ServerRepository> {
                 every { current } returns session
                 every { sessionEpoch } returns epoch
+                every { currentUserDto } answers {
+                    session.value?.user?.let { user -> mockk<UserDto>(relaxed = true) { every { id } returns user.id } }
+                }
             }
         return HomeSettingsService(
             context = context,
             api = api,
             serverRepository = repository,
-            userPreferencesService = mockk(),
-            navDrawerService = mockk(),
+            userPreferencesService =
+                mockk {
+                    coEvery { getCurrent() } returns UserPreferences(AppPreferences.getDefaultInstance(), null)
+                },
+            navDrawerService = mockk { coEvery { getAllUserLibraries(any(), any()) } returns emptyList() },
             latestNextUpService = mockk(),
             imageUrlService = mockk(),
             suggestionService = mockk(),
             displayPreferencesService = mockk(),
             streamingOrderService = mockk(),
             justWatchRowService = mockk(),
-        ).also { it.clock = { now } }
+            kidHomeCache = cache,
+        ).also { service ->
+            service.clock = { now }
+            scope?.let { service.kidScope = it }
+        }
     }
 
     /** An adult layout saved on this TV for [userId], which a kids Home must never show */
@@ -249,7 +264,7 @@ class KidHomeCollectionsTest {
             serverCollections(cartoons)
             for (user in listOf(user(PolicyState.KID), user(PolicyState.UNKNOWN))) {
                 signIn(user)
-                val service = service()
+                val service = service(this)
                 service.saveAdultLayout(user.id)
                 service.loadCurrentSettings(user.id, user)
                 assertEquals(KidHomeCollections.settings(owner(user), "Watch again", listOf(cartoons)), service.currentSettings.value)
@@ -266,7 +281,7 @@ class KidHomeCollectionsTest {
         runTest {
             val kid = user(PolicyState.KID)
             signIn(null)
-            val service = service()
+            val service = service(this)
             service.loadCurrentSettings(kid.id, kid)
             assertEquals(HomePageResolvedSettings.EMPTY, service.currentSettings.value)
         }
@@ -278,7 +293,7 @@ class KidHomeCollectionsTest {
             val adult = user(PolicyState.ADULT)
             val kid = adult.copy(policyState = PolicyState.KID)
             signIn(adult)
-            val service = service()
+            val service = service(this)
             service.saveAdultLayout(adult.id)
             service.loadCurrentSettings(adult.id, adult)
             val adultHome = service.currentSettings.value
@@ -344,7 +359,7 @@ class KidHomeCollectionsTest {
                 found.await()
                 mockQueryResult(listOf(cartoons))
             }
-            val service = service()
+            val service = service(this)
             val load = backgroundScope.launch { service.loadCurrentSettings(kid.id, kid) }
             runCurrent()
             assertTrue(load.isActive)
@@ -364,32 +379,37 @@ class KidHomeCollectionsTest {
             val a = collection("Cartoon Adventures")
             val b = collection("Family Fun Night")
             serverCollections(a)
-            val service = service()
+            val service = service(this)
             service.loadCurrentSettings(kid.id, kid)
             assertEquals(listOf(a.id), service.collectionIds())
 
             // Within the interval: not asked again
             serverCollections(a, b)
             now += 60_000
-            service.refreshKidCollections()
+            service.refreshKidHome()
+            advanceUntilIdle()
             assertEquals(listOf(a.id), service.collectionIds())
 
             now += KidHomeCollections.DISCOVERY_INTERVAL.inWholeMilliseconds
-            service.refreshKidCollections()
+            service.refreshKidHome()
+            advanceUntilIdle()
             assertEquals(listOf(a.id, b.id), service.collectionIds())
 
             serverCollections(b)
             now += KidHomeCollections.DISCOVERY_INTERVAL.inWholeMilliseconds
-            service.refreshKidCollections()
+            service.refreshKidHome()
+            advanceUntilIdle()
             assertEquals(listOf(b.id), service.collectionIds())
 
             // A failed look keeps the rows shown, and the next visit tries again
             serverFails()
             now += KidHomeCollections.DISCOVERY_INTERVAL.inWholeMilliseconds
-            service.refreshKidCollections()
+            service.refreshKidHome()
+            advanceUntilIdle()
             assertEquals(listOf(b.id), service.collectionIds())
             serverCollections(a, b)
-            service.refreshKidCollections()
+            service.refreshKidHome()
+            advanceUntilIdle()
             assertEquals(listOf(a.id, b.id), service.collectionIds())
         }
 
@@ -399,14 +419,15 @@ class KidHomeCollectionsTest {
             val kid = user(PolicyState.KID)
             signIn(kid)
             serverFails()
-            val service = service()
+            val service = service(this)
             service.saveAdultLayout(kid.id)
             service.loadCurrentSettings(kid.id, kid)
             assertEquals(KidHomeCollections.settings(owner(kid), "Watch again", emptyList()), service.currentSettings.value)
 
             val a = collection("Cartoon Adventures")
             serverCollections(a)
-            service.refreshKidCollections()
+            service.refreshKidHome()
+            advanceUntilIdle()
             assertEquals(listOf(a.id), service.collectionIds())
         }
 
@@ -417,7 +438,7 @@ class KidHomeCollectionsTest {
             signIn(kid)
             val a = collection("Cartoon Adventures")
             serverCollections(a)
-            val service = service()
+            val service = service(this)
             service.loadCurrentSettings(kid.id, kid)
             serverFails()
             service.currentSettings.value = HomePageResolvedSettings.EMPTY
@@ -430,7 +451,7 @@ class KidHomeCollectionsTest {
         runTest {
             val adult = user(PolicyState.ADULT)
             signIn(adult)
-            val service = service()
+            val service = service(this)
             service.saveAdultLayout(adult.id)
             service.loadCurrentSettings(adult.id, adult)
             val configs =
@@ -439,25 +460,8 @@ class KidHomeCollectionsTest {
             assertTrue(configs.first() is HomeRowConfig.NextUp)
             assertFalse(configs.any { it is HomeRowConfig.ByParent || it is HomeRowConfig.ContinueWatchingCombined })
             assertTrue(service.isCurrent(service.currentSettings.value))
-            service.refreshKidCollections()
+            service.refreshKidHome()
+            advanceUntilIdle()
             coVerify(exactly = 0) { GetItemsRequestHandler.execute(api, any()) }
         }
-
-    @Test
-    fun `New kids Home settings keep the rows already loaded and only fetch the new ones`() {
-        val owner = HomeSettingsOwner(UUID.randomUUID(), 1, true)
-        val a = collection("Cartoon Adventures")
-        val b = collection("Family Fun Night")
-        val old = KidHomeCollections.settings(owner, "Watch again", listOf(a))
-        val loaded = old.rows.map { HomeRowLoadingState.Success(it.title, emptyList()) }
-        val new = KidHomeCollections.settings(owner, "Watch again", listOf(b, a))
-        val rows = reconcileRows(old, loaded, new)
-        assertEquals(loaded[0], rows[0])
-        assertEquals(loaded[1], rows[1])
-        assertTrue(rows[2] is HomeRowLoadingState.Pending)
-        assertEquals(loaded[2], rows[3])
-
-        val removed = reconcileRows(new, rows, old)
-        assertEquals(loaded, removed)
-    }
 }
