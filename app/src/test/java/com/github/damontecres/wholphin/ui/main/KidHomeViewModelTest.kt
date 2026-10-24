@@ -462,10 +462,11 @@ class KidHomeViewModelTest {
             val cartoons = collection("Cartoon Adventures")
             val savedMovie = BaseItemDto(id = UUID.randomUUID(), type = BaseItemKind.MOVIE, name = "Saved")
             coEvery { cache.rules() } returns "kid-rules-v1:5"
-            every { cache.read(server.id, kid.id, "kid-rules-v1:5") } returns
+            every { cache.read(kid, "kid-rules-v1:5") } returns
                 KidHomeCache.Saved(
                     serverId = server.id.toString(),
                     userId = kid.id.toString(),
+                    profileRowId = kid.rowId,
                     rules = "kid-rules-v1:5",
                     savedAt = 0,
                     collections = listOf(KidHomeCache.SavedCollection(cartoons.id.toString(), "Cartoon Adventures")),
@@ -507,8 +508,8 @@ class KidHomeViewModelTest {
             listener()
             signIn(kid)
             advanceUntilIdle()
-            io.mockk.verify { cache.read(server.id, kid.id, "kid-rules-v1:5") }
-            io.mockk.verify(exactly = 0) { cache.read(any(), neq(kid.id), any()) }
+            io.mockk.verify { cache.read(kid, "kid-rules-v1:5") }
+            io.mockk.verify(exactly = 0) { cache.read(neq(kid), any()) }
         }
 
     @Test
@@ -709,6 +710,47 @@ class KidHomeViewModelTest {
                 kid.id,
                 viewModel.state.value.settings.owner
                     ?.userId,
+            )
+            viewModel.close()
+        }
+
+    @Test
+    fun `Kids Home rows from a session that ends right before they're shown are never shown`() =
+        runTest(dispatcher) {
+            val kid = user("Kai", PolicyState.KID)
+            val cartoons = collection("Cartoon Adventures")
+            serverCollections(cartoons)
+            withContent.add(HomeRowConfig.GetItems::class)
+            listener()
+            signIn(kid)
+            val viewModel = viewModel()
+            viewModel.init()
+            advanceUntilIdle()
+            val shown = viewModel.state.value
+            assertEquals(LoadingState.Success, shown.loadingState)
+
+            val states = record(viewModel)
+            // New rows arrive; the ceiling changes between Home's check and its write
+            var flip = true
+            every { homeSettings.isCurrent(any<HomePageResolvedSettings>()) } answers {
+                val current = callOriginal()
+                if (flip) {
+                    flip = false
+                    epoch.value += 1
+                }
+                current
+            }
+            val content = homeSettings.kidHome.value!!
+            val extra = BaseItem(BaseItemDto(id = UUID.randomUUID(), type = BaseItemKind.MOVIE), false)
+            val watchAgain = shown.settings.rows[1].config
+            homeSettings.kidHome.value =
+                content.copy(rows = content.rows + (watchAgain to HomeRowLoadingState.Success(StringStringProvider("x"), listOf(extra))))
+            advanceUntilIdle()
+            // Not even for a moment
+            assertTrue(
+                states.none { state ->
+                    state.homeRows.any { row -> (row as? HomeRowLoadingState.Success)?.items?.any { it?.id == extra.id } == true }
+                },
             )
             viewModel.close()
         }

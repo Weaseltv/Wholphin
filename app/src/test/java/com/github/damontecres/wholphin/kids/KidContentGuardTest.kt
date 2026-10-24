@@ -3,7 +3,9 @@ package com.github.damontecres.wholphin.kids
 import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.JellyfinServerDao
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.PolicyState
+import com.github.damontecres.wholphin.services.KidHomeCache
 import com.github.damontecres.wholphin.services.KidHomeCollections
 import com.github.damontecres.wholphin.util.CoroutineContextApiClient
 import io.mockk.coEvery
@@ -12,6 +14,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
@@ -26,8 +29,11 @@ import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.sockets.SocketApi
 import org.jellyfin.sdk.model.ClientInfo
 import org.jellyfin.sdk.model.DeviceInfo
+import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemFields
+import org.jellyfin.sdk.model.api.ItemSortBy
+import org.jellyfin.sdk.model.api.SortOrder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -428,36 +434,109 @@ class KidContentGuardTest {
             assertEquals(listOf("paged", "outer"), ids(api.get("/Items", query = mapOf("fields" to null))))
         }
 
+    /** The kids Home's own collection lookup, as [KidHomeCollections.fetch] sends it */
+    private val kidsHomeQuery =
+        mapOf(
+            "fields" to null,
+            "userId" to kid.id,
+            "includeItemTypes" to listOf(BaseItemKind.BOX_SET),
+            "recursive" to true,
+            "tags" to listOf(KidHomeCollections.TAG),
+            "sortBy" to listOf(ItemSortBy.SORT_NAME),
+            "sortOrder" to listOf(SortOrder.ASCENDING),
+            "ids" to null,
+            "parentId" to null,
+        )
+
+    private fun probes() = server.requests.count { it.second["parentId"] != null }
+
     @Test
-    fun `the kids Home collection list skips the box set probe, every other box set list keeps it`() =
+    fun `the kids Home collection lookup skips the box set probe, every other box set list keeps it`() =
         runTest {
             server.children = mapOf("empty" to emptyList(), "full" to listOf(items.getValue(key(moonstruckId))))
             server.listResponse = """{"Items":[${boxSet("empty")},${boxSet("full")}],"TotalRecordCount":2}"""
-            val kids = mapOf("fields" to null, "includeItemTypes" to listOf(BaseItemKind.BOX_SET), "tags" to listOf(KidHomeCollections.TAG))
-            assertEquals(listOf("empty", "full"), ids(api.get("/Items", query = kids)))
-            assertEquals(0, server.requests.count { it.second["parentId"] != null })
+            val found = withContext(KidContentGuard.KidsHomeCollections()) { ids(api.get("/Items", query = kidsHomeQuery)) }
+            assertEquals(listOf("empty", "full"), found)
+            assertEquals(0, probes())
 
             // Streaming Services, the Collections page, ...: probed as before
-            val streaming = kids + ("tags" to listOf("WeaselPlex Streaming"))
-            assertEquals(listOf("full"), ids(api.get("/Items", query = streaming)))
-            assertTrue(server.requests.count { it.second["parentId"] != null } > 0)
+            val streaming = kidsHomeQuery + ("tags" to listOf("WeaselPlex Streaming"))
+            assertEquals(listOf("full"), withContext(KidContentGuard.KidsHomeCollections()) { ids(api.get("/Items", query = streaming)) })
+            assertTrue(probes() > 0)
         }
 
     @Test
-    fun `only exactly the kids Home collection query is a row source list`() {
-        val kids = mapOf("includeItemTypes" to listOf(BaseItemKind.BOX_SET), "tags" to listOf(KidHomeCollections.TAG))
-        assertTrue(KidContentGuard.isKidsHomeCollections("/Items", kids))
-        assertTrue(KidContentGuard.isKidsHomeCollections("/Users/{userId}/Items", kids))
-        assertFalse(KidContentGuard.isKidsHomeCollections("/Items", kids + ("tags" to listOf(KidHomeCollections.TAG, "Other"))))
+    fun `the same query from anywhere else is probed`() =
+        runTest {
+            server.children = mapOf("empty" to emptyList())
+            server.listResponse = """{"Items":[${boxSet("empty")}],"TotalRecordCount":1}"""
+            assertEquals(emptyList<String>(), ids(api.get("/Items", query = kidsHomeQuery)))
+            assertTrue(probes() > 0)
+        }
+
+    @Test
+    fun `extra filters on the kids Home lookup mean it is probed`() =
+        runTest {
+            server.children = mapOf("empty" to emptyList())
+            server.listResponse = """{"Items":[${boxSet("empty")}],"TotalRecordCount":1}"""
+            // (ids and parentId are refused by shape too: see the next test; this server answers those differently)
+            for (extra in listOf("searchTerm" to "a", "isFavorite" to true, "studioIds" to listOf("s"), "excludeItemIds" to listOf("x"))) {
+                val query = kidsHomeQuery + extra
+                assertEquals(
+                    extra.first,
+                    emptyList<String>(),
+                    withContext(KidContentGuard.KidsHomeCollections()) { ids(api.get("/Items", query = query)) },
+                )
+            }
+            assertTrue(probes() > 0)
+        }
+
+    @Test
+    fun `only exactly the kids Home collection query shape is a row source list`() {
+        assertTrue(KidContentGuard.isKidsHomeCollections("/Items", kidsHomeQuery))
+        assertTrue(KidContentGuard.isKidsHomeCollections("/Users/{userId}/Items", kidsHomeQuery))
+        assertFalse(KidContentGuard.isKidsHomeCollections("/Items", kidsHomeQuery + ("tags" to listOf(KidHomeCollections.TAG, "Other"))))
         assertFalse(
             KidContentGuard.isKidsHomeCollections(
                 "/Items",
-                kids + ("includeItemTypes" to listOf(BaseItemKind.BOX_SET, BaseItemKind.MOVIE)),
+                kidsHomeQuery + ("includeItemTypes" to listOf(BaseItemKind.BOX_SET, BaseItemKind.MOVIE)),
             ),
         )
-        assertFalse(KidContentGuard.isKidsHomeCollections("/Items", mapOf("tags" to listOf(KidHomeCollections.TAG))))
-        assertFalse(KidContentGuard.isKidsHomeCollections("/Items/{itemId}", kids))
+        assertFalse(KidContentGuard.isKidsHomeCollections("/Items", kidsHomeQuery + ("recursive" to null)))
+        assertFalse(KidContentGuard.isKidsHomeCollections("/Items", kidsHomeQuery + ("sortBy" to listOf(ItemSortBy.RANDOM))))
+        assertFalse(KidContentGuard.isKidsHomeCollections("/Items", kidsHomeQuery + ("parentId" to "folder")))
+        assertFalse(KidContentGuard.isKidsHomeCollections("/Items", kidsHomeQuery + ("ids" to listOf("empty"))))
+        assertFalse(KidContentGuard.isKidsHomeCollections("/Items/{itemId}", kidsHomeQuery))
     }
+
+    @Test
+    fun `the saved kids Home is checked with fresh facts, so a re-rated title never paints from it`() =
+        runTest {
+            val ratings = items.toMutableMap()
+            val seriesId = UUID.randomUUID()
+            val episode = UUID.randomUUID()
+            ratings[key(seriesId)] = """{"Id":"${key(seriesId)}","Name":"Bluey","ServerId":"s","Type":"Series","OfficialRating":"TV-Y",""" +
+                """"Genres":["Animation"],"LockedFields":[]}"""
+            ratings[key(episode)] =
+                """{"Id":"${key(episode)}","Name":"Keepy Uppy","ServerId":"s","Type":"Episode","OfficialRating":"TV-Y",""" +
+                """"SeriesId":"${key(seriesId)}","Genres":[],"LockedFields":[]}"""
+            val rerated = FakeServer(ratings, kid.accessToken)
+            val client = CoroutineContextApiClient(rerated, Dispatchers.Unconfined, guard)
+            val cache = KidHomeCache(mockk(relaxed = true), client, guard)
+            val saved =
+                listOf(moonstruckId, episode).map { id ->
+                    BaseItem(BaseItemDto(id = id, type = if (id == episode) BaseItemKind.EPISODE else BaseItemKind.MOVIE), false)
+                }
+            // Seen a moment ago: the rules have their facts cached
+            assertEquals(setOf(moonstruckId, episode), guard.visibleIds(client, listOf(moonstruckId, episode)))
+
+            // Re-rated on the server since: the movie R, the episode's series TV-MA
+            ratings[key(moonstruckId)] = movie(key(moonstruckId), "R", 1987, listOf("Comedy"))
+            ratings[key(seriesId)] = ratings.getValue(key(seriesId)).replace("TV-Y", "TV-MA")
+            // The cached facts would still show them; the saved Home's check doesn't use those
+            assertEquals(setOf(moonstruckId, episode), guard.visibleIds(client, listOf(moonstruckId, episode)))
+            assertEquals(emptyList<BaseItem>(), cache.visibleNow(saved))
+        }
 
     @Test
     fun `list lookups expire after two minutes`() {

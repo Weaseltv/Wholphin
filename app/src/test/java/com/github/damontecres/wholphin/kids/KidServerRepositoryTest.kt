@@ -65,7 +65,10 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
+import java.io.File
 import java.util.UUID
 
 /**
@@ -75,6 +78,9 @@ import java.util.UUID
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class KidServerRepositoryTest {
+    @get:Rule
+    val folder = TemporaryFolder()
+
     private val context = mockk<Context>(relaxed = true)
     private val jellyfin = mockk<Jellyfin>()
     private val serverDao = mockk<JellyfinServerDao>()
@@ -742,6 +748,33 @@ class KidServerRepositoryTest {
             assertEquals(ProfileCeiling.Rating(14), store.sessionCeiling())
             assertTrue(store.isProtected())
             release.complete(Unit)
+        }
+
+    @Test
+    fun `removing a profile or its server from this TV removes its saved kids Home`() =
+        runTest {
+            every { context.cacheDir } returns folder.root
+            every { serverDao.deleteUser(any(), any()) } just Runs
+            every { serverDao.deleteServer(any()) } just Runs
+            every { serverDao.deletePinlessUser(any(), any()) } returns 1
+            every { serverDao.deleteKidWithToken(any(), any()) } returns 1
+            val users = (1..4).map { row(it) }
+            val files =
+                users.map {
+                    File(folder.root, "kid-home/${serverId}_${it.id}.json").apply {
+                        parentFile?.mkdirs()
+                        writeText("{}")
+                    }
+                }
+            repository.removeUser(users[0])
+            assertFalse(files[0].exists())
+            repository.removePinlessUser(users[1], adultOnly = false)
+            assertFalse(files[1].exists())
+            repository.removeSignedOutKid(users[2])
+            assertFalse(files[2].exists())
+            assertTrue(files[3].exists())
+            repository.removeServer(server)
+            assertFalse(files[3].exists())
         }
 }
 

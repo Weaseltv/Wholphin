@@ -58,6 +58,14 @@ class UserSwitchListener
             }
             if (BuildConfig.KID_PROFILES_ENABLED) {
                 context.lifecycleScope.launchDefault { rebuildOnCeilingChange() }
+                // PR #98 review round 1: no kids Home load outlives the screen that asked for it
+                context.lifecycle.addObserver(
+                    object : DefaultLifecycleObserver {
+                        override fun onDestroy(owner: LifecycleOwner) {
+                            homeSettingsService.cancelKidLoad()
+                        }
+                    },
+                )
             }
             context.lifecycleScope.launchDefault {
                 // collectLatest: a newer session (or the chooser teardown) cancels the previous user's

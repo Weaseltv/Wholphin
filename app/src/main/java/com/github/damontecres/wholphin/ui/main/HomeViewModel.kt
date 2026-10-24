@@ -406,8 +406,9 @@ class HomeViewModel
             kidJob?.cancel()
             kidFollowing = settings
             kidGeneration = generation
-            _state.update {
-                if (it.generation != generation || it.settings.owner == owner) {
+            // Review round 1 (PR #98): every kids Home write checks the generation and the session inside the update
+            update(generation, settings) {
+                if (it.settings.owner == owner) {
                     it
                 } else {
                     it.copy(settings = settings, homeRows = settings.rows.map { row -> HomeRowLoadingState.Pending(row.title) })
@@ -425,28 +426,40 @@ class HomeViewModel
                                 Timber.w(ex, "Kids Home: libraries")
                                 emptyList()
                             }
-                        _state.update { if (it.generation == generation) it.copy(libraries = libraries) else it }
+                        update(generation, settings) { it.copy(libraries = libraries) }
                     }
                     combine(homeSettingsService.currentSettings, homeSettingsService.kidHome) { current, content -> current to content }
                         .collect { (current, content) ->
                             if (current.owner != owner || !homeSettingsService.isCurrent(current)) return@collect
                             val rows = content?.takeIf { it.owner == owner } ?: KidHomeContent(owner)
                             val homeRows = current.rows.map { rows.rows[it.config] ?: HomeRowLoadingState.Pending(it.title) }
-                            val ready = rows.hasContent(current) || rows.loaded
+                            val hasContent = rows.hasContent(current)
+                            val ready = hasContent || rows.loaded
                             var firstShown = false
-                            _state.update {
-                                if (it.generation != generation) {
-                                    it
-                                } else {
-                                    val shown = ready || it.loadingState == LoadingState.Success
-                                    firstShown = shown && it.loadingState != LoadingState.Success
-                                    it.copy(
-                                        settings = current,
-                                        homeRows = homeRows,
-                                        loadingState = if (shown) LoadingState.Success else LoadingState.Loading,
-                                        refreshState = if (rows.loaded) LoadingState.Success else LoadingState.Loading,
-                                    )
-                                }
+                            update(generation, current) {
+                                val shown = ready || it.loadingState == LoadingState.Success
+                                firstShown = shown && it.loadingState != LoadingState.Success
+                                val failed = rows.failed
+                                it.copy(
+                                    settings = current,
+                                    homeRows = homeRows,
+                                    loadingState =
+                                        when {
+                                            // A load that ended early with nothing to show says why
+                                            failed != null && !hasContent && it.loadingState != LoadingState.Success -> {
+                                                LoadingState.Error(failed)
+                                            }
+
+                                            shown -> {
+                                                LoadingState.Success
+                                            }
+
+                                            else -> {
+                                                LoadingState.Loading
+                                            }
+                                        },
+                                    refreshState = if (rows.loaded) LoadingState.Success else LoadingState.Loading,
+                                )
                             }
                             if (firstShown) HomeTiming.mark(owner.userId, "kids Home first content shown")
                             if (rows.loaded) HomeTiming.mark(owner.userId, "kids Home all rows shown")

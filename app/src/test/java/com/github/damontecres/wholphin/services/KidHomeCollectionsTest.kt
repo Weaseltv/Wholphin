@@ -15,15 +15,20 @@ import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
 import com.github.damontecres.wholphin.util.GetItemsRequestHandler
+import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
+import io.mockk.verify
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -105,7 +110,14 @@ class KidHomeCollectionsTest {
 
     private val cache = mockk<KidHomeCache> { coEvery { rules() } returns null }
 
-    private fun service(scope: CoroutineScope? = null): HomeSettingsService {
+    private fun service(
+        scope: CoroutineScope? = null,
+        latestNextUp: LatestNextUpService = mockk(),
+        preferences: UserPreferencesService =
+            mockk {
+                coEvery { getCurrent() } returns UserPreferences(AppPreferences.getDefaultInstance(), null)
+            },
+    ): HomeSettingsService {
         val prefs = mockk<SharedPreferences> { every { getBoolean(any(), any()) } returns true }
         val context =
             mockk<Context> {
@@ -125,12 +137,9 @@ class KidHomeCollectionsTest {
             context = context,
             api = api,
             serverRepository = repository,
-            userPreferencesService =
-                mockk {
-                    coEvery { getCurrent() } returns UserPreferences(AppPreferences.getDefaultInstance(), null)
-                },
+            userPreferencesService = preferences,
             navDrawerService = mockk { coEvery { getAllUserLibraries(any(), any()) } returns emptyList() },
-            latestNextUpService = mockk(),
+            latestNextUpService = latestNextUp,
             imageUrlService = mockk(),
             suggestionService = mockk(),
             displayPreferencesService = mockk(),
@@ -463,5 +472,126 @@ class KidHomeCollectionsTest {
             service.refreshKidHome()
             advanceUntilIdle()
             coVerify(exactly = 0) { GetItemsRequestHandler.execute(api, any()) }
+        }
+
+    @Test
+    fun `A saved Home that can't be used is a miss, removed, and the load still finishes`() =
+        runTest {
+            val kid = user(PolicyState.KID)
+            signIn(kid)
+            val cartoons = collection("Cartoon Adventures")
+            serverCollections(cartoons)
+            coEvery { cache.rules() } returns "kid-rules-v1:5"
+            every { cache.read(any(), "kid-rules-v1:5") } returns
+                KidHomeCache.Saved(
+                    serverId = server.id.toString(),
+                    userId = kid.id.toString(),
+                    profileRowId = kid.rowId,
+                    rules = "kid-rules-v1:5",
+                    savedAt = 0,
+                    collections = listOf(KidHomeCache.SavedCollection("not-a-uuid", "Broken")),
+                    rows = emptyMap(),
+                )
+            every { cache.delete(any(), any()) } just Runs
+            every { cache.write(any()) } just Runs
+            val service = service(this)
+            service.loadCurrentSettings(kid.id, kid)
+            verify { cache.delete(server.id, kid.id) }
+            assertEquals(listOf(cartoons.id), service.collectionIds())
+            assertEquals(true, service.kidHome.value?.loaded)
+        }
+
+    @Test
+    fun `A failure outside the rows still ends the load, so the loading picture goes`() =
+        runTest {
+            val kid = user(PolicyState.KID)
+            signIn(kid)
+            val service = service(this, preferences = mockk { coEvery { getCurrent() } throws IllegalStateException("prefs") })
+            service.loadCurrentSettings(kid.id, kid)
+            val content = service.kidHome.value!!
+            assertTrue(content.loaded)
+            assertTrue(content.failed is IllegalStateException)
+        }
+
+    @Test
+    fun `A kids Home load stops when the profile turns adult, another signs in, or it signs out`() =
+        runTest {
+            for (next in listOf<
+                (
+                    JellyfinUser,
+                ) -> JellyfinUser?,
+            >({ it.copy(policyState = PolicyState.ADULT) }, { user(PolicyState.ADULT, "Rae") }, { null })) {
+                val kid = user(PolicyState.KID)
+                signIn(kid)
+                var cancelled = false
+                coEvery { GetItemsRequestHandler.execute(api, match { isKidsCollections(it) }) } coAnswers {
+                    try {
+                        awaitCancellation()
+                    } catch (ex: CancellationException) {
+                        cancelled = true
+                        throw ex
+                    }
+                }
+                val service = service(this)
+                val load = launch { service.loadCurrentSettings(kid.id, kid) }
+                runCurrent()
+                assertFalse(cancelled)
+                signIn(next(kid))
+                runCurrent()
+                assertTrue(cancelled)
+                load.join()
+            }
+        }
+
+    @Test
+    fun `Adults' combined row asks for Resume and Next Up at once, and stops both together`() =
+        runTest {
+            val adult = user(PolicyState.ADULT)
+            signIn(adult)
+            val nextUpAsked = CompletableDeferred<Unit>()
+            var nextUpCancelled = false
+            val latestNextUp =
+                mockk<LatestNextUpService> {
+                    coEvery { getResume(any(), any(), any(), any()) } coAnswers { awaitCancellation() }
+                    coEvery { getNextUp(any(), any(), any(), any(), any(), any()) } coAnswers {
+                        nextUpAsked.complete(Unit)
+                        try {
+                            awaitCancellation()
+                        } catch (ex: CancellationException) {
+                            nextUpCancelled = true
+                            throw ex
+                        }
+                    }
+                }
+            val service = service(this, latestNextUp = latestNextUp)
+            val prefs = AppPreferences.getDefaultInstance().homePagePreferences
+            val userDto = mockk<UserDto>(relaxed = true) { every { id } returns adult.id }
+            val fetch =
+                launch {
+                    service.fetchDataForRow(HomeRowConfig.ContinueWatchingCombined(), this, prefs, userDto, emptyList(), 10, false)
+                }
+            runCurrent()
+            // Next Up is out while Resume still is
+            assertTrue(nextUpAsked.isCompleted)
+            fetch.cancel()
+            runCurrent()
+            assertTrue(nextUpCancelled)
+
+            // A failure of either still fails the row, as before
+            coEvery { latestNextUp.getResume(any(), any(), any(), any()) } throws IllegalStateException("resume")
+            coEvery { latestNextUp.getNextUp(any(), any(), any(), any(), any(), any()) } returns emptyList()
+            val failure =
+                runCatching {
+                    service.fetchDataForRow(
+                        HomeRowConfig.ContinueWatchingCombined(),
+                        this,
+                        prefs,
+                        userDto,
+                        emptyList(),
+                        10,
+                        false,
+                    )
+                }
+            assertTrue(failure.exceptionOrNull() is IllegalStateException)
         }
 }

@@ -4,10 +4,12 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
+import com.github.damontecres.wholphin.kids.KidContentGuard
 import com.github.damontecres.wholphin.ui.HomeItemFields
 import com.github.damontecres.wholphin.ui.util.ResStringProvider
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
 import com.github.damontecres.wholphin.util.GetItemsRequestHandler
+import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -108,7 +110,11 @@ object KidHomeCollections {
     suspend fun fetch(
         api: ApiClient,
         userId: UUID,
-    ): List<BaseItemDto> = GetItemsRequestHandler.execute(api, collectionsRequest.copy(userId = userId)).content.items
+    ): List<BaseItemDto> =
+        // The guard's visible-child probe is skipped for this lookup only (owner, 2026-10-23)
+        withContext(KidContentGuard.KidsHomeCollections()) {
+            GetItemsRequestHandler.execute(api, collectionsRequest.copy(userId = userId)).content.items
+        }
 
     /**
      * A kids collection row's items: the first page of [limit], or, if the kid content rules left
