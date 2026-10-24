@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.AppPreferences
@@ -47,6 +48,14 @@ class SuggestionsWorker
         private val api: ApiClient,
         private val cache: SuggestionsCache,
     ) : CoroutineWorker(context, workerParams) {
+        // Kid profiles: false once the scheduled user is no longer the current session
+        private var stillCurrent: () -> Boolean = { true }
+
+        private fun sessionChangedResult(
+            serverId: UUID,
+            userId: UUID,
+        ): Result? = if (BuildConfig.KID_PROFILES_ENABLED) WorkerSession.check(serverRepository, serverId, userId) else null
+
         override suspend fun doWork(): Result {
             val serverId = inputData.getString(PARAM_SERVER_ID)?.toUUIDOrNull() ?: return Result.failure()
             val userId = inputData.getString(PARAM_USER_ID)?.toUUIDOrNull() ?: return Result.failure()
@@ -62,7 +71,10 @@ class SuggestionsWorker
                 return Result.failure()
             }
 
-            if (api.baseUrl.isNullOrBlank() || api.accessToken.isNullOrBlank()) {
+            if (BuildConfig.KID_PROFILES_ENABLED) {
+                WorkerSession.check(serverRepository, serverId, userId)?.let { return it }
+                stillCurrent = { WorkerSession.isCurrent(serverRepository, serverId, userId) }
+            } else if (api.baseUrl.isNullOrBlank() || api.accessToken.isNullOrBlank()) {
                 var currentUser = serverRepository.current.value
                 if (currentUser == null) {
                     serverRepository.restoreSession(serverId, userId)
@@ -100,7 +112,7 @@ class SuggestionsWorker
                         requestedParentId,
                         requestedItemKind,
                     )
-                    return Result.success()
+                    return sessionChangedResult(serverId, userId) ?: Result.success()
                 }
 
                 val views =
@@ -108,6 +120,7 @@ class SuggestionsWorker
                         .getUserViews(userId = userId)
                         .content.items
                         .orEmpty()
+                sessionChangedResult(serverId, userId)?.let { return it }
                 if (views.isEmpty()) {
                     Timber.d("No user views found for periodic suggestions refresh")
                     return Result.success()
@@ -150,6 +163,7 @@ class SuggestionsWorker
                                 }
                             }.awaitAll()
                     }
+                sessionChangedResult(serverId, userId)?.let { return it }
                 val successCount = results.count { it.isSuccess }
                 val failureCount = results.count { it.isFailure }
                 if (failureCount > 0 && successCount == 0) {
@@ -185,6 +199,10 @@ class SuggestionsWorker
                     itemKind,
                     itemsPerRow,
                 )
+            if (!stillCurrent()) {
+                Timber.i("Session changed during the run, dropping suggestions for parent=%s", parentId)
+                return
+            }
             val newIds = suggestions.map { it.id }
             val cachedIds = cache.get(userId, parentId, itemKind)?.ids
             if (cachedIds == newIds) {

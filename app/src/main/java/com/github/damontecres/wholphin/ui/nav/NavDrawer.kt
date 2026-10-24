@@ -83,14 +83,18 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
+import com.github.damontecres.wholphin.kids.KidNavigation
+import com.github.damontecres.wholphin.kids.KidSessionGate
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.MusicService
 import com.github.damontecres.wholphin.services.NavDrawerService
 import com.github.damontecres.wholphin.services.NavigationManager
+import com.github.damontecres.wholphin.services.ProfilePictureService
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.SetupNavigationManager
+import com.github.damontecres.wholphin.services.versionedUserImageUrl
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.components.TimeDisplay
 import com.github.damontecres.wholphin.ui.ifElse
@@ -135,8 +139,15 @@ class NavDrawerViewModel
         val setupNavigationManager: SetupNavigationManager,
         val backdropService: BackdropService,
         private val musicService: MusicService,
+        private val profilePictureService: ProfilePictureService,
+        kidSessionGate: KidSessionGate,
     ) : ViewModel() {
         val serviceState = navDrawerService.state
+
+        /** A kid (or unknown) session's menu has no Settings (owner 2026-10-23, [KidNavigation]) */
+        val isKidSession: StateFlow<Boolean> = kidSessionGate.isKidSession
+
+        val pictureVersions = profilePictureService.versions
 
         private val _state = MutableStateFlow(NavDrawerState())
         val state: StateFlow<NavDrawerState> = _state
@@ -179,7 +190,10 @@ class NavDrawerViewModel
             _state.update { it.copy(moreExpanded = value) }
         }
 
-        fun getUserImage(user: JellyfinUser): String = api.imageApi.getUserImageUrl(user.id)
+        fun getUserImage(
+            user: JellyfinUser,
+            versions: Map<UUID, Int>,
+        ): String? = versionedUserImageUrl(api.imageApi.getUserImageUrl(user.id), user.id, versions)
 
         /**
          * Determine which nav drawer item should be highlighted as currently selected
@@ -324,6 +338,7 @@ fun NavDrawer(
         focusRequester.requestFocus()
     }
     val serviceState by viewModel.serviceState.collectAsState()
+    val kidSession by viewModel.isKidSession.collectAsState()
     // The highlight is a position in the list, so pick it again whenever the items change,
     // e.g. when Playlists appears after a first playlist or goes away with the last one.
     LaunchedEffect(serviceState.items, serviceState.moreItems) { viewModel.updateSelectedIndex() }
@@ -371,7 +386,8 @@ fun NavDrawer(
                 ) {
                     // Even though some must be clicked, focusing on it should clear other focused items
                     val interactionSource = remember { MutableInteractionSource() }
-                    val userImageUrl = remember(user) { viewModel.getUserImage(user) }
+                    val pictureVersions by viewModel.pictureVersions.collectAsState()
+                    val userImageUrl = remember(user, pictureVersions) { viewModel.getUserImage(user, pictureVersions) }
                     if (neon) {
                         RailBrand(expanded = isOpen)
                     }
@@ -417,6 +433,8 @@ fun NavDrawer(
                     RailList(
                         state = navDrawerListState,
                         spacedBy = spacedBy,
+                        // Settings is the rail's footer; a kid's rail has none, so nothing is pinned to the bottom
+                        pinFooter = !kidSession,
                         modifier =
                             Modifier
                                 .focusGroup()
@@ -553,25 +571,28 @@ fun NavDrawer(
                                 )
                             }
                         }
-                        item {
-                            val interactionSource = remember { MutableInteractionSource() }
-                            IconNavItem(
-                                text = stringResource(R.string.settings),
-                                weaselIcon = WeaselNavIcons.SETTINGS,
-                                accent = RailAccents.Settings,
-                                icon = Icons.Default.Settings,
-                                selected = false,
-                                drawerOpen = isOpen,
-                                interactionSource = interactionSource,
-                                onClick = {
-                                    viewModel.navigationManager.navigateTo(
-                                        Destination.Settings(
-                                            PreferenceScreenOption.BASIC,
-                                        ),
-                                    )
-                                },
-                                modifier = Modifier,
-                            )
+                        // Never selected or a focus target, so leaving it out moves no focus
+                        if (!kidSession) {
+                            item {
+                                val interactionSource = remember { MutableInteractionSource() }
+                                IconNavItem(
+                                    text = stringResource(R.string.settings),
+                                    weaselIcon = WeaselNavIcons.SETTINGS,
+                                    accent = RailAccents.Settings,
+                                    icon = Icons.Default.Settings,
+                                    selected = false,
+                                    drawerOpen = isOpen,
+                                    interactionSource = interactionSource,
+                                    onClick = {
+                                        viewModel.navigationManager.navigateTo(
+                                            Destination.Settings(
+                                                PreferenceScreenOption.BASIC,
+                                            ),
+                                        )
+                                    },
+                                    modifier = Modifier,
+                                )
+                            }
                         }
                     }
                 }
@@ -632,17 +653,28 @@ internal fun RailList(
     state: LazyListState,
     spacedBy: Dp,
     modifier: Modifier = Modifier,
+    pinFooter: Boolean = true,
     content: LazyListScope.() -> Unit,
 ) {
     LazyColumn(
         state = state,
         contentPadding = if (isWeaselTv()) PaddingValues(vertical = RailGlowRoom) else PaddingValues(0.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedByWithFooter(spacedBy),
+        verticalArrangement = railArrangement(spacedBy, pinFooter),
         modifier = modifier,
         content = content,
     )
 }
+
+/**
+ * The rail's items [spacedBy] apart. With [pinFooter] (Settings is the last item) the last one sits at the bottom;
+ * without it (a kid's rail has no Settings, owner 2026-10-23) every item follows the one above it, so the last library
+ * isn't pushed to the bottom with a gap above it.
+ */
+internal fun railArrangement(
+    spacedBy: Dp,
+    pinFooter: Boolean,
+): Arrangement.Vertical = if (pinFooter) Arrangement.spacedByWithFooter(spacedBy) else Arrangement.spacedBy(spacedBy)
 
 /** Owner's poster border values captured from all eight Alpha rows on 2026-10-07. */
 private val RailFocusBorderWidth = ApprovedHomeLayout.CARD_APPEARANCE.borderWidthDp.dp

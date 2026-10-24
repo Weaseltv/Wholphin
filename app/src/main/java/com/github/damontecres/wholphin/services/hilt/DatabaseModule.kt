@@ -41,7 +41,7 @@ object DatabaseModule {
                 context,
                 AppDatabase::class.java,
                 "wholphin",
-            ).addMigrations(Migrations.Migrate2to3, Migrations.Migrate35to36)
+            ).addMigrations(Migrations.Migrate2to3, Migrations.Migrate35to36, Migrations.Migrate36to37)
 //            .setQueryCallback({ sqlQuery, args ->
 //                Timber.v("sqlQuery=$sqlQuery, args=$args")
 //            }, WholphinDispatchers.IO.asExecutor())

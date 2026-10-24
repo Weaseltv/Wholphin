@@ -13,6 +13,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.ui.collectLatestIn
 import com.github.damontecres.wholphin.util.ExceptionHandler
@@ -49,6 +50,18 @@ class LatestNextUpWorker
             val userId =
                 inputData.getString(PARAM_USER_ID)?.toUUIDOrNull() ?: return Result.failure()
 
+            if (BuildConfig.KID_PROFILES_ENABLED) {
+                WorkerSession.check(serverRepository, serverId, userId)?.let { return it }
+                return try {
+                    latestNextUpService.updateRemovedFromNextUp(userId) {
+                        WorkerSession.isCurrent(serverRepository, serverId, userId)
+                    }
+                    WorkerSession.check(serverRepository, serverId, userId) ?: Result.success()
+                } catch (ex: Exception) {
+                    Timber.e(ex, "Error during updateRemovedFromNextUp")
+                    Result.retry()
+                }
+            }
             try {
                 if (api.baseUrl.isNullOrBlank() || api.accessToken.isNullOrBlank()) {
                     // Not active

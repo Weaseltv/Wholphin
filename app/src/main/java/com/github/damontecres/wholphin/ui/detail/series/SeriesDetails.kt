@@ -86,12 +86,20 @@ import com.github.damontecres.wholphin.ui.components.scaled
 import com.github.damontecres.wholphin.ui.data.AddPlaylistViewModel
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialog
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialogInfo
+import com.github.damontecres.wholphin.ui.detail.KidAction
+import com.github.damontecres.wholphin.ui.detail.KidMetadataLine
+import com.github.damontecres.wholphin.ui.detail.KidPlay
+import com.github.damontecres.wholphin.ui.detail.KidTitleButtons
+import com.github.damontecres.wholphin.ui.detail.KidTitlePage
 import com.github.damontecres.wholphin.ui.detail.PlaylistDialog
+import com.github.damontecres.wholphin.ui.detail.kidSeasonCount
+import com.github.damontecres.wholphin.ui.detail.movie.KidRowPeek
 import com.github.damontecres.wholphin.ui.discover.DiscoverRow
 import com.github.damontecres.wholphin.ui.discover.DiscoverRowData
 import com.github.damontecres.wholphin.ui.letNotEmpty
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberInt
+import com.github.damontecres.wholphin.ui.seriesProductionYears
 import com.github.damontecres.wholphin.ui.theme.ProvideButtonsOverArtwork
 import com.github.damontecres.wholphin.ui.theme.ProvideNeonAccent
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
@@ -276,6 +284,9 @@ fun SeriesDetails(
                         showContextMenu = it
                     },
                     actions = contextActions,
+                    kid = viewModel.kidPage,
+                    kidPlay = state.kidPlay,
+                    onKidPlay = { viewModel.navigateTo(Destination.Playback(it.itemId, it.positionMs)) },
                 )
             }
             if (showWatchConfirmation) {
@@ -294,7 +305,8 @@ fun SeriesDetails(
             }
         }
     }
-    showContextMenu?.let { contextMenu ->
+    // A kid's page has no long-press or More menu
+    KidTitlePage.contextMenuFor(viewModel.kidPage, showContextMenu)?.let { contextMenu ->
         ContextMenuDialog(
             onDismissRequest = { showContextMenu = null },
             getMediaSource = viewModel.streamChoiceService::chooseSource,
@@ -373,6 +385,10 @@ fun SeriesDetailsContent(
     onClickDiscoverSeries: () -> Unit,
     onClickRandom: () -> Unit = {},
     modifier: Modifier = Modifier,
+    /** The kid title page (owner mockup 2026-10-23, [KidTitlePage]): [kidPlay] is its Play button, if any */
+    kid: Boolean = false,
+    kidPlay: KidPlay? = null,
+    onKidPlay: (KidPlay) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -395,8 +411,10 @@ fun SeriesDetailsContent(
                 modifier = Modifier,
             ) {
                 item {
-                    FittedDetailHeader(firstRowHeight = SeasonsRowReserve) {
+                    FittedDetailHeader(firstRowHeight = if (kid) KidRowPeek else SeasonsRowReserve) {
                         SeriesDetailsHeader(
+                            kid = kid,
+                            seasonCount = seasons.size,
                             series = series,
                             showLogo = preferences.appPreferences.interfacePreferences.showLogos,
                             overviewOnClick = overviewOnClick,
@@ -408,80 +426,114 @@ fun SeriesDetailsContent(
                                     .padding(top = HeaderUtils.detailTopPadding(), bottom = 8.dp),
                         )
                     }
-                    // Over the series artwork: white outlines and a dark backing for readability
-                    ProvideButtonsOverArtwork {
-                        KeepFocusRoomOnScroll(ButtonGlowRoom) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                modifier =
-                                    Modifier
-                                        .reportDetailActionHeight()
-                                        // Move the scroll's clipping edge out past the focus glow
-                                        // without moving the buttons off the posters' line
-                                        .bleedHorizontal(start = ButtonGlowRoom, end = 0.dp)
-                                        .horizontalScroll(rememberScrollState())
-                                        .padding(start = HeaderUtils.startPadding + ButtonGlowRoom, end = ButtonGlowRoom)
-                                        .focusRequester(focusRequesters[HEADER_ROW])
-                                        .focusRestorer(firstButtonFocusRequester)
-                                        .focusGroup()
-                                        .padding(bottom = 16.dp),
-                            ) {
-                                val bringHeaderIntoView =
-                                    Modifier.onFocusChanged {
-                                        if (it.isFocused) {
-                                            scope.launch(ExceptionHandler()) {
-                                                bringIntoViewRequester.bringIntoView()
+                    if (kid) {
+                        KidTitleButtons(
+                            play = kidPlay,
+                            actions = KidTitlePage.seriesActions,
+                            onWatchlist = favorite,
+                            onPlay = {
+                                position = HEADER_ROW
+                                onKidPlay(it)
+                            },
+                            onAction = { action ->
+                                position = HEADER_ROW
+                                when (action) {
+                                    KidAction.WATCHLIST -> {
+                                        favoriteOnClick.invoke()
+                                    }
+
+                                    KidAction.SHUFFLE -> {
+                                        playOnClick.invoke(true)
+                                    }
+
+                                    KidAction.START_OVER -> {}
+                                }
+                            },
+                            onFocusChanged = {
+                                if (it.isFocused) {
+                                    scope.launch(ExceptionHandler()) { bringIntoViewRequester.bringIntoView() }
+                                }
+                            },
+                            // Play (or Watchlist) takes the first focus, through the row's own requester
+                            firstFocus = firstButtonFocusRequester,
+                            modifier = Modifier.fillMaxWidth().focusRequester(focusRequesters[HEADER_ROW]),
+                        )
+                    } else {
+                        // Over the series artwork: white outlines and a dark backing for readability
+                        ProvideButtonsOverArtwork {
+                            KeepFocusRoomOnScroll(ButtonGlowRoom) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    modifier =
+                                        Modifier
+                                            .reportDetailActionHeight()
+                                            // Move the scroll's clipping edge out past the focus glow
+                                            // without moving the buttons off the posters' line
+                                            .bleedHorizontal(start = ButtonGlowRoom, end = 0.dp)
+                                            .horizontalScroll(rememberScrollState())
+                                            .padding(start = HeaderUtils.startPadding + ButtonGlowRoom, end = ButtonGlowRoom)
+                                            .focusRequester(focusRequesters[HEADER_ROW])
+                                            .focusRestorer(firstButtonFocusRequester)
+                                            .focusGroup()
+                                            .padding(bottom = 16.dp),
+                                ) {
+                                    val bringHeaderIntoView =
+                                        Modifier.onFocusChanged {
+                                            if (it.isFocused) {
+                                                scope.launch(ExceptionHandler()) {
+                                                    bringIntoViewRequester.bringIntoView()
+                                                }
                                             }
                                         }
-                                    }
-                                // No Play here: pick a season first. Random and Shuffle expand on focus.
-                                ExpandableFaButton(
-                                    title = if (favorite) R.string.remove_favorite else R.string.add_favorite,
-                                    iconStringRes = R.string.fa_heart,
-                                    onClick = favoriteOnClick,
-                                    iconColor = if (favorite) Color.Red else Color.Unspecified,
-                                    modifier = Modifier.focusRequester(firstButtonFocusRequester).then(bringHeaderIntoView),
-                                )
-                                TrailerButton(
-                                    trailers = trailers,
-                                    trailerOnClick = trailerOnClick,
-                                    modifier = bringHeaderIntoView,
-                                )
-                                ExpandableFaButton(
-                                    title = if (played) R.string.mark_unwatched else R.string.mark_watched,
-                                    iconStringRes = if (played) R.string.fa_eye else R.string.fa_eye_slash,
-                                    onClick = watchOnClick,
-                                    modifier = bringHeaderIntoView,
-                                )
-                                ExpandableFaButton(
-                                    title = R.string.sort_by_random,
-                                    iconStringRes = R.string.fa_dice,
-                                    onClick = {
-                                        position = HEADER_ROW
-                                        onClickRandom()
-                                    },
-                                    collapsed = true,
-                                    modifier = bringHeaderIntoView,
-                                )
-                                ExpandableFaButton(
-                                    title = R.string.shuffle,
-                                    iconStringRes = R.string.fa_shuffle,
-                                    onClick = {
-                                        position = HEADER_ROW
-                                        playOnClick.invoke(true)
-                                    },
-                                    collapsed = true,
-                                    modifier = bringHeaderIntoView,
-                                )
-                                if (canDelete) {
-                                    DeleteButton(
-                                        title = series.title ?: "",
-                                        onConfirmDelete = {
-                                            position = HEADER_ROW
-                                            actions.onDeleteItem.invoke(series)
-                                        },
+                                    // No Play here: pick a season first. Random and Shuffle expand on focus.
+                                    ExpandableFaButton(
+                                        title = if (favorite) R.string.remove_favorite else R.string.add_favorite,
+                                        iconStringRes = R.string.fa_heart,
+                                        onClick = favoriteOnClick,
+                                        iconColor = if (favorite) Color.Red else Color.Unspecified,
+                                        modifier = Modifier.focusRequester(firstButtonFocusRequester).then(bringHeaderIntoView),
+                                    )
+                                    TrailerButton(
+                                        trailers = trailers,
+                                        trailerOnClick = trailerOnClick,
                                         modifier = bringHeaderIntoView,
                                     )
+                                    ExpandableFaButton(
+                                        title = if (played) R.string.mark_unwatched else R.string.mark_watched,
+                                        iconStringRes = if (played) R.string.fa_eye else R.string.fa_eye_slash,
+                                        onClick = watchOnClick,
+                                        modifier = bringHeaderIntoView,
+                                    )
+                                    ExpandableFaButton(
+                                        title = R.string.sort_by_random,
+                                        iconStringRes = R.string.fa_dice,
+                                        onClick = {
+                                            position = HEADER_ROW
+                                            onClickRandom()
+                                        },
+                                        collapsed = true,
+                                        modifier = bringHeaderIntoView,
+                                    )
+                                    ExpandableFaButton(
+                                        title = R.string.shuffle,
+                                        iconStringRes = R.string.fa_shuffle,
+                                        onClick = {
+                                            position = HEADER_ROW
+                                            playOnClick.invoke(true)
+                                        },
+                                        collapsed = true,
+                                        modifier = bringHeaderIntoView,
+                                    )
+                                    if (canDelete) {
+                                        DeleteButton(
+                                            title = series.title ?: "",
+                                            onConfirmDelete = {
+                                                position = HEADER_ROW
+                                                actions.onDeleteItem.invoke(series)
+                                            },
+                                            modifier = bringHeaderIntoView,
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -517,7 +569,8 @@ fun SeriesDetailsContent(
                         },
                     )
                 }
-                if (people.isNotEmpty()) {
+                // Kids get only Seasons and More like this (owner 2026-10-23)
+                if (people.isNotEmpty() && !kid) {
                     item {
                         PersonRow(
                             people = people,
@@ -547,7 +600,7 @@ fun SeriesDetailsContent(
                         )
                     }
                 }
-                if (extras.isNotEmpty()) {
+                if (extras.isNotEmpty() && !kid) {
                     item {
                         ExtrasRow(
                             extras = extras,
@@ -608,7 +661,7 @@ fun SeriesDetailsContent(
                         )
                     }
                 }
-                if (discovered.isNotEmpty()) {
+                if (discovered.isNotEmpty() && !kid) {
                     item {
                         DiscoverRow(
                             row =
@@ -639,6 +692,9 @@ fun SeriesDetailsHeader(
     overviewOnClick: () -> Unit,
     bringIntoViewRequester: BringIntoViewRequester,
     modifier: Modifier = Modifier,
+    /** The kid title page: years aired, [seasonCount] seasons and the rating badge, genres and the description */
+    kid: Boolean = false,
+    seasonCount: Int = 0,
 ) {
     val scope = rememberCoroutineScope()
     val neon = isWeaselTv()
@@ -657,6 +713,10 @@ fun SeriesDetailsHeader(
                     .fillMaxWidth(.75f)
                     .padding(start = HeaderUtils.startPadding),
         )
+        if (kid) {
+            KidSeriesInfo(series, seasonCount)
+            return@Column
+        }
         Column(
             verticalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier.fillMaxWidth(.60f),
@@ -707,6 +767,49 @@ fun SeriesDetailsHeader(
                         },
                 )
             }
+        }
+    }
+}
+
+/**
+ * The kid page's series details: years aired, the number of seasons and the rating badge, the genres, and the
+ * description up to [KidTitlePage.overviewLines]. No scores or studios.
+ */
+@Composable
+private fun KidSeriesInfo(
+    series: BaseItem,
+    seasonCount: Int,
+) {
+    val dto = series.data
+    val infoScale = HeaderUtils.detailInfoTextScale()
+    val typography = MaterialTheme.typography
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.fillMaxWidth(.60f),
+    ) {
+        val seasons = if (seasonCount > 0) kidSeasonCount(seasonCount) else null
+        KidMetadataLine(
+            parts = listOfNotNull(dto.seriesProductionYears, seasons),
+            rating = dto.officialRating,
+            textStyle = typography.titleSmall.scaled(infoScale),
+            modifier = Modifier.padding(start = HeaderUtils.startPadding, top = 4.dp),
+        )
+        dto.genres?.letNotEmpty {
+            GenreText(
+                it,
+                Modifier.padding(start = HeaderUtils.startPadding),
+                textStyle = typography.bodyMedium.scaled(infoScale),
+            )
+        }
+        dto.overview?.takeIf { it.isNotBlank() }?.let { overview ->
+            OverviewText(
+                overview = overview,
+                maxLines = KidTitlePage.overviewLines(compact = false),
+                compactMaxLines = KidTitlePage.overviewLines(compact = true),
+                onClick = {},
+                textBoxHeight = Dp.Unspecified,
+                textStyle = typography.bodyMedium.scaled(infoScale),
+            )
         }
     }
 }

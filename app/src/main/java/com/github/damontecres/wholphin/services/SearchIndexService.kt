@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.services
 
 import android.content.Context
+import com.github.damontecres.wholphin.kids.KidContentGuard
 import com.github.damontecres.wholphin.util.FuzzySearch
 import com.github.damontecres.wholphin.util.GetItemsRequestHandler
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -41,6 +42,7 @@ class SearchIndexService
     constructor(
         @param:ApplicationContext private val context: Context,
         private val api: ApiClient,
+        private val kidContentGuard: KidContentGuard,
     ) {
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         private val json = Json { ignoreUnknownKeys = true }
@@ -133,7 +135,11 @@ class SearchIndexService
         private suspend fun fetchAndSave(wanted: IndexKey) {
             try {
                 val started = System.currentTimeMillis()
-                val items =
+                // Kid content rules (review round 1): built only from a response made for this member's session, and
+                // kept only while it is still the current one
+                val session = kidContentGuard.sessionOf(api)
+                if (session != null && session.userId != wanted.userId) return
+                val response =
                     GetItemsRequestHandler
                         .execute(
                             api,
@@ -146,7 +152,9 @@ class SearchIndexService
                                 enableTotalRecordCount = false,
                                 sortBy = listOf(ItemSortBy.SORT_NAME),
                             ),
-                        ).content.items
+                        )
+                if (session != null && !session.made(kidContentGuard.sessionOf(response.headers))) return
+                val items = response.content.items
                 val titles =
                     items.mapNotNull { item ->
                         val name = item.name?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
@@ -154,6 +162,7 @@ class SearchIndexService
                     }
                 val saved = SavedIndex(System.currentTimeMillis(), wanted.types, titles)
                 val index = toIndex(wanted.serverId, wanted.userId, saved)
+                if (session != null && kidContentGuard.sessionOf(api) != session) return
                 lock.withLock {
                     // Only if Search hasn't moved on to another member meanwhile
                     if (member == wanted.serverId to wanted.userId) _index.value = index

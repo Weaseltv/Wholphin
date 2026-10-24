@@ -39,9 +39,11 @@ fun OverviewText(
     textBoxHeight: Dp = maxLines * 20.dp,
     enabled: Boolean = true,
     textStyle: TextStyle = MaterialTheme.typography.bodyMedium,
+    /** Lines shown when the header is compact (the kid page shows more of its description) */
+    compactMaxLines: Int = 2,
 ) {
     val compact = LocalCompactDetailHeader.current
-    val visibleLines = if (compact) minOf(maxLines, 2) else maxLines
+    val visibleLines = if (compact) minOf(maxLines, compactMaxLines) else maxLines
     val visibleHeight = if (isWeaselTv()) Dp.Unspecified else textBoxHeight
     val context = LocalContext.current
     val isFocused = interactionSource.collectIsFocusedAsState().value

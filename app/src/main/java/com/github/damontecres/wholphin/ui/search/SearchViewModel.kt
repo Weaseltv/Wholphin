@@ -10,6 +10,7 @@ import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.DiscoverItem
 import com.github.damontecres.wholphin.data.model.SeerrItemType
+import com.github.damontecres.wholphin.kids.isStaleSession
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.updateSearchPreferences
 import com.github.damontecres.wholphin.services.FavoriteWatchManager
@@ -575,7 +576,7 @@ class SearchViewModel
                 }
             } catch (ex: Exception) {
                 Timber.e(ex, "Error refreshing item %s", itemId)
-                showToast(context, "Error refreshing")
+                if (!ex.isStaleSession()) showToast(context, "Error refreshing")
             }
         }
 
@@ -632,7 +633,7 @@ class SearchViewModel
                     throw ex
                 } catch (ex: Exception) {
                     Timber.e(ex, "Error canceling timer %s, series=%s", timerId, series)
-                    showToast(context, "Error: ${ex.localizedMessage}")
+                    if (!ex.isStaleSession()) showToast(context, "Error: ${ex.localizedMessage}")
                 }
             }
         }
@@ -650,7 +651,7 @@ class SearchViewModel
                     throw ex
                 } catch (ex: Exception) {
                     Timber.e(ex, "Error recording %s, series=%s", programId, series)
-                    showToast(context, "Error: ${ex.localizedMessage}")
+                    if (!ex.isStaleSession()) showToast(context, "Error: ${ex.localizedMessage}")
                 }
             }
         }
@@ -691,7 +692,7 @@ class SearchViewModel
                     throw ex
                 } catch (ex: Exception) {
                     Timber.e(ex, "Exception toggling %s", type)
-                    showToast(context, "An error occurred: ${ex.localizedMessage}")
+                    if (!ex.isStaleSession()) showToast(context, "An error occurred: ${ex.localizedMessage}")
                 }
             }
         }

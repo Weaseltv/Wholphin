@@ -35,6 +35,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -126,6 +127,8 @@ import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import com.github.damontecres.wholphin.util.LoadingState
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import org.jellyfin.sdk.model.DateTime
 import org.jellyfin.sdk.model.api.BaseItemKind
 import timber.log.Timber
@@ -149,6 +152,7 @@ fun HomePage(
     val refreshing = state.refreshState
     val homeRows = state.homeRows
     val libraries = state.libraries
+    val shownSettings = state.settings
 
     when (val state = loading) {
         is LoadingState.Error -> {
@@ -276,44 +280,53 @@ fun HomePage(
                     }
                 }
 
-            HomePageContent(
-                homeRows = homeRows,
-                libraries = libraries,
-                splitHomeTitles = true,
-                position = position,
-                onFocusPosition = onFocusPosition,
-                onClickItem = onClickItem,
-                onLongClickItem = onLongClickItem,
-                onClickPlay = onClickPlay,
-                loadingState = refreshing,
-                showClock = preferences.appPreferences.interfacePreferences.showClock,
-                onUpdateBackdrop = viewModel::updateBackdrop,
-                showLogo = preferences.appPreferences.interfacePreferences.showLogos,
-                showViewMore = true,
-                onClickViewMore = onClickViewMore,
-                reorder =
-                    reorderState?.let { reordering ->
-                        HomeRowReorder(
-                            row = reordering.row,
-                            index = reordering.index,
-                            onMove = { delta ->
-                                val size =
-                                    (currentHomeRows.getOrNull(reordering.row) as? HomeRowLoadingState.Success)?.items?.size ?: 0
-                                val to = reordering.index + delta
-                                if (to in 0 until size) {
-                                    viewModel.moveRowItem(reordering.row, reordering.index, to)
-                                    reorderState = reordering.copy(index = to)
-                                    position = RowColumn(reordering.row, to)
-                                }
-                            },
-                            onDone = {
-                                viewModel.saveStreamingOrder(reordering.row)
-                                reorderState = null
-                            },
-                        )
-                    },
-                modifier = modifier,
-            )
+            val rowKeys = remember(shownSettings) { kidHomeRowKeys(shownSettings) }
+            // A kids Home that loaded with nothing to show says so, rather than leaving the page empty
+            if (rowKeys != null && refreshing == LoadingState.Success &&
+                homeRows.none { it is HomeRowLoadingState.Success && it.items.isNotEmpty() }
+            ) {
+                KidHomeEmpty(modifier)
+            } else {
+                HomePageContent(
+                    homeRows = homeRows,
+                    libraries = libraries,
+                    splitHomeTitles = true,
+                    rowKeys = rowKeys,
+                    position = position,
+                    onFocusPosition = onFocusPosition,
+                    onClickItem = onClickItem,
+                    onLongClickItem = onLongClickItem,
+                    onClickPlay = onClickPlay,
+                    loadingState = refreshing,
+                    showClock = preferences.appPreferences.interfacePreferences.showClock,
+                    onUpdateBackdrop = viewModel::updateBackdrop,
+                    showLogo = preferences.appPreferences.interfacePreferences.showLogos,
+                    showViewMore = true,
+                    onClickViewMore = onClickViewMore,
+                    reorder =
+                        reorderState?.let { reordering ->
+                            HomeRowReorder(
+                                row = reordering.row,
+                                index = reordering.index,
+                                onMove = { delta ->
+                                    val size =
+                                        (currentHomeRows.getOrNull(reordering.row) as? HomeRowLoadingState.Success)?.items?.size ?: 0
+                                    val to = reordering.index + delta
+                                    if (to in 0 until size) {
+                                        viewModel.moveRowItem(reordering.row, reordering.index, to)
+                                        reorderState = reordering.copy(index = to)
+                                        position = RowColumn(reordering.row, to)
+                                    }
+                                },
+                                onDone = {
+                                    viewModel.saveStreamingOrder(reordering.row)
+                                    reorderState = null
+                                },
+                            )
+                        },
+                    modifier = modifier,
+                )
+            }
             overviewDialog?.let { info ->
                 ItemDetailsDialog(
                     info = info,
@@ -389,6 +402,7 @@ fun HomePageContent(
     rowHeading: (@Composable (HomeRowLoadingState.Success) -> Pair<String, String?>)? = null,
     onClickViewMore: (RowColumn, HomeRowLoadingState.Success) -> Unit = { _, _ -> },
     reorder: HomeRowReorder? = null,
+    rowKeys: List<String>? = null,
 ) {
     val focusedItem =
         remember(homeRows, position) {
@@ -400,9 +414,20 @@ fun HomePageContent(
     val hasContent: (HomeRowLoadingState) -> Boolean = {
         it is HomeRowLoadingState.Success && it.items.isNotEmpty()
     }
-    val rowFocusRequesters = remember(homeRows.size) { List(homeRows.size) { FocusRequester() } }
-    val rowTitleHeights = remember { mutableStateMapOf<Int, Int>() }
-    val rowHeights = remember { mutableStateMapOf<Int, Int>() }
+    // A kids Home's rows are keyed by row ([rowKeys]): focus requesters and measured heights follow a row that moves.
+    // Any other Home keeps them by position.
+    val keyed = rowKeys != null && rowKeys.size == homeRows.size
+    val rowKey: (Int) -> Any = { index -> if (keyed) rowKeys!!.getOrNull(index) ?: index else index }
+    val positionalRequesters = remember(homeRows.size) { List(homeRows.size) { FocusRequester() } }
+    val keyedRequesters = remember { mutableMapOf<Any, FocusRequester>() }
+    val rowFocusRequesters =
+        if (keyed) {
+            remember(rowKeys) { rowKeys!!.map { keyedRequesters.getOrPut(it) { FocusRequester() } } }
+        } else {
+            positionalRequesters
+        }
+    val rowTitleHeights = remember { mutableStateMapOf<Any, Int>() }
+    val rowHeights = remember { mutableStateMapOf<Any, Int>() }
     var firstFocused by remember { mutableStateOf(false) }
 
     val currentPosition by rememberUpdatedState(position)
@@ -417,15 +442,46 @@ fun HomePageContent(
                     rowFocusRequesters.getOrNull(index)?.tryRequestFocus()
                     firstFocused = true
                 } else {
-                    // Waiting for the first home row to load, then focus on it
+                    // Waiting for the first home row to load, then focus on it. A kids Home's rows load in parallel:
+                    // only once every row above it is done, so it opens on the top row, not on the first to arrive
                     homeRows
                         .indexOfFirstOrNull(hasContent)
+                        ?.takeIf { first -> !keyed || homeRows.take(first).all { it.completed } }
                         ?.let {
                             rowFocusRequesters[it].tryRequestFocus()
                             firstFocused = true
                             delay(50)
                             listState.scrollToItem(it)
                         }
+                }
+            }
+        }
+    }
+    if (keyed) {
+        // The focused row, by key ([KidRowFocus]): it follows its row when rows are added or removed around it, or
+        // moves (with focus) to the nearest row with content when it's gone, also once that content arrives later
+        val rowFocus = remember { KidRowFocus() }
+        val currentRowKeys by rememberUpdatedState(rowKeys!!)
+        val currentRequesters by rememberUpdatedState(rowFocusRequesters)
+        val rowsWithContent = homeRows.map(hasContent)
+        LaunchedEffect(position.row) { rowFocus.onFocusedRow(position.row, currentRowKeys) }
+        LaunchedEffect(rowKeys, rowsWithContent) {
+            when (val action = rowFocus.onRows(rowKeys!!, currentPosition.row) { rowsWithContent.getOrElse(it) { false } }) {
+                KidRowFocus.Action.None -> {
+                    Unit
+                }
+
+                is KidRowFocus.Action.Follow -> {
+                    currentOnFocusPosition(currentPosition.copy(row = action.row))
+                }
+
+                is KidRowFocus.Action.Recover -> {
+                    currentOnFocusPosition(RowColumn(action.row, 0))
+                    // Into composition first, so its focus requester is attached
+                    val visible = { listState.layoutInfo.visibleItemsInfo.any { it.index == action.row } }
+                    if (!visible()) listState.scrollToItem(action.row)
+                    withTimeoutOrNull(1_000) { snapshotFlow { visible() }.first { it } }
+                    currentRequesters.getOrNull(action.row)?.tryRequestFocus()
                 }
             }
         }
@@ -438,9 +494,9 @@ fun HomePageContent(
         val focusedRowIndex = position.row.coerceAtLeast(0)
         val nextRowIndex =
             ((focusedRowIndex + 1) until homeRows.size).firstOrNull { hasContent(homeRows[it]) }
-        val focusedRowHeight = rowHeights[focusedRowIndex]
-        val focusedTitleHeight = rowTitleHeights[focusedRowIndex]
-        val nextTitleHeight = nextRowIndex?.let { rowTitleHeights[it] ?: focusedTitleHeight }
+        val focusedRowHeight = rowHeights[rowKey(focusedRowIndex)]
+        val focusedTitleHeight = rowTitleHeights[rowKey(focusedRowIndex)]
+        val nextTitleHeight = nextRowIndex?.let { rowTitleHeights[rowKey(it)] ?: focusedTitleHeight }
         // Keep the next kicker, title and rule above the viewport edge. Use actual row
         // measurements so font, card, caption and spacing tuning all share this budget.
         val headerMaxHeight =
@@ -510,12 +566,12 @@ fun HomePageContent(
                         Modifier
                             .focusRestorer(),
                 ) {
-                    itemsIndexed(homeRows) { rowIndex, row ->
+                    itemsIndexed(homeRows, key = if (keyed) { index, _ -> rowKeys!![index] } else null) { rowIndex, row ->
                         val reordering = reorder?.row == rowIndex
                         val rowModifier =
                             Modifier
                                 .animateItem(placementSpec = null)
-                                .onSizeChanged { rowHeights[rowIndex] = it.height }
+                                .onSizeChanged { rowHeights[rowKey(rowIndex)] = it.height }
                                 .then(if (reordering) Modifier.onPreviewKeyEvent { reorder!!.onKey(it) } else Modifier)
                                 .padding(
                                     bottom =
@@ -572,7 +628,7 @@ fun HomePageContent(
                                                 } else {
                                                     null
                                                 },
-                                            onTitleHeightChanged = { rowTitleHeights[rowIndex] = it },
+                                            onTitleHeightChanged = { rowTitleHeights[rowKey(rowIndex)] = it },
                                             titleAccent = homeRowAccent(row.rowType, libraries),
                                             items = row.items,
                                             onClickItem =
@@ -1215,5 +1271,16 @@ data class HomeRowReorder(
                 false
             }
         }
+    }
+}
+
+/** A kids Home with no rows to show yet */
+@Composable
+private fun KidHomeEmpty(modifier: Modifier = Modifier) {
+    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(
+            text = stringResource(R.string.kid_home_empty),
+            style = MaterialTheme.typography.titleLarge,
+        )
     }
 }

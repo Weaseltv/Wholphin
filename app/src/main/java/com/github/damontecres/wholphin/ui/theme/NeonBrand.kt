@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -123,12 +124,18 @@ fun NeonBrandRow(
     }
 }
 
+/**
+ * Whether the signed-in profile is a kid, so loading shows the kids' artwork; null before a profile is signed in,
+ * when the last profile's choice is used.
+ */
+val LocalKidsLoadingArtwork = staticCompositionLocalOf<Boolean?> { null }
+
 /** Resolve only the artwork bundled by this flavor, without advancing the loading rotation. */
 @Composable
-internal fun rememberLoadingArtworks(): List<Int> {
+internal fun rememberLoadingArtworks(kids: Boolean = false): List<Int> {
     val context = LocalContext.current
-    return remember(context) {
-        LoadingArtworkRotation.resourceNames.mapNotNull { name ->
+    return remember(context, kids) {
+        LoadingArtworkRotation.resourceNames(kids).mapNotNull { name ->
             context.resources.getIdentifier(name, "drawable", context.packageName).takeIf { it != 0 }
         }
     }
@@ -157,8 +164,10 @@ internal fun NeonLoadingArtwork(
 @Composable
 fun NeonLoadingMark(modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val artworks = rememberLoadingArtworks()
-    val artwork = remember(context, artworks) { LoadingArtworkRotation.next(context, artworks) }
+    val signedInKids = LocalKidsLoadingArtwork.current
+    val kids = remember(context, signedInKids) { signedInKids ?: LoadingArtworkRotation.lastProfileWasKids(context) }
+    val artworks = rememberLoadingArtworks(kids)
+    val artwork = remember(context, artworks) { LoadingArtworkRotation.next(context, artworks, kids) }
     if (artwork != null) {
         NeonLoadingArtwork(painterResource(artwork), modifier)
     } else {

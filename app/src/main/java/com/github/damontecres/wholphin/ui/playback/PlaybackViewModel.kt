@@ -27,6 +27,7 @@ import androidx.media3.session.MediaSession
 import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.size.Size
+import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ItemPlaybackDao
 import com.github.damontecres.wholphin.data.ItemPlaybackRepository
 import com.github.damontecres.wholphin.data.ServerRepository
@@ -36,6 +37,7 @@ import com.github.damontecres.wholphin.data.model.ItemPlayback
 import com.github.damontecres.wholphin.data.model.Playlist
 import com.github.damontecres.wholphin.data.model.PlaylistItem
 import com.github.damontecres.wholphin.data.model.TrackIndex
+import com.github.damontecres.wholphin.kids.KidContentGuard
 import com.github.damontecres.wholphin.mpv.MpvPlayer
 import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.PlayerBackend
@@ -161,6 +163,7 @@ class PlaybackViewModel
         private val musicService: MusicService,
         private val activePlaybackRegistry: ActivePlaybackRegistry,
         private val volumeService: VolumeService,
+        private val kidContentGuard: KidContentGuard,
         @Assisted private val destination: Destination,
     ) : ViewModel(),
         Player.Listener,
@@ -360,6 +363,12 @@ class PlaybackViewModel
                 (destination as? Destination.Playback)?.let {
                     PlayRequestMapper.requestedStreams(it, serverRepository.currentUser?.rowId ?: 0)
                 }
+            // Kid content rules (contract section 10): refused by item id after a fresh check
+            if (!kidContentGuard.isPlaybackAllowed(api, itemId)) {
+                refuseKidContent()
+                navigationManager.goBack()
+                return
+            }
             val queriedItem = api.userLibraryApi.getItem(itemId).content
             val playlistItem =
                 if (explicitQueue.isNotEmpty()) {
@@ -393,6 +402,7 @@ class PlaybackViewModel
                             playlistCreator.createFrom(
                                 item = queriedItem,
                                 startIndex = destination.startIndex ?: 0,
+                                startItemId = destination.startItemId,
                                 sortAndDirection = destination.sortAndDirection,
                                 shuffled = destination.shuffle,
                                 recursive = destination.recursive,
@@ -487,6 +497,11 @@ class PlaybackViewModel
             }
         }
 
+        private suspend fun refuseKidContent() {
+            Timber.i("Kid content rules: playback refused")
+            showToast(context, context.getString(R.string.kid_content_playback_refused), Toast.LENGTH_SHORT)
+        }
+
         /**
          * Play an item
          *
@@ -524,6 +539,13 @@ class PlaybackViewModel
                         "Unsupported type '${item.type}', skipping...",
                         Toast.LENGTH_SHORT,
                     )
+                    return@withContext false
+                }
+                // Kid content rules (contract section 10): a fresh check by item id right before each stream starts; the
+                // permit is checked again where the stream is installed (review round 2)
+                val permit = kidContentGuard.playbackPermit(api, item.id)
+                if (!kidContentGuard.isCurrent(permit)) {
+                    refuseKidContent()
                     return@withContext false
                 }
                 this@PlaybackViewModel.currentItem = playlistItem
@@ -869,7 +891,17 @@ class PlaybackViewModel
                                 )
                             }
                     }
+                    // Kid content rules (review round 3): every stream (re)creation, whether first start, audio or subtitle
+                    // change, quality change or retry, gets its own fresh permit, checked right before it is installed
+                    val streamPermit = kidContentGuard.playbackPermit(api, item.id)
                     withContext(WholphinDispatchers.Main) {
+                        if (!kidContentGuard.isCurrent(streamPermit)) {
+                            // Nothing stays installed for a later prepare to replay
+                            player.stop()
+                            player.clearMediaItems()
+                            refuseKidContent()
+                            return@withContext
+                        }
                         // TODO, don't need to release & recreate when switching streams
                         this@PlaybackViewModel.activityListener?.let {
                             it.release()
@@ -892,6 +924,14 @@ class PlaybackViewModel
                                 loading = LoadingState.Success,
                                 currentPlayback = playback,
                             )
+                        }
+                        // Kid content rules: still under the session the stream was allowed in
+                        if (!kidContentGuard.isCurrent(streamPermit)) {
+                            // Nothing stays installed for a later prepare to replay
+                            player.stop()
+                            player.clearMediaItems()
+                            refuseKidContent()
+                            return@withContext
                         }
                         player.setMediaItem(
                             mediaItem,
@@ -1504,7 +1544,13 @@ class PlaybackViewModel
                                 enableDirectPlay = false,
                                 enableDirectStream = false,
                             )
+                            // Kid content rules (review round 3): a retry is a new stream, with its own fresh permit
+                            val retryPermit = kidContentGuard.playbackPermit(api, currentItem.item.id)
                             withContext(WholphinDispatchers.Main) {
+                                if (!kidContentGuard.isCurrent(retryPermit)) {
+                                    player.stop()
+                                    return@withContext
+                                }
                                 player.prepare()
                                 player.play()
                             }

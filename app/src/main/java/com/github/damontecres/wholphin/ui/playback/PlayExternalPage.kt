@@ -21,10 +21,12 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.viewModelScope
+import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ItemPlaybackDao
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.PlaylistItem
+import com.github.damontecres.wholphin.kids.KidContentGuard
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.PlaylistCreationResult
@@ -76,6 +78,7 @@ class PlayExternalViewModel
         private val itemPlaybackDao: ItemPlaybackDao,
         private val playlistCreator: PlaylistCreator,
         private val streamChoiceService: StreamChoiceService,
+        private val kidContentGuard: KidContentGuard,
         private val navigationManager: NavigationManager,
         private val userPreferencesService: UserPreferencesService,
     ) : ViewModel() {
@@ -114,6 +117,7 @@ class PlayExternalViewModel
                                 playlistCreator.createFrom(
                                     item = queriedItem,
                                     startIndex = destination.startIndex ?: 0,
+                                    startItemId = destination.startItemId,
                                     sortAndDirection = destination.sortAndDirection,
                                     shuffled = destination.shuffle,
                                     recursive = destination.recursive,
@@ -157,6 +161,15 @@ class PlayExternalViewModel
                             is PlaylistItem.Intro -> playlistItem.item
                             is PlaylistItem.Media -> playlistItem.item
                         }
+                    // Kid content rules (contract section 10): a fresh check by item id right before the stream starts
+                    val permit = kidContentGuard.playbackPermit(api, item.id)
+                    playbackPermit = permit
+                    if (!kidContentGuard.isCurrent(permit)) {
+                        state.update {
+                            it.copy(loading = LoadingState.Error(context.getString(R.string.kid_content_playback_refused)))
+                        }
+                        return@launchDefault
+                    }
                     val mediaSource = streamChoiceService.chooseSource(item.data, playbackConfig)
                     val plc = streamChoiceService.getPlaybackLanguageChoice(item.data)
                     if (mediaSource == null) {
@@ -370,6 +383,20 @@ class PlayExternalViewModel
             }
         }
 
+        /** Kid content rules: the permit of the item about to be handed to the external player */
+        @Volatile
+        private var playbackPermit: KidContentGuard.PlaybackPermit? = null
+
+        /**
+         * Kid content rules (review round 2): whether the stream may still be handed on, ie the session hasn't changed
+         * since it was allowed; otherwise playback is refused
+         */
+        fun mayLaunch(): Boolean {
+            if (kidContentGuard.isCurrent(playbackPermit)) return true
+            state.update { it.copy(loading = LoadingState.Error(context.getString(R.string.kid_content_playback_refused))) }
+            return false
+        }
+
         fun reportException(ex: Exception) {
             Timber.e(ex, "Error launching activity")
             state.update { it.copy(loading = LoadingState.Error(ex)) }
@@ -431,7 +458,7 @@ fun PlayExternalPage(
                     Timber.i("Launching external playback")
                     viewModel.launched.update { true }
                     try {
-                        launcher.launch(state.intent)
+                        if (viewModel.mayLaunch()) launcher.launch(state.intent)
                     } catch (ex: Exception) {
                         viewModel.reportException(ex)
                     }

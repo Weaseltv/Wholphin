@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WeaselPlex kid profiles and profile pictures (runbooks/kid-profiles). -->
+<resources>
+    <string name="add_kid_profile">Add kid profile</string>
+    <string name="kid_badge">Kid</string>
+    <string name="remove_from_this_tv">Remove from this TV</string>
+    <string name="change_picture">Change picture</string>
+    <string name="profile_picture">Profile picture</string>
+    <string name="profile_picture_summary">Choose a picture for this profile</string>
+    <string name="pick_a_picture">Choose a picture</string>
+    <string name="current_picture">Current picture</string>
+    <string name="remove_picture">Remove picture</string>
+    <string name="skip_for_now">Skip for now</string>
+    <string name="picture_saved">Picture saved</string>
+    <string name="picture_save_failed">The picture couldn\'t be saved. Try again.</string>
+
+    <string name="who_is_adding_kid">Who\'s adding a kid?</string>
+    <string name="enter_your_pin_name">%1$s, enter your PIN</string>
+    <string name="enter_pin_then_select">Enter your PIN with the remote, then press select</string>
+    <string name="pin_wrong_attempts">Wrong PIN. %1$d tries left before a short wait.</string>
+    <string name="pin_wrong">Wrong PIN. Try again.</string>
+    <string name="pin_locked_out">Too many wrong tries. Try again in %1$d seconds.</string>
+    <string name="set_pin_first">%1$s, set a PIN first. It keeps kids out of your profile.</string>
+    <string name="set_pin_button">Set a PIN</string>
+    <string name="parent_locked">%1$s needs a PIN before adding kids on this TV. Sign in to that profile with another adult\'s PIN or with Quick Connect, then set a PIN in Settings.</string>
+    <string name="kids_on_account">Kids on your account</string>
+    <string name="sign_in_kid_on_tv">Sign in %1$s on this TV</string>
+    <string name="create_new_kid">Create new</string>
+    <string name="kid_name">Name</string>
+    <string name="kid_level">What can they watch?</string>
+    <string name="kid_level_kids">Kids</string>
+    <string name="kid_level_kids_description">Up to PG and TV-PG</string>
+    <string name="kid_level_older_kids">Older kids</string>
+    <string name="kid_level_older_kids_description">Up to PG-13 and TV-14</string>
+    <string name="kid_level_teens">Teens</string>
+    <string name="kid_level_teens_description">Up to R and TV-MA</string>
+    <string name="next">Next</string>
+    <string name="kid_name_invalid">Use 1 to 20 letters, numbers or spaces.</string>
+    <string name="kid_name_taken">Another kid on your account already has that name.</string>
+    <string name="kid_pick_level">Pick what they can watch.</string>
+    <string name="creating_kid">Creating %1$s…</string>
+    <string name="signing_in_kid">Signing in %1$s…</string>
+
+    <string name="kids_error_no_parent">Sign in to an adult profile on this TV first.</string>
+    <string name="kids_error_unavailable">Kid profiles aren\'t available yet.</string>
+    <string name="kids_error_limit">You already have 5 kid profiles.</string>
+    <string name="kids_error_access">Your WeaselPlex access isn\'t active.</string>
+    <string name="kids_error_sign_in_again">Sign this profile in again, then try again.</string>
+    <string name="kids_error_kid_not_active">This profile isn\'t available right now.</string>
+    <string name="kids_error_rate_limited">Too many tries. Try again in %1$d minutes.</string>
+    <string name="kids_error_rate_limited_unknown">Too many tries. Try again in a few minutes.</string>
+    <string name="kids_error_network">Couldn\'t reach WeaselPlex. Check the connection and try again.</string>
+    <string name="kids_error_generic">Something went wrong. Try again.</string>
+
+    <!-- Kid-profile panels (owner mockups, 2026-10-22) -->
+    <string name="kid_key_ok">OK</string>
+    <string name="kid_key_back">BACK</string>
+    <string name="kid_hint_select">Select</string>
+    <string name="kid_name_placeholder">Kid\'s name</string>
+    <string name="adding_kid_to_tv">Adding %1$s to this TV…</string>
+    <string name="kid_takes_a_moment">This only takes a moment.</string>
+    <string name="pick_a_picture_for">Choose a picture for %1$s</string>
+    <string name="pin_prompt_name">Enter %1$s\'s PIN to continue</string>
+    <string name="pin_prompt_current">Enter your current PIN to continue</string>
+    <string name="pin_prompt_new">Press 4 arrows on the remote to make a PIN</string>
+    <string name="pin_prompt_confirm">Press the same 4 arrows again</string>
+    <string name="pin_must_be_four">A PIN is exactly 4 presses</string>
+
+    <!-- Account avatar and account PIN (contract 11, 2026-10-22) -->
+    <string name="change_pin">Change PIN</string>
+    <string name="pin_changed">PIN changed</string>
+    <string name="pin_mismatch">Those PINs didn\'t match. Enter the new PIN again.</string>
+    <string name="pin_save_failed">The PIN couldn\'t be saved. Check the connection and try again.</string>
+    <string name="forgot_pin_hint">Forgot your PIN? You can reset it on the website at %1$s</string>
+    <string name="first_avatar_title">Welcome, %1$s</string>
+    <string name="first_avatar_subtitle">Choose a picture for your profile. It follows you to every TV.</string>
+    <string name="first_avatar_failed">Your picture couldn\'t be saved.</string>
+    <string name="try_again">Try again</string>
+    <string name="continue_without_picture">Continue without a picture</string>
+    <string name="pin_check_failed">Couldn\'t check your PIN with WeaselPlex. Check the connection and try again.</string>
+
+    <!-- Pairing a kid to another TV and adult PINs (contract 12, 2026-10-23) -->
+    <string name="adult_pins_subtitle">Every grown-up on this TV needs a PIN before a kid is added. Create one, or remove that profile from this TV.</string>
+    <string name="create_pin">Create PIN</string>
+    <string name="adult_pin_title">PIN for %1$s</string>
+    <string name="needs_a_pin">%1$s needs a PIN</string>
+    <string name="needs_a_pin_subtitle">This TV has kid profiles, so every grown-up needs a PIN.</string>
+    <string name="create_a_pin">Create a PIN</string>
+    <string name="remove_from_tv_question">Remove %1$s from this TV?</string>
+    <string name="adult_already_has_pin">%1$s already has a PIN.</string>
+    <string name="adult_remove_failed">That profile couldn\'t be removed. Try again.</string>
+    <string name="kid_how_subtitle">How do you want to add a kid?</string>
+    <string name="create_new_kid_profile">Create a new kid profile</string>
+    <string name="add_existing_kid_profile">Add an existing kid profile</string>
+    <string name="pair_code_instructions">On your phone or computer, go to %1$s, choose Kids profiles, pick the kid, then Pair to a TV and enter this code.</string>
+    <string name="pair_trouble">Can\'t reach the server right now. Still trying…</string>
+    <string name="pair_your_kids">Or add one of your kids</string>
+    <string name="pair_refused">That code was approved for a grown-up profile. Ask them to approve it from the kid\'s page on theweasel.tv.</string>
+    <string name="pair_new_code">Get a new code</string>
+
+    <!-- Kid title page (owner mockup kid-title-page.html, 2026-10-23) -->
+    <string name="kid_keep_watching">Keep watching</string>
+    <string name="kid_start_over">Start over</string>
+    <string name="kid_watchlist">Watchlist</string>
+    <string name="kid_on_watchlist">On Watchlist</string>
+    <string name="kid_play_episode">Play S%1$d · E%2$d</string>
+    <string name="kid_next_up">Next up: \"%1$s\"</string>
+    <plurals name="kid_seasons">
+        <item quantity="one">%d season</item>
+        <item quantity="other">%d seasons</item>
+    </plurals>
+    <!-- Kids profile Home: the two rows the app builds; the themed rows are the server's collections -->
+    <string name="kid_home_continue">Next up &amp; continue watching</string>
+    <string name="kid_home_watch_again">Watch again</string>
+    <string name="kid_home_empty">Nothing to watch here yet</string>
+</resources>

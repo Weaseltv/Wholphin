@@ -2,12 +2,17 @@ package com.github.damontecres.wholphin.services
 
 import android.app.SearchManager
 import android.content.Intent
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.data.isIdentity
 import com.github.damontecres.wholphin.data.model.BaseItem
+import com.github.damontecres.wholphin.kids.GateDecision
+import com.github.damontecres.wholphin.kids.KidSessionGateImpl
 import com.github.damontecres.wholphin.ui.detail.series.SeasonEpisodeIds
 import com.github.damontecres.wholphin.ui.nav.Destination
 import kotlinx.coroutines.flow.first
 import org.jellyfin.sdk.api.client.ApiClient
+import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
@@ -22,21 +27,45 @@ class IntentService
         private val api: ApiClient,
         private val serverRepository: ServerRepository,
         private val userPreferencesService: UserPreferencesService,
+        private val kidSessionGate: KidSessionGateImpl,
     ) {
-        suspend fun parseIntent(intent: Intent): IntentResult {
+        /** Whether [intent] is a plain app launch rather than a launcher tile or deep link */
+        fun isNormalLaunch(intent: Intent): Boolean {
+            val action = intent.action ?: intent.data?.host
+            return intent.getStringParam(INTENT_ITEM_TYPE) == null &&
+                (action == Intent.ACTION_MAIN || action.isNullOrBlank())
+        }
+
+        /**
+         * The profile an intent targets (plan 4.5). Only a complete server + user pair counts; launcher tiles carry
+         * none, and a server or user id on its own is ignored. The one routine for both the chooser's profile count
+         * ([com.github.damontecres.wholphin.MainActivity]) and the restore in [prepare], so the two always agree
+         * on which server's profiles apply: an unpaired server id falls back to the saved one in both.
+         */
+        fun intentTarget(intent: Intent): IntentTarget? {
+            val serverId = intent.getStringParam(INTENT_SERVER_ID)?.toUUIDOrNull()
+            val userId = intent.getStringParam(INTENT_USER_ID)?.toUUIDOrNull()
+            return if (serverId != null && userId != null) IntentTarget(serverId, userId) else null
+        }
+
+        /**
+         * @param sessionReady the intent's profile is already the current session (a held launcher tile continued
+         * after that profile was picked on the chooser), so no profile is restored
+         */
+        suspend fun parseIntent(
+            intent: Intent,
+            sessionReady: Boolean = false,
+        ): IntentResult {
             Timber.v("Parsing intent %s", intent)
             Timber.v("Intent extras: %s", intent.extras)
             Timber.v("Intent data: %s", intent.data)
             val action = intent.action ?: intent.data?.host
-            if (
-                intent.getStringParam(INTENT_ITEM_TYPE) == null &&
-                (action == Intent.ACTION_MAIN || action.isNullOrBlank())
-            ) {
+            if (isNormalLaunch(intent)) {
                 // Normal app launch
                 return IntentResult.NoOp
             }
 
-            val result = prepare(intent)
+            val result = if (sessionReady) null else prepare(intent)
             if (result != null) {
                 return result
             }
@@ -76,6 +105,10 @@ class IntentService
                         .let { BaseItem(it) }
                 } catch (ex: Exception) {
                     Timber.w(ex, "Error fetching item %s", itemId)
+                    if (ex is InvalidStatusException && ex.status == 404 && kidSessionGate.isKidSession.value) {
+                        // Kid content rules (contract section 10): a hidden title, the kid stays in their session
+                        return IntentResult.Unavailable
+                    }
                     return IntentResult.Error("Could not fetch item $itemId")
                 }
 
@@ -125,6 +158,9 @@ class IntentService
 
             val userId = intent.getStringParam(INTENT_USER_ID)?.toUUIDOrNull()
             val serverId = intent.getStringParam(INTENT_SERVER_ID)?.toUUIDOrNull()
+            if (BuildConfig.KID_PROFILES_ENABLED) {
+                return prepareGated(appPrefs.signInAutomatically, intentTarget(intent), appPrefs.currentServerId, appPrefs.currentUserId)
+            }
             return if (userId != null && serverId != null) {
                 Timber.v("Intent switches user")
                 val user = serverRepository.serverDao.getUser(serverId, userId)
@@ -160,6 +196,52 @@ class IntentService
                 } else {
                     IntentResult.Error("Auto sign-in not enabled or user is protected")
                 }
+            }
+        }
+
+        /**
+         * Kid profiles: both branches read the saved row and run the switch gate BEFORE restoring, so a
+         * protected or gated profile never reaches the session or the shared ApiClient (plan 4.1, 4.2).
+         */
+        private suspend fun prepareGated(
+            signInAutomatically: Boolean,
+            target: IntentTarget?,
+            lastServerId: String?,
+            lastUserId: String?,
+        ): IntentResult? {
+            val current = serverRepository.current.value
+            val (serverId, userId) =
+                if (target != null) {
+                    Timber.v("Intent switches user")
+                    target.serverId to target.userId
+                } else {
+                    if (!signInAutomatically || current?.user?.isProtected == true) {
+                        return IntentResult.Error("Auto sign-in not enabled or user is protected")
+                    }
+                    val serverId = lastServerId?.toUUIDOrNull()
+                    val userId = lastUserId?.toUUIDOrNull()
+                    if (serverId == null || userId == null) {
+                        return IntentResult.Error("Could not auto sign-in, specify a server & user")
+                    }
+                    serverId to userId
+                }
+            val user =
+                serverRepository.serverDao.getUser(serverId, userId)
+                    ?: return IntentResult.Error("Cannot switch to specified user")
+            if (user.isProtected) {
+                return IntentResult.Error("Cannot switch to specified user")
+            }
+            if (current.isIdentity(serverId, userId)) {
+                // Already this profile's session, if it still is once the session lock is held; else gated below
+                if (serverRepository.restoreCurrentSession(serverId, userId) != null) return null
+            }
+            if (kidSessionGate.evaluate(user) != GateDecision.Allow) {
+                return IntentResult.Error("Cannot switch to specified user")
+            }
+            return if (kidSessionGate.restoreGated(serverId, userId) != null) {
+                null
+            } else {
+                IntentResult.Error("Error restoring user")
             }
         }
 
@@ -255,8 +337,17 @@ sealed interface IntentResult {
 
     data object NoOp : IntentResult
 
+    /** Kid content rules: the item isn't available to this kid session; it stays where it is (home) */
+    data object Unavailable : IntentResult
+
     data class Target(
         val destinations: List<Destination>,
         val addHomeToBackStack: Boolean = true,
     ) : IntentResult
 }
+
+/** A deep link's target profile, see [IntentService.intentTarget] */
+data class IntentTarget(
+    val serverId: java.util.UUID,
+    val userId: java.util.UUID,
+)

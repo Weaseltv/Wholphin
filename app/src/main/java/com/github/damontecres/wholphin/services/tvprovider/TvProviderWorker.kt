@@ -17,19 +17,31 @@ import androidx.tvprovider.media.tv.TvContractCompat.WatchNextPrograms
 import androidx.tvprovider.media.tv.WatchNextProgram
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.MainActivity
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
+import com.github.damontecres.wholphin.kids.KidProtectionStore
 import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.services.ImageUrlService
 import com.github.damontecres.wholphin.services.IntentService
 import com.github.damontecres.wholphin.services.LatestNextUpService
+import com.github.damontecres.wholphin.services.WorkerSession
 import com.github.damontecres.wholphin.ui.SlimItemFields
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.exception.ApiClientException
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
@@ -60,6 +72,7 @@ class TvProviderWorker
         private val api: ApiClient,
         private val latestNextUpService: LatestNextUpService,
         private val imageUrlService: ImageUrlService,
+        private val kidProtectionStore: KidProtectionStore,
     ) : CoroutineWorker(context, workerParams) {
         override suspend fun doWork(): Result {
             Timber.d("Start")
@@ -68,7 +81,28 @@ class TvProviderWorker
             val userId =
                 inputData.getString(PARAM_USER_ID)?.toUUIDOrNull() ?: return Result.failure()
 
-            if (api.baseUrl.isNullOrBlank() || api.accessToken.isNullOrBlank()) {
+            // Kid profiles: whether the scheduled user stopped being the session (then the result to return). Kid
+            // content rules (review round 1): also once the launcher rows were cleared or the session changed since
+            // this run started; checked under [LauncherRows.locked] together with each write
+            // Review round 2: the run is bound to the session epoch it starts in (read first, before the session check).
+            // Every request on the shared client fails if the epoch changes while it is under way, and every write
+            // checks the epoch under the launcher lock, so nothing fetched for another session is ever written
+            val epoch = serverRepository.sessionEpoch.value
+            val generation = LauncherRows.generation
+            // Review round 3: a protected TV (kid protection on) shows no launcher rows for any profile, so nothing is
+            // written while it is protected; checked under the lock right before each write too
+            val stale: suspend () -> Result? = {
+                when {
+                    !BuildConfig.KID_PROFILES_ENABLED -> null
+                    kidProtectionStore.isProtected() -> Result.success()
+                    serverRepository.sessionEpoch.value != epoch -> Result.success()
+                    LauncherRows.generation != generation -> Result.success()
+                    else -> WorkerSession.check(serverRepository, serverId, userId)
+                }
+            }
+            if (BuildConfig.KID_PROFILES_ENABLED) {
+                stale()?.let { return it }
+            } else if (api.baseUrl.isNullOrBlank() || api.accessToken.isNullOrBlank()) {
                 // Not active
                 var currentUser = serverRepository.current.value
                 if (currentUser == null) {
@@ -88,6 +122,8 @@ class TvProviderWorker
                         prefs.homePagePreferences.enableRewatchingNextUp,
                         prefs.homePagePreferences.maxDaysNextUp,
                     )
+                // Don't put another profile's items on the launcher
+                stale()?.let { return it }
                 val potentialItemsToAddIds = potentialItemsToAdd.map { it.id.toString() }
 
                 Timber.v("potentialItemsToAddIds=%s", potentialItemsToAddIds)
@@ -104,8 +140,11 @@ class TvProviderWorker
                                 .lowercase()
                                 .contains("primary")
                     }.map { TvContractCompat.buildWatchNextProgramUri(it.id) }
-                    .forEach {
-                        context.contentResolver.delete(it, null, null)
+                    .let { uris ->
+                        LauncherRows.locked {
+                            stale()?.let { return it }
+                            uris.forEach { context.contentResolver.delete(it, null, null) }
+                        }
                     }
                 // End temporary clean up
 
@@ -120,23 +159,26 @@ class TvProviderWorker
                 Timber.v("toAdd (%s)=%s", toAdd.size, toAdd.map { it.id })
 
                 // Remove existing items if they are no longer in the next up from server
-                (toRemove + userRemoved)
-                    .map { TvContractCompat.buildWatchNextProgramUri(it.id) }
-                    .forEach {
-                        context.contentResolver.delete(it, null, null)
-                    }
+                LauncherRows.locked {
+                    stale()?.let { return it }
+                    (toRemove + userRemoved)
+                        .map { TvContractCompat.buildWatchNextProgramUri(it.id) }
+                        .forEach {
+                            context.contentResolver.delete(it, null, null)
+                        }
+                }
 
                 // Add new ones
+                val toInsert = toAdd.map { convert(it).toContentValues() }.toTypedArray()
                 val addedCount =
-                    context.contentResolver.bulkInsert(
-                        WatchNextPrograms.CONTENT_URI,
-                        toAdd
-                            .map { convert(it).toContentValues() }
-                            .toTypedArray(),
-                    )
+                    LauncherRows.locked {
+                        stale()?.let { return it }
+                        context.contentResolver.bulkInsert(WatchNextPrograms.CONTENT_URI, toInsert)
+                    }
                 Timber.v("Added %s", addedCount)
 
-                addOtherChannels()
+                stale()?.let { return it }
+                addOtherChannels(stale)?.let { return it }
 
                 Timber.d("Completed successfully")
             } catch (_: ApiClientException) {
@@ -256,26 +298,17 @@ class TvProviderWorker
                     )
                 }.build()
 
-        private suspend fun addOtherChannels() {
+        /**
+         * Replaces the Recently Added channel. [stale] is checked after the request and before every provider
+         * write; a non-null result means the scheduled user is no longer current, so nothing more is written and
+         * that result is returned.
+         */
+        private suspend fun addOtherChannels(stale: suspend () -> Result?): Result? {
             val preferences = preferences.data.firstOrNull()
             val channelsPrefs = context.getSharedPreferences("channels", Context.MODE_PRIVATE)
 
-            val latest =
-                api.userLibraryApi
-                    .getLatestMedia(
-                        GetLatestMediaRequest(
-                            fields = SlimItemFields,
-                            includeItemTypes = listOf(BaseItemKind.MOVIE, BaseItemKind.EPISODE),
-                            imageTypeLimit = 1,
-                            parentId = null,
-                            groupItems = true,
-                            limit =
-                                preferences?.homePagePreferences?.maxItemsPerRow
-                                    ?: AppPreference.HomePageItems.defaultValue.toInt(),
-                            isPlayed = null, // Server will handle user's preference
-                        ),
-                    ).content
-                    .map { BaseItem(it, true) }
+            val latest = fetchLatest(preferences)
+            stale()?.let { return it }
 
             var channelId = channelsPrefs.getString("latest", null)?.toUri()
             if (channelId == null) {
@@ -289,10 +322,13 @@ class TvProviderWorker
                             setAppLinkIntent(Intent(context, MainActivity::class.java))
                         }.build()
                 channelId =
-                    context.contentResolver.insert(
-                        Channels.CONTENT_URI,
-                        channel.toContentValues(),
-                    )
+                    LauncherRows.locked {
+                        stale()?.let { return it }
+                        context.contentResolver.insert(
+                            Channels.CONTENT_URI,
+                            channel.toContentValues(),
+                        )
+                    }
                 if (channelId != null) {
                     channelsPrefs.edit(true) {
                         putString("latest", channelId.toString())
@@ -309,14 +345,36 @@ class TvProviderWorker
             val programs = latest.map { convert(channelId, it).toContentValues() }.toTypedArray()
 
             // Delete & replace
-            context.contentResolver.delete(TvContractCompat.PreviewPrograms.CONTENT_URI, null, null)
             val count =
-                context.contentResolver.bulkInsert(
-                    TvContractCompat.PreviewPrograms.CONTENT_URI,
-                    programs,
-                )
+                LauncherRows.locked {
+                    stale()?.let { return it }
+                    context.contentResolver.delete(TvContractCompat.PreviewPrograms.CONTENT_URI, null, null)
+                    context.contentResolver.bulkInsert(
+                        TvContractCompat.PreviewPrograms.CONTENT_URI,
+                        programs,
+                    )
+                }
             Timber.v("Inserted $count records")
+            return null
         }
+
+        /** The scheduled user's Recently Added items */
+        internal suspend fun fetchLatest(preferences: AppPreferences?): List<BaseItem> =
+            api.userLibraryApi
+                .getLatestMedia(
+                    GetLatestMediaRequest(
+                        fields = SlimItemFields,
+                        includeItemTypes = listOf(BaseItemKind.MOVIE, BaseItemKind.EPISODE),
+                        imageTypeLimit = 1,
+                        parentId = null,
+                        groupItems = true,
+                        limit =
+                            preferences?.homePagePreferences?.maxItemsPerRow
+                                ?: AppPreference.HomePageItems.defaultValue.toInt(),
+                        isPlayed = null, // Server will handle user's preference
+                    ),
+                ).content
+                .map { BaseItem(it, true) }
 
         private fun convert(
             channelId: Uri,
@@ -410,3 +468,52 @@ fun <T> Cursor.map(transform: (Cursor) -> T): List<T> =
             }
         }
     }
+
+/**
+ * Kid content rules (contract section 10, review round 1): launcher writes and clearing never interleave. Clearing and
+ * every session change start a new [generation]; a worker run checks, together with each write and under the same
+ * lock, that its generation is still the current one, so a run that passed its session check before a clear can't
+ * put rows back after it.
+ */
+internal object LauncherRows {
+    @PublishedApi
+    internal val mutex = Mutex()
+
+    @Volatile
+    var generation = 0L
+        private set
+
+    suspend inline fun <T> locked(action: () -> T): T = mutex.withLock { action() }
+
+    /** A session change: runs started before it write nothing more */
+    suspend fun invalidate() {
+        mutex.withLock { generation++ }
+    }
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** [clear] off the caller's thread (on [dispatcher]); whether it worked */
+    fun clearAsync(
+        context: Context,
+        dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    ): Deferred<Boolean> =
+        scope.async(dispatcher) {
+            runCatching { clear(context) }
+                .onFailure { Timber.w(it, "Couldn't clear the launcher rows") }
+                .isSuccess
+        }
+
+    /** [clear] off the caller's thread, eg a retry */
+    fun requestClear(context: Context) {
+        clearAsync(context)
+    }
+
+    /** Removes this app's Watch Next and preview programs from the launcher, and stops runs started before */
+    suspend fun clear(context: Context) {
+        mutex.withLock {
+            generation++
+            context.contentResolver.delete(WatchNextPrograms.CONTENT_URI, null, null)
+            context.contentResolver.delete(TvContractCompat.PreviewPrograms.CONTENT_URI, null, null)
+        }
+    }
+}

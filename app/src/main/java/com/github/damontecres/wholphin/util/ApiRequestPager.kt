@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.util
 
 import com.github.damontecres.wholphin.data.model.BaseItem
+import com.github.damontecres.wholphin.kids.KidContentGuard
 import com.github.damontecres.wholphin.ui.DEFAULT_PAGE_SIZE
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.sync.withLock
@@ -63,10 +64,11 @@ class ApiRequestPager<T>(
                 pageSize,
                 includeTotalCount,
             )
-        val result = requestHandler.execute(api, newRequest).content
+        val response = requestHandler.execute(api, newRequest)
+        val result = response.content
         val data = mutableListOf<BaseItem>()
         result.items.forEach { data.add(BaseItem(it, useSeriesForPrimary)) }
-        return QueryResult(transformItems(data), result.totalRecordCount)
+        return QueryResult(transformItems(data), result.totalRecordCount, KidContentGuard.removedBy(response.headers))
     }
 
     suspend fun refreshItem(
@@ -82,13 +84,13 @@ class ApiRequestPager<T>(
                         useSeriesForPrimary,
                     )
                 }
-            val pageNumber = position / pageSize
-            val index = position - pageNumber * pageSize
+            val pageNumber = items.pageOf(position)
+            val index = position - items.startOf(pageNumber)
             val page = cachedPages.getIfPresent(pageNumber)
             if (page != null && index in page.indices) {
                 page[index] = transformItems(listOf(item)).first()
                 cachedPages.put(pageNumber, page)
-                items = ItemList(size, pageSize, cachedPages.asMap())
+                items = items.withPages(cachedPages.asMap())
             }
         }
     }
@@ -97,7 +99,7 @@ class ApiRequestPager<T>(
      * Dumps the cache for all the pages at or after the given position and fetches a new page
      */
     suspend fun refreshPagesAfter(position: Int) {
-        val pageNumber = position / pageSize
+        val pageNumber = items.pageOf(position)
         cachedPages.asMap().apply {
             keys.forEach { pageKey ->
                 if (pageKey >= pageNumber) {

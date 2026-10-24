@@ -45,6 +45,7 @@ import com.github.damontecres.wholphin.data.model.GetItemsFilterOverride
 import com.github.damontecres.wholphin.data.model.HomeCardAppearance
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.data.model.LibraryDisplayInfo
+import com.github.damontecres.wholphin.kids.isStaleSession
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.BackdropService
@@ -276,7 +277,7 @@ class CollectionFolderViewModel
                 }
             } catch (ex: Exception) {
                 Timber.e(ex, "Error refreshing after deleted item %s", itemId)
-                showToast(context, "Error refreshing after item deleted")
+                if (!ex.isStaleSession()) showToast(context, "Error refreshing after item deleted")
             }
         }
 
@@ -327,7 +328,7 @@ class CollectionFolderViewModel
                     throw ex
                 } catch (ex: Exception) {
                     Timber.e(ex, "Error getting random")
-                    showToast(context, "Error: ${ex.localizedMessage}}")
+                    if (!ex.isStaleSession()) showToast(context, "Error: ${ex.localizedMessage}}")
                 }
             }
         }
@@ -365,8 +366,10 @@ class CollectionFolderViewModel
         override fun onCollectionGroupChange(group: String?) {
             _state.update { it.copy(collectionGroup = group) }
             position = 0
-            // The grouped list has every collection, so a group is picked from it without a reload
-            collections?.let(::showCollections)
+            // The grouped list has every collection, so a group is picked from it without a reload. Kid content rules
+            // (review round 6): a kid or unknown session fetches fresh through the rules on every group pick
+            val kept = if (isKidOrUnknown(serverRepository.currentUser)) null else collections
+            kept?.let(::showCollections)
                 ?: loadResults(true, state.value.sortAndDirection, recursive, state.value.filter, useSeriesForPrimary)
         }
 
@@ -481,7 +484,10 @@ class CollectionFolderViewModel
                     limit = null,
                     enableTotalRecordCount = false,
                 )
-            val cached = savedCollections[all]
+            // Kid content rules (review round 6): a kid or unknown session never uses the saved list; every open fetches
+            // fresh through the rules, and a failed fetch leaves nothing from before on screen
+            val kidSession = isKidOrUnknown(serverRepository.currentUser)
+            val cached = if (kidSession) null else savedCollections[all]
             _state.update { it.copy(sortAndDirection = sortAndDirection, filter = filter) }
             if (cached != null) {
                 showCollections(cached)
@@ -501,13 +507,16 @@ class CollectionFolderViewModel
                         .content.items
                         .associate { it.id to it.userData }
                 val complete = fresh.map { it.copy(userData = userData[it.id] ?: it.userData) }
-                savedCollections[all] = complete
+                if (!kidSession) savedCollections[all] = complete
                 showCollections(complete)
             } catch (ex: CancellationException) {
                 throw ex
             } catch (ex: Exception) {
                 Timber.e(ex, "Exception while loading collections")
-                if (state.value.items !is DataLoadingState.Success) {
+                if (kidSession) {
+                    collections = null
+                    _state.update { it.copy(items = DataLoadingState.Error(ex), backgroundLoading = LoadingState.Pending) }
+                } else if (state.value.items !is DataLoadingState.Success) {
                     _state.update { it.copy(items = DataLoadingState.Error(ex), backgroundLoading = LoadingState.Pending) }
                 }
             }

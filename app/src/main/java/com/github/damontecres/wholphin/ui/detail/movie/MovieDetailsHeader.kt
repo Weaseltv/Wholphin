@@ -11,6 +11,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.Dp
@@ -29,12 +30,18 @@ import com.github.damontecres.wholphin.ui.components.QuickDetails
 import com.github.damontecres.wholphin.ui.components.TitleOrLogo
 import com.github.damontecres.wholphin.ui.components.VideoStreamDetails
 import com.github.damontecres.wholphin.ui.components.scaled
+import com.github.damontecres.wholphin.ui.detail.KidMetadataLine
+import com.github.damontecres.wholphin.ui.detail.KidTitlePage
+import com.github.damontecres.wholphin.ui.formatDuration
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.letNotEmpty
+import com.github.damontecres.wholphin.ui.roundMinutes
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.PersonKind
+import org.jellyfin.sdk.model.extensions.ticks
+import kotlin.time.Duration
 
 @Composable
 fun MovieDetailsHeader(
@@ -44,6 +51,8 @@ fun MovieDetailsHeader(
     bringIntoViewRequester: BringIntoViewRequester,
     overviewOnClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The kid title page (owner mockup 2026-10-23): a short metadata line and the real description, nothing else */
+    kid: Boolean = false,
 ) {
     val dto = movie.data
     val context = LocalContext.current
@@ -65,6 +74,10 @@ fun MovieDetailsHeader(
                     .padding(start = HeaderUtils.startPadding),
         )
 
+        if (kid) {
+            KidMovieInfo(movie, infoScale)
+            return@Column
+        }
         Column(
             verticalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier.fillMaxWidth(.60f),
@@ -140,6 +153,60 @@ fun MovieDetailsHeader(
                         modifier = Modifier.padding(start = HeaderUtils.startPadding),
                     )
                 }
+        }
+    }
+}
+
+/**
+ * The kid page's movie details: year, runtime and the rating badge, the genres, and the description up to
+ * [KidTitlePage.overviewLines]. No scores, "Ends at", time left (it is under the Play button), stream chips, tagline or
+ * director.
+ */
+@Composable
+private fun KidMovieInfo(
+    movie: BaseItem,
+    infoScale: Float,
+) {
+    val dto = movie.data
+    val typography = MaterialTheme.typography
+    val resources = LocalResources.current
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.fillMaxWidth(.60f),
+    ) {
+        val parts =
+            remember(dto.productionYear, dto.runTimeTicks) {
+                listOfNotNull(
+                    dto.productionYear?.toString(),
+                    dto.runTimeTicks
+                        ?.ticks
+                        ?.roundMinutes
+                        ?.takeIf { it > Duration.ZERO }
+                        ?.let { resources.formatDuration(it) },
+                )
+            }
+        KidMetadataLine(
+            parts = parts,
+            rating = dto.officialRating,
+            textStyle = typography.titleSmall.scaled(infoScale),
+            modifier = Modifier.padding(start = HeaderUtils.startPadding, top = 4.dp),
+        )
+        dto.genres?.letNotEmpty {
+            GenreText(
+                it,
+                Modifier.padding(start = HeaderUtils.startPadding),
+                textStyle = typography.bodyMedium.scaled(infoScale),
+            )
+        }
+        dto.overview?.takeIf { it.isNotBlank() }?.let { overview ->
+            OverviewText(
+                overview = overview,
+                maxLines = KidTitlePage.overviewLines(compact = false),
+                compactMaxLines = KidTitlePage.overviewLines(compact = true),
+                onClick = {},
+                textBoxHeight = Dp.Unspecified,
+                textStyle = typography.bodyMedium.scaled(infoScale),
+            )
         }
     }
 }

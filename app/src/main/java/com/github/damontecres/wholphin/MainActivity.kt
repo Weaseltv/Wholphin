@@ -33,6 +33,10 @@ import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.kids.KidSessionGateImpl
+import com.github.damontecres.wholphin.kids.ProfileChooserLock
+import com.github.damontecres.wholphin.kids.ProfileKind
+import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.PlayerBackend
 import com.github.damontecres.wholphin.services.AppUpgradeHandler
@@ -64,6 +68,8 @@ import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.playback.PlayExternalViewModel
 import com.github.damontecres.wholphin.ui.showToast
+import com.github.damontecres.wholphin.ui.theme.LoadingArtworkRotation
+import com.github.damontecres.wholphin.ui.theme.LocalKidsLoadingArtwork
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import com.github.damontecres.wholphin.ui.theme.colors.PurpleThemeColors
 import com.github.damontecres.wholphin.ui.util.ProvideLocalClock
@@ -157,6 +163,9 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var intentService: IntentService
+
+    @Inject
+    lateinit var profileChooserLock: ProfileChooserLock
 
     private var signInAuto = true
     private var playerBackend: PlayerBackend? = null
@@ -270,13 +279,24 @@ class MainActivity : AppCompatActivity() {
                             LaunchedEffect(appPreferences.debugLogging) {
                                 DebugLogTree.INSTANCE.enabled = appPreferences.debugLogging
                             }
-                            CompositionLocalProvider(LocalImageUrlService provides imageUrlService) {
+                            // Kids profiles get their own loading artwork; remembered for the next app start
+                            val current by viewModel.serverRepository.current.collectAsState()
+                            val kidsArtwork =
+                                current?.user?.let { BuildConfig.KID_PROFILES_ENABLED && it.profileKind == ProfileKind.KID }
+                            LaunchedEffect(kidsArtwork) {
+                                kidsArtwork?.let { LoadingArtworkRotation.rememberProfile(this@MainActivity, it) }
+                            }
+                            CompositionLocalProvider(
+                                LocalImageUrlService provides imageUrlService,
+                                LocalKidsLoadingArtwork provides kidsArtwork,
+                            ) {
                                 WholphinTheme(
                                     true,
                                     appThemeColors = appPreferences.interfacePreferences.appThemeColors,
                                 ) {
                                     ProvideLocalClock {
                                         MainContent(
+                                            hideContentOnStop = ::hideContentOnStop,
                                             backStack = setupNavigationManager.backStack,
                                             navigationManager = navigationManager,
                                             userPreferences = userPreferences,
@@ -295,10 +315,39 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Kid profiles (plan 4.5): on a TV with more than one profile, hide the last profile's screen when the app
+     * stops so it never flashes on return, unless the stop is for the external player or one of the app's own
+     * activities
+     */
+    private fun hideContentOnStop(): Boolean =
+        profileChooserLock.enabled &&
+            profileChooserLock.multiProfile.value &&
+            !playExternalViewModel.launched.value &&
+            !profileChooserLock.transientLaunchPending
+
+    override fun startActivityForResult(
+        intent: Intent,
+        requestCode: Int,
+        options: Bundle?,
+    ) {
+        // Trailers, voice search, the installer, the external player...: returning from these is exempt
+        // from the "always return to the profile screen" rule
+        profileChooserLock.onTransientLaunch()
+        super.startActivityForResult(intent, requestCode, options)
+    }
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (screensaverService.state.value.run { show || showDim }) {
             screensaverService.stop(false)
             screensaverService.pulse()
+            if (profileChooserLock.enabled &&
+                profileChooserLock.multiProfile.value &&
+                !profileChooserLock.chooserShowing
+            ) {
+                // Waking the in-app screensaver counts as a return to the app (plan 4.5)
+                viewModel.lockToChooser()
+            }
             return true
         } else {
             screensaverService.pulse()
@@ -309,6 +358,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         Timber.d("onResume")
+        profileChooserLock.onActivityResumed()
         viewModel.appResume()
         lifecycleScope.launchDefault {
             screensaverService.pulse()
@@ -318,7 +368,8 @@ class MainActivity : AppCompatActivity() {
     override fun onRestart() {
         super.onRestart()
         Timber.d("onRestart")
-        viewModel.appStart(null)
+        val exempt = playExternalViewModel.launched.value or profileChooserLock.consumeExemptReturn()
+        viewModel.appStart(null, fromBackground = true, exemptReturn = exempt)
         if (!playExternalViewModel.launched.value) {
             // If restarting during playback that is not external, go back a page
             val lastDest = navigationManager.backStack.lastOrNull()
@@ -332,6 +383,7 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
         Timber.d("onStop")
+        profileChooserLock.onActivityStopped(externalPlayer = playExternalViewModel.launched.value)
         screensaverService.stop(true)
         tvProviderSchedulerService.launchOneTimeRefresh()
     }
@@ -344,6 +396,7 @@ class MainActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         Timber.d("onStart")
+        profileChooserLock.onActivityStarted()
         startPeriodicUpdateCheck()
     }
 
@@ -452,12 +505,31 @@ class MainActivityViewModel
         private val backdropService: BackdropService,
         private val appUpgradeHandler: AppUpgradeHandler,
         private val intentService: IntentService,
+        private val kidSessionGate: KidSessionGateImpl,
+        private val profileChooserLock: ProfileChooserLock,
     ) : ViewModel() {
         private val mutex = Mutex()
 
-        fun appStart(intent: Intent?) {
+        /**
+         * @param fromBackground the activity is restarting (Home, another app, sleep, the system screensaver)
+         * @param exemptReturn returning from the external player or one of the app's own activities
+         */
+        fun appStart(
+            intent: Intent?,
+            fromBackground: Boolean = false,
+            exemptReturn: Boolean = false,
+        ) {
             viewModelScope.launchDefault {
                 mutex.withLock {
+                    if (BuildConfig.KID_PROFILES_ENABLED) {
+                        try {
+                            kidAppStart(intent, fromBackground, exemptReturn)
+                        } catch (ex: Exception) {
+                            Timber.e(ex, "Error during appStart")
+                            setupNavigationManager.navigateTo(SetupDestination.ServerList)
+                        }
+                        return@withLock
+                    }
                     try {
                         val result = intent?.let { intentService.parseIntent(intent) }
                         when (result) {
@@ -496,6 +568,11 @@ class MainActivityViewModel
                                     Timber.e("Error parsing intent, no user is active")
                                     showToast(context, "An error occurred parsing the intent")
                                 }
+                                return@withLock
+                            }
+
+                            IntentResult.Unavailable -> {
+                                showUnavailable()
                                 return@withLock
                             }
 
@@ -582,6 +659,152 @@ class MainActivityViewModel
             viewModelScope.launchDefault {
                 // Create the mediaCodecCapabilitiesTest if needed
                 deviceProfileService.mediaCodecCapabilitiesTest.supportsAVC()
+            }
+        }
+
+        /**
+         * Kid profiles start/return (plan 4.1, 4.2, 4.5). Reads the saved row and the switch gate before any
+         * restore; with more than one profile saved for the server every return lands on the profile screen.
+         */
+        private suspend fun kidAppStart(
+            intent: Intent?,
+            fromBackground: Boolean,
+            exemptReturn: Boolean,
+        ) {
+            val prefs = preferences.data.firstOrNull() ?: AppPreferences.getDefaultInstance()
+            val current = serverRepository.current.value
+            // A deep link's own server first; after the chooser cleared the saved ids and the process died, the
+            // pinned (or only) server, so the profile count, and with it the chooser-first rule, still applies
+            // Same target resolution as IntentService's restore: only a complete server + user pair counts
+            val target = intent?.let { intentService.intentTarget(it) }
+            val serverId =
+                target?.serverId
+                    ?: current?.server?.id
+                    ?: prefs.currentServerId?.toUUIDOrNull()
+                    ?: profileChooserLock.lastProfile?.server?.id
+                    ?: profileChooserLock.fallbackServerId()
+            val multiProfile = profileChooserLock.appliesTo(serverId)
+
+            if (intent != null && !intentService.isNormalLaunch(intent)) {
+                if (multiProfile) {
+                    // Launcher tile / deep link: open the chooser holding the target (plan 4.5)
+                    val owner =
+                        target?.userId
+                            ?: current?.user?.id
+                            ?: prefs.currentUserId?.toUUIDOrNull()
+                            ?: profileChooserLock.lastProfile?.user?.id
+                    profileChooserLock.hold(intent, owner)
+                    showChooser(serverId)
+                } else {
+                    handleIntentResult(intentService.parseIntent(intent))
+                }
+                return
+            }
+            if (fromBackground && exemptReturn && current != null) {
+                // Back from the external player or a transient activity: carry on where we were
+                return
+            }
+
+            val needUpgrade = appUpgradeHandler.needUpgrade()
+            if (needUpgrade) {
+                showToast(
+                    context,
+                    context.getString(R.string.updated_toast, appUpgradeHandler.currentVersion.toString()),
+                )
+                appUpgradeHandler.run()
+            }
+            appUpgradeHandler.copySubfont(false)
+
+            if (multiProfile) {
+                showChooser(serverId)
+                return
+            }
+            val profileProtected = current?.user?.isProtected == true
+            if (prefs.signInAutomatically && !profileProtected) {
+                val lastServerId = prefs.currentServerId?.toUUIDOrNull() ?: current?.server?.id
+                val lastUserId = prefs.currentUserId?.toUUIDOrNull() ?: current?.user?.id
+                val restored = kidSessionGate.restoreGated(lastServerId, lastUserId)
+                if (restored != null) {
+                    setupNavigationManager.navigateTo(SetupDestination.AppContent(restored))
+                } else if (lastServerId != null && lastUserId != null) {
+                    // Protected, gated or missing: the chooser decides (PIN, parent unlock)
+                    showChooser(lastServerId)
+                } else {
+                    setupNavigationManager.navigateTo(SetupDestination.ServerList)
+                }
+            } else {
+                showChooser(serverId)
+            }
+        }
+
+        private suspend fun showChooser(serverId: java.util.UUID?) {
+            setupNavigationManager.navigateTo(SetupDestination.Loading)
+            backdropService.clearBackdrop()
+            val server = serverId?.let { serverRepository.serverDao.getServer(it)?.server }
+            if (server != null) {
+                setupNavigationManager.navigateTo(SetupDestination.UserList(server))
+            } else {
+                setupNavigationManager.navigateTo(SetupDestination.ServerList)
+            }
+        }
+
+        private suspend fun handleIntentResult(result: IntentResult) {
+            when (result) {
+                is IntentResult.Error -> {
+                    val current = serverRepository.current.value
+                    setupNavigationManager.navigateTo(
+                        if (current != null) SetupDestination.UserList(current.server) else SetupDestination.ServerList,
+                    )
+                    Timber.e("Error parsing intent: %s", result.message)
+                    showToast(context, result.message)
+                }
+
+                is IntentResult.Target -> {
+                    val current = serverRepository.current.value
+                    if (current != null) {
+                        if (result.addHomeToBackStack) {
+                            navigationManager.reloadHome()
+                        } else {
+                            navigationManager.backStack.clear()
+                        }
+                        navigationManager.backStack.addAll(result.destinations)
+                        setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
+                    } else {
+                        setupNavigationManager.navigateTo(SetupDestination.ServerList)
+                        showToast(context, "An error occurred parsing the intent")
+                    }
+                }
+
+                IntentResult.Unavailable -> {
+                    showUnavailable()
+                }
+
+                IntentResult.NoOp -> {}
+            }
+        }
+
+        /** Kid content rules (contract section 10): a deep link to a hidden title opens home instead */
+        private suspend fun showUnavailable() {
+            showToast(context, context.getString(R.string.kid_content_item_unavailable))
+            val current = serverRepository.current.value
+            if (current != null) {
+                navigationManager.reloadHome()
+                setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
+            } else {
+                setupNavigationManager.navigateTo(SetupDestination.ServerList)
+            }
+        }
+
+        /** The in-app screensaver was woken on a TV with more than one profile: back to the profile screen */
+        fun lockToChooser() {
+            viewModelScope.launchDefault {
+                mutex.withLock {
+                    val serverId =
+                        serverRepository.current.value
+                            ?.server
+                            ?.id ?: profileChooserLock.lastProfile?.server?.id
+                    showChooser(serverId)
+                }
             }
         }
 

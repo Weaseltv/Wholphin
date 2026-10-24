@@ -11,9 +11,19 @@ import androidx.core.net.toUri
 import androidx.datastore.core.DataStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinUser
+import com.github.damontecres.wholphin.kids.AccountPinWrite
+import com.github.damontecres.wholphin.kids.AccountPins
+import com.github.damontecres.wholphin.kids.KidSessionGateImpl
+import com.github.damontecres.wholphin.kids.PinCheckResult
+import com.github.damontecres.wholphin.kids.PinRules
+import com.github.damontecres.wholphin.kids.ProfileChooserLock
+import com.github.damontecres.wholphin.kids.ProfileKind
+import com.github.damontecres.wholphin.kids.UnlockPurpose
+import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.resetSubtitles
 import com.github.damontecres.wholphin.preferences.updateSubtitlePreferences
@@ -25,16 +35,22 @@ import com.github.damontecres.wholphin.services.SeerrServerRepository
 import com.github.damontecres.wholphin.services.ServerReportService
 import com.github.damontecres.wholphin.services.UpdateChecker
 import com.github.damontecres.wholphin.ui.launchIO
+import com.github.damontecres.wholphin.ui.showToast
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import com.github.damontecres.wholphin.util.LoadingState
+import com.github.damontecres.wholphin.util.WholphinDispatchers
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.api.client.ApiClient
 import timber.log.Timber
 import javax.inject.Inject
@@ -53,6 +69,9 @@ class PreferencesViewModel
         private val seerrServerRepository: SeerrServerRepository,
         private val updateChecker: UpdateChecker,
         private val serverReportService: ServerReportService,
+        private val kidSessionGate: KidSessionGateImpl,
+        profileChooserLock: ProfileChooserLock,
+        private val accountPins: AccountPins,
     ) : ViewModel() {
         val currentUser =
             serverRepository.currentUserFlow.stateIn(
@@ -68,6 +87,88 @@ class PreferencesViewModel
             )
 
         val seerrConnection = seerrServerRepository.connection
+
+        /** Kid profiles: more than one profile on this TV, so the profile screen always shows (plan 4.5) */
+        val multiProfile: StateFlow<Boolean> = profileChooserLock.multiProfile
+
+        /** Kid profiles: PIN removal is blocked on a protected device (plan 4.2) */
+        val deviceProtected: StateFlow<Boolean> =
+            kidSessionGate.isDeviceProtected.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+        private val _canTurnOffProtection = MutableStateFlow(false)
+
+        /** Kid profiles: show "Turn off kid protection on this TV" (an adult, protected device, no kid rows) */
+        val canTurnOffProtection: StateFlow<Boolean> = _canTurnOffProtection
+
+        fun refreshKidProtection() {
+            if (!BuildConfig.KID_PROFILES_ENABLED) return
+            viewModelScope.launchIO {
+                val adult = serverRepository.currentUser?.profileKind == ProfileKind.ADULT
+                _canTurnOffProtection.value = adult && kidSessionGate.canTurnOffProtection()
+            }
+        }
+
+        /**
+         * The "Turn off kid protection" PIN submission in progress (review round 5), or none; guarded by
+         * [turnOffLock]. Dismissing the prompt leaves it: it is cancelled, grants no unlock and turns nothing off.
+         */
+        private var turnOffAttempt: Job? = null
+        private val turnOffLock = Any()
+
+        private fun isCurrentTurnOff(attempt: Job): Boolean = synchronized(turnOffLock) { turnOffAttempt === attempt }
+
+        /**
+         * "Turn off kid protection on this TV": the adult's PIN gives the [com.github.damontecres.wholphin.kids.ParentUnlock]
+         * it needs, granted only while this submission is still the current one, and checked again right where
+         * protection is cleared. A later submission replaces an earlier one.
+         *
+         * [onResult] gets the check and whether protection went off; a
+         * failure of the check or the write (eg storage) calls [onError] instead, and nothing is turned off. The
+         * returned job ends when all that is done, so the PIN prompt stays latched until then.
+         */
+        fun turnOffKidProtection(
+            user: JellyfinUser,
+            pin: String,
+            onError: () -> Unit = {},
+            onResult: (PinCheckResult, Boolean) -> Unit,
+        ): Job =
+            synchronized(turnOffLock) {
+                turnOffAttempt?.cancel()
+                val attempt =
+                    viewModelScope.launchIO(ExceptionHandler(autoToast = true), start = CoroutineStart.LAZY) {
+                        val self = coroutineContext[Job]!!
+                        try {
+                            val result =
+                                kidSessionGate.verifyParentPin(user, pin, UnlockPurpose.TurnOffProtection) { grant ->
+                                    synchronized(turnOffLock) { if (turnOffAttempt === self) grant() }
+                                }
+                            val turnedOff =
+                                result == PinCheckResult.Correct &&
+                                    isCurrentTurnOff(self) &&
+                                    kidSessionGate.turnOffProtection { isCurrentTurnOff(self) }
+                            kidSessionGate.clearParentUnlock(UnlockPurpose.TurnOffProtection)
+                            refreshKidProtection()
+                            withContext(WholphinDispatchers.Main) { if (isCurrentTurnOff(self)) onResult(result, turnedOff) }
+                        } catch (ex: CancellationException) {
+                            throw ex
+                        } catch (ex: Exception) {
+                            Timber.w(ex, "Turning off kid protection failed")
+                            kidSessionGate.clearParentUnlock(UnlockPurpose.TurnOffProtection)
+                            withContext(WholphinDispatchers.Main) { if (isCurrentTurnOff(self)) onError() }
+                        }
+                    }
+                turnOffAttempt = attempt
+                attempt
+            }.also { it.start() }
+
+        /** The "Turn off kid protection" prompt was dismissed: a PIN still being checked turns nothing off */
+        fun cancelTurnOffKidProtection() {
+            synchronized(turnOffLock) {
+                turnOffAttempt?.cancel()
+                turnOffAttempt = null
+                kidSessionGate.clearParentUnlock(UnlockPurpose.TurnOffProtection)
+            }
+        }
 
         private val _quickConnectStatus = MutableStateFlow<LoadingState>(LoadingState.Pending)
         val quickConnectStatus: StateFlow<LoadingState> = _quickConnectStatus
@@ -103,26 +204,87 @@ class PreferencesViewModel
             }
         }
 
+        /** The last PIN or login change queued (review round 10); guarded by [authChangeLock] */
+        private var lastAuthChange: Job? = null
+        private val authChangeLock = Any()
+
+        /**
+         * Runs [change] after every PIN or login change made before it (review round 10), so they are saved one at a
+         * time and in the order they were made: an earlier one never lands after a later one. A failed change doesn't
+         * stop the next.
+         */
+        private fun queueAuthChange(change: suspend () -> Unit) {
+            synchronized(authChangeLock) {
+                val previous = lastAuthChange
+                lastAuthChange =
+                    viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
+                        previous?.join()
+                        change()
+                    }
+            }
+        }
+
         fun setPin(
             user: JellyfinUser,
             pin: String?,
         ) {
-            viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
-                serverRepository.updateUserAuth(user, pin, false)
+            // A new PIN is exactly 4 presses; the PIN screen never sends anything else
+            if (pin != null && !PinRules.isValidNewPin(pin)) return
+            queueAuthChange {
+                if (!saveAuth(user, pin, false)) return@queueAuthChange
+                if (!user.hasPin && pin != null) {
+                    // A first PIN counts as parental authorization only on an unprotected TV (plan 4.1)
+                    kidSessionGate.grantUnlockForFirstPin(user.copy(pin = pin))
+                }
             }
         }
 
         fun setRequireLogin(user: JellyfinUser) {
-            viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
-                serverRepository.updateUserAuth(user, null, true)
-            }
+            queueAuthChange { saveAuth(user, null, true) }
         }
 
         fun removeLoginAndPin(user: JellyfinUser) {
-            viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
-                serverRepository.updateUserAuth(user, null, false)
+            queueAuthChange { saveAuth(user, null, false) }
+        }
+
+        /**
+         * Saves a PIN or login change through the account PIN (contract 11.2): the account first, and nothing changes if
+         * that fails, which says so. Returns whether it was saved.
+         */
+        private suspend fun saveAuth(
+            user: JellyfinUser,
+            pin: String?,
+            requireLogin: Boolean,
+        ): Boolean =
+            when (accountPins.set(user, pin, requireLogin)) {
+                AccountPinWrite.Saved -> {
+                    true
+                }
+
+                AccountPinWrite.Failed -> {
+                    showToast(context, context.getString(R.string.pin_save_failed))
+                    false
+                }
+
+                AccountPinWrite.RemovalBlocked -> {
+                    showToast(context, context.getString(R.string.kid_pin_removal_blocked))
+                    false
+                }
+            }
+
+        /** Pulls the signed-in profile's account PIN into the cache, then runs [then] (eg opens a PIN prompt) */
+        fun refreshAccountPin(then: () -> Unit = {}) {
+            viewModelScope.launchIO {
+                serverRepository.currentUser?.let { accountPins.refresh(it) }
+                withContext(WholphinDispatchers.Main) { then() }
             }
         }
+
+        /** The signed-in profile's current PIN, checked by the gate (backoff, account PIN re-check) */
+        suspend fun checkOwnPin(
+            user: JellyfinUser,
+            pin: String,
+        ): PinCheckResult = kidSessionGate.checkOwnPin(user, pin)
 
         fun resetQuickConnectStatus() {
             _quickConnectStatus.value = LoadingState.Pending

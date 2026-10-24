@@ -8,6 +8,7 @@ import com.github.damontecres.wholphin.data.model.GetItemsFilter
 import com.github.damontecres.wholphin.data.model.Playlist
 import com.github.damontecres.wholphin.data.model.PlaylistInfo
 import com.github.damontecres.wholphin.data.model.PlaylistItem
+import com.github.damontecres.wholphin.kids.KidContentGuard
 import com.github.damontecres.wholphin.ui.DetailItemFields
 import com.github.damontecres.wholphin.ui.components.baseItemKinds
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
@@ -20,11 +21,14 @@ import com.github.damontecres.wholphin.util.GetItemsRequestHandler
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import org.jellyfin.sdk.api.client.ApiClient
+import org.jellyfin.sdk.api.client.Response
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.client.extensions.playlistsApi
 import org.jellyfin.sdk.api.client.extensions.tvShowsApi
+import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.api.client.extensions.videosApi
 import org.jellyfin.sdk.model.api.BaseItemDto
+import org.jellyfin.sdk.model.api.BaseItemDtoQueryResult
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CreatePlaylistDto
 import org.jellyfin.sdk.model.api.ImageType
@@ -36,6 +40,7 @@ import org.jellyfin.sdk.model.api.SortOrder
 import org.jellyfin.sdk.model.api.request.GetEpisodesRequest
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
+import timber.log.Timber
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -87,29 +92,41 @@ class PlaylistCreator
         private suspend fun createFromPlaylistId(
             playlistId: UUID,
             startIndex: Int?,
+            startItemId: UUID?,
             sortAndDirection: SortAndDirection,
             filter: GetItemsFilter,
         ): Playlist {
-            val request =
-                filter.applyTo(
-                    GetItemsRequest(
-                        userId = serverRepository.currentUser?.id,
-                        parentId = playlistId,
-                        fields = DetailItemFields,
-                        startIndex = startIndex,
-                        limit = Playlist.MAX_SIZE,
-                        sortBy = listOf(sortAndDirection.sort),
-                        sortOrder = listOf(sortAndDirection.direction),
-                        excludeLocationTypes = listOf(LocationType.VIRTUAL),
-                    ),
-                )
-            val items = GetItemsRequestHandler.execute(api, request).content.items
+            val items =
+                queueFrom(
+                    startIndex ?: 0,
+                    Playlist.MAX_SIZE,
+                    startItemId?.let { id ->
+                        { it: BaseItemDto -> it.id == id }
+                    },
+                    picked(startItemId),
+                ) { start ->
+                    val request =
+                        filter.applyTo(
+                            GetItemsRequest(
+                                userId = serverRepository.currentUser?.id,
+                                parentId = playlistId,
+                                fields = DetailItemFields,
+                                startIndex = start,
+                                limit = Playlist.MAX_SIZE,
+                                sortBy = listOf(sortAndDirection.sort),
+                                sortOrder = listOf(sortAndDirection.direction),
+                                excludeLocationTypes = listOf(LocationType.VIRTUAL),
+                            ),
+                        )
+                    window(GetItemsRequestHandler.execute(api, request))
+                }
             return Playlist(items.convertAndAddParts())
         }
 
         private suspend fun createFromCollection(
             item: BaseItemDto,
             startIndex: Int = 0,
+            startItemId: UUID? = null,
             sortAndDirection: SortAndDirection?,
             filter: GetItemsFilter,
         ): Playlist {
@@ -143,25 +160,72 @@ class PlaylistCreator
                         ),
                 )
             val items =
-                GetItemsRequestHandler
-                    .execute(api, request)
-                    .content.items
-                    .convertAndAddParts()
+                queueFrom(
+                    startIndex,
+                    Playlist.MAX_SIZE,
+                    startItemId?.let { id ->
+                        { it: BaseItemDto -> it.id == id }
+                    },
+                    picked(startItemId),
+                ) { start ->
+                    window(GetItemsRequestHandler.execute(api, request.copy(startIndex = start)))
+                }.convertAndAddParts()
             return Playlist(items)
         }
+
+        /** One server window of a list, with the server's total (the kid filter's removals counted back in) */
+        private fun window(response: Response<BaseItemDtoQueryResult>): Window<BaseItemDto> =
+            Window(
+                response.content.items,
+                response.content.totalRecordCount + (KidContentGuard.removedBy(response.headers) ?: 0),
+            )
+
+        /** Loads the picked item [startItemId] itself (the session's rules apply), or null if it can't be */
+        private fun picked(startItemId: UUID?): suspend () -> BaseItemDto? =
+            {
+                startItemId?.let {
+                    try {
+                        api.userLibraryApi.getItem(it).content
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: Exception) {
+                        Timber.w(ex, "Couldn't load the picked item %s", it)
+                        null
+                    }
+                }
+            }
 
         /**
          * Create a [Playlist] contextually based on the given item.
          *
          * For example, an episode creates a queue of next up episodes in the series, or a movie creates one for its parts if needed
+         *
+         * @param startItemId the picked item at [startIndex] (review round 2): the queue starts with it, or fails if it
+         * can't be loaded
          */
         suspend fun createFrom(
             item: BaseItemDto,
             startIndex: Int = 0,
+            startItemId: UUID? = null,
             sortAndDirection: SortAndDirection? = SortAndDirection.DEFAULT,
             shuffled: Boolean = false,
             recursive: Boolean = false,
             filter: GetItemsFilter = GetItemsFilter(),
+        ): PlaylistCreationResult =
+            try {
+                createFromUnchecked(item, startIndex, startItemId, sortAndDirection, shuffled, recursive, filter)
+            } catch (ex: StartItemUnavailableException) {
+                PlaylistCreationResult.Error(ex, context.getString(R.string.play_start_item_unavailable))
+            }
+
+        private suspend fun createFromUnchecked(
+            item: BaseItemDto,
+            startIndex: Int,
+            startItemId: UUID?,
+            sortAndDirection: SortAndDirection?,
+            shuffled: Boolean,
+            recursive: Boolean,
+            filter: GetItemsFilter,
         ): PlaylistCreationResult =
             when (item.type) {
                 BaseItemKind.BOX_SET,
@@ -172,6 +236,7 @@ class PlaylistCreator
                         createFromCollection(
                             item = item,
                             startIndex = startIndex,
+                            startItemId = startItemId.takeUnless { shuffled },
                             sortAndDirection =
                                 if (shuffled) {
                                     SortAndDirection(ItemSortBy.RANDOM, SortOrder.ASCENDING)
@@ -275,6 +340,7 @@ class PlaylistCreator
                         createFromPlaylistId(
                             playlistId = item.id,
                             startIndex = startIndex,
+                            startItemId = startItemId.takeUnless { shuffled },
                             sortAndDirection =
                                 if (shuffled) {
                                     SortAndDirection(ItemSortBy.RANDOM, SortOrder.ASCENDING)
@@ -467,4 +533,54 @@ sealed interface PlaylistCreationResult {
         val ex: Exception?,
         val message: String?,
     ) : PlaylistCreationResult
+}
+
+/** One window of a list from a server offset, and the list's size on the server */
+internal class Window<T>(
+    val items: List<T>,
+    val serverTotal: Int,
+)
+
+/** Play-from's picked item can't be loaded (eg hidden or gone): playback fails instead of starting elsewhere */
+internal class StartItemUnavailableException : IllegalStateException("The picked item isn't available")
+
+/**
+ * A queue of up to [windowSize] items played from [startIndex] ([fetch] gets one window of [windowSize] from a server
+ * offset). Unfiltered, or without a pick ([isStart] null), it is the window at [startIndex] as before.
+ *
+ * Kid content rules (contract section 10, review rounds 1 and 2): [startIndex] is a position in a list the filter
+ * shortened, so the picked item can sit further on at the server. The queue starts with the picked item itself
+ * ([picked], loaded by id; [StartItemUnavailableException] if it can't be), followed by its successors from the window
+ * holding it, which is searched for through the whole list. If the list doesn't hold it any more, the queue is just it;
+ * playback never starts at another position.
+ */
+internal suspend fun <T> queueFrom(
+    startIndex: Int,
+    windowSize: Int,
+    isStart: ((T) -> Boolean)?,
+    picked: suspend () -> T?,
+    fetch: suspend (startIndex: Int) -> Window<T>,
+): List<T> {
+    val first = fetch(startIndex)
+    if (isStart == null || first.items.firstOrNull()?.let(isStart) == true) return first.items
+    val start = picked() ?: throw StartItemUnavailableException()
+    var offset = startIndex
+    var window = first
+    while (true) {
+        val at = window.items.indexOfFirst(isStart)
+        if (at >= 0) {
+            val after = window.items.subList(at + 1, window.items.size).toMutableList()
+            var next = offset + windowSize
+            while (after.size < windowSize - 1 && next < window.serverTotal) {
+                after += fetch(next).items
+                next += windowSize
+            }
+            return (listOf(start) + after).take(windowSize)
+        }
+        offset += windowSize
+        if (offset >= window.serverTotal) break
+        window = fetch(offset)
+    }
+    Timber.w("Picked item not in the list any more, playing it alone")
+    return listOf(start)
 }

@@ -21,6 +21,7 @@ import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.preferences.AppThemeColors
+import com.github.damontecres.wholphin.ui.kids.KidProfilesViewModel
 import com.github.damontecres.wholphin.ui.setup.JellyfinUserAndImage
 import com.github.damontecres.wholphin.ui.setup.SwitchUserContent
 import com.github.damontecres.wholphin.ui.setup.SwitchUserState
@@ -128,10 +129,13 @@ class SetupPageLayoutTest {
         val vm = mockk<SwitchUserViewModel>(relaxed = true)
         every { vm.serverRepository } returns repository
         every { vm.state } returns MutableStateFlow(state)
+        val kidVm = mockk<KidProfilesViewModel>(relaxed = true)
+        every { kidVm.isKidSession } returns MutableStateFlow(false)
+        every { kidVm.pictureVersions } returns MutableStateFlow(emptyMap())
         compose.setContent {
             CompositionLocalProvider(LocalDensity provides Density(1f, 1.5f)) {
                 WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
-                    SwitchUserContent(server, Modifier.fillMaxSize(), vm)
+                    SwitchUserContent(server, Modifier.fillMaxSize(), vm, kidVm)
                 }
             }
         }

@@ -4,11 +4,14 @@ import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import androidx.datastore.core.DataStore
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.MainActivityViewModel
 import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.JellyfinServerDao
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinServerUsers
+import com.github.damontecres.wholphin.kids.KidSessionGateImpl
+import com.github.damontecres.wholphin.kids.ProfileChooserLock
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.update
 import com.github.damontecres.wholphin.services.AppUpgradeHandler
@@ -16,6 +19,7 @@ import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.DeviceProfileService
 import com.github.damontecres.wholphin.services.IntentResult
 import com.github.damontecres.wholphin.services.IntentService
+import com.github.damontecres.wholphin.services.IntentTarget
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.SetupNavigationManager
@@ -42,6 +46,7 @@ import org.jellyfin.sdk.model.UUID
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assume
 import org.junit.Before
 import org.junit.Test
 
@@ -59,6 +64,8 @@ class TestMainActivityViewModel {
     private val appUpgradeHandler: AppUpgradeHandler = mockk()
     private val intentService: IntentService = mockk()
     private val serverDao: JellyfinServerDao = mockk()
+    private val kidSessionGate: KidSessionGateImpl = mockk()
+    private val profileChooserLock: ProfileChooserLock = mockk(relaxed = true)
 
     val viewModel =
         MainActivityViewModel(
@@ -71,6 +78,8 @@ class TestMainActivityViewModel {
             backdropService,
             appUpgradeHandler,
             intentService,
+            kidSessionGate,
+            profileChooserLock,
         )
 
     private val serverId = UUID.randomUUID()
@@ -89,6 +98,13 @@ class TestMainActivityViewModel {
         every { appUpgradeHandler.needUpgrade() } returns false
         every { appUpgradeHandler.copySubfont(any()) } returns Unit
         every { serverRepository.serverDao } returns serverDao
+        // Kid profiles (weaselfin): a single-profile TV unless a test says otherwise
+        coEvery { profileChooserLock.appliesTo(any()) } returns false
+        every { profileChooserLock.lastProfile } returns null
+        coEvery { kidSessionGate.restoreGated(any(), any()) } returns null
+        every { intentService.isNormalLaunch(any()) } returns false
+        every { intentService.intentTarget(any()) } returns null
+        coEvery { profileChooserLock.fallbackServerId() } returns null
         coEvery { serverDao.getServer(serverId) } returns
             JellyfinServerUsers(
                 currentUser.server,
@@ -126,6 +142,7 @@ class TestMainActivityViewModel {
             }
             every { serverRepository.current } returns MutableStateFlow(currentUser)
             coEvery { serverRepository.restoreSession(serverId, userId) } returns currentUser
+            coEvery { kidSessionGate.restoreGated(serverId, userId) } returns currentUser
 
             viewModel.appStart(null)
             advanceUntilIdle()
@@ -211,10 +228,16 @@ class TestMainActivityViewModel {
             viewModel.appStart(null)
             advanceUntilIdle()
 
-            coVerify(exactly = 1) { serverRepository.restoreSession(serverId, userId) }
-            val slot = slot<SetupDestination>()
-            verify { setupNavigationManager.navigateTo(capture(slot)) }
-            slot.captured.let { destination ->
+            if (BuildConfig.KID_PROFILES_ENABLED) {
+                // Kid profiles: the saved row is checked before restoring, so a PIN profile never restores
+                coVerify(exactly = 1) { kidSessionGate.restoreGated(serverId, userId) }
+                coVerify(exactly = 0) { serverRepository.restoreSession(any(), any()) }
+            } else {
+                coVerify(exactly = 1) { serverRepository.restoreSession(serverId, userId) }
+            }
+            val args = mutableListOf<SetupDestination>()
+            verify { setupNavigationManager.navigateTo(capture(args)) }
+            args.last().let { destination ->
                 assertTrue("destination is ${destination::class}", destination is SetupDestination.UserList)
                 destination as SetupDestination.UserList
                 assertEquals(currentUser.server, destination.server)
@@ -235,7 +258,11 @@ class TestMainActivityViewModel {
             viewModel.appStart(null)
             advanceUntilIdle()
 
-            coVerify(exactly = 1) { serverRepository.restoreSession(null, null) }
+            if (BuildConfig.KID_PROFILES_ENABLED) {
+                coVerify(exactly = 1) { kidSessionGate.restoreGated(null, null) }
+            } else {
+                coVerify(exactly = 1) { serverRepository.restoreSession(null, null) }
+            }
             val slot = slot<SetupDestination>()
             verify { setupNavigationManager.navigateTo(capture(slot)) }
             slot.captured.let { destination ->
@@ -254,6 +281,8 @@ class TestMainActivityViewModel {
             every { serverRepository.current } returns MutableStateFlow(currentUser)
             coEvery { serverRepository.restoreSession(serverId, userId) } returns currentUser
             coEvery { intentService.parseIntent(any()) } returns IntentResult.NoOp
+            every { intentService.isNormalLaunch(any()) } returns true
+            coEvery { kidSessionGate.restoreGated(serverId, userId) } returns currentUser
 
             viewModel.appStart(Intent())
             advanceUntilIdle()
@@ -411,5 +440,200 @@ class TestMainActivityViewModel {
             slot.captured.let { destination ->
                 assertTrue("destination is ${destination::class}", destination is SetupDestination.ServerList)
             }
+        }
+    // Kid profiles: "always return to the profile chooser" (plan 4.5)
+
+    private fun assumeKidProfiles() = Assume.assumeTrue(BuildConfig.KID_PROFILES_ENABLED)
+
+    private fun setupMultiProfile() {
+        coEvery { profileChooserLock.appliesTo(serverId) } returns true
+        setupPreferences {
+            signInAutomatically = true
+            currentServerId = serverId.toServerString()
+            currentUserId = userId.toServerString()
+        }
+    }
+
+    private fun capturedDestinations(): List<SetupDestination> {
+        val args = mutableListOf<SetupDestination>()
+        verify { setupNavigationManager.navigateTo(capture(args)) }
+        return args
+    }
+
+    @Test
+    fun `Chooser lock - cold start with more than one profile shows the chooser without restoring`() =
+        runTest(testDispatcher) {
+            assumeKidProfiles()
+            setupMultiProfile()
+            every { serverRepository.current } returns MutableStateFlow(null)
+
+            viewModel.appStart(null)
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { kidSessionGate.restoreGated(any(), any()) }
+            coVerify(exactly = 0) { serverRepository.restoreSession(any(), any()) }
+            val last = capturedDestinations().last()
+            assertTrue("destination is ${last::class}", last is SetupDestination.UserList)
+        }
+
+    @Test
+    fun `Chooser lock - background return shows the chooser`() =
+        runTest(testDispatcher) {
+            assumeKidProfiles()
+            setupMultiProfile()
+            every { serverRepository.current } returns MutableStateFlow(currentUser)
+
+            viewModel.appStart(null, fromBackground = true, exemptReturn = false)
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { kidSessionGate.restoreGated(any(), any()) }
+            val last = capturedDestinations().last()
+            assertTrue("destination is ${last::class}", last is SetupDestination.UserList)
+        }
+
+    @Test
+    fun `Chooser lock - external player return is exempt`() =
+        runTest(testDispatcher) {
+            assumeKidProfiles()
+            setupMultiProfile()
+            every { serverRepository.current } returns MutableStateFlow(currentUser)
+
+            viewModel.appStart(null, fromBackground = true, exemptReturn = true)
+            advanceUntilIdle()
+
+            verify(exactly = 0) { setupNavigationManager.navigateTo(any()) }
+        }
+
+    @Test
+    fun `Chooser lock - single profile TV keeps auto sign in`() =
+        runTest(testDispatcher) {
+            assumeKidProfiles()
+            setupPreferences {
+                signInAutomatically = true
+                currentServerId = serverId.toServerString()
+                currentUserId = userId.toServerString()
+            }
+            every { serverRepository.current } returns MutableStateFlow(currentUser)
+            coEvery { kidSessionGate.restoreGated(serverId, userId) } returns currentUser
+
+            viewModel.appStart(null, fromBackground = true, exemptReturn = false)
+            advanceUntilIdle()
+
+            val last = capturedDestinations().last()
+            assertTrue("destination is ${last::class}", last is SetupDestination.AppContent)
+        }
+
+    @Test
+    fun `Chooser lock - in-app screensaver wake shows the chooser`() =
+        runTest(testDispatcher) {
+            assumeKidProfiles()
+            every { serverRepository.current } returns MutableStateFlow(currentUser)
+
+            viewModel.lockToChooser()
+            advanceUntilIdle()
+
+            val last = capturedDestinations().last()
+            assertTrue("destination is ${last::class}", last is SetupDestination.UserList)
+        }
+
+    @Test
+    fun `Chooser lock - deep link is held until a profile is picked`() =
+        runTest(testDispatcher) {
+            assumeKidProfiles()
+            setupMultiProfile()
+            every { serverRepository.current } returns MutableStateFlow(currentUser)
+            val intent = Intent()
+            every { intentService.intentTarget(intent) } returns null
+
+            viewModel.appStart(intent)
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { intentService.parseIntent(any(), any()) }
+            verify(exactly = 1) { profileChooserLock.hold(intent, userId) }
+            val last = capturedDestinations().last()
+            assertTrue("destination is ${last::class}", last is SetupDestination.UserList)
+        }
+
+    @Test
+    fun `Chooser lock - a deep link after the chooser and a process death still opens the chooser`() =
+        runTest(testDispatcher) {
+            assumeKidProfiles()
+            // The chooser cleared the saved current ids, then the process died: no session, no last profile
+            setupPreferences { signInAutomatically = true }
+            every { serverRepository.current } returns MutableStateFlow(null)
+            coEvery { profileChooserLock.appliesTo(serverId) } returns true
+            val intent = Intent()
+            every { intentService.intentTarget(intent) } returns IntentTarget(serverId, userId)
+
+            viewModel.appStart(intent)
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { intentService.parseIntent(any(), any()) }
+            coVerify(exactly = 0) { kidSessionGate.restoreGated(any(), any()) }
+            verify(exactly = 1) { profileChooserLock.hold(intent, userId) }
+            val last = capturedDestinations().last()
+            assertTrue("destination is ${last::class}", last is SetupDestination.UserList)
+        }
+
+    @Test
+    fun `Chooser lock - a launcher tile without a server uses the pinned server's profile count`() =
+        runTest(testDispatcher) {
+            assumeKidProfiles()
+            setupPreferences { signInAutomatically = true }
+            every { serverRepository.current } returns MutableStateFlow(null)
+            coEvery { profileChooserLock.fallbackServerId() } returns serverId
+            coEvery { profileChooserLock.appliesTo(serverId) } returns true
+            val intent = Intent()
+            every { intentService.intentTarget(intent) } returns null
+
+            viewModel.appStart(intent)
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { intentService.parseIntent(any(), any()) }
+            verify(exactly = 1) { profileChooserLock.hold(intent, null) }
+            val last = capturedDestinations().last()
+            assertTrue("destination is ${last::class}", last is SetupDestination.UserList)
+        }
+
+    @Test
+    fun `Gate - cold start never restores a gated profile`() =
+        runTest(testDispatcher) {
+            assumeKidProfiles()
+            setupPreferences {
+                signInAutomatically = true
+                currentServerId = serverId.toServerString()
+                currentUserId = userId.toServerString()
+            }
+            every { serverRepository.current } returns MutableStateFlow(null)
+            // The gate refused (eg a pinless adult on a protected TV)
+            coEvery { kidSessionGate.restoreGated(serverId, userId) } returns null
+
+            viewModel.appStart(null)
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { serverRepository.restoreSession(any(), any()) }
+            val last = capturedDestinations().last()
+            assertTrue("destination is ${last::class}", last is SetupDestination.UserList)
+        }
+
+    @Test
+    fun `Chooser lock - a deep link with an unpaired server id counts the saved server's profiles`() =
+        runTest(testDispatcher) {
+            assumeKidProfiles()
+            // Multi-profile TV, cold start; the link names an unknown server and no profile
+            setupMultiProfile()
+            every { serverRepository.current } returns MutableStateFlow(null)
+            val intent = Intent()
+            // IntentService ignores an unpaired server id (IntentServiceTest), here and in its own restore
+            every { intentService.intentTarget(intent) } returns null
+
+            viewModel.appStart(intent)
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { intentService.parseIntent(any(), any()) }
+            coVerify(exactly = 0) { kidSessionGate.restoreGated(any(), any()) }
+            verify(exactly = 1) { profileChooserLock.hold(intent, userId) }
+            val last = capturedDestinations().last()
+            assertTrue("destination is ${last::class}", last is SetupDestination.UserList)
         }
 }

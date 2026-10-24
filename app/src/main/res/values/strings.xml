@@ -985,4 +985,22 @@
     <string name="recommended_title_added">Added</string>
     <string name="recommended_title_unwatched">Unwatched</string>
     <string name="recommended_title_on_service">On %1$s</string>
+    <!-- Kid profiles (runbooks/kid-profiles) -->
+    <string name="kid_content_playback_refused">This title isn\'t available on this profile</string>
+    <string name="kid_content_item_unavailable">This title isn\'t available on this profile</string>
+    <string name="kid_music_unavailable">Music isn\'t available on this profile</string>
+    <string name="play_start_item_unavailable">The title you picked isn\'t available</string>
+    <string name="kid_pin_wrong">Wrong PIN. %1$d tries left before a pause.</string>
+    <string name="kid_pin_locked_out">Too many wrong PINs. Try again in %1$d seconds.</string>
+    <string name="kid_parent_pin_title">%1$s\'s PIN</string>
+    <string name="kid_profile_locked">%1$s is locked. Another parent can unlock it.</string>
+    <string name="kid_ask_parent">A parent needs to unlock %1$s</string>
+    <string name="kid_sign_in_quick_connect">Sign %1$s in with Quick Connect</string>
+    <string name="kid_sign_in_auto_always_on">Always on: more than one profile</string>
+    <string name="kid_pin_removal_blocked">Kid protection is on, so this PIN can\'t be removed</string>
+    <string name="kid_turn_off_protection">Turn off kid protection on this TV</string>
+    <string name="kid_turn_off_protection_summary">Needs your PIN. Only when no kid profiles are left on this TV.</string>
+    <string name="kid_protection_turned_off">Kid protection is off on this TV</string>
+    <string name="kid_protection_not_turned_off">Kid protection is still on</string>
+    <string name="kid_protection_needs_pin">Set a PIN for this profile first</string>
 </resources>
