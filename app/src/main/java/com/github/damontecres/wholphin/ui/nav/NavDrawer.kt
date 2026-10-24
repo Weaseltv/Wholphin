@@ -433,6 +433,8 @@ fun NavDrawer(
                     RailList(
                         state = navDrawerListState,
                         spacedBy = spacedBy,
+                        // Settings is the rail's footer; a kid's rail has none, so nothing is pinned to the bottom
+                        pinFooter = !kidSession,
                         modifier =
                             Modifier
                                 .focusGroup()
@@ -651,17 +653,28 @@ internal fun RailList(
     state: LazyListState,
     spacedBy: Dp,
     modifier: Modifier = Modifier,
+    pinFooter: Boolean = true,
     content: LazyListScope.() -> Unit,
 ) {
     LazyColumn(
         state = state,
         contentPadding = if (isWeaselTv()) PaddingValues(vertical = RailGlowRoom) else PaddingValues(0.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedByWithFooter(spacedBy),
+        verticalArrangement = railArrangement(spacedBy, pinFooter),
         modifier = modifier,
         content = content,
     )
 }
+
+/**
+ * The rail's items [spacedBy] apart. With [pinFooter] (Settings is the last item) the last one sits at the bottom;
+ * without it (a kid's rail has no Settings, owner 2026-10-23) every item follows the one above it, so the last library
+ * isn't pushed to the bottom with a gap above it.
+ */
+internal fun railArrangement(
+    spacedBy: Dp,
+    pinFooter: Boolean,
+): Arrangement.Vertical = if (pinFooter) Arrangement.spacedByWithFooter(spacedBy) else Arrangement.spacedBy(spacedBy)
 
 /** Owner's poster border values captured from all eight Alpha rows on 2026-10-07. */
 private val RailFocusBorderWidth = ApprovedHomeLayout.CARD_APPEARANCE.borderWidthDp.dp

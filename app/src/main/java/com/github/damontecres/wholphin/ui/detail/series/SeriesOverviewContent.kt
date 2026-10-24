@@ -79,6 +79,9 @@ import org.jellyfin.sdk.model.api.MediaSourceInfo
 import org.jellyfin.sdk.model.api.PersonKind
 import kotlin.time.Duration
 
+/** Room under the kid header for the episode row and the kid buttons (the adult page keeps 160dp) */
+private val KidButtonsReserve = 216.dp
+
 @Composable
 fun SeriesOverviewContent(
     preferences: UserPreferences,
@@ -109,6 +112,11 @@ fun SeriesOverviewContent(
     onClickExtra: (Int, ExtrasItem) -> Unit,
     onChooseVersion: (BaseItem, MediaSourceInfo) -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * The kid design (owner 2026-10-23): a short episode header with the full description, the kid buttons, and no
+     * cast, guest star or extras rows; the season tabs and the episode row work as before
+     */
+    kid: Boolean = false,
 ) {
     val scope = rememberCoroutineScope()
     val bringIntoViewRequester = remember { BringIntoViewRequester() }
@@ -202,7 +210,8 @@ fun SeriesOverviewContent(
                         )
                     }
                 }
-                FittedDetailHeader(reservedHeight = 160.dp) {
+                // The kid buttons are taller (66dp, a focus ring and a progress line under Play)
+                FittedDetailHeader(reservedHeight = if (kid) KidButtonsReserve else 160.dp) {
                     Column {
                         TitleOrLogo(
                             item = series,
@@ -222,6 +231,8 @@ fun SeriesOverviewContent(
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(.6f),
+                            kid = kid,
+                            seriesRating = series.data.officialRating,
                         )
                     }
                 }
@@ -353,6 +364,7 @@ fun SeriesOverviewContent(
                         canDelete = canDelete.invoke(ep),
                         onConfirmDelete = { onConfirmDelete.invoke(ep) },
                         onChooseVersion = { onChooseVersion.invoke(ep, it) },
+                        kid = kid,
                         modifier =
                             Modifier
                                 .padding(top = 4.dp)
@@ -367,7 +379,7 @@ fun SeriesOverviewContent(
                 }
 
             AnimatedVisibility(
-                visible = peopleInEpisode.isNotEmpty(),
+                visible = peopleInEpisode.isNotEmpty() && !kid,
                 enter = fadeIn(),
                 exit = fadeOut(),
             ) {
@@ -400,7 +412,7 @@ fun SeriesOverviewContent(
                 }
             }
             AnimatedVisibility(
-                visible = seasonExtras.isNotEmpty(),
+                visible = seasonExtras.isNotEmpty() && !kid,
                 enter = fadeIn(),
                 exit = fadeOut(),
             ) {

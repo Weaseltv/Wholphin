@@ -102,6 +102,42 @@ class KidTitlePageTest {
         assertEquals(21.minutes.inWholeMilliseconds, KidTitlePage.seriesPlay(episode(1, 1, positionMinutes = 21))!!.positionMs)
     }
 
+    // --- Episode pages (season/episode page and episode details, owner 2026-10-23) ---
+
+    @Test
+    fun `an episode page's Play follows the same resume rules as a movie`() {
+        val fresh = KidTitlePage.episodePlay(episode(1, 9))
+        assertEquals(KidPlayLabel.Play, fresh.label)
+        assertEquals(listOf(KidAction.WATCHLIST), KidTitlePage.movieActions(fresh))
+        val started = KidTitlePage.episodePlay(episode(1, 9, positionMinutes = 12))
+        assertEquals(KidPlayLabel.KeepWatching, started.label)
+        assertEquals(12.minutes.inWholeMilliseconds, started.positionMs)
+        assertEquals(10.minutes, started.remaining)
+        assertEquals(listOf(KidAction.START_OVER, KidAction.WATCHLIST), KidTitlePage.movieActions(started))
+        // A stale position at the end (22 minutes) plays from the start
+        val stale = KidTitlePage.episodePlay(episode(1, 9, positionMinutes = 22))
+        assertEquals(KidPlayLabel.Play, stale.label)
+        assertEquals(0L, stale.positionMs)
+    }
+
+    @Test
+    fun `an episode's metadata is S1 E9 and its own rating, else the series'`() {
+        assertEquals("S1 E9", KidTitlePage.episodeCode(episode(1, 9)))
+        assertNull(KidTitlePage.episodeCode(episode(null, 9)))
+        val rated = episode(1, 9).copy(officialRating = "TV-Y7")
+        assertEquals("TV-Y7", KidTitlePage.episodeRating(rated, "TV-G"))
+        assertEquals("TV-G", KidTitlePage.episodeRating(episode(1, 9).copy(officialRating = " "), "TV-G"))
+        assertNull(KidTitlePage.episodeRating(episode(1, 9), null))
+    }
+
+    @Test
+    fun `a kid page has no long-press or More menu, an adult page keeps it`() {
+        val menu = "the context menu"
+        assertNull(KidTitlePage.contextMenuFor(kidPage = true, menu = menu))
+        assertEquals(menu, KidTitlePage.contextMenuFor(kidPage = false, menu = menu))
+        assertNull(KidTitlePage.contextMenuFor<String>(kidPage = false, menu = null))
+    }
+
     // --- Series ---
 
     @Test

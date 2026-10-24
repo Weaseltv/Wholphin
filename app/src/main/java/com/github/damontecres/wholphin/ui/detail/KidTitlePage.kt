@@ -59,7 +59,15 @@ object KidTitlePage {
      * A movie plays from where it was left ("Keep watching"), else from the start ([resumePosition]). The progress bar
      * and time left show only when the runtime is known.
      */
-    fun moviePlay(movie: BaseItemDto): KidPlay {
+    fun moviePlay(movie: BaseItemDto): KidPlay = itemPlay(movie)
+
+    /**
+     * An episode's own Play button, on the season/episode and episode pages (owner 2026-10-23): like a movie's,
+     * "Keep watching" with its progress when it was started
+     */
+    fun episodePlay(episode: BaseItemDto): KidPlay = itemPlay(episode)
+
+    private fun itemPlay(movie: BaseItemDto): KidPlay {
         val resume = resumePosition(movie)
         val runtime = movie.runTimeTicks?.ticks?.takeIf { it > Duration.ZERO }
         return KidPlay(
@@ -71,7 +79,7 @@ object KidTitlePage {
         )
     }
 
-    /** The round buttons for a movie: Start over only when it is partly watched */
+    /** The round buttons for a movie or an episode: Start over only when it is partly watched */
     fun movieActions(play: KidPlay): List<KidAction> =
         buildList {
             if (play.label == KidPlayLabel.KeepWatching) add(KidAction.START_OVER)
@@ -152,6 +160,28 @@ object KidTitlePage {
             episodeTitle = episode.name?.takeIf { it.isNotBlank() },
         )
     }
+
+    /**
+     * The long-press (and More) menus on the kid pages (review, owner 2026-10-23): none, so a kid can't mark items
+     * watched, choose versions or streams, see media information or delete there. OK still opens or plays the item.
+     */
+    fun <T : Any> contextMenuFor(
+        kidPage: Boolean,
+        menu: T?,
+    ): T? = menu.takeUnless { kidPage }
+
+    /** "S1 E9" for an episode's metadata line, or null without both numbers */
+    fun episodeCode(episode: BaseItemDto): String? {
+        val season = episode.parentIndexNumber ?: return null
+        val number = episode.indexNumber ?: return null
+        return "S$season E$number"
+    }
+
+    /** An episode's age rating: its own, else its series' */
+    fun episodeRating(
+        episode: BaseItemDto,
+        seriesRating: String?,
+    ): String? = episode.officialRating?.takeIf { it.isNotBlank() } ?: seriesRating?.takeIf { it.isNotBlank() }
 
     /** How many lines of the description show: the real description, capped so the buttons stay on screen */
     fun overviewLines(compact: Boolean): Int = if (compact) COMPACT_OVERVIEW_LINES else OVERVIEW_LINES

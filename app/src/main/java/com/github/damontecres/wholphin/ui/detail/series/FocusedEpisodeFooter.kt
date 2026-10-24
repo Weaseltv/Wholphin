@@ -14,9 +14,13 @@ import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.ui.components.ExpandablePlayButtons
 import com.github.damontecres.wholphin.ui.data.ChooseVersionParams
+import com.github.damontecres.wholphin.ui.detail.KidAction
+import com.github.damontecres.wholphin.ui.detail.KidTitleButtons
+import com.github.damontecres.wholphin.ui.detail.KidTitlePage
 import org.jellyfin.sdk.model.api.MediaSourceInfo
 import org.jellyfin.sdk.model.extensions.ticks
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun FocusedEpisodeFooter(
@@ -32,10 +36,38 @@ fun FocusedEpisodeFooter(
     onChooseVersion: (MediaSourceInfo) -> Unit,
     modifier: Modifier = Modifier,
     buttonOnFocusChanged: (FocusState) -> Unit = {},
+    /** The kid buttons (owner 2026-10-23): Play / Keep watching, Start over when started, Watchlist */
+    kid: Boolean = false,
 ) {
     val dto = ep.data
     val resumePosition = dto.userData?.playbackPositionTicks?.ticks ?: Duration.ZERO
     val firstFocus = remember { FocusRequester() }
+    if (kid) {
+        val play = remember(ep) { KidTitlePage.episodePlay(dto) }
+        KidTitleButtons(
+            play = play,
+            actions = KidTitlePage.movieActions(play),
+            onWatchlist = dto.userData?.isFavorite ?: false,
+            onPlay = { playOnClick(it.positionMs.milliseconds) },
+            onAction = { action ->
+                when (action) {
+                    KidAction.START_OVER -> {
+                        playOnClick(Duration.ZERO)
+                    }
+
+                    KidAction.WATCHLIST -> {
+                        favoriteOnClick()
+                    }
+
+                    KidAction.SHUFFLE -> {}
+                }
+            },
+            onFocusChanged = buttonOnFocusChanged,
+            firstFocus = firstFocus,
+            modifier = modifier,
+        )
+        return
+    }
     Row(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
