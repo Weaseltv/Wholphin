@@ -582,8 +582,8 @@ class HomeSettingsService
                     kidSettings(owner, collections).rows.forEach { display ->
                         val savedRow = KidHomeCache.rowKey(display.config)?.let { saved.rows[it] } ?: return@forEach
                         launch {
+                            // An empty saved row is shown empty too, so the rows below it can open without waiting
                             val items = kidHomeCache.visibleNow(savedRow.items.map { BaseItem(it.dto, it.useSeriesForPrimary) })
-                            if (items.isEmpty()) return@launch
                             val row =
                                 Success(
                                     display.title,
@@ -596,7 +596,7 @@ class HomeSettingsService
                             updateKidHome(owner) {
                                 if (display.config in it.succeeded) it else it.copy(rows = it.rows + (display.config to row))
                             }
-                            HomeTiming.mark(owner.userId, "kids Home first saved row")
+                            if (items.isNotEmpty()) HomeTiming.mark(owner.userId, "kids Home first saved row")
                         }
                     }
                 }
@@ -2016,6 +2016,20 @@ data class KidHomeContent(
     /** Whether any of [settings]'s rows has something to show */
     fun hasContent(settings: HomePageResolvedSettings): Boolean =
         settings.rows.any { (rows[it.config] as? HomeRowLoadingState.Success)?.items?.isNotEmpty() == true }
+
+    /**
+     * Whether the top-most row with something to show is known: a row with content and every row above it done
+     * (shown, empty or failed). Rows load in parallel, so Home waits for this before it first shows and focuses, and
+     * then opens at the top rather than on whichever row happened to arrive first.
+     */
+    fun topRowSettled(settings: HomePageResolvedSettings): Boolean {
+        for (row in settings.rows) {
+            val state = rows[row.config]
+            if ((state as? HomeRowLoadingState.Success)?.items?.isNotEmpty() == true) return true
+            if (state == null || !state.completed) return false
+        }
+        return false
+    }
 }
 
 /** The session [HomePageResolvedSettings] were made for: [userId] under session [epoch], as a kids Home or not */
