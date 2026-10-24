@@ -182,18 +182,9 @@ object StreamingCollections {
     suspend fun fetch(
         api: ApiClient,
         userId: UUID,
-    ): List<BaseItemDto> = visibleCollections(api, row.getItems.copy(userId = userId), userId)
-
-    /**
-     * The collections [request] finds, in its order, keeping those with a movie or show [userId]
-     * can see. Shared with the kids Home ([KidHomeCollections]).
-     */
-    suspend fun visibleCollections(
-        api: ApiClient,
-        request: GetItemsRequest,
-        userId: UUID,
     ): List<BaseItemDto> {
-        val collections = GetItemsRequestHandler.execute(api, request).content.items
+        val collections =
+            GetItemsRequestHandler.execute(api, row.getItems.copy(userId = userId)).content.items
         val visible =
             collections.filter { collection ->
                 // ChildCount may be absent on some servers. Probe with the same member scope.

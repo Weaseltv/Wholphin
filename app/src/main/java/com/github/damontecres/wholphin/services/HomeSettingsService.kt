@@ -10,6 +10,7 @@ import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomePageSettings
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
+import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.SUPPORTED_HOME_PAGE_SETTINGS_VERSION
 import com.github.damontecres.wholphin.data.model.createGenreDestination
 import com.github.damontecres.wholphin.data.model.createStudioDestination
@@ -48,9 +49,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -68,6 +74,7 @@ import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.model.DateTime
 import org.jellyfin.sdk.model.UUID
+import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
 import org.jellyfin.sdk.model.api.GetProgramsDto
@@ -121,6 +128,66 @@ class HomeSettingsService
          * The current home page settings
          */
         val currentSettings = MutableStateFlow(HomePageResolvedSettings.EMPTY)
+
+        /**
+         * Kid content rules (PR #97 review round 1): whether [settings] belong to the session as it is now, read in
+         * one snapshot (the epoch first, then the session it covers). A kid or unknown session only takes the kids
+         * Home made for it under this epoch; an adult session never takes a kids Home, nor one made for another user
+         * or epoch. Home checks this before it shows settings and again whenever the session changes.
+         */
+        fun isCurrent(settings: HomePageResolvedSettings): Boolean {
+            if (settings == HomePageResolvedSettings.EMPTY) return false
+            val epoch = serverRepository.sessionEpoch.value
+            val user = serverRepository.current.value?.user
+            val owner = settings.owner
+            return if (isKidOrUnknown(user)) {
+                owner != null && owner.kid && owner.userId == user?.id && owner.epoch == epoch
+            } else {
+                owner == null || (!owner.kid && owner.userId == user?.id && owner.epoch == epoch)
+            }
+        }
+
+        /** Whether [owner] is the session right now: same user, same epoch, and a kids Home only for a kid session */
+        private fun isCurrent(owner: HomeSettingsOwner): Boolean {
+            val epoch = serverRepository.sessionEpoch.value
+            val user = serverRepository.current.value?.user ?: return false
+            return owner.epoch == epoch && owner.userId == user.id && owner.kid == isKidOrUnknown(user)
+        }
+
+        /**
+         * [currentSettings] again whenever they or the session change, so Home can drop settings that stopped being
+         * [isCurrent] and pick up a kids Home's collection rows as they arrive
+         */
+        val settingsUpdates: Flow<HomePageResolvedSettings>
+            get() =
+                combine(currentSettings, serverRepository.sessionEpoch, serverRepository.current) { settings, _, _ -> settings }
+
+        /** The first settings that are [isCurrent], re-checked as the session changes */
+        suspend fun awaitCurrentSettings(): HomePageResolvedSettings = settingsUpdates.first { isCurrent(it) }
+
+        /** Publish [settings] only while their owner is still the session */
+        private fun publish(settings: HomePageResolvedSettings) {
+            val owner = settings.owner ?: return
+            if (isCurrent(owner)) {
+                currentSettings.value = settings
+            } else {
+                Timber.i("Home settings for an earlier session dropped")
+            }
+        }
+
+        /** Exposed for tests */
+        internal var clock: () -> Long = System::currentTimeMillis
+
+        /** The kids collections last found, for whom and when ([KidHomeCollections.DISCOVERY_INTERVAL]) */
+        private data class KidDiscovery(
+            val owner: HomeSettingsOwner,
+            val collections: List<BaseItemDto>,
+            val foundAt: Long,
+        )
+
+        @Volatile
+        private var kidDiscovery: KidDiscovery? = null
+        private val kidDiscoveryMutex = Mutex()
 
         /**
          * Saves a [HomePageSettings] to the server for the user under the display preference ID
@@ -252,9 +319,22 @@ class HomeSettingsService
          *
          * Does not persist either the server nor default
          */
-        suspend fun loadCurrentSettings(userId: UUID) {
-            if (isKidOrUnknown(serverRepository.currentUser)) {
-                currentSettings.update { loadKidSettings(userId) }
+        suspend fun loadCurrentSettings(
+            userId: UUID,
+            user: JellyfinUser? = null,
+        ) {
+            // One snapshot of the session (the epoch first). [user] is the saved profile that asked for this load: a
+            // policy refresh writes it before the session changes, so a kid on either side means the kids Home.
+            val epoch = serverRepository.sessionEpoch.value
+            val session = serverRepository.current.value?.user
+            if (session == null || session.id != userId) {
+                Timber.i("Home settings not loaded for a user who isn't signed in")
+                return
+            }
+            val kid = isKidOrUnknown(session) || (user != null && isKidOrUnknown(user))
+            val owner = HomeSettingsOwner(userId, epoch, kid)
+            if (kid) {
+                loadKidSettings(owner)
                 return
             }
             Timber.v("Getting setting for %s", userId)
@@ -299,26 +379,60 @@ class HomeSettingsService
                 } else {
                     resolvedSettings
                 }
-            currentSettings.update { homeSettings }
+            publish(homeSettings.copy(owner = owner))
             if (BuildConfig.FLAVOR == "weaselfin") syncApprovedLayoutToServer(userId, homeSettings)
         }
 
         /**
-         * A kids (or unknown) profile's Home ([KidHomeCollections]): never the saved (adult) rows, and
-         * nothing is saved. If the kids' collections can't be loaded, the first two rows still show.
+         * A kids (or unknown) profile's Home ([KidHomeCollections]): never the saved (adult) rows, and nothing is
+         * saved. The first two rows (and the collections already found this session) show at once; the collection
+         * rows follow when [discoverKidCollections] finds them, and if it can't, the rows shown stay.
          */
-        private suspend fun loadKidSettings(userId: UUID): HomePageResolvedSettings {
-            Timber.v("Kids Home for %s", userId)
-            val collections =
-                try {
-                    KidHomeCollections.fetch(api, userId)
-                } catch (ex: CancellationException) {
-                    throw ex
-                } catch (ex: Exception) {
-                    Timber.w(ex, "Couldn't load the kids collections")
-                    emptyList()
+        private suspend fun loadKidSettings(owner: HomeSettingsOwner) {
+            Timber.v("Kids Home for %s", owner.userId)
+            val known = kidDiscovery?.takeIf { it.owner == owner }?.collections.orEmpty()
+            publish(kidSettings(owner, known))
+            discoverKidCollections(owner)
+        }
+
+        private fun kidSettings(
+            owner: HomeSettingsOwner,
+            collections: List<BaseItemDto>,
+        ) = KidHomeCollections.settings(owner, context.getString(R.string.kid_home_watch_again), collections)
+
+        /**
+         * On entering Home: look again for the kids collections (new or removed ones, or after a failed
+         * look), at most once per [KidHomeCollections.DISCOVERY_INTERVAL] after one that worked. Only for the
+         * kids Home of the session as it is now.
+         */
+        suspend fun refreshKidCollections() {
+            val owner = currentSettings.value.owner ?: return
+            if (owner.kid && isCurrent(owner)) discoverKidCollections(owner)
+        }
+
+        private suspend fun discoverKidCollections(owner: HomeSettingsOwner) {
+            kidDiscoveryMutex.withLock {
+                if (!isCurrent(owner)) return
+                val last = kidDiscovery
+                if (last != null && last.owner == owner &&
+                    clock() - last.foundAt < KidHomeCollections.DISCOVERY_INTERVAL.inWholeMilliseconds
+                ) {
+                    return
                 }
-            return KidHomeCollections.settings(context.getString(R.string.kid_home_watch_again), collections)
+                val collections =
+                    try {
+                        KidHomeCollections.fetch(api, owner.userId)
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: Exception) {
+                        // Keep the rows shown; the next visit to Home tries again
+                        Timber.w(ex, "Couldn't load the kids collections")
+                        return
+                    }
+                if (!isCurrent(owner)) return
+                kidDiscovery = KidDiscovery(owner, collections, clock())
+                publish(kidSettings(owner, collections))
+            }
         }
 
         /** Apply the owner-approved layout once; later user edits are retained. */
@@ -1185,20 +1299,31 @@ class HomeSettingsService
                             ).content.name
                             ?.let { StringStringProvider(it) }
                             ?: ResStringProvider(R.string.collection)
-                    if (usePaging) {
-                        ApiRequestPager(
-                            api,
-                            request,
-                            GetItemsRequestHandler,
-                            scope,
-                            useSeriesForPrimary = row.viewOptions.useSeries,
-                        ).init()
-                    } else {
-                        GetItemsRequestHandler
-                            .execute(api, request)
-                            .content.items
-                            .map { BaseItem(it, row.viewOptions.useSeries) }
-                    }.let {
+                    val items =
+                        if (usePaging) {
+                            ApiRequestPager(
+                                api,
+                                request,
+                                GetItemsRequestHandler,
+                                scope,
+                                useSeriesForPrimary = row.viewOptions.useSeries,
+                            ).init()
+                        } else if (isKidOrUnknown(serverRepository.current.value?.user)) {
+                            // A kids collection row (the only parent rows a kids Home has): one more page if the kid
+                            // content rules left nothing of the first
+                            KidHomeCollections
+                                .firstPage(limit) { start ->
+                                    GetItemsRequestHandler
+                                        .execute(api, request.copy(startIndex = start))
+                                        .content.items
+                                }.map { BaseItem(it, row.viewOptions.useSeries) }
+                        } else {
+                            GetItemsRequestHandler
+                                .execute(api, request)
+                                .content.items
+                                .map { BaseItem(it, row.viewOptions.useSeries) }
+                        }
+                    items.let {
                         Success(
                             title,
                             it,
@@ -1518,6 +1643,13 @@ data class HomeRowConfigDisplay(
     val config: HomeRowConfig,
 )
 
+/** The session [HomePageResolvedSettings] were made for: [userId] under session [epoch], as a kids Home or not */
+data class HomeSettingsOwner(
+    val userId: UUID,
+    val epoch: Long,
+    val kid: Boolean,
+)
+
 /**
  * List of resolved [HomeRowConfig]s as [HomeRowConfigDisplay]s
  *
@@ -1525,6 +1657,8 @@ data class HomeRowConfigDisplay(
  */
 data class HomePageResolvedSettings(
     val rows: List<HomeRowConfigDisplay>,
+    /** Whose session these were made for ([HomeSettingsService.isCurrent]); null for edits in Home settings */
+    val owner: HomeSettingsOwner? = null,
 ) {
     companion object {
         val EMPTY = HomePageResolvedSettings(listOf())
