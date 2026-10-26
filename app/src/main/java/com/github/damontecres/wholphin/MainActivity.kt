@@ -58,6 +58,7 @@ import com.github.damontecres.wholphin.services.SuggestionsSchedulerService
 import com.github.damontecres.wholphin.services.UpdateChecker
 import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.UserSwitchListener
+import com.github.damontecres.wholphin.services.WalkthroughService
 import com.github.damontecres.wholphin.services.hilt.AuthOkHttpClient
 import com.github.damontecres.wholphin.services.tvprovider.TvProviderSchedulerService
 import com.github.damontecres.wholphin.ui.CoilConfig
@@ -166,6 +167,9 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var profileChooserLock: ProfileChooserLock
+
+    @Inject
+    lateinit var walkthroughService: WalkthroughService
 
     private var signInAuto = true
     private var playerBackend: PlayerBackend? = null
@@ -303,6 +307,7 @@ class MainActivity : AppCompatActivity() {
                                             backdropService = backdropService,
                                             screensaverService = screensaverService,
                                             updateChecker = updateChecker,
+                                            walkthroughService = walkthroughService,
                                             modifier = Modifier.fillMaxSize(),
                                         )
                                     }

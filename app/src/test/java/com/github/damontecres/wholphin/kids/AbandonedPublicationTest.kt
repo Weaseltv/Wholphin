@@ -207,6 +207,7 @@ class AbandonedPublicationTest {
                 pictures = mockk(relaxed = true),
                 savedProfileChecks = mockk(relaxed = true),
                 networkAvailability = onlineNetwork(),
+                walkthroughService = mockk(relaxed = true),
                 server = server,
             )
         return viewModel to lock

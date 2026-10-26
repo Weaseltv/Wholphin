@@ -57,6 +57,7 @@ import com.github.damontecres.wholphin.ui.playback.PlaybackPage
 import com.github.damontecres.wholphin.ui.preferences.PreferencesPage
 import com.github.damontecres.wholphin.ui.preferences.subtitle.SubtitleStylePage
 import com.github.damontecres.wholphin.ui.preferences.user.UserProfilePreferencesPage
+import com.github.damontecres.wholphin.ui.walkthrough.WalkthroughPage
 import com.github.damontecres.wholphin.ui.search.SearchPage
 import com.github.damontecres.wholphin.ui.setup.InstallUpdatePage
 import com.github.damontecres.wholphin.ui.slideshow.SlideshowPage
@@ -390,6 +391,15 @@ fun DestinationContent(
 
         Destination.License -> {
             LicenseInfo(modifier)
+        }
+
+        is Destination.Walkthrough -> {
+            LaunchedEffect(Unit) { onClearBackdrop.invoke() }
+            WalkthroughPage(
+                chapter = destination.chapter,
+                preferences = preferences,
+                modifier = modifier,
+            )
         }
 
         is Destination.Search -> {

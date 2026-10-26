@@ -264,6 +264,8 @@ configure<ApplicationExtension> {
         val featureLeanback = "leanback"
         val featureUpdate = "UPDATING_ENABLED"
         val featureDiscover = "DISCOVER_ENABLED"
+        // The WeaselPlex tour (guided walkthrough): offer after a QR / pairing-code sign-in, Settings → Help
+        val featureWalkthrough = "WALKTHROUGH_ENABLED"
 
         fun ProductFlavor.setFeatureFlag(
             name: String,
@@ -277,6 +279,7 @@ configure<ApplicationExtension> {
             manifestPlaceholders += mapOf(featureLeanback to false)
             setFeatureFlag(featureUpdate, true)
             setFeatureFlag(featureDiscover, true)
+            setFeatureFlag(featureWalkthrough, false)
         }
         // WeaselPlex (DaCrib) — mirrors `default` exactly, which is the only flavor with
         // DISCOVER_ENABLED (the Seerr integration), plus the pinned server URL.
@@ -305,6 +308,7 @@ configure<ApplicationExtension> {
             manifestPlaceholders += mapOf(featureLeanback to false)
             setFeatureFlag(featureUpdate, true)
             setFeatureFlag(featureDiscover, true)
+            setFeatureFlag(featureWalkthrough, true)
             buildConfigField("String", "DEFAULT_SERVER_URL", "\"https://media.theweasel.tv\"")
             buildConfigField("String", "UPDATE_REPO", "\"Weaseltv/Wholphin\"")
             buildConfigField("String", "DEFAULT_SEERR_URL", "\"https://requests.theweasel.tv\"")
@@ -334,12 +338,14 @@ configure<ApplicationExtension> {
             manifestPlaceholders += mapOf(featureLeanback to true)
             setFeatureFlag(featureUpdate, false)
             setFeatureFlag(featureDiscover, true)
+            setFeatureFlag(featureWalkthrough, false)
         }
         create("firetv") {
             dimension = "version"
             manifestPlaceholders += mapOf(featureLeanback to true)
             setFeatureFlag(featureUpdate, false)
             setFeatureFlag(featureDiscover, false)
+            setFeatureFlag(featureWalkthrough, false)
         }
     }
     compileOptions {

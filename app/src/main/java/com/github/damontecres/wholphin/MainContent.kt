@@ -34,6 +34,7 @@ import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.ScreensaverService
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.UpdateChecker
+import com.github.damontecres.wholphin.services.WalkthroughService
 import com.github.damontecres.wholphin.ui.components.AppScreensaver
 import com.github.damontecres.wholphin.ui.nav.ApplicationContent
 import com.github.damontecres.wholphin.ui.setup.PinnedServerContent
@@ -43,6 +44,7 @@ import com.github.damontecres.wholphin.ui.setup.UpdatePrompt
 import com.github.damontecres.wholphin.ui.setup.isServerPinned
 import com.github.damontecres.wholphin.ui.util.InterfaceCustomization
 import com.github.damontecres.wholphin.ui.util.LocalInterfaceCustomization
+import com.github.damontecres.wholphin.ui.walkthrough.WalkthroughOfferHost
 
 @Composable
 fun MainContent(
@@ -52,6 +54,7 @@ fun MainContent(
     backdropService: BackdropService,
     screensaverService: ScreensaverService,
     updateChecker: UpdateChecker,
+    walkthroughService: WalkthroughService,
     modifier: Modifier = Modifier,
     // Kid profiles (plan 4.5): also hide the profile's screen on stop when the profile screen will show on return
     hideContentOnStop: () -> Boolean = { false },
@@ -129,8 +132,18 @@ fun MainContent(
                                         preferences = preferences,
                                         modifier = Modifier.fillMaxSize(),
                                     )
-                                    // Only once signed in, so it never interrupts sign-in.
-                                    UpdatePrompt(updateChecker, navigationManager)
+                                    // Only once signed in, so it never interrupts sign-in. The tour offer goes after it.
+                                    if (BuildConfig.WALKTHROUGH_ENABLED) {
+                                        WalkthroughOfferHost(
+                                            current = current,
+                                            walkthroughService = walkthroughService,
+                                            updateChecker = updateChecker,
+                                            screensaverService = screensaverService,
+                                            navigationManager = navigationManager,
+                                        )
+                                    } else {
+                                        UpdatePrompt(updateChecker, navigationManager)
+                                    }
                                 } else {
                                     Box(
                                         modifier = Modifier.size(200.dp),

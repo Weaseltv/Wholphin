@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.collectAsState
@@ -46,7 +47,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -79,6 +82,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.NavigationDrawerScope
 import androidx.tv.material3.ProvideTextStyle
 import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.JellyfinServer
@@ -94,6 +98,7 @@ import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.ProfilePictureService
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.SetupNavigationManager
+import com.github.damontecres.wholphin.services.WalkthroughService
 import com.github.damontecres.wholphin.services.versionedUserImageUrl
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.components.TimeDisplay
@@ -141,6 +146,7 @@ class NavDrawerViewModel
         private val musicService: MusicService,
         private val profilePictureService: ProfilePictureService,
         kidSessionGate: KidSessionGate,
+        private val walkthroughService: WalkthroughService,
     ) : ViewModel() {
         val serviceState = navDrawerService.state
 
@@ -181,6 +187,12 @@ class NavDrawerViewModel
                 }
             }
         }
+
+        /** WeaselPlex tour: a rail row gained or lost focus (only recorded while the live menu step is up) */
+        fun reportRailFocus(
+            id: String,
+            hasFocus: Boolean,
+        ) = walkthroughService.reportRailFocus(id, hasFocus)
 
         fun setIndex(index: Int) {
             _state.update { it.copy(selectedIndex = index) }
@@ -402,7 +414,7 @@ fun NavDrawer(
                                 SetupDestination.UserList(server),
                             )
                         },
-                        modifier = Modifier,
+                        modifier = Modifier.tourRailFocus(TourRailIds.PROFILE, viewModel),
                     )
                     AnimatedVisibility(
                         visible = serviceState.nowPlayingEnabled,
@@ -424,6 +436,7 @@ fun NavDrawer(
                             },
                             modifier =
                                 Modifier
+                                    .tourRailFocus(TourRailIds.NOW_PLAYING, viewModel)
                                     .ifElse(
                                         selectedIndex == NOW_PLAYING_INDEX,
                                         Modifier.focusRequester(focusRequester),
@@ -464,6 +477,7 @@ fun NavDrawer(
                                 },
                                 modifier =
                                     Modifier
+                                        .tourRailFocus(TourRailIds.SEARCH, viewModel)
                                         .focusRequester(searchFocusRequester)
                                         .ifElse(
                                             selectedIndex == SEARCH_INDEX,
@@ -492,6 +506,7 @@ fun NavDrawer(
                                 },
                                 modifier =
                                     Modifier
+                                        .tourRailFocus(TourRailIds.HOME, viewModel)
                                         .ifElse(
                                             selectedIndex == HOME_INDEX,
                                             Modifier.focusRequester(focusRequester),
@@ -511,6 +526,7 @@ fun NavDrawer(
                                 },
                                 modifier =
                                     Modifier
+                                        .tourRailFocus(it.id, viewModel)
                                         .ifElse(
                                             selectedIndex == index,
                                             Modifier.focusRequester(focusRequester),
@@ -532,6 +548,7 @@ fun NavDrawer(
                                     },
                                     modifier =
                                         Modifier
+                                            .tourRailFocus(NavDrawerItem.More.id, viewModel)
                                             .ifElse(
                                                 selectedIndex == index,
                                                 Modifier.focusRequester(focusRequester),
@@ -564,6 +581,7 @@ fun NavDrawer(
                                     interactionSource = interactionSource,
                                     modifier =
                                         Modifier
+                                            .tourRailFocus(it.id, viewModel)
                                             .ifElse(
                                                 selectedIndex == adjustedIndex,
                                                 Modifier.focusRequester(focusRequester),
@@ -590,7 +608,7 @@ fun NavDrawer(
                                             ),
                                         )
                                     },
-                                    modifier = Modifier,
+                                    modifier = Modifier.tourRailFocus(TourRailIds.SETTINGS, viewModel),
                                 )
                             }
                         }
@@ -638,6 +656,29 @@ fun NavDrawer(
             }
         }
     }
+}
+
+/** WeaselPlex tour: ids of the rail rows that aren't [NavDrawerItem]s, as the live menu step reports them */
+object TourRailIds {
+    const val PROFILE = "profile"
+    const val NOW_PLAYING = "now_playing"
+    const val SEARCH = "search"
+    const val HOME = "home"
+    const val SETTINGS = "settings"
+}
+
+/**
+ * WeaselPlex tour (plan 4.4): reports this rail row's focus (the row's outer node, so [FocusState.hasFocus]) to the
+ * live menu step, and loses it when the row leaves the rail. The rail itself never reads it.
+ */
+@Composable
+private fun Modifier.tourRailFocus(
+    id: String,
+    viewModel: NavDrawerViewModel,
+): Modifier {
+    if (!BuildConfig.WALKTHROUGH_ENABLED) return this
+    DisposableEffect(id) { onDispose { viewModel.reportRailFocus(id, false) } }
+    return onFocusChanged { viewModel.reportRailFocus(id, it.hasFocus) }
 }
 
 /**

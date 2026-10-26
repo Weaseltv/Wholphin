@@ -18,6 +18,7 @@ class SetupNavigationManager
     @Inject
     constructor(
         private val navigationManager: NavigationManager,
+        private val walkthroughService: WalkthroughService,
     ) {
         var backStack: MutableList<SetupDestination> = mutableStateListOf(SetupDestination.Loading)
 
@@ -29,6 +30,8 @@ class SetupNavigationManager
             log()
             if (destination !is SetupDestination.AppContent) {
                 navigationManager.reloadHome()
+                // The profile list, server list or Loading: a tour offer owed to the last sign-in is gone
+                walkthroughService.onLeftAppContent()
             }
         }
 

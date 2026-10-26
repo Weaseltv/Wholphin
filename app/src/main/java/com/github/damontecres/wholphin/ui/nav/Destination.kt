@@ -15,6 +15,7 @@ import com.github.damontecres.wholphin.ui.data.SortAndDirection
 import com.github.damontecres.wholphin.ui.detail.series.SeasonEpisodeIds
 import com.github.damontecres.wholphin.ui.preferences.PreferenceScreenOption
 import com.github.damontecres.wholphin.ui.util.StringProvider
+import com.github.damontecres.wholphin.ui.walkthrough.TourChapter
 import com.github.damontecres.wholphin.util.DiscoverRequestType
 import com.github.damontecres.wholphin.util.RequestHandler
 import com.github.damontecres.wholphin.util.SEERR_PAGE_SIZE
@@ -206,6 +207,15 @@ sealed class Destination(
 
     @Serializable
     data object License : Destination(true)
+
+    /**
+     * WeaselPlex tour (guided walkthrough), beside the real menu. [chapter] null = the tour offered after sign-in (the
+     * essentials), [TourChapter.PICKER] = Settings → Help's chapter list, otherwise that chapter in detail.
+     */
+    @Serializable
+    data class Walkthrough(
+        val chapter: TourChapter? = null,
+    ) : Destination()
 
     @Serializable
     data object Debug : Destination(true)

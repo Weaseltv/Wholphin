@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WeaselPlex tour (guided walkthrough). English only, like the rest of the fork's strings.
+     Copy rules: WeaselPlex, Watchlist, Requests, menu, profile; never Jellyfin, Seerr, server,
+     Quick Connect, drawer, Wholphin or Tap. Labels and values are read from the app at run time. -->
+<resources>
+    <!-- Offer -->
+    <string name="tour_offer_eyebrow">WeaselPlex tour</string>
+    <string name="tour_offer_title_named">Welcome, %1$s!</string>
+    <string name="tour_offer_title">Welcome to WeaselPlex!</string>
+    <string name="tour_offer_body">Want a quick tour? See how to use your remote, the menu and where everything is.</string>
+    <string name="tour_offer_start">Start the tour</string>
+    <string name="tour_offer_dont_ask">Don\'t ask again</string>
+    <string name="tour_offer_footnote">You can take the tour any time from Settings → Help.</string>
+
+    <!-- Settings → Help -->
+    <string name="tour_help">Help</string>
+    <string name="tour_settings_title">WeaselPlex tour</string>
+    <string name="tour_settings_summary">Take the tour again, or any part of it in more detail</string>
+
+    <!-- Page -->
+    <string name="tour_eyebrow">%1$s · %2$d of %3$d</string>
+    <string name="tour_previous">Previous</string>
+    <string name="tour_next">Next</string>
+    <string name="tour_done">Done</string>
+    <string name="tour_leave">Leave tour</string>
+    <string name="tour_example">Example</string>
+
+    <!-- Chapters -->
+    <string name="tour_chapter_picker">WeaselPlex tour</string>
+    <string name="tour_chapter_remote">Remote</string>
+    <string name="tour_chapter_menu">Menu</string>
+    <string name="tour_chapter_home">Home</string>
+    <string name="tour_chapter_title">A title\'s page</string>
+    <string name="tour_chapter_watching">Watching</string>
+    <string name="tour_chapter_search">Search</string>
+    <string name="tour_chapter_search_requests">Search &amp; Requests</string>
+    <string name="tour_chapter_collections">Collections &amp; Playlists</string>
+    <string name="tour_chapter_live_tv">Live TV</string>
+    <string name="tour_chapter_settings">Settings &amp; profiles</string>
+    <string name="tour_chapter_essentials">Essentials</string>
+
+    <!-- Picker -->
+    <string name="tour_picker_title">Pick a part</string>
+    <string name="tour_picker_body">Take the whole tour, or learn more about one part of WeaselPlex.</string>
+    <string name="tour_picker_take">Take the tour</string>
+
+    <!-- 1. Your remote -->
+    <string name="tour_remote_title">Your remote</string>
+    <string name="tour_remote_arrows">Arrows move.</string>
+    <string name="tour_remote_ok">selects.</string>
+    <string name="tour_remote_hold_ok">Press and hold OK on a poster for more options.</string>
+    <string name="tour_remote_back">goes back.</string>
+    <string name="tour_remote_play">plays the movie or episode you\'re on.</string>
+
+    <!-- 2. Open the menu — try it -->
+    <string name="tour_menu_try_title">Open the menu — try it</string>
+    <string name="tour_menu_try_body">Press ◀ to open the menu. Move ▲ ▼ to look around, then press ▶ to come back here.</string>
+    <string name="tour_menu_try_note">(OK would open that page; BACK leaves the tour.)</string>
+    <string name="tour_menu_try_done">That\'s the menu. It\'s on the left of most pages, and BACK on Home opens it too.</string>
+    <string name="tour_menu_try_back">Press ▶ to come back here.</string>
+    <string name="tour_you">You</string>
+    <string name="tour_rail_profile">You: switch profiles or add someone.</string>
+    <string name="tour_rail_now_playing">Now Playing: the music that\'s playing now.</string>
+    <string name="tour_rail_search">Search: find a title by typing or with your voice.</string>
+    <string name="tour_rail_home">Home: rows to watch from, starting with what you\'re watching.</string>
+    <string name="tour_rail_watchlist">%1$s: everything you\'ve saved for later.</string>
+    <string name="tour_rail_requests">%1$s: ask for something that isn\'t in WeaselPlex yet, and follow your requests.</string>
+    <string name="tour_rail_more">%1$s: menu items you\'ve moved out of the way.</string>
+    <string name="tour_rail_settings">Settings: make WeaselPlex yours.</string>
+    <string name="tour_rail_library">%1$s: browse everything in %1$s.</string>
+
+    <!-- 3. Where everything is -->
+    <string name="tour_where_title">Where everything is</string>
+    <string name="tour_where_top">At the top: You — switch profiles or add someone.</string>
+    <string name="tour_where_then">Then %1$s.</string>
+    <string name="tour_where_lists">Your lists: %1$s.</string>
+    <string name="tour_where_libraries">Libraries: %1$s.</string>
+    <string name="tour_where_libraries_more">%1$s and %2$d more</string>
+    <string name="tour_where_under_more">Others are under %1$s.</string>
+    <string name="tour_where_bottom">At the bottom: Settings.</string>
+    <string name="tour_and">%1$s and %2$s</string>
+
+    <!-- Leaving -->
+    <string name="tour_left_toast">You can take the tour any time from Settings → Help.</string>
+</resources>

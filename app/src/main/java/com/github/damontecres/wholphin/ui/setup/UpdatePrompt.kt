@@ -39,21 +39,23 @@ import com.github.damontecres.wholphin.util.Version
 
 /**
  * WeaselFin: shows the "update available" popup when [UpdateChecker.maybePromptForUpdate]
- * finds a newer release. It waits while something is playing, and never covers the update
- * page itself.
+ * finds a newer release. It waits while something is playing or while [blocked], and never covers the
+ * update page itself.
  */
 @Composable
 fun UpdatePrompt(
     updateChecker: UpdateChecker,
     navigationManager: NavigationManager,
+    // WeaselPlex tour: held while the tour offer or the tour page is showing; it shows once they're gone
+    blocked: Boolean = false,
 ) {
     val release by updateChecker.prompt.collectAsState()
     val current = navigationManager.backStack.lastOrNull()
     // An update that was waiting on "Install unknown apps", now allowed: open the update page
     // to carry on (it does so itself if it's already showing)
     val resumeInstall by updateChecker.resumeInstall.collectAsState()
-    LaunchedEffect(resumeInstall, current) {
-        if (resumeInstall && !current.isPlayback) {
+    LaunchedEffect(resumeInstall, current, blocked) {
+        if (resumeInstall && !blocked && !current.isPlayback) {
             updateChecker.consumeResumeInstall()
             updateChecker.dismissPrompt()
             if (current !is Destination.UpdateApp) {
@@ -62,7 +64,7 @@ fun UpdatePrompt(
         }
     }
     release?.let { release ->
-        if (!current.isPlayback && current !is Destination.UpdateApp) {
+        if (!blocked && !current.isPlayback && current !is Destination.UpdateApp) {
             UpdatePromptDialog(
                 release = release,
                 onUpdate = {

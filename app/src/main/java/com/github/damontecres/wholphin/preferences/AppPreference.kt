@@ -13,6 +13,7 @@ import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.preferences.ConditionalPreferences
 import com.github.damontecres.wholphin.ui.preferences.PreferenceGroup
 import com.github.damontecres.wholphin.ui.preferences.PreferenceScreenOption
+import com.github.damontecres.wholphin.ui.walkthrough.TourChapter
 import com.github.damontecres.wholphin.ui.preferences.PreferenceValidation
 import com.github.damontecres.wholphin.util.DebugLogTree
 import kotlin.time.Duration.Companion.hours
@@ -1120,6 +1121,14 @@ sealed interface AppPreference<Pref, T> {
                 title = R.string.screensaver_settings,
                 destination = Destination.Settings(PreferenceScreenOption.SCREENSAVER),
             )
+
+        /** WeaselPlex tour: replay it, or any one part in more detail */
+        val WalkthroughTour =
+            AppDestinationPreference<AppPreferences>(
+                title = R.string.tour_settings_title,
+                summary = R.string.tour_settings_summary,
+                destination = Destination.Walkthrough(TourChapter.PICKER),
+            )
     }
 }
 
@@ -1135,7 +1144,16 @@ val kidHiddenPreferences: Set<AppPreference<*, *>> =
     )
 
 val basicPreferences =
-    listOf(
+    listOfNotNull(
+        // WeaselPlex tour: Help first, before Interface (owner, 2026-10-16)
+        if (BuildConfig.WALKTHROUGH_ENABLED) {
+            PreferenceGroup(
+                title = R.string.tour_help,
+                preferences = listOf(AppPreference.WalkthroughTour),
+            )
+        } else {
+            null
+        },
         PreferenceGroup(
             title = R.string.ui_interface,
             preferences =

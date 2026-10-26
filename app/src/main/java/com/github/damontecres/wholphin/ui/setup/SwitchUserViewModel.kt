@@ -36,6 +36,7 @@ import com.github.damontecres.wholphin.services.ProfilePictureService
 import com.github.damontecres.wholphin.services.ProfilePictureTarget
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.SetupNavigationManager
+import com.github.damontecres.wholphin.services.WalkthroughService
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.util.LoadingState
@@ -97,6 +98,7 @@ class SwitchUserViewModel
         private val pictures: ProfilePictureService,
         private val savedProfileChecks: SavedProfileChecks,
         private val networkAvailability: NetworkAvailability,
+        private val walkthroughService: WalkthroughService,
         @Assisted val server: JellyfinServer,
     ) : ViewModel() {
         @AssistedFactory
@@ -402,12 +404,18 @@ class SwitchUserViewModel
         private suspend fun navigateInto(
             flow: ChooserFlow,
             current: CurrentUser,
+            freshSignIn: Boolean = false,
         ) {
             try {
                 profileChooserLock.navigateAfterSwitch(current) {
                     synchronized(flowLock) {
                         (this.flow === flow && flow.published === current && serverRepository.markEntered(flow, current))
                             .also { if (it) flow.navigated = true }
+                    }.also { entering ->
+                        // WeaselPlex tour: a QR / pairing-code sign-in that is entering the app is offered the tour
+                        if (entering && freshSignIn && BuildConfig.WALKTHROUGH_ENABLED) {
+                            walkthroughService.offerAfterSignIn(current)
+                        }
                     }
                 }
             } finally {
@@ -613,6 +621,7 @@ class SwitchUserViewModel
         ) {
             if (!BuildConfig.KID_PROFILES_ENABLED) {
                 val current = serverRepository.changeUser(serverUrl, authenticationResult, existingUser)
+                if (BuildConfig.WALKTHROUGH_ENABLED) walkthroughService.offerAfterSignIn(current)
                 setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
                 return
             }
@@ -727,7 +736,7 @@ class SwitchUserViewModel
                     entryOwner = flow,
                 )
             kidSessionGate.grantUnlockForFreshAuth(current.user, admit(flow))
-            navigateInto(flow, current)
+            navigateInto(flow, current, freshSignIn = true)
         }
 
         /**
