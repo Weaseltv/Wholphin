@@ -5,14 +5,12 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.conflate
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.dropWhile
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.getAndUpdate
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withTimeoutOrNull
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.client.exception.TimeoutException
@@ -36,8 +34,37 @@ class NetworkAvailability
     ) {
         private val connectivity: ConnectivityManager? = context.getSystemService(ConnectivityManager::class.java)
 
-        /** Whether the TV has a default network now; true when that can't be told */
-        fun isConnected(): Boolean {
+        private val _connected = MutableStateFlow(readConnected())
+
+        /** Whether the TV has a default network, following every change; true when that can't be told */
+        val connected: StateFlow<Boolean> = _connected
+
+        /** How many times the network came back after being lost (review round 1: a load compares it, [mark]) */
+        private val comebacks = MutableStateFlow(0L)
+
+        init {
+            // Followed for the app's lifetime (a singleton), so a comeback is never missed between a load and its error
+            try {
+                connectivity?.registerDefaultNetworkCallback(
+                    object : ConnectivityManager.NetworkCallback() {
+                        override fun onAvailable(network: Network) {
+                            if (!_connected.getAndUpdate { true }) comebacks.update { it + 1 }
+                        }
+
+                        override fun onLost(network: Network) {
+                            // A switch to another network can report the old one lost after the new one is available
+                            val active = runCatching { connectivity?.activeNetwork }.getOrNull()
+                            _connected.value = active != null && active != network && readConnected()
+                        }
+                    },
+                )
+            } catch (ex: Exception) {
+                Timber.w(ex, "Can't follow the network state")
+                _connected.value = true
+            }
+        }
+
+        private fun readConnected(): Boolean {
             val manager = connectivity ?: return true
             return try {
                 val network = manager.activeNetwork ?: return false
@@ -48,45 +75,22 @@ class NetworkAvailability
             }
         }
 
-        /** [isConnected] now and on every change of the default network */
-        val connected: Flow<Boolean> =
-            callbackFlow {
-                val manager = connectivity
-                if (manager == null) {
-                    trySend(true)
-                    awaitClose {}
-                    return@callbackFlow
-                }
-                val callback =
-                    object : ConnectivityManager.NetworkCallback() {
-                        override fun onAvailable(network: Network) {
-                            trySend(true)
-                        }
-
-                        override fun onLost(network: Network) {
-                            trySend(false)
-                        }
-                    }
-                trySend(isConnected())
-                val registered =
-                    try {
-                        manager.registerDefaultNetworkCallback(callback)
-                        true
-                    } catch (ex: SecurityException) {
-                        Timber.w(ex, "Can't follow the network state")
-                        trySend(true)
-                        false
-                    }
-                awaitClose { if (registered) manager.unregisterNetworkCallback(callback) }
-            }.conflate().distinctUntilChanged()
+        fun isConnected(): Boolean = _connected.value
 
         /** Waits up to [timeout] for a network; whether there is one */
         suspend fun awaitConnected(timeout: Duration = WAKE_WAIT): Boolean =
             isConnected() || withTimeoutOrNull(timeout) { connected.first { it } } ?: false
 
-        /** Returns once the network is back after being lost, now or later: for a page whose load failed */
-        suspend fun awaitReconnect() {
-            connected.dropWhile { it }.first { it }
+        /** Taken when a load starts: [awaitComebackSince] then tells whether the network came back since */
+        fun mark(): Long = comebacks.value
+
+        /**
+         * Returns once the network has come back since [mark] was taken, at once if it already has (eg while the failed
+         * request was still timing out). A server that is down while the network stays up never reloads by itself.
+         */
+        suspend fun awaitComebackSince(mark: Long) {
+            comebacks.first { it > mark }
+            connected.first { it }
         }
 
         /**

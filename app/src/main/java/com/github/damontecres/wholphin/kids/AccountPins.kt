@@ -321,20 +321,22 @@ class AccountPins
 
         /**
          * Chooser "Remove PIN" (owner 2026-10-25), once [user] entered their PIN: only while no kid profile is saved on
-         * this TV. A TV that had kids stays kid-protected after they leave (plan 4.2); with none left that goes off first,
-         * as Settings' "Turn off kid protection" does, then the account's PIN is removed. Another TV with kids keeps its
-         * cached PIN ([AccountPinRules.sync]).
+         * this TV. Under [user]'s write lock, then the session lock (no kid admitted meanwhile, review round 1), the
+         * account's PIN is removed first; only then does the TV's leftover kid protection go off (a TV that had kids
+         * stays protected after they leave, plan 4.2) and the cached PIN go. Another TV with kids keeps its cached PIN
+         * ([AccountPinRules.sync]).
          */
-        suspend fun removeWithoutKids(user: JellyfinUser): PinRemoval {
-            if (kidsOnTv()) return PinRemoval.KIDS_ON_TV
-            if (store.isProtected() && !store.clearProtection()) return PinRemoval.FAILED
-            // A kid added meanwhile protects the TV again, which blocks the removal
-            return when (set(user, null, user.requireLogin)) {
-                AccountPinWrite.Saved -> PinRemoval.REMOVED
-                AccountPinWrite.RemovalBlocked -> PinRemoval.KIDS_ON_TV
-                AccountPinWrite.Failed -> PinRemoval.FAILED
+        suspend fun removeWithoutKids(user: JellyfinUser): PinRemoval =
+            lockFor(user.serverId, user.id).withLock {
+                val row = savedRow(user) ?: return@withLock PinRemoval.FAILED
+                serverRepository.removePinWithoutKids(row, row.requireLogin) {
+                    // An account with no PIN cached here needs no write
+                    if (!row.hasPin) return@removePinWithoutKids true
+                    val token = row.accessToken ?: return@removePinWithoutKids false
+                    val url = serverUrl(row) ?: return@removePinWithoutKids false
+                    push(url, row.id, token, null)
+                }
             }
-        }
 
         /**
          * Contract 12.4 "Create PIN" for another adult (review round 1): create-only. Under [user]'s write lock it checks

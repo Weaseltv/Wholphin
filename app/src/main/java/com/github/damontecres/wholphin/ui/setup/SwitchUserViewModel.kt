@@ -188,6 +188,7 @@ class SwitchUserViewModel
             reloadOnReconnect?.cancel()
             reloadOnReconnect = null
             viewModelScope.launchIO {
+                val mark = networkAvailability.mark()
                 _state.update { it.copy(loading = LoadingState.Loading) }
                 try {
                     val (serverUsers, version) =
@@ -213,7 +214,7 @@ class SwitchUserViewModel
                     }
                     reloadOnReconnect =
                         viewModelScope.launchIO {
-                            networkAvailability.awaitReconnect()
+                            networkAvailability.awaitComebackSince(mark)
                             Timber.i("Network is back, loading the profiles again")
                             loadUsers()
                         }

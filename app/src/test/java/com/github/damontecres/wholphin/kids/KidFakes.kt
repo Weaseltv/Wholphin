@@ -35,7 +35,8 @@ fun onlineNetwork(): NetworkAvailability =
     mockk {
         every { isConnected() } returns true
         coEvery { awaitConnected(any()) } returns true
-        coEvery { awaitReconnect() } coAnswers { awaitCancellation() }
+        every { mark() } returns 0L
+        coEvery { awaitComebackSince(any()) } coAnswers { awaitCancellation() }
         coEvery { whenConnected<Any?>(any()) } coAnswers { firstArg<suspend () -> Any?>().invoke() }
     }
 

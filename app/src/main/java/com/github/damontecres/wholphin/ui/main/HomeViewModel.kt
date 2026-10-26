@@ -132,11 +132,11 @@ class HomeViewModel
         private var reloadOnReconnect: Job? = null
 
         /** Owner 2026-10-25: a load that failed (eg the Shield just woke, its network not back yet) runs again once it is */
-        private fun reloadWhenOnline() {
+        private fun reloadWhenOnline(mark: Long) {
             reloadOnReconnect?.cancel()
             reloadOnReconnect =
                 viewModelScope.launchIO {
-                    networkAvailability.awaitReconnect()
+                    networkAvailability.awaitComebackSince(mark)
                     Timber.i("Network is back, loading Home again")
                     requestLoad()
                 }
@@ -202,6 +202,7 @@ class HomeViewModel
 
         private suspend fun load(generation: Long) {
             Timber.d("init HomeViewModel")
+            val mark = networkAvailability.mark()
             try {
                 // Waking the Shield starts Home again before its network is back (owner 2026-10-25)
                 networkAvailability.awaitConnected()
@@ -321,7 +322,7 @@ class HomeViewModel
                         }
                     }
                 }
-                if (state.value.generation == generation && ex.isNetworkFailure()) reloadWhenOnline()
+                if (state.value.generation == generation && ex.isNetworkFailure()) reloadWhenOnline(mark)
             }
         }
 

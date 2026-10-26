@@ -10,6 +10,7 @@ import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.JellyfinUserPreferences
 import com.github.damontecres.wholphin.data.model.PolicyState
 import com.github.damontecres.wholphin.kids.KidProtectionStore
+import com.github.damontecres.wholphin.kids.PinRemoval
 import com.github.damontecres.wholphin.kids.ProfileCeiling
 import com.github.damontecres.wholphin.kids.ProfileKind
 import com.github.damontecres.wholphin.kids.profileCeiling
@@ -895,6 +896,41 @@ class ServerRepository
                 }
             }
         }
+
+        /**
+         * Chooser "Remove PIN" (owner 2026-10-25), one step under the session lock, so no kid is admitted (nor a profile
+         * made a kid) meanwhile (review round 1): with no kid row saved on this TV, [writeAccount] removes the account's
+         * PIN; only once it did, the TV's leftover kid protection goes off and the saved row loses its PIN. With kids, or
+         * when the account write fails, nothing changes on this TV.
+         */
+        suspend fun removePinWithoutKids(
+            user: JellyfinUser,
+            requireLogin: Boolean,
+            writeAccount: suspend () -> Boolean,
+        ): PinRemoval =
+            sessionMutex.withLock {
+                if (withContext(ioDispatcher) { serverDao.countKidUsers() } > 0) return@withLock PinRemoval.KIDS_ON_TV
+                if (!writeAccount()) return@withLock PinRemoval.FAILED
+                // The account has no PIN now: the TV follows, even if whoever asked has left
+                withContext(NonCancellable) {
+                    if (kidProtectionStore.isProtected() && !kidProtectionStore.clearProtection()) {
+                        return@withContext PinRemoval.FAILED
+                    }
+                    withContext(ioDispatcher) {
+                        val rowId = user.rowId.takeIf { it > 0 } ?: serverDao.getUser(user.serverId, user.id)?.rowId
+                        if (rowId != null) serverDao.updateUserAuthUnlessPinRemoved(rowId, null, requireLogin, allowPinRemoval = true)
+                    }
+                    commitSession {
+                        _current.update {
+                            when {
+                                !it.isIdentity(user.serverId, user.id) -> it
+                                else -> it?.copy(user = it.user.copy(pin = null, requireLogin = requireLogin))
+                            }
+                        }
+                    }
+                    PinRemoval.REMOVED
+                }
+            }
 
         /**
          * Account PIN (contract 11.2): the saved PIN is a cache of the account's, and this replaces it with the PIN pulled
