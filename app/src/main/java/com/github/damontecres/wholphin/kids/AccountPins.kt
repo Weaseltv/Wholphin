@@ -164,6 +164,17 @@ sealed interface AccountPinWrite {
     data object RemovalBlocked : AccountPinWrite
 }
 
+/** Result of [AccountPins.removeWithoutKids] */
+enum class PinRemoval {
+    REMOVED,
+
+    /** A kid profile is saved on this TV: every grown-up keeps a PIN, nothing changed */
+    KIDS_ON_TV,
+
+    /** The account couldn't be written: nothing changed */
+    FAILED,
+}
+
 /** Result of [AccountPins.createIfNoPin] */
 enum class PinCreate {
     /** Written to the account, then the cache */
@@ -302,6 +313,26 @@ class AccountPins
                 }
                 serverRepository.updateUserAuth(user, newPin, requireLogin)
                 AccountPinWrite.Saved
+            }
+        }
+
+        /** Whether a kid profile is saved on this TV (any server) */
+        suspend fun kidsOnTv(): Boolean = withContext(ioDispatcher) { serverDao.countKidUsers() } > 0
+
+        /**
+         * Chooser "Remove PIN" (owner 2026-10-25), once [user] entered their PIN: only while no kid profile is saved on
+         * this TV. A TV that had kids stays kid-protected after they leave (plan 4.2); with none left that goes off first,
+         * as Settings' "Turn off kid protection" does, then the account's PIN is removed. Another TV with kids keeps its
+         * cached PIN ([AccountPinRules.sync]).
+         */
+        suspend fun removeWithoutKids(user: JellyfinUser): PinRemoval {
+            if (kidsOnTv()) return PinRemoval.KIDS_ON_TV
+            if (store.isProtected() && !store.clearProtection()) return PinRemoval.FAILED
+            // A kid added meanwhile protects the TV again, which blocks the removal
+            return when (set(user, null, user.requireLogin)) {
+                AccountPinWrite.Saved -> PinRemoval.REMOVED
+                AccountPinWrite.RemovalBlocked -> PinRemoval.KIDS_ON_TV
+                AccountPinWrite.Failed -> PinRemoval.FAILED
             }
         }
 

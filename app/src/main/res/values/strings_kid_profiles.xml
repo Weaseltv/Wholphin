@@ -89,6 +89,14 @@
     <string name="remove_from_tv_question">Remove %1$s from this TV?</string>
     <string name="adult_already_has_pin">%1$s already has a PIN.</string>
     <string name="adult_remove_failed">That profile couldn\'t be removed. Try again.</string>
+
+    <!-- Remove PIN from the chooser's profile menu (owner 2026-10-25) -->
+    <string name="remove_pin">Remove PIN</string>
+    <string name="pin_removed">PIN removed</string>
+    <string name="pin_remove_failed">The PIN couldn\'t be removed. Check the connection and try again.</string>
+    <string name="pin_cant_be_removed">%1$s\'s PIN can\'t be removed</string>
+    <string name="pin_cant_be_removed_subtitle">This TV has kid profiles, so every grown-up needs a PIN. Remove the kid profiles from this TV first, then try again.</string>
+    <string name="pin_ok">OK</string>
     <string name="kid_how_subtitle">How do you want to add a kid?</string>
     <string name="create_new_kid_profile">Create a new kid profile</string>
     <string name="add_existing_kid_profile">Add an existing kid profile</string>
