@@ -8,6 +8,7 @@ import com.github.damontecres.wholphin.services.Avatar
 import com.github.damontecres.wholphin.services.AvatarCatalog
 import com.github.damontecres.wholphin.services.AvatarGroup
 import com.github.damontecres.wholphin.services.CurrentAvatarFinder
+import com.github.damontecres.wholphin.services.NetworkAvailability
 import com.github.damontecres.wholphin.services.ProfileImageCache
 import com.github.damontecres.wholphin.services.ProfileImageFetcher
 import com.github.damontecres.wholphin.services.ProfilePictureTarget
@@ -19,6 +20,7 @@ import io.mockk.just
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
@@ -27,6 +29,16 @@ import org.jellyfin.sdk.model.api.UserPolicy
 import java.util.UUID
 
 // Test doubles for the kid-profiles seam (contract section 8).
+
+/** A TV that is always online: requests run at once and the network never comes back after a failure */
+fun onlineNetwork(): NetworkAvailability =
+    mockk {
+        every { isConnected() } returns true
+        coEvery { awaitConnected(any()) } returns true
+        every { mark() } returns 0L
+        coEvery { awaitComebackSince(any()) } coAnswers { awaitCancellation() }
+        coEvery { whenConnected<Any?>(any()) } coAnswers { firstArg<suspend () -> Any?>().invoke() }
+    }
 
 /**
  * [AccountPins] whose account can't be reached (contract 11.2): pulls keep the cached PIN, and writes go straight to

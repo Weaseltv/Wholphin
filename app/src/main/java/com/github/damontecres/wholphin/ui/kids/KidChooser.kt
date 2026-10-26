@@ -8,6 +8,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -16,6 +17,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import com.github.damontecres.wholphin.BuildConfig
@@ -26,6 +28,7 @@ import com.github.damontecres.wholphin.kids.AccountPinWrite
 import com.github.damontecres.wholphin.kids.AccountPins
 import com.github.damontecres.wholphin.kids.KidSessionGate
 import com.github.damontecres.wholphin.kids.PinCheckResult
+import com.github.damontecres.wholphin.kids.PinRemoval
 import com.github.damontecres.wholphin.kids.PinRules
 import com.github.damontecres.wholphin.kids.ProfileKind
 import com.github.damontecres.wholphin.services.ProfilePictureService
@@ -86,6 +89,14 @@ class KidProfilesViewModel
 
         /** Chooser "Change PIN" (contract 11.2): a saved profile with a PIN and its own token to write the account with. */
         fun canChangePin(user: JellyfinUser): Boolean = BuildConfig.KID_PROFILES_ENABLED && user.hasPin && user.accessToken != null
+
+        /** Chooser "Remove PIN" (owner 2026-10-25): an adult with a PIN and its own token */
+        fun canRemovePin(user: JellyfinUser): Boolean = canChangePin(user) && gate.profileKind(user) == ProfileKind.ADULT
+
+        suspend fun kidsOnTv(): Boolean = accountPins.kidsOnTv()
+
+        /** Removes [user]'s PIN, the account first, only while no kid profile is saved on this TV */
+        suspend fun removePin(user: JellyfinUser): PinRemoval = accountPins.removeWithoutKids(user)
 
         /** [user] with its account's PIN pulled into the cache (best effort), before a PIN prompt shows (contract 11.2) */
         suspend fun refreshed(user: JellyfinUser): JellyfinUser = accountPins.refresh(user)
@@ -445,6 +456,107 @@ fun ChooserChangePin(
             },
             onRemovePin = {},
             onDismissRequest = onDone,
+        )
+    }
+}
+
+/**
+ * "Remove PIN" from the chooser's profile menu (owner 2026-10-25). With a kid profile saved on this TV it only says why
+ * not: every grown-up on a TV with kids needs a PIN (contract 12.4). Otherwise the current PIN (checked by the gate,
+ * with its backoff), then the PIN is removed, the account first; nothing changes if that fails.
+ */
+@Composable
+fun ChooserRemovePin(
+    user: JellyfinUser,
+    gate: KidSessionGate,
+    refresh: suspend (JellyfinUser) -> JellyfinUser,
+    kidsOnTv: suspend () -> Boolean,
+    removePin: suspend (JellyfinUser) -> PinRemoval,
+    onDone: () -> Unit,
+) {
+    val context = LocalContext.current
+    var hasKids by remember(user) { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(user) { hasKids = kidsOnTv() }
+    when (hasKids) {
+        null -> {}
+
+        true -> {
+            KidsNeedPinPanel(name = user.shownName.orEmpty(), onDismissRequest = onDone)
+        }
+
+        false -> {
+            WithAccountPin(user, refresh) { row ->
+                if (!row.hasPin) {
+                    // The account has no PIN any more: nothing to remove
+                    LaunchedEffect(Unit) { onDone() }
+                    return@WithAccountPin
+                }
+                var message by remember { mutableStateOf<String?>(null) }
+                var lockedUntil by remember { mutableLongStateOf(0L) }
+                PinEntryDialog(
+                    onDismissRequest = onDone,
+                    title = stringResource(R.string.remove_pin),
+                    prompt = AnnotatedString(stringResource(R.string.pin_prompt_current)),
+                    length = PinRules.entryLength(row.pin),
+                    lockedUntilMillis = lockedUntil,
+                    message = message,
+                    onSubmit = { typed ->
+                        // Suspends for the check and the removal, so the entry stays latched until they are done
+                        val result = gate.checkOwnPin(row, typed)
+                        when (result) {
+                            PinCheckResult.Correct -> {
+                                when (removePin(row)) {
+                                    PinRemoval.REMOVED -> {
+                                        Toast.makeText(context, context.getString(R.string.pin_removed), Toast.LENGTH_SHORT).show()
+                                        onDone()
+                                    }
+
+                                    PinRemoval.KIDS_ON_TV -> {
+                                        hasKids = true
+                                    }
+
+                                    PinRemoval.FAILED -> {
+                                        message = context.getString(R.string.pin_remove_failed)
+                                    }
+                                }
+                            }
+
+                            is PinCheckResult.Wrong -> {
+                                message = context.getString(R.string.kid_pin_wrong, result.attemptsBeforeLockout)
+                            }
+
+                            is PinCheckResult.LockedOut -> {
+                                val seconds = ((result.retryAtMillis - System.currentTimeMillis()) / 1000).coerceAtLeast(1)
+                                message = context.getString(R.string.kid_pin_locked_out, seconds)
+                                lockedUntil = result.retryAtMillis
+                            }
+                        }
+                        result.outcome()
+                    },
+                )
+            }
+        }
+    }
+}
+
+/** "<Name>'s PIN can't be removed": this TV has kid profiles, so every grown-up needs a PIN. OK or Back closes it. */
+@Composable
+private fun KidsNeedPinPanel(
+    name: String,
+    onDismissRequest: () -> Unit,
+) {
+    KidPanelDialog(onDismissRequest = onDismissRequest, width = 620.dp) {
+        val firstFocus = remember { FocusRequester() }
+        LaunchedEffect(Unit) { firstFocus.tryRequestFocus() }
+        KidTitle(stringResource(R.string.pin_cant_be_removed, name))
+        KidGap(10.dp)
+        KidSubtitle(stringResource(R.string.pin_cant_be_removed_subtitle))
+        KidGap(28.dp)
+        KidButton(
+            stringResource(R.string.pin_ok),
+            onClick = onDismissRequest,
+            minWidth = 180.dp,
+            modifier = Modifier.focusRequester(firstFocus),
         )
     }
 }

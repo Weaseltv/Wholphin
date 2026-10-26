@@ -101,6 +101,8 @@ fun UserList(
     pictureVersions: Map<UUID, Int> = emptyMap(),
     onChangePin: ((JellyfinUser) -> Unit)? = null,
     canChangePicture: (JellyfinUser) -> Boolean = { true },
+    onRemovePin: ((JellyfinUser) -> Unit)? = null,
+    canRemovePin: (JellyfinUser) -> Boolean = { false },
 ) {
     var showDeleteDialog by remember { mutableStateOf<JellyfinUserAndImage?>(null) }
 
@@ -223,6 +225,17 @@ fun UserList(
                                 Icons.Default.Lock,
                             ) {
                                 onChangePin.invoke(user.user)
+                            },
+                        )
+                    }
+                    // Owner 2026-10-25: adults with a PIN; on a TV with kids it says why it can't
+                    if (onRemovePin != null && user.known && canRemovePin(user.user)) {
+                        add(
+                            DialogItem(
+                                stringResource(R.string.remove_pin),
+                                Icons.Default.Lock,
+                            ) {
+                                onRemovePin.invoke(user.user)
                             },
                         )
                     }

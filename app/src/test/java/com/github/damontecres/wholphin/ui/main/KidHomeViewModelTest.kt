@@ -14,6 +14,7 @@ import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.PolicyState
 import com.github.damontecres.wholphin.data.model.SUPPORTED_HOME_PAGE_SETTINGS_VERSION
+import com.github.damontecres.wholphin.kids.onlineNetwork
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.HomePagePreferences
 import com.github.damontecres.wholphin.preferences.UserPreferences
@@ -273,6 +274,7 @@ class KidHomeViewModelTest {
             latestNextUpService = mockk(relaxed = true),
             streamingOrderService = mockk(relaxed = true),
             quickListService = mockk(relaxed = true),
+            networkAvailability = onlineNetwork(),
         )
     }
 

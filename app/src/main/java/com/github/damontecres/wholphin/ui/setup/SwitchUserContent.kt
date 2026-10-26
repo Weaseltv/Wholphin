@@ -75,6 +75,7 @@ import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.kids.AddKidFlow
 import com.github.damontecres.wholphin.ui.kids.ChooserChangePicture
 import com.github.damontecres.wholphin.ui.kids.ChooserChangePin
+import com.github.damontecres.wholphin.ui.kids.ChooserRemovePin
 import com.github.damontecres.wholphin.ui.kids.KidButton
 import com.github.damontecres.wholphin.ui.kids.KidErrorText
 import com.github.damontecres.wholphin.ui.kids.KidGap
@@ -124,6 +125,7 @@ fun SwitchUserContent(
     var showAddKid by remember { mutableStateOf(false) }
     var changePictureFor by remember { mutableStateOf<JellyfinUser?>(null) }
     var changePinFor by remember { mutableStateOf<JellyfinUser?>(null) }
+    var removePinFor by remember { mutableStateOf<JellyfinUser?>(null) }
     var showAddUser by remember { mutableStateOf(false) }
     var addUser by remember(server) { mutableStateOf<JellyfinUser?>(null) }
     var username by remember(addUser) { mutableStateOf(addUser?.name ?: "") }
@@ -241,7 +243,8 @@ fun SwitchUserContent(
 
     when (val st = state.loading) {
         is LoadingState.Error -> {
-            ErrorMessage(st, modifier)
+            // It also loads again by itself when the network comes back
+            ErrorMessage(st, modifier, onRetry = viewModel::loadUsers)
         }
 
         LoadingState.Loading,
@@ -359,6 +362,18 @@ fun SwitchUserContent(
                                     if (kidViewModel.canChangePin(user)) {
                                         viewModel.leaveForOtherAction()
                                         changePinFor = user
+                                    }
+                                }
+                            } else {
+                                null
+                            },
+                        canRemovePin = kidViewModel::canRemovePin,
+                        onRemovePin =
+                            if (BuildConfig.KID_PROFILES_ENABLED) {
+                                { user ->
+                                    if (kidViewModel.canRemovePin(user)) {
+                                        viewModel.leaveForOtherAction()
+                                        removePinFor = user
                                     }
                                 }
                             } else {
@@ -714,6 +729,20 @@ fun SwitchUserContent(
             changePin = kidViewModel::changePin,
             onDone = {
                 changePinFor = null
+                // The list shows the saved PIN rows again
+                viewModel.reloadUsers()
+            },
+        )
+    }
+    removePinFor?.let { user ->
+        ChooserRemovePin(
+            user = user,
+            gate = kidViewModel.gate,
+            refresh = kidViewModel::refreshed,
+            kidsOnTv = kidViewModel::kidsOnTv,
+            removePin = kidViewModel::removePin,
+            onDone = {
+                removePinFor = null
                 // The list shows the saved PIN rows again
                 viewModel.reloadUsers()
             },

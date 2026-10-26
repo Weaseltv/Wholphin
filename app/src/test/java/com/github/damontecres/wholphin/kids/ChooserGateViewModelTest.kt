@@ -114,6 +114,7 @@ class ChooserGateViewModelTest {
                 accountAvatars = mockk(relaxed = true),
                 pictures = mockk(relaxed = true),
                 savedProfileChecks = mockk(relaxed = true),
+                networkAvailability = onlineNetwork(),
                 server = server,
             )
     }
