@@ -21,12 +21,14 @@ import com.github.damontecres.wholphin.services.LatestNextUpService
 import com.github.damontecres.wholphin.services.MediaManagementService
 import com.github.damontecres.wholphin.services.NavDrawerService
 import com.github.damontecres.wholphin.services.NavigationManager
+import com.github.damontecres.wholphin.services.NetworkAvailability
 import com.github.damontecres.wholphin.services.ServerReportService
 import com.github.damontecres.wholphin.services.StreamingCollections
 import com.github.damontecres.wholphin.services.StreamingOrderService
 import com.github.damontecres.wholphin.services.StreamingQuickListService
 import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.deleteItem
+import com.github.damontecres.wholphin.services.isNetworkFailure
 import com.github.damontecres.wholphin.services.tvAccess
 import com.github.damontecres.wholphin.ui.data.RowColumn
 import com.github.damontecres.wholphin.ui.launchDefault
@@ -87,6 +89,7 @@ class HomeViewModel
         private val latestNextUpService: LatestNextUpService,
         private val streamingOrderService: StreamingOrderService,
         private val quickListService: StreamingQuickListService,
+        private val networkAvailability: NetworkAvailability,
     ) : ViewModel() {
         private val _state = MutableStateFlow(HomeState.EMPTY)
         val state: StateFlow<HomeState> = _state
@@ -117,10 +120,30 @@ class HomeViewModel
         }
 
         private fun requestLoad() {
+            reloadOnReconnect?.cancel()
+            reloadOnReconnect = null
             viewModelScope.launchIO {
                 exclusive { load(it) }
             }
         }
+
+        /** The load waiting for the network to come back after a failed one */
+        @Volatile
+        private var reloadOnReconnect: Job? = null
+
+        /** Owner 2026-10-25: a load that failed (eg the Shield just woke, its network not back yet) runs again once it is */
+        private fun reloadWhenOnline() {
+            reloadOnReconnect?.cancel()
+            reloadOnReconnect =
+                viewModelScope.launchIO {
+                    networkAvailability.awaitReconnect()
+                    Timber.i("Network is back, loading Home again")
+                    requestLoad()
+                }
+        }
+
+        /** Try again on Home's error page */
+        fun retry() = requestLoad()
 
         /** Runs [block] under [loadMutex] for the generation current then, as the [running] job */
         private suspend fun exclusive(block: suspend (generation: Long) -> Unit) {
@@ -180,6 +203,8 @@ class HomeViewModel
         private suspend fun load(generation: Long) {
             Timber.d("init HomeViewModel")
             try {
+                // Waking the Shield starts Home again before its network is back (owner 2026-10-25)
+                networkAvailability.awaitConnected()
                 // One generation: these settings, this user, its libraries and these preferences. The session first:
                 // Home's preferences are the device's (AppPreferences, not per profile), read once it's settled.
                 val (settings, userDto) =
@@ -296,6 +321,7 @@ class HomeViewModel
                         }
                     }
                 }
+                if (state.value.generation == generation && ex.isNetworkFailure()) reloadWhenOnline()
             }
         }
 

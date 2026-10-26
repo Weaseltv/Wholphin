@@ -243,7 +243,8 @@ fun SwitchUserContent(
 
     when (val st = state.loading) {
         is LoadingState.Error -> {
-            ErrorMessage(st, modifier)
+            // It also loads again by itself when the network comes back
+            ErrorMessage(st, modifier, onRetry = viewModel::loadUsers)
         }
 
         LoadingState.Loading,

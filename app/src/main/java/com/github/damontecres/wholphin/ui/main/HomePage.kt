@@ -156,7 +156,7 @@ fun HomePage(
 
     when (val state = loading) {
         is LoadingState.Error -> {
-            ErrorMessage(state, modifier)
+            ErrorMessage(state, modifier, onRetry = viewModel::retry)
         }
 
         LoadingState.Loading,

@@ -30,6 +30,7 @@ import com.github.damontecres.wholphin.services.Avatar
 import com.github.damontecres.wholphin.services.HomeTiming
 import com.github.damontecres.wholphin.services.ImageUrlService
 import com.github.damontecres.wholphin.services.NavigationManager
+import com.github.damontecres.wholphin.services.NetworkAvailability
 import com.github.damontecres.wholphin.services.ProfilePictureResult
 import com.github.damontecres.wholphin.services.ProfilePictureService
 import com.github.damontecres.wholphin.services.ProfilePictureTarget
@@ -95,6 +96,7 @@ class SwitchUserViewModel
         private val accountAvatars: AccountAvatars,
         private val pictures: ProfilePictureService,
         private val savedProfileChecks: SavedProfileChecks,
+        private val networkAvailability: NetworkAvailability,
         @Assisted val server: JellyfinServer,
     ) : ViewModel() {
         @AssistedFactory
@@ -144,11 +146,53 @@ class SwitchUserViewModel
                     serverRepository.switchServerOrUser()
                 }
             }
+            _state.update { SwitchUserState() }
+            loadUsers()
+
             viewModelScope.launchIO {
-                _state.update { SwitchUserState() }
                 try {
-                    val serverUsers = getUsers()
-                    val (serverVersion, supported) = checkServerVersion()
+                    val quickConnect =
+                        networkAvailability.whenConnected {
+                            jellyfin
+                                .createApi(
+                                    server.url,
+                                    httpClientOptions =
+                                        HttpClientOptions(
+                                            requestTimeout = 6.seconds,
+                                            connectTimeout = 6.seconds,
+                                            socketTimeout = 6.seconds,
+                                        ),
+                                ).quickConnectApi
+                                .getQuickConnectEnabled()
+                                .content
+                        }
+                    _state.update { it.copy(quickConnectEnabled = quickConnect) }
+                } catch (_: CancellationException) {
+                    // no-op, user may have canceled
+                } catch (ex: Exception) {
+                    Timber.w(ex, "Error checking quick connect for server ${server.url}")
+                    _state.update { it.copy(quickConnectEnabled = false) }
+                }
+            }
+        }
+
+        /** The load waiting for the network to come back after a failed one */
+        private var reloadOnReconnect: Job? = null
+
+        /**
+         * The profiles and the server version. Owner 2026-10-25: waking the Shield opens this page before its network
+         * is back, so the load waits for one; one that still fails loads again by itself when the network returns, or
+         * from Try again.
+         */
+        fun loadUsers() {
+            reloadOnReconnect?.cancel()
+            reloadOnReconnect = null
+            viewModelScope.launchIO {
+                _state.update { it.copy(loading = LoadingState.Loading) }
+                try {
+                    val (serverUsers, version) =
+                        networkAvailability.whenConnected { getUsers() to checkServerVersion() }
+                    val (serverVersion, supported) = version
                     _state.update {
                         it.copy(
                             loading = LoadingState.Success,
@@ -158,6 +202,8 @@ class SwitchUserViewModel
                         )
                     }
                     if (BuildConfig.KID_PROFILES_ENABLED) viewModelScope.launchIO { syncAccountProfiles() }
+                } catch (ex: CancellationException) {
+                    throw ex
                 } catch (ex: Exception) {
                     Timber.e(ex, "Error fetching users for server $server")
                     _state.update {
@@ -165,29 +211,12 @@ class SwitchUserViewModel
                             loading = LoadingState.Error(ex),
                         )
                     }
-                }
-            }
-
-            viewModelScope.launchIO {
-                try {
-                    val quickConnect by
-                        jellyfin
-                            .createApi(
-                                server.url,
-                                httpClientOptions =
-                                    HttpClientOptions(
-                                        requestTimeout = 6.seconds,
-                                        connectTimeout = 6.seconds,
-                                        socketTimeout = 6.seconds,
-                                    ),
-                            ).quickConnectApi
-                            .getQuickConnectEnabled()
-                    _state.update { it.copy(quickConnectEnabled = quickConnect) }
-                } catch (_: CancellationException) {
-                    // no-op, user may have canceled
-                } catch (ex: Exception) {
-                    Timber.w(ex, "Error checking quick connect for server ${server.url}")
-                    _state.update { it.copy(quickConnectEnabled = false) }
+                    reloadOnReconnect =
+                        viewModelScope.launchIO {
+                            networkAvailability.awaitReconnect()
+                            Timber.i("Network is back, loading the profiles again")
+                            loadUsers()
+                        }
                 }
             }
         }
