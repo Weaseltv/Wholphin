@@ -29,6 +29,7 @@ import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.RailAccents
 import com.github.damontecres.wholphin.ui.theme.sectionAccent
+import org.jellyfin.sdk.model.api.CollectionType
 
 /** Body text of a card: at least 18 sp on the TV (plan 3.3) */
 @Composable
@@ -85,8 +86,7 @@ fun RemoteCardText(ctx: TourContext) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         KeyLine(listOf("▲", "▼", "◀", "▶"), stringResource(R.string.tour_remote_arrows))
         KeyLine(listOf("OK"), stringResource(R.string.tour_remote_ok))
-        // Kid pages have no long-press menus
-        if (!ctx.isKid) TourBody(stringResource(R.string.tour_remote_hold_ok))
+        TourBody(stringResource(R.string.tour_remote_hold_ok))
         KeyLine(listOf("BACK"), stringResource(R.string.tour_remote_back))
         KeyLine(listOf("⏯"), stringResource(R.string.tour_remote_play))
     }
@@ -237,4 +237,132 @@ fun RailGlyph(
             Box(Modifier.size(12.dp).background(accent.copy(alpha = if (icon is RailIcon.Item && icon.item is ServerNavDrawerItem) .8f else 1f)))
         }
     }
+}
+
+/** Plain lines of body text, [spacing] apart */
+@Composable
+fun TourLines(
+    vararg lines: String?,
+    spacing: Int = 12,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.dp)) {
+        lines.filterNotNull().forEach { TourBody(it) }
+    }
+}
+
+@Composable
+fun HomeCardText(ctx: TourContext) {
+    TourLines(
+        stringResource(R.string.tour_home_top),
+        stringResource(if (ctx.isKid) R.string.tour_home_rows_kid else R.string.tour_home_rows),
+        stringResource(R.string.tour_home_view_more),
+        stringResource(R.string.tour_home_hold),
+    )
+}
+
+@Composable
+fun TitleCardText(ctx: TourContext) {
+    if (ctx.isKid) {
+        TourLines(
+            stringResource(R.string.tour_title_play_kid),
+            stringResource(R.string.tour_title_watchlist_kid),
+            stringResource(R.string.tour_title_shows),
+        )
+    } else {
+        TourLines(
+            stringResource(R.string.tour_title_play),
+            stringResource(R.string.tour_title_watchlist),
+            stringResource(R.string.tour_title_more),
+            stringResource(R.string.tour_title_shows),
+        )
+    }
+}
+
+@Composable
+fun WatchingCardText(ctx: TourContext) {
+    if (ctx.externalPlayer) {
+        TourLines(stringResource(R.string.tour_watch_external))
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        TourBody(stringResource(if (ctx.oneClickPause) R.string.tour_watch_show_one_click else R.string.tour_watch_show))
+        KeyLine(
+            listOf("◀", "▶"),
+            stringResource(R.string.tour_watch_skip, ctx.skipBackSeconds.toInt(), ctx.skipForwardSeconds.toInt()),
+        )
+        TourBody(stringResource(R.string.tour_watch_tracks))
+        TourBody(stringResource(R.string.tour_watch_back))
+    }
+}
+
+@Composable
+fun SearchCardText(ctx: TourContext) {
+    TourLines(
+        stringResource(R.string.tour_search_body),
+        ctx.requestsLabel?.let { stringResource(R.string.tour_search_requests, it, stringResource(R.string.requests_history)) },
+    )
+}
+
+@Composable
+fun SettingsCardText() {
+    TourLines(
+        stringResource(R.string.tour_settings_body),
+        stringResource(R.string.tour_settings_help),
+    )
+}
+
+/** One page (up to [MENU_PAGE_SIZE] rows) of the full menu, in its order, with its labels and icons */
+@Composable
+fun MenuInventoryText(
+    ctx: TourContext,
+    page: Int,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        ctx.rail.drop(page * MENU_PAGE_SIZE).take(MENU_PAGE_SIZE).forEach { row ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RailGlyph(railIcon(row))
+                Column {
+                    TourBody(railDescription(ctx, row.id))
+                    if (row.item == NavDrawerItem.More && ctx.moreRows.isNotEmpty()) {
+                        TourBody(
+                            stringResource(R.string.tour_menu_more_items, row.label, joinLabels(ctx.moreRows.map { it.label })),
+                            color = NeonBoard.Mid,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+const val MENU_PAGE_SIZE = 5
+
+fun railIcon(row: TourRailRow): RailIcon =
+    when (row.id) {
+        TourRailIds.PROFILE -> RailIcon.Fixed(null, RailAccents.User)
+        TourRailIds.NOW_PLAYING -> RailIcon.Fixed(null, RailAccents.NowPlaying)
+        TourRailIds.SEARCH -> RailIcon.Fixed(WeaselNavIcons.SEARCH, RailAccents.Search)
+        TourRailIds.HOME -> RailIcon.Fixed(WeaselNavIcons.HOME, RailAccents.Home)
+        TourRailIds.SETTINGS -> RailIcon.Fixed(WeaselNavIcons.SETTINGS, RailAccents.Settings)
+        else -> row.item?.let { RailIcon.Item(it) } ?: RailIcon.Fixed(null, NeonBoard.Volt)
+    }
+
+@Composable
+fun CollectionsCardText(ctx: TourContext) {
+    val collections = ctx.allLibraries.firstOrNull { it.type == CollectionType.BOXSETS }
+    val playlists = ctx.allLibraries.firstOrNull { it.type == CollectionType.PLAYLISTS }
+    TourLines(
+        collections?.let { stringResource(R.string.tour_collections_body, it.name) },
+        playlists?.let { stringResource(R.string.tour_playlists_body, it.name) }
+            ?: stringResource(R.string.tour_playlists_none),
+    )
+}
+
+@Composable
+fun LiveTvCardText(ctx: TourContext) {
+    val live = ctx.allLibraries.firstOrNull { it.type == CollectionType.LIVETV } ?: return
+    TourLines(stringResource(R.string.tour_live_body, live.name))
 }

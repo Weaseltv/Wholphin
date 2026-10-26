@@ -196,7 +196,7 @@ private fun TourCardsPage(
                         .semantics { liveRegion = LiveRegionMode.Polite },
             ) {
                 Text(
-                    text = stringResource(card.title),
+                    text = card.title(ctx),
                     style = NeonType.dialogTitle(),
                     color = NeonBoard.Text,
                     modifier = Modifier.semantics { heading() },

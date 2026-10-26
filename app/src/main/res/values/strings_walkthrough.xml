@@ -82,4 +82,93 @@
 
     <!-- Leaving -->
     <string name="tour_left_toast">You can take the tour any time from Settings → Help.</string>
+    <!-- 4. Home -->
+    <string name="tour_home_title">Home</string>
+    <string name="tour_home_top">The top shows details for whatever you\'re on.</string>
+    <string name="tour_home_rows">Rows include Next Up &amp; Continue watching, Streaming Services and Recently Added.</string>
+    <string name="tour_home_rows_kid">Rows include Next up &amp; continue watching and Watch again.</string>
+    <string name="tour_home_view_more">A full row ends with an arrow that opens the whole list.</string>
+    <string name="tour_home_hold">Hold OK on a poster for options like Add to Watchlist. ⏯ plays a movie or episode straight away.</string>
+    <string name="tour_home_streaming_title">Streaming Services</string>
+    <string name="tour_home_streaming">In Streaming Services, press OK on a service to see what WeaselPlex has from it, with All, Movies and Shows.</string>
+    <string name="tour_home_customize_title">Make Home yours</string>
+    <string name="tour_home_customize">Choose rows and pictures in Settings → Customize home page.</string>
+    <string name="tour_home_back">BACK on Home opens the menu. Press BACK again to leave WeaselPlex.</string>
+
+    <!-- 5. A title's page -->
+    <string name="tour_title_title">A title\'s page</string>
+    <string name="tour_title_play">Play, or Resume where you left off. Restart starts over.</string>
+    <string name="tour_title_watchlist">Add to Watchlist saves it for later.</string>
+    <string name="tour_title_more">More has audio, subtitles and versions.</string>
+    <string name="tour_title_shows">Shows list their seasons; pick one to see its episodes.</string>
+    <string name="tour_title_play_kid">Play, or Keep watching where you left off. Start over starts again.</string>
+    <string name="tour_title_watchlist_kid">Watchlist saves it for later.</string>
+    <string name="tour_title_extras_title">More on a title\'s page</string>
+    <string name="tour_title_trailer">Play trailer, when the title has one.</string>
+    <string name="tour_title_watched">Mark as watched, so it leaves Next Up.</string>
+    <string name="tour_title_rows">Further down: People, More like this and, on shows, Cast &amp; Crew.</string>
+    <string name="tour_title_request_title">Titles not in WeaselPlex yet</string>
+    <string name="tour_title_request">Some pages are for titles WeaselPlex doesn\'t have yet. Their first button is Request. It then shows Pending, and Go To once it\'s ready to watch.</string>
+
+    <!-- 6. Watching -->
+    <string name="tour_watch_title">Watching</string>
+    <string name="tour_watch_show">Press OK or ▼ to show the controls.</string>
+    <string name="tour_watch_show_one_click">Press ▼ to show the controls. OK pauses and plays, because Pause with one click is on.</string>
+    <string name="tour_watch_skip">jump back %1$d s or ahead %2$d s.</string>
+    <string name="tour_watch_tracks">In the controls, CC is subtitles and the speaker is audio.</string>
+    <string name="tour_watch_back">BACK hides the controls; press it again to stop.</string>
+    <string name="tour_watch_external">You\'ve chosen another player app, so its own controls apply.</string>
+    <string name="tour_watch_more_title">More while watching</string>
+    <string name="tour_watch_skip_intro">Skip Intro appears by itself when a show has one. Press OK to skip.</string>
+    <string name="tour_watch_next_up">At the end, Next Up… counts down to the next episode. BACK stops the countdown.</string>
+    <string name="tour_watch_gear">The ⚙ button has Playback Speed and Video Scale.</string>
+    <string name="tour_watch_subtitle_style">Change how subtitles look in Settings → Subtitle style.</string>
+
+    <!-- 7. Search & Requests -->
+    <string name="tour_search_title">Search</string>
+    <string name="tour_search_requests_title">Search &amp; Requests</string>
+    <string name="tour_search_body">Search by typing, or with the mic button on the Search page.</string>
+    <string name="tour_search_requests">Can\'t find something? Request it, then follow it in %1$s → %2$s.</string>
+    <string name="tour_search_tabs">Search has a Library tab and a %1$s tab, for titles WeaselPlex doesn\'t have yet.</string>
+    <string name="tour_requests_more_title">Asking for a title</string>
+    <string name="tour_requests_seasons">Request a whole show, or pick the seasons you want and press Submit.</string>
+    <string name="tour_requests_status">The title\'s page shows Pending until it\'s added, then Go To.</string>
+
+    <!-- 8. Make it yours -->
+    <string name="tour_settings_card_title">Make it yours</string>
+    <string name="tour_settings_body">Settings: customise Home and the menu, add a PIN to your profile, change subtitle style.</string>
+    <string name="tour_settings_help">Want more detail on any part? Settings → Help.</string>
+    <string name="tour_settings_profiles_title">Profiles and PINs</string>
+    <string name="tour_settings_pin">Profile protection adds a PIN to your profile, or asks you to sign in every time.</string>
+    <string name="tour_settings_picture">Profile picture changes your picture.</string>
+    <string name="tour_settings_people">Switch profile or add someone from You at the top of the menu. New people sign in with the same QR code.</string>
+    <string name="tour_settings_updates_title">Updates and this tour</string>
+    <string name="tour_settings_updates">WeaselPlex tells you when there\'s an update. You can also look in Settings → Check for updates.</string>
+    <string name="tour_settings_tour">This tour is always in Settings → Help → WeaselPlex tour.</string>
+
+    <!-- Menu chapter: full inventory and changing the menu -->
+    <string name="tour_menu_list_title">Everything in your menu</string>
+    <string name="tour_menu_list_title_more">Everything in your menu (%1$d of %2$d)</string>
+    <string name="tour_menu_change_title">Changing the menu</string>
+    <string name="tour_menu_change">Choose which items the menu shows in Settings → Customize Navigation Drawer Items. The others go under More.</string>
+    <string name="tour_menu_more_items">Under %1$s: %2$s.</string>
+
+    <!-- Collections & Playlists -->
+    <string name="tour_collections_title">Collections &amp; Playlists</string>
+    <string name="tour_collections_body">%1$s groups films that belong together, like a series of movies.</string>
+    <string name="tour_playlists_body">%1$s holds your own lists. Hold OK on a title and choose Add to playlist.</string>
+    <string name="tour_playlists_none">Hold OK on a title and choose Add to playlist to start your own list. Playlists then appears in the menu.</string>
+
+    <!-- Live TV -->
+    <string name="tour_live_title">Live TV</string>
+    <string name="tour_live_body">%1$s in the menu has the guide. Pick a show to watch it live.</string>
+
+    <!-- Illustrations -->
+    <string name="tour_ill_row_next_up">Next Up &amp; Continue watching</string>
+    <string name="tour_ill_row_streaming">Streaming Services</string>
+    <string name="tour_ill_search">Search</string>
+    <string name="tour_ill_row_next_up_kid">Next up &amp; continue watching</string>
+    <string name="tour_ill_start_over">Start over</string>
+    <string name="tour_ill_watchlist_kid">Watchlist</string>
+    <string name="tour_ill_library">Library</string>
 </resources>

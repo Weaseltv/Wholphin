@@ -3,6 +3,7 @@ package com.github.damontecres.wholphin.ui.walkthrough
 import android.content.Context
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.preferences.PlayerBackend
 import com.github.damontecres.wholphin.preferences.UserPreferences
@@ -109,13 +110,17 @@ class TourCard(
     val id: String,
     val chapter: TourChapter,
     val depth: TourDepth,
-    @param:StringRes val title: Int,
+    val title: @Composable (TourContext) -> String,
     val isAvailable: (TourContext) -> Boolean = { true },
     /** The live menu step: text only, and Previous is hidden so Next is the leftmost button */
     val liveMenuStep: Boolean = false,
     val illustration: (@Composable (TourContext) -> Unit)? = null,
     val content: @Composable (TourContext, TourCardState) -> Unit,
 )
+
+private fun res(
+    @StringRes id: Int,
+): @Composable (TourContext) -> String = { stringResource(id) }
 
 /** State the page hands to a card: only the live menu step uses it */
 data class TourCardState(
@@ -142,34 +147,270 @@ object TourCards {
     const val REMOTE = "remote"
     const val MENU_LIVE = "menu_live"
     const val MENU_WHERE = "menu_where"
+    const val HOME = "home"
+    const val TITLE = "title"
+    const val WATCHING = "watching"
+    const val SEARCH = "search"
+    const val SETTINGS = "settings"
+
+    /** Enough pages of [MENU_PAGE_SIZE] rows for any menu */
+    private const val MENU_PAGES = 6
 
     /** Every card, in tour order. Essentials make up the sign-in tour; a chapter shows its essentials, then details. */
     val all: List<TourCard> =
-        listOf(
-            TourCard(
-                id = REMOTE,
-                chapter = TourChapter.REMOTE,
-                depth = TourDepth.ESSENTIAL,
-                title = R.string.tour_remote_title,
-                illustration = { RemoteIllustration() },
-                content = { ctx, _ -> RemoteCardText(ctx) },
-            ),
-            TourCard(
-                id = MENU_LIVE,
-                chapter = TourChapter.MENU,
-                depth = TourDepth.ESSENTIAL,
-                title = R.string.tour_menu_try_title,
-                liveMenuStep = true,
-                content = { ctx, state -> MenuTryCardText(ctx, state) },
-            ),
-            TourCard(
-                id = MENU_WHERE,
-                chapter = TourChapter.MENU,
-                depth = TourDepth.ESSENTIAL,
-                title = R.string.tour_where_title,
-                content = { ctx, _ -> WhereEverythingIsText(ctx) },
-            ),
-        )
+        buildList {
+            add(
+                TourCard(
+                    id = REMOTE,
+                    chapter = TourChapter.REMOTE,
+                    depth = TourDepth.ESSENTIAL,
+                    title = res(R.string.tour_remote_title),
+                    illustration = { RemoteIllustration() },
+                    content = { ctx, _ -> RemoteCardText(ctx) },
+                ),
+            )
+            add(
+                TourCard(
+                    id = MENU_LIVE,
+                    chapter = TourChapter.MENU,
+                    depth = TourDepth.ESSENTIAL,
+                    title = res(R.string.tour_menu_try_title),
+                    liveMenuStep = true,
+                    content = { ctx, state -> MenuTryCardText(ctx, state) },
+                ),
+            )
+            add(
+                TourCard(
+                    id = MENU_WHERE,
+                    chapter = TourChapter.MENU,
+                    depth = TourDepth.ESSENTIAL,
+                    title = res(R.string.tour_where_title),
+                    content = { ctx, _ -> WhereEverythingIsText(ctx) },
+                ),
+            )
+            // Menu chapter: the whole menu, a page of rows at a time
+            repeat(MENU_PAGES) { page ->
+                add(
+                    TourCard(
+                        id = "menu_list_$page",
+                        chapter = TourChapter.MENU,
+                        depth = TourDepth.DETAIL,
+                        title = { ctx ->
+                            val pages = (ctx.rail.size + MENU_PAGE_SIZE - 1) / MENU_PAGE_SIZE
+                            if (pages > 1) {
+                                stringResource(R.string.tour_menu_list_title_more, page + 1, pages)
+                            } else {
+                                stringResource(R.string.tour_menu_list_title)
+                            }
+                        },
+                        isAvailable = { ctx -> ctx.rail.size > page * MENU_PAGE_SIZE },
+                        content = { ctx, _ -> MenuInventoryText(ctx, page) },
+                    ),
+                )
+            }
+            add(
+                TourCard(
+                    id = "menu_change",
+                    chapter = TourChapter.MENU,
+                    depth = TourDepth.DETAIL,
+                    title = res(R.string.tour_menu_change_title),
+                    isAvailable = { it.hasSettings },
+                    content = { _, _ ->
+                        TourLines(
+                            stringResource(R.string.tour_menu_change),
+                            stringResource(R.string.tour_settings_people),
+                        )
+                    },
+                ),
+            )
+            add(
+                TourCard(
+                    id = HOME,
+                    chapter = TourChapter.HOME,
+                    depth = TourDepth.ESSENTIAL,
+                    title = res(R.string.tour_home_title),
+                    illustration = { HomeIllustration(it) },
+                    content = { ctx, _ -> HomeCardText(ctx) },
+                ),
+            )
+            add(
+                TourCard(
+                    id = "home_streaming",
+                    chapter = TourChapter.HOME,
+                    depth = TourDepth.DETAIL,
+                    title = res(R.string.tour_home_streaming_title),
+                    isAvailable = { !it.isKid },
+                    content = { _, _ -> TourLines(stringResource(R.string.tour_home_streaming)) },
+                ),
+            )
+            add(
+                TourCard(
+                    id = "home_customize",
+                    chapter = TourChapter.HOME,
+                    depth = TourDepth.DETAIL,
+                    title = res(R.string.tour_home_customize_title),
+                    content = { ctx, _ ->
+                        TourLines(
+                            if (ctx.hasSettings) stringResource(R.string.tour_home_customize) else null,
+                            stringResource(R.string.tour_home_back),
+                        )
+                    },
+                ),
+            )
+            add(
+                TourCard(
+                    id = TITLE,
+                    chapter = TourChapter.TITLE,
+                    depth = TourDepth.ESSENTIAL,
+                    title = res(R.string.tour_title_title),
+                    illustration = { TitleIllustration(it) },
+                    content = { ctx, _ -> TitleCardText(ctx) },
+                ),
+            )
+            add(
+                TourCard(
+                    id = "title_extras",
+                    chapter = TourChapter.TITLE,
+                    depth = TourDepth.DETAIL,
+                    title = res(R.string.tour_title_extras_title),
+                    isAvailable = { !it.isKid },
+                    content = { _, _ ->
+                        TourLines(
+                            stringResource(R.string.tour_title_trailer),
+                            stringResource(R.string.tour_title_watched),
+                            stringResource(R.string.tour_title_rows),
+                        )
+                    },
+                ),
+            )
+            add(
+                TourCard(
+                    id = "title_request",
+                    chapter = TourChapter.TITLE,
+                    depth = TourDepth.DETAIL,
+                    title = res(R.string.tour_title_request_title),
+                    isAvailable = { it.hasRequests },
+                    content = { _, _ -> TourLines(stringResource(R.string.tour_title_request)) },
+                ),
+            )
+            add(
+                TourCard(
+                    id = WATCHING,
+                    chapter = TourChapter.WATCHING,
+                    depth = TourDepth.ESSENTIAL,
+                    title = res(R.string.tour_watch_title),
+                    illustration = { PlayerIllustration(it) },
+                    content = { ctx, _ -> WatchingCardText(ctx) },
+                ),
+            )
+            add(
+                TourCard(
+                    id = "watch_more",
+                    chapter = TourChapter.WATCHING,
+                    depth = TourDepth.DETAIL,
+                    title = res(R.string.tour_watch_more_title),
+                    isAvailable = { !it.externalPlayer },
+                    content = { ctx, _ ->
+                        TourLines(
+                            stringResource(R.string.tour_watch_skip_intro),
+                            stringResource(R.string.tour_watch_next_up),
+                            stringResource(R.string.tour_watch_gear),
+                            if (ctx.hasSettings) stringResource(R.string.tour_watch_subtitle_style) else null,
+                        )
+                    },
+                ),
+            )
+            add(
+                TourCard(
+                    id = SEARCH,
+                    chapter = TourChapter.SEARCH,
+                    depth = TourDepth.ESSENTIAL,
+                    title = { ctx ->
+                        stringResource(if (ctx.hasRequests) R.string.tour_search_requests_title else R.string.tour_search_title)
+                    },
+                    illustration = { SearchIllustration(it) },
+                    content = { ctx, _ -> SearchCardText(ctx) },
+                ),
+            )
+            add(
+                TourCard(
+                    id = "requests_more",
+                    chapter = TourChapter.SEARCH,
+                    depth = TourDepth.DETAIL,
+                    title = res(R.string.tour_requests_more_title),
+                    isAvailable = { it.hasRequests },
+                    content = { ctx, _ ->
+                        TourLines(
+                            stringResource(R.string.tour_search_tabs, ctx.requestsLabel ?: ""),
+                            stringResource(R.string.tour_requests_seasons),
+                            stringResource(R.string.tour_requests_status),
+                        )
+                    },
+                ),
+            )
+            add(
+                TourCard(
+                    id = "collections",
+                    chapter = TourChapter.COLLECTIONS,
+                    depth = TourDepth.DETAIL,
+                    title = res(R.string.tour_collections_title),
+                    isAvailable = { it.hasCollections },
+                    content = { ctx, _ -> CollectionsCardText(ctx) },
+                ),
+            )
+            add(
+                TourCard(
+                    id = "live_tv",
+                    chapter = TourChapter.LIVE_TV,
+                    depth = TourDepth.DETAIL,
+                    title = res(R.string.tour_live_title),
+                    isAvailable = { it.hasLiveTv },
+                    content = { ctx, _ -> LiveTvCardText(ctx) },
+                ),
+            )
+            add(
+                TourCard(
+                    id = SETTINGS,
+                    chapter = TourChapter.SETTINGS,
+                    depth = TourDepth.ESSENTIAL,
+                    title = res(R.string.tour_settings_card_title),
+                    // Kids have no Settings
+                    isAvailable = { it.hasSettings },
+                    content = { _, _ -> SettingsCardText() },
+                ),
+            )
+            add(
+                TourCard(
+                    id = "settings_profiles",
+                    chapter = TourChapter.SETTINGS,
+                    depth = TourDepth.DETAIL,
+                    title = res(R.string.tour_settings_profiles_title),
+                    isAvailable = { it.hasSettings },
+                    content = { _, _ ->
+                        TourLines(
+                            stringResource(R.string.tour_settings_pin),
+                            stringResource(R.string.tour_settings_picture),
+                            stringResource(R.string.tour_settings_people),
+                        )
+                    },
+                ),
+            )
+            add(
+                TourCard(
+                    id = "settings_updates",
+                    chapter = TourChapter.SETTINGS,
+                    depth = TourDepth.DETAIL,
+                    title = res(R.string.tour_settings_updates_title),
+                    isAvailable = { it.hasSettings },
+                    content = { _, _ ->
+                        TourLines(
+                            stringResource(R.string.tour_settings_updates),
+                            stringResource(R.string.tour_settings_tour),
+                        )
+                    },
+                ),
+            )
+        }
 
     /** The sign-in tour (essentials), or [chapter]'s essentials then its details; only what [ctx] has */
     fun visible(
