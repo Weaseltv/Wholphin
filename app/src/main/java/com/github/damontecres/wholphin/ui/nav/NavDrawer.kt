@@ -333,9 +333,14 @@ private fun coachMarkRail(
         }
 
     override suspend fun bringIntoView(step: CoachMarkStep) {
+        // The whole menu from the top, so profile, Search and Home all show as the menu steps begin
+        if (step == CoachMarkStep.MENU || step == CoachMarkStep.PROFILE) {
+            if (state.firstVisibleItemIndex != 0 || state.firstVisibleItemScrollOffset != 0) state.animateScrollToItem(0)
+            return
+        }
         val rows =
             when (step) {
-                CoachMarkStep.MENU, CoachMarkStep.SEARCH -> 0..0
+                CoachMarkStep.SEARCH -> 0..0
                 CoachMarkStep.HOME -> 1..1
                 CoachMarkStep.WATCHLIST -> items.indexOf(NavDrawerItem.Favorites).let { 2 + it..2 + it }
                 CoachMarkStep.REQUESTS -> items.indexOf(NavDrawerItem.Discover).let { 2 + it..2 + it }

@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.ui.coachmark
 
+import android.os.SystemClock
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -95,15 +96,20 @@ fun CoachMarkOverlay(
 ) {
     DisposableEffect(tour) { onDispose { tour.end() } }
 
-    // Started from Settings: wait for Home and its rows to be on screen, and for the move there to settle
+    // Started from Settings or by a new account: wait for Home, then for it to focus the starting row, and for the move
+    // there to settle. Home not coming up within a minute (still signing in, or gone elsewhere) drops it.
     if (tour.pending) {
         LaunchedEffect(Unit) {
-            withTimeoutOrNull(5_000) {
-                while (navigationManager.backStack.lastOrNull() !is Destination.Home ||
-                    tour.bounds(CoachMarkStep.HOME_ROW) == null
-                ) {
-                    delay(100)
+            val home =
+                withTimeoutOrNull(60_000 - (SystemClock.uptimeMillis() - tour.pendingSince)) {
+                    while (navigationManager.backStack.lastOrNull() !is Destination.Home) delay(100)
                 }
+            if (home == null) {
+                tour.end()
+                return@LaunchedEffect
+            }
+            withTimeoutOrNull(10_000) {
+                while (!tour.homeRowReady || tour.bounds(CoachMarkStep.HOME_ROW) == null) delay(100)
             }
             delay(700)
             tour.begin()

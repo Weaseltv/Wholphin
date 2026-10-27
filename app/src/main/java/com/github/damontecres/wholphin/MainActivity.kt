@@ -216,6 +216,13 @@ class MainActivity : AppCompatActivity() {
             navigationManager.backStack = NavBackStack(Destination.Home())
         }
 
+        if (BuildConfig.COACH_MARK_TOUR_ENABLED) {
+            // A new account on this TV gets the tour once Home is up
+            viewModel.serverRepository.newAccounts
+                .onEach { withContext(WholphinDispatchers.Main) { coachMarkTour.start() } }
+                .launchIn(lifecycleScope)
+        }
+
         viewModel.serverRepository.currentUserFlow
             .onEach { user ->
                 withContext(WholphinDispatchers.Main) {

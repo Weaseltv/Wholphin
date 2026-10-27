@@ -117,18 +117,24 @@ class CoachMarkTour
 
         val active get() = pending || state != null
 
+        /** Set by Home once the row the tour starts on (Movies, Top of the Charts) has focus, or it has no such row */
+        var homeRowReady by mutableStateOf(false)
+
+        /** When [start] was asked for; the overlay gives up if Home doesn't come up soon after */
+        var pendingSince = 0L
+            private set
+
         /** Set by the menu while it's on screen */
         var rail: CoachMarkRail? = null
 
         /** Keys pressed down while the tour ran; a key only acts when it comes back up, so a stray release never does */
         private val downKeys = mutableSetOf<Int>()
 
-        private var pendingSince = 0L
-
         fun start() {
             Timber.i("Coach-mark tour requested")
             state = null
             downKeys.clear()
+            homeRowReady = false
             pendingSince = SystemClock.uptimeMillis()
             pending = true
         }
@@ -161,22 +167,16 @@ class CoachMarkTour
 
         /** True when the tour took the key */
         fun onKey(event: KeyEvent): Boolean {
-            if (!active) return false
-            // Never keep the remote if Home didn't come up to start it (the overlay gives up after about 6 s)
-            if (state == null && SystemClock.uptimeMillis() - pendingSince > 8_000) {
-                end()
-                return false
-            }
+            // Waiting for Home (a new account may still be signing in): the remote works as usual
+            if (state == null) return false
             val code = event.keyCode
             if (code !in handledKeys) return false
             if (event.action == KeyEvent.ACTION_DOWN) {
                 if (event.repeatCount == 0) downKeys.add(code)
-                val s = state
-                if (s != null) {
-                    when (code) {
-                        KeyEvent.KEYCODE_DPAD_LEFT -> state = s.copy(skipSelected = false)
-                        KeyEvent.KEYCODE_DPAD_RIGHT -> if (!s.isLast) state = s.copy(skipSelected = true)
-                    }
+                val s = state ?: return true
+                when (code) {
+                    KeyEvent.KEYCODE_DPAD_LEFT -> state = s.copy(skipSelected = false)
+                    KeyEvent.KEYCODE_DPAD_RIGHT -> if (!s.isLast) state = s.copy(skipSelected = true)
                 }
                 return true
             }

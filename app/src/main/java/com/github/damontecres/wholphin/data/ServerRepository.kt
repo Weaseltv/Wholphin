@@ -26,7 +26,9 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
@@ -76,6 +78,11 @@ class ServerRepository
 
         private var _current = MutableStateFlow<CurrentUser?>(null)
         val current: StateFlow<CurrentUser?> = _current
+
+        private val _newAccounts = MutableSharedFlow<CurrentUser>(extraBufferCapacity = 1)
+
+        /** Adults signed in on this TV for the first time (not a saved account signing in again), as they're entered */
+        val newAccounts: SharedFlow<CurrentUser> = _newAccounts
 
         private val _sessionEpoch = MutableStateFlow(0L)
 
@@ -720,6 +727,7 @@ class ServerRepository
                         }
                     if (user != null) {
                         return@withContext switchUser(server, user, beforePublish, authorize, entryOwner, newPin, displayName)
+                            .also { if (savedUser == null && it.user.profileKind == ProfileKind.ADULT) _newAccounts.tryEmit(it) }
                     } else {
                         throw IllegalArgumentException("Authentication result's user was null")
                     }

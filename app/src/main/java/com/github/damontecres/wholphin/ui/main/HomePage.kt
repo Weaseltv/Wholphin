@@ -82,6 +82,7 @@ import com.github.damontecres.wholphin.ui.cards.ItemRow
 import com.github.damontecres.wholphin.ui.cards.StudioCard
 import com.github.damontecres.wholphin.ui.cards.ViewMoreCard
 import com.github.damontecres.wholphin.ui.coachmark.CoachMarkIds
+import com.github.damontecres.wholphin.ui.coachmark.LocalCoachMarkTour
 import com.github.damontecres.wholphin.ui.coachmark.coachMarkTarget
 import com.github.damontecres.wholphin.ui.components.CircularProgress
 import com.github.damontecres.wholphin.ui.components.ContextMenu
@@ -485,6 +486,30 @@ fun HomePageContent(
                     withTimeoutOrNull(1_000) { snapshotFlow { visible() }.first { it } }
                     currentRequesters.getOrNull(action.row)?.tryRequestFocus()
                 }
+            }
+        }
+    }
+    // The WeaselPlex tour starts on Movies, Top of the Charts, the same row for everyone: focus its first poster, so the
+    // details at the top match it too. Without that row, it starts on the focused row once the rows have loaded.
+    val coachMarkTour = LocalCoachMarkTour.current
+    if (coachMarkTour != null && coachMarkTour.pending && !coachMarkTour.homeRowReady) {
+        val chartRow =
+            homeRows.indexOfFirst {
+                hasContent(it) &&
+                    ((it as HomeRowLoadingState.Success).rowType as? HomeRowConfig.JustWatch)?.list == JustWatchHomeList.MOVIE_CHART
+            }
+        val loaded = homeRows.isNotEmpty() && homeRows.all { it.completed }
+        LaunchedEffect(chartRow, loaded, firstFocused) {
+            // After Home's own first focus, which would otherwise take it back
+            if (!firstFocused && takeFocus) return@LaunchedEffect
+            if (chartRow >= 0) {
+                val visible = { listState.layoutInfo.visibleItemsInfo.any { it.index == chartRow } }
+                if (!visible()) listState.scrollToItem(chartRow)
+                withTimeoutOrNull(1_000) { snapshotFlow { visible() }.first { it } }
+                rowFocusRequesters.getOrNull(chartRow)?.tryRequestFocus()
+                coachMarkTour.homeRowReady = true
+            } else if (loaded) {
+                coachMarkTour.homeRowReady = true
             }
         }
     }
