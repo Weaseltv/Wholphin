@@ -81,6 +81,9 @@ import com.github.damontecres.wholphin.ui.cards.GenreCard
 import com.github.damontecres.wholphin.ui.cards.ItemRow
 import com.github.damontecres.wholphin.ui.cards.StudioCard
 import com.github.damontecres.wholphin.ui.cards.ViewMoreCard
+import com.github.damontecres.wholphin.ui.coachmark.CoachMarkIds
+import com.github.damontecres.wholphin.ui.coachmark.LocalCoachMarkTour
+import com.github.damontecres.wholphin.ui.coachmark.coachMarkTarget
 import com.github.damontecres.wholphin.ui.components.CircularProgress
 import com.github.damontecres.wholphin.ui.components.ContextMenu
 import com.github.damontecres.wholphin.ui.components.ContextMenuActions
@@ -486,6 +489,41 @@ fun HomePageContent(
             }
         }
     }
+    // The WeaselPlex tour starts on Movies, Top of the Charts, the same row for everyone: focus its first poster, so the
+    // details at the top match it too. Without that row, it starts on the focused row once the rows have loaded.
+    val coachMarkTour = LocalCoachMarkTour.current
+    if (coachMarkTour != null && coachMarkTour.pending && !coachMarkTour.homeRowReady) {
+        val chartRow =
+            homeRows.indexOfFirst {
+                hasContent(it) &&
+                    ((it as HomeRowLoadingState.Success).rowType as? HomeRowConfig.JustWatch)?.list == JustWatchHomeList.MOVIE_CHART
+            }
+        val loaded = homeRows.isNotEmpty() && homeRows.all { it.completed }
+        LaunchedEffect(chartRow, loaded, firstFocused) {
+            // After Home's own first focus, which would otherwise take it back
+            if (!firstFocused && takeFocus) return@LaunchedEffect
+            if (chartRow >= 0) {
+                val visible = { listState.layoutInfo.visibleItemsInfo.any { it.index == chartRow } }
+                if (!visible()) listState.scrollToItem(chartRow)
+                withTimeoutOrNull(1_000) { snapshotFlow { visible() }.first { it } }
+                rowFocusRequesters.getOrNull(chartRow)?.tryRequestFocus()
+                coachMarkTour.homeRowReady = true
+            } else if (loaded) {
+                coachMarkTour.homeRowReady = true
+            }
+        }
+    }
+    // Once the tour is closed, Home goes back to its top row
+    if (coachMarkTour?.homeToTop == true) {
+        LaunchedEffect(Unit) {
+            coachMarkTour.homeToTop = false
+            val first = homeRows.indexOfFirst(hasContent)
+            if (first < 0) return@LaunchedEffect
+            listState.scrollToItem(first)
+            withTimeoutOrNull(1_000) { snapshotFlow { listState.layoutInfo.visibleItemsInfo.any { it.index == first } }.first { it } }
+            rowFocusRequesters.getOrNull(first)?.tryRequestFocus()
+        }
+    }
     LaunchedEffect(onUpdateBackdrop, focusedItem) {
         focusedItem?.let { onUpdateBackdrop.invoke(it) }
     }
@@ -524,7 +562,10 @@ fun HomePageContent(
                 // copy must not lift the cards, then move them down for a long title.
                 fillHeight = isWeaselTv() && focusedRowHeight != null,
                 // Don't show the header at its unfitted size before the focused row is measured
-                modifier = Modifier.graphicsLayer { alpha = if (hideHeader) 0f else 1f },
+                modifier =
+                    Modifier
+                        .graphicsLayer { alpha = if (hideHeader) 0f else 1f }
+                        .coachMarkTarget(CoachMarkIds.HOME_HEADER),
             ) {
                 headerComposable.invoke(focusedItem)
             }
@@ -568,6 +609,8 @@ fun HomePageContent(
                 ) {
                     itemsIndexed(homeRows, key = if (keyed) { index, _ -> rowKeys!![index] } else null) { rowIndex, row ->
                         val reordering = reorder?.row == rowIndex
+                        // The tour spotlights the focused row's posters, leaving room above them for its card
+                        val coachRow = Modifier.coachMarkTarget(CoachMarkIds.HOME_ROW.takeIf { rowIndex == position.row })
                         val rowModifier =
                             Modifier
                                 .animateItem(placementSpec = null)
@@ -593,7 +636,7 @@ fun HomePageContent(
                                     FocusableItemRow(
                                         title = r.title.getString(),
                                         subtitle = stringResource(R.string.loading),
-                                        modifier = rowModifier,
+                                        modifier = rowModifier.then(coachRow),
                                     )
                                 }
 
@@ -602,7 +645,7 @@ fun HomePageContent(
                                         title = r.title.getString(),
                                         subtitle = r.localizedMessage,
                                         isError = true,
-                                        modifier = rowModifier,
+                                        modifier = rowModifier.then(coachRow),
                                     )
                                 }
 
@@ -657,6 +700,7 @@ fun HomePageContent(
                                                     .fillMaxWidth()
                                                     .focusGroup()
                                                     .focusRequester(rowFocusRequesters[rowIndex]),
+                                            cardsModifier = coachRow,
                                             horizontalPadding = viewOptions.spacing.dp,
                                             dividerGap = if (isWeaselTv()) viewOptions.dividerGapDp.dp else 8.dp,
                                             titleDividerGap = if (isWeaselTv()) viewOptions.titleDividerGapDp.dp else 4.dp,
@@ -804,7 +848,7 @@ fun HomePageContent(
                                         FocusableItemRow(
                                             title = r.title.getString(),
                                             subtitle = stringResource(R.string.no_results),
-                                            modifier = rowModifier,
+                                            modifier = rowModifier.then(coachRow),
                                         )
                                     }
                                 }

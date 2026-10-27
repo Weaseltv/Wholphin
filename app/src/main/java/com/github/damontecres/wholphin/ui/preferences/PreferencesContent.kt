@@ -79,6 +79,7 @@ import com.github.damontecres.wholphin.preferences.updatePlaybackPreferences
 import com.github.damontecres.wholphin.services.Release
 import com.github.damontecres.wholphin.services.SeerrConnectionStatus
 import com.github.damontecres.wholphin.services.UpdateChecker
+import com.github.damontecres.wholphin.ui.coachmark.LocalCoachMarkTour
 import com.github.damontecres.wholphin.ui.components.ConfirmDialog
 import com.github.damontecres.wholphin.ui.components.DialogListEdge
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
@@ -412,6 +413,21 @@ fun PreferencesContent(
                                             },
                                         interactionSource = interactionSource,
                                         modifier = focusModifier,
+                                    )
+                                }
+
+                                AppPreference.CoachMarkTour -> {
+                                    val coachMarkTour = LocalCoachMarkTour.current
+                                    ClickPreference(
+                                        title = stringResource(pref.title),
+                                        onClick = {
+                                            coachMarkTour?.start()
+                                            viewModel.navigationManager.goToHome()
+                                        },
+                                        modifier = focusModifier,
+                                        summary = pref.summary(context, null),
+                                        onLongClick = {},
+                                        interactionSource = interactionSource,
                                     )
                                 }
 

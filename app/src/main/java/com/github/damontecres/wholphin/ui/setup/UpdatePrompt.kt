@@ -1,6 +1,8 @@
 package com.github.damontecres.wholphin.ui.setup
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.interaction.FocusInteraction
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -14,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -90,37 +93,61 @@ fun UpdatePromptDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false),
         elevation = 6.dp,
     ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier =
-                Modifier
-                    .width(520.dp)
-                    .padding(24.dp),
-        ) {
-            val version = release.version.run { "$major.$minor.$patch" }
-            Text(
-                text =
-                    stringResource(
-                        R.string.update_prompt_title,
-                        stringResource(R.string.app_name),
-                        version,
-                    ).neonUpper(),
-                style = if (isWeaselTv()) NeonType.dialogTitle() else MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(bottom = 8.dp),
-            )
-            PromptButton(
-                stringRes = R.string.update,
-                onClick = onUpdate,
-                modifier = Modifier.focusRequester(focusRequester),
-            )
-            PromptButton(
-                stringRes = R.string.not_now,
-                onClick = onNotNow,
-            )
-        }
+        UpdatePromptContent(
+            version = release.version,
+            onUpdate = onUpdate,
+            onNotNow = onNotNow,
+            updateModifier = Modifier.focusRequester(focusRequester),
+        )
     }
     LaunchedEffect(Unit) { focusRequester.tryRequestFocus() }
+}
+
+/**
+ * The popup's title and buttons. With [picture] it's only shown, as in the WeaselPlex tour: nothing can be focused and
+ * Update looks chosen.
+ */
+@Composable
+fun UpdatePromptContent(
+    version: Version,
+    onUpdate: () -> Unit,
+    onNotNow: () -> Unit,
+    updateModifier: Modifier = Modifier,
+    picture: Boolean = false,
+) {
+    val updateInteraction = remember { MutableInteractionSource() }
+    if (picture) LaunchedEffect(Unit) { updateInteraction.emit(FocusInteraction.Focus()) }
+    val pictureModifier = if (picture) Modifier.focusProperties { canFocus = false } else Modifier
+    Column(
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier =
+            Modifier
+                .width(520.dp)
+                .padding(24.dp),
+    ) {
+        Text(
+            text =
+                stringResource(
+                    R.string.update_prompt_title,
+                    stringResource(R.string.app_name),
+                    version.run { "$major.$minor.$patch" },
+                ).neonUpper(),
+            style = if (isWeaselTv()) NeonType.dialogTitle() else MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+        PromptButton(
+            stringRes = R.string.update,
+            onClick = onUpdate,
+            modifier = updateModifier.then(pictureModifier),
+            interactionSource = updateInteraction,
+        )
+        PromptButton(
+            stringRes = R.string.not_now,
+            onClick = onNotNow,
+            modifier = pictureModifier,
+        )
+    }
 }
 
 /**
@@ -132,12 +159,14 @@ private fun PromptButton(
     @StringRes stringRes: Int,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    interactionSource: MutableInteractionSource? = null,
 ) = Button(
     onClick = onClick,
     modifier = modifier.fillMaxWidth(),
     scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
     contentHeight = 32.dp,
+    interactionSource = interactionSource,
 ) {
     Text(text = stringResource(stringRes))
 }
