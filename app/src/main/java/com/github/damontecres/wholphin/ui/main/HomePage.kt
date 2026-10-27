@@ -81,6 +81,8 @@ import com.github.damontecres.wholphin.ui.cards.GenreCard
 import com.github.damontecres.wholphin.ui.cards.ItemRow
 import com.github.damontecres.wholphin.ui.cards.StudioCard
 import com.github.damontecres.wholphin.ui.cards.ViewMoreCard
+import com.github.damontecres.wholphin.ui.coachmark.CoachMarkIds
+import com.github.damontecres.wholphin.ui.coachmark.coachMarkTarget
 import com.github.damontecres.wholphin.ui.components.CircularProgress
 import com.github.damontecres.wholphin.ui.components.ContextMenu
 import com.github.damontecres.wholphin.ui.components.ContextMenuActions
@@ -524,7 +526,10 @@ fun HomePageContent(
                 // copy must not lift the cards, then move them down for a long title.
                 fillHeight = isWeaselTv() && focusedRowHeight != null,
                 // Don't show the header at its unfitted size before the focused row is measured
-                modifier = Modifier.graphicsLayer { alpha = if (hideHeader) 0f else 1f },
+                modifier =
+                    Modifier
+                        .graphicsLayer { alpha = if (hideHeader) 0f else 1f }
+                        .coachMarkTarget(CoachMarkIds.HOME_HEADER),
             ) {
                 headerComposable.invoke(focusedItem)
             }
@@ -571,6 +576,7 @@ fun HomePageContent(
                         val rowModifier =
                             Modifier
                                 .animateItem(placementSpec = null)
+                                .coachMarkTarget(CoachMarkIds.HOME_ROW.takeIf { rowIndex == position.row })
                                 .onSizeChanged { rowHeights[rowKey(rowIndex)] = it.height }
                                 .then(if (reordering) Modifier.onPreviewKeyEvent { reorder!!.onKey(it) } else Modifier)
                                 .padding(

@@ -264,6 +264,7 @@ configure<ApplicationExtension> {
         val featureLeanback = "leanback"
         val featureUpdate = "UPDATING_ENABLED"
         val featureDiscover = "DISCOVER_ENABLED"
+        val featureCoachMarks = "COACH_MARK_TOUR_ENABLED"
 
         fun ProductFlavor.setFeatureFlag(
             name: String,
@@ -277,6 +278,7 @@ configure<ApplicationExtension> {
             manifestPlaceholders += mapOf(featureLeanback to false)
             setFeatureFlag(featureUpdate, true)
             setFeatureFlag(featureDiscover, true)
+            setFeatureFlag(featureCoachMarks, false)
         }
         // WeaselPlex (DaCrib) — mirrors `default` exactly, which is the only flavor with
         // DISCOVER_ENABLED (the Seerr integration), plus the pinned server URL.
@@ -305,6 +307,7 @@ configure<ApplicationExtension> {
             manifestPlaceholders += mapOf(featureLeanback to false)
             setFeatureFlag(featureUpdate, true)
             setFeatureFlag(featureDiscover, true)
+            setFeatureFlag(featureCoachMarks, true)
             buildConfigField("String", "DEFAULT_SERVER_URL", "\"https://media.theweasel.tv\"")
             buildConfigField("String", "UPDATE_REPO", "\"Weaseltv/Wholphin\"")
             buildConfigField("String", "DEFAULT_SEERR_URL", "\"https://requests.theweasel.tv\"")
@@ -334,12 +337,14 @@ configure<ApplicationExtension> {
             manifestPlaceholders += mapOf(featureLeanback to true)
             setFeatureFlag(featureUpdate, false)
             setFeatureFlag(featureDiscover, true)
+            setFeatureFlag(featureCoachMarks, false)
         }
         create("firetv") {
             dimension = "version"
             manifestPlaceholders += mapOf(featureLeanback to true)
             setFeatureFlag(featureUpdate, false)
             setFeatureFlag(featureDiscover, false)
+            setFeatureFlag(featureCoachMarks, false)
         }
     }
     compileOptions {

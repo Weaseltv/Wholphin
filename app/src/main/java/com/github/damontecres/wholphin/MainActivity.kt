@@ -62,6 +62,7 @@ import com.github.damontecres.wholphin.services.hilt.AuthOkHttpClient
 import com.github.damontecres.wholphin.services.tvprovider.TvProviderSchedulerService
 import com.github.damontecres.wholphin.ui.CoilConfig
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
+import com.github.damontecres.wholphin.ui.coachmark.CoachMarkTour
 import com.github.damontecres.wholphin.ui.collectLatestIn
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.launchDefault
@@ -123,6 +124,9 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var updateChecker: UpdateChecker
+
+    @Inject
+    lateinit var coachMarkTour: CoachMarkTour
 
     @Inject
     lateinit var playbackLifecycleObserver: PlaybackLifecycleObserver
@@ -303,6 +307,7 @@ class MainActivity : AppCompatActivity() {
                                             backdropService = backdropService,
                                             screensaverService = screensaverService,
                                             updateChecker = updateChecker,
+                                            coachMarkTour = coachMarkTour,
                                             modifier = Modifier.fillMaxSize(),
                                         )
                                     }
@@ -351,6 +356,8 @@ class MainActivity : AppCompatActivity() {
             return true
         } else {
             screensaverService.pulse()
+            // The coach-mark tour takes the remote while it runs, so nothing moves underneath it
+            if (coachMarkTour.onKey(event)) return true
             return super.dispatchKeyEvent(event)
         }
     }

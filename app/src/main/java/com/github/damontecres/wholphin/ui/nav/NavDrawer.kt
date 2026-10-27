@@ -96,6 +96,8 @@ import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.SetupNavigationManager
 import com.github.damontecres.wholphin.services.versionedUserImageUrl
 import com.github.damontecres.wholphin.ui.FontAwesome
+import com.github.damontecres.wholphin.ui.coachmark.CoachMarkIds
+import com.github.damontecres.wholphin.ui.coachmark.coachMarkTarget
 import com.github.damontecres.wholphin.ui.components.TimeDisplay
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.launchDefault
@@ -304,6 +306,15 @@ data class ServerNavDrawerItem(
 }
 
 private const val HOME_INDEX = -1
+
+/** What the coach-mark tour calls a pinned menu item; libraries are spotlit together */
+private fun coachMarkId(item: NavDrawerItem): String? =
+    when (item) {
+        NavDrawerItem.Favorites -> CoachMarkIds.WATCHLIST
+        NavDrawerItem.Discover -> CoachMarkIds.REQUESTS
+        is ServerNavDrawerItem -> CoachMarkIds.LIBRARY_PREFIX + item.id
+        else -> null
+    }
 private const val SEARCH_INDEX = -2
 private const val NOW_PLAYING_INDEX = -3
 
@@ -382,7 +393,7 @@ fun NavDrawer(
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(spacedBy),
-                    modifier = Modifier.fillMaxHeight(),
+                    modifier = Modifier.fillMaxHeight().coachMarkTarget(CoachMarkIds.MENU),
                 ) {
                     // Even though some must be clicked, focusing on it should clear other focused items
                     val interactionSource = remember { MutableInteractionSource() }
@@ -402,7 +413,7 @@ fun NavDrawer(
                                 SetupDestination.UserList(server),
                             )
                         },
-                        modifier = Modifier,
+                        modifier = Modifier.coachMarkTarget(CoachMarkIds.PROFILE),
                     )
                     AnimatedVisibility(
                         visible = serviceState.nowPlayingEnabled,
@@ -464,6 +475,7 @@ fun NavDrawer(
                                 },
                                 modifier =
                                     Modifier
+                                        .coachMarkTarget(CoachMarkIds.SEARCH)
                                         .focusRequester(searchFocusRequester)
                                         .ifElse(
                                             selectedIndex == SEARCH_INDEX,
@@ -492,6 +504,7 @@ fun NavDrawer(
                                 },
                                 modifier =
                                     Modifier
+                                        .coachMarkTarget(CoachMarkIds.HOME)
                                         .ifElse(
                                             selectedIndex == HOME_INDEX,
                                             Modifier.focusRequester(focusRequester),
@@ -511,6 +524,7 @@ fun NavDrawer(
                                 },
                                 modifier =
                                     Modifier
+                                        .coachMarkTarget(coachMarkId(it))
                                         .ifElse(
                                             selectedIndex == index,
                                             Modifier.focusRequester(focusRequester),
@@ -590,7 +604,7 @@ fun NavDrawer(
                                             ),
                                         )
                                     },
-                                    modifier = Modifier,
+                                    modifier = Modifier.coachMarkTarget(CoachMarkIds.SETTINGS),
                                 )
                             }
                         }

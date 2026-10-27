@@ -34,6 +34,9 @@ import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.ScreensaverService
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.UpdateChecker
+import com.github.damontecres.wholphin.ui.coachmark.CoachMarkOverlay
+import com.github.damontecres.wholphin.ui.coachmark.CoachMarkTour
+import com.github.damontecres.wholphin.ui.coachmark.LocalCoachMarkTour
 import com.github.damontecres.wholphin.ui.components.AppScreensaver
 import com.github.damontecres.wholphin.ui.nav.ApplicationContent
 import com.github.damontecres.wholphin.ui.setup.PinnedServerContent
@@ -52,6 +55,7 @@ fun MainContent(
     backdropService: BackdropService,
     screensaverService: ScreensaverService,
     updateChecker: UpdateChecker,
+    coachMarkTour: CoachMarkTour,
     modifier: Modifier = Modifier,
     // Kid profiles (plan 4.5): also hide the profile's screen on stop when the profile screen will show on return
     hideContentOnStop: () -> Boolean = { false },
@@ -122,13 +126,20 @@ fun MainContent(
                                 }
 
                                 if (showContent) {
-                                    ApplicationContent(
-                                        user = current.user,
-                                        server = current.server,
-                                        navigationManager = navigationManager,
-                                        preferences = preferences,
-                                        modifier = Modifier.fillMaxSize(),
-                                    )
+                                    CompositionLocalProvider(
+                                        LocalCoachMarkTour provides coachMarkTour.takeIf { BuildConfig.COACH_MARK_TOUR_ENABLED },
+                                    ) {
+                                        ApplicationContent(
+                                            user = current.user,
+                                            server = current.server,
+                                            navigationManager = navigationManager,
+                                            preferences = preferences,
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                    }
+                                    if (BuildConfig.COACH_MARK_TOUR_ENABLED) {
+                                        CoachMarkOverlay(coachMarkTour, navigationManager)
+                                    }
                                     // Only once signed in, so it never interrupts sign-in.
                                     UpdatePrompt(updateChecker, navigationManager)
                                 } else {

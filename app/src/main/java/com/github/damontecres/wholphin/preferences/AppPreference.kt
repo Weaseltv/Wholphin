@@ -720,6 +720,13 @@ sealed interface AppPreference<Pref, T> {
                 valueToIndex = { if (it != MediaExtensionStatus.UNRECOGNIZED) it.number else 0 },
             )
 
+        /** Settings → Help: starts the coach-mark tour on Home */
+        val CoachMarkTour =
+            AppClickablePreference<AppPreferences>(
+                title = R.string.coach_settings_title,
+                summary = R.string.coach_settings_summary,
+            )
+
         val ClearImageCache =
             AppClickablePreference<AppPreferences>(
                 title = R.string.clear_image_cache,
@@ -1135,7 +1142,13 @@ val kidHiddenPreferences: Set<AppPreference<*, *>> =
     )
 
 val basicPreferences =
-    listOf(
+    listOfNotNull(
+        // Help sits at the top, before Interface
+        if (BuildConfig.COACH_MARK_TOUR_ENABLED) {
+            PreferenceGroup(title = R.string.coach_help, preferences = listOf(AppPreference.CoachMarkTour))
+        } else {
+            null
+        },
         PreferenceGroup(
             title = R.string.ui_interface,
             preferences =
