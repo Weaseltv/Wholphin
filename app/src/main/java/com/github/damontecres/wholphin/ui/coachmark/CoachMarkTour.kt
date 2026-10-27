@@ -38,19 +38,18 @@ object CoachMarkIds {
 
 /**
  * The tour's steps in order. [target] is a [CoachMarkIds] id, or with [group] a prefix whose targets are spotlit
- * together. [body] is a paragraph, or with [bullets] one line per entry. [padding] is the room left around the target.
- * A step that's neither on screen nor in the menu ([CoachMarkRail.has]) when the tour starts is left out.
+ * together; the opening card has none and sits in the middle of the dimmed screen. [padding] is the room left around
+ * the target. A step that's neither on screen nor in the menu ([CoachMarkRail.has]) when the tour starts is left out.
  */
 enum class CoachMarkStep(
     val target: String,
     @param:StringRes val title: Int,
-    // A string, or a string array with [bullets]
-    val body: Int,
+    @param:StringRes val body: Int,
     val group: Boolean = false,
-    val bullets: Boolean = false,
     val padding: Dp = 8.dp,
 ) {
-    HOME_ROW(CoachMarkIds.HOME_ROW, R.string.coach_home_row_title, R.array.coach_home_row_bullets, bullets = true),
+    WELCOME("", R.string.coach_welcome_title, R.string.coach_welcome_body),
+    HOME_ROW(CoachMarkIds.HOME_ROW, R.string.coach_home_row_title, R.string.coach_home_row_body),
 
     // Flush with the header, so the outline doesn't cut through the row title below it
     HOME_HEADER(CoachMarkIds.HOME_HEADER, R.string.coach_home_header_title, R.string.coach_home_header_body, padding = 0.dp),
@@ -60,10 +59,11 @@ enum class CoachMarkStep(
     HOME(CoachMarkIds.HOME, R.string.home, R.string.coach_home_body, padding = 2.dp),
     WATCHLIST(CoachMarkIds.WATCHLIST, R.string.favorites, R.string.coach_watchlist_body, padding = 2.dp),
     REQUESTS(CoachMarkIds.REQUESTS, R.string.discover, R.string.coach_requests_body, padding = 2.dp),
-
-    // The body names the libraries (%1$s), from [CoachMarkRail.libraryNames]
     LIBRARIES(CoachMarkIds.LIBRARY_PREFIX, R.string.coach_libraries_title, R.string.coach_libraries_body, group = true, padding = 2.dp),
-    SETTINGS(CoachMarkIds.SETTINGS, R.string.settings, R.string.coach_settings_body, padding = 2.dp),
+    SETTINGS(CoachMarkIds.SETTINGS, R.string.coach_settings_title_last, R.string.coach_settings_body, padding = 2.dp),
+    ;
+
+    val hasTarget get() = target.isNotEmpty()
 }
 
 /**
@@ -71,8 +71,6 @@ enum class CoachMarkStep(
  * step's row into view when that step comes up.
  */
 interface CoachMarkRail {
-    val libraryNames: List<String>
-
     fun has(step: CoachMarkStep): Boolean
 
     suspend fun bringIntoView(step: CoachMarkStep)
@@ -137,7 +135,7 @@ class CoachMarkTour
             pending = false
             val steps = CoachMarkStep.entries.filter { bounds(it) != null || rail?.has(it) == true }
             Timber.i("Coach-mark tour started: %s", steps)
-            state = if (steps.isEmpty()) null else CoachMarkState(steps)
+            state = if (steps.isEmpty()) null else CoachMarkState(listOf(CoachMarkStep.WELCOME) + steps)
         }
 
         fun end() {
@@ -205,6 +203,7 @@ class CoachMarkTour
 
         /** Where [step]'s target is in the window, or null when it isn't laid out */
         fun bounds(step: CoachMarkStep): Rect? {
+            if (!step.hasTarget) return null
             val rects =
                 targets
                     .filter { (id, _) -> if (step.group) id.startsWith(step.target) else id == step.target }

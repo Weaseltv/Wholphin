@@ -316,14 +316,11 @@ private const val HOME_INDEX = -1
  * Settings last.
  */
 private fun coachMarkRail(
-    context: Context,
     items: List<NavDrawerItem>,
     hasSettings: Boolean,
     state: LazyListState,
 ) = object : CoachMarkRail {
     private val libraries = items.withIndex().filter { it.value is ServerNavDrawerItem }
-
-    override val libraryNames = libraries.map { it.value.name(context) }
 
     override fun has(step: CoachMarkStep) =
         when (step) {
@@ -412,7 +409,7 @@ fun NavDrawer(
         val items = serviceState.items
         val rail =
             remember(items, kidSession, navDrawerListState) {
-                coachMarkRail(context, items, hasSettings = !kidSession, navDrawerListState)
+                coachMarkRail(items, hasSettings = !kidSession, navDrawerListState)
             }
         DisposableEffect(tour, rail) {
             tour.rail = rail
