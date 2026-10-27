@@ -248,8 +248,11 @@ class CoachMarkTour
                     .mapNotNull { t -> t.coordinates.takeIf { it.isAttached }?.boundsInWindow() }
                     .filter { it.width > 0f && it.height > 0f }
             if (rects.isEmpty()) return null
-            return rects.reduce { a, b -> Rect(minOf(a.left, b.left), minOf(a.top, b.top), maxOf(a.right, b.right), maxOf(a.bottom, b.bottom)) }
+            return rects.reduce { a, b -> a.union(b) }
         }
+
+        private fun Rect.union(other: Rect) =
+            Rect(minOf(left, other.left), minOf(top, other.top), maxOf(right, other.right), maxOf(bottom, other.bottom))
 
         private companion object {
             const val SEEN_KEY = "seen"

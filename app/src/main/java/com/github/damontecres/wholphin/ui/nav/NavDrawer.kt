@@ -367,6 +367,7 @@ private fun coachMarkId(item: NavDrawerItem): String? =
         is ServerNavDrawerItem -> CoachMarkIds.LIBRARY_PREFIX + item.id
         else -> null
     }
+
 private const val SEARCH_INDEX = -2
 private const val NOW_PLAYING_INDEX = -3
 

@@ -17,8 +17,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -72,9 +72,11 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 private val ScrimColor = Color(0xD9050608)
+
 /** The outline stays this far inside the screen, so all four sides show even for the menu, which touches the edges */
 private val HoleScreenInset = 6.dp
 private val HoleCorner = 14.dp
+
 // Wide enough for most bodies to fit on two lines
 private val CardWidth = 740.dp
 private val CardGap = 28.dp
