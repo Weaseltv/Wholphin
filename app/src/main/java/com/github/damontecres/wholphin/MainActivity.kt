@@ -32,6 +32,7 @@ import androidx.navigation3.runtime.NavBackStack
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
+import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.kids.KidSessionGateImpl
 import com.github.damontecres.wholphin.kids.ProfileChooserLock
@@ -217,9 +218,16 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (BuildConfig.COACH_MARK_TOUR_ENABLED) {
-            // A new account on this TV gets the tour once Home is up
+            // The tour, once Home is up: once for every adult account on this TV (also those already signed in when
+            // this version arrives), and for an account newly added here even if it was shown it before being removed
+            viewModel.serverRepository.current
+                .onEach { current ->
+                    if (current != null && current.user.profileKind == ProfileKind.ADULT) {
+                        withContext(WholphinDispatchers.Main) { coachMarkTour.startOnce(current.tourAccount) }
+                    }
+                }.launchIn(lifecycleScope)
             viewModel.serverRepository.newAccounts
-                .onEach { withContext(WholphinDispatchers.Main) { coachMarkTour.start() } }
+                .onEach { withContext(WholphinDispatchers.Main) { coachMarkTour.start(it.tourAccount) } }
                 .launchIn(lifecycleScope)
         }
 
@@ -841,3 +849,6 @@ internal val Destination?.isPlayback: Boolean
         this is Destination.Playback ||
             this is Destination.PlaybackList ||
             this is Destination.Slideshow
+
+/** How the WeaselPlex tour knows an account on this TV */
+private val CurrentUser.tourAccount get() = "${server.id}:${user.id}"

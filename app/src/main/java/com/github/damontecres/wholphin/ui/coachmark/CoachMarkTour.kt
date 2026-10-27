@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.ui.coachmark
 
+import android.content.Context
 import android.os.SystemClock
 import android.view.KeyEvent
 import androidx.annotation.StringRes
@@ -18,6 +19,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.github.damontecres.wholphin.R
+import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -100,7 +102,9 @@ data class CoachMarkState(
 @Singleton
 class CoachMarkTour
     @Inject
-    constructor() {
+    constructor(
+        @param:ApplicationContext private val context: Context,
+    ) {
         private class Target(
             val token: Any,
             val coordinates: LayoutCoordinates,
@@ -130,8 +134,25 @@ class CoachMarkTour
         /** Keys pressed down while the tour ran; a key only acts when it comes back up, so a stray release never does */
         private val downKeys = mutableSetOf<Int>()
 
-        fun start() {
+        /** The accounts on this TV that have been shown the tour, as "serverId:userId" */
+        private val seenStore by lazy { context.getSharedPreferences("coach_mark_tour", Context.MODE_PRIVATE) }
+
+        /** The account [start] was asked for, marked as shown once the tour appears */
+        private var pendingAccount: String? = null
+
+        /**
+         * Once per account on this TV: everyone signed in when this version arrives, then each account added after.
+         * Does nothing while the tour is already asked for or running.
+         */
+        fun startOnce(account: String) {
+            if (active || account in seenStore.getStringSet(SEEN_KEY, emptySet()).orEmpty()) return
+            start(account)
+        }
+
+        /** [account], when given, won't be offered it again by [startOnce] once it has been shown */
+        fun start(account: String? = null) {
             Timber.i("Coach-mark tour requested")
+            pendingAccount = account
             state = null
             downKeys.clear()
             homeRowReady = false
@@ -147,6 +168,9 @@ class CoachMarkTour
             val steps = CoachMarkStep.entries.filter { it.picture || bounds(it) != null || rail?.has(it) == true }
             Timber.i("Coach-mark tour started: %s", steps)
             state = if (steps.all { it.picture }) null else CoachMarkState(listOf(CoachMarkStep.WELCOME) + steps)
+            val account = pendingAccount.takeIf { state != null } ?: return
+            val seen = seenStore.getStringSet(SEEN_KEY, emptySet()).orEmpty()
+            seenStore.edit().putStringSet(SEEN_KEY, seen + account).apply()
         }
 
         /** Set when the tour is closed on Home (Done, Skip tour, or BACK from the first card), for Home to go back to its top row */
@@ -228,6 +252,8 @@ class CoachMarkTour
         }
 
         private companion object {
+            const val SEEN_KEY = "seen"
+
             val okKeys =
                 setOf(
                     KeyEvent.KEYCODE_DPAD_CENTER,
