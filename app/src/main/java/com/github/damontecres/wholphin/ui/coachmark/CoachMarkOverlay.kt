@@ -40,6 +40,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
@@ -61,7 +63,8 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 private val ScrimColor = Color(0xD9050608)
-private val HolePadding = 8.dp
+/** The outline stays this far inside the screen, so all four sides show even for the menu, which touches the edges */
+private val HoleScreenInset = 6.dp
 private val HoleCorner = 14.dp
 private val CardWidth = 440.dp
 private val CardGap = 28.dp
@@ -97,8 +100,11 @@ fun CoachMarkOverlay(
     val state = tour.state ?: return
     val step = state.step
 
+    val density = LocalDensity.current
     var origin by remember { mutableStateOf(Offset.Zero) }
     var target by remember { mutableStateOf<Rect?>(null) }
+    // A menu row that's scrolled out of sight is scrolled back first
+    LaunchedEffect(step) { tour.rail?.bringIntoView(step) }
     // Follow the target as it moves (a row scrolling into place); leaving Home ends the tour
     LaunchedEffect(step) {
         while (true) {
@@ -107,7 +113,7 @@ fun CoachMarkOverlay(
                 tour.end()
                 break
             }
-            tour.bounds(step)?.let { target = it.translate(-origin) }
+            tour.bounds(step)?.let { target = it.translate(-origin).inflate(with(density) { step.padding.toPx() }) }
         }
     }
 
@@ -150,8 +156,7 @@ fun CoachMarkOverlay(
                 .fillMaxSize()
                 .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen },
         ) {
-            val pad = HolePadding.toPx()
-            val r = hole.value.inflate(pad)
+            val r = onScreen(hole.value, size.width, size.height, HoleScreenInset.toPx())
             val corner = CornerRadius(HoleCorner.toPx())
             drawRect(ScrimColor)
             drawRoundRect(Color.Black, r.topLeft, r.size, corner, blendMode = BlendMode.Clear)
@@ -181,6 +186,7 @@ fun CoachMarkOverlay(
             content = {
                 CoachMarkCard(
                     state = state,
+                    libraryNames = tour.rail?.libraryNames.orEmpty(),
                     modifier = Modifier.graphicsLayer { alpha = cardAlpha.value },
                 )
             },
@@ -190,7 +196,7 @@ fun CoachMarkOverlay(
             layout(constraints.maxWidth, constraints.maxHeight) {
                 card.place(
                     placeCard(
-                        hole = hole.value.inflate(HolePadding.toPx()),
+                        hole = onScreen(hole.value, constraints.maxWidth.toFloat(), constraints.maxHeight.toFloat(), HoleScreenInset.toPx()),
                         width = card.width,
                         height = card.height,
                         screenWidth = constraints.maxWidth,
@@ -204,6 +210,19 @@ fun CoachMarkOverlay(
         }
     }
 }
+
+/** [hole] cut to the screen less [inset] on every side */
+private fun onScreen(
+    hole: Rect,
+    width: Float,
+    height: Float,
+    inset: Float,
+) = Rect(
+    left = hole.left.coerceIn(inset, width - inset),
+    top = hole.top.coerceIn(inset, height - inset),
+    right = hole.right.coerceIn(inset, width - inset),
+    bottom = hole.bottom.coerceIn(inset, height - inset),
+)
 
 /**
  * Beside a narrow target (a menu item), otherwise below it or above it, whichever fits; always on screen
@@ -234,8 +253,10 @@ internal fun placeCard(
 @Composable
 private fun CoachMarkCard(
     state: CoachMarkState,
+    libraryNames: List<String>,
     modifier: Modifier = Modifier,
 ) {
+    val step = state.step
     val shape = RoundedCornerShape(16.dp)
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -249,19 +270,38 @@ private fun CoachMarkCard(
         Text(
             text = stringResource(R.string.coach_step_count, state.index + 1, state.steps.size).uppercase(),
             style = NeonType.eyebrow(),
-            color = NeonBoard.Volt,
+            color = NeonBoard.Mid,
         )
+        // Volt only for the title and the chosen button
         Text(
-            text = stringResource(state.step.title),
+            text = stringResource(step.title),
             style = NeonType.dialogTitle(),
-            color = NeonBoard.Text,
+            color = NeonBoard.Volt,
             modifier = Modifier.semantics { heading() },
         )
-        Text(
-            text = stringResource(state.step.body),
-            style = NeonType.rowSubtitle().copy(fontSize = 17.sp, lineHeight = 24.sp),
-            color = NeonBoard.Text.copy(alpha = .86f),
-        )
+        val bodyStyle = NeonType.rowSubtitle().copy(fontSize = 17.sp, lineHeight = 24.sp)
+        val bodyColor = NeonBoard.Text.copy(alpha = .86f)
+        if (step.bullets) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                stringArrayResource(step.body).forEach { line ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(text = "•", style = bodyStyle, color = NeonBoard.Mid)
+                        Text(text = line, style = bodyStyle, color = bodyColor)
+                    }
+                }
+            }
+        } else {
+            Text(
+                text =
+                    if (step == CoachMarkStep.LIBRARIES) {
+                        stringResource(step.body, joinNames(libraryNames))
+                    } else {
+                        stringResource(step.body)
+                    },
+                style = bodyStyle,
+                color = bodyColor,
+            )
+        }
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.padding(top = 8.dp),
@@ -288,6 +328,16 @@ private fun CoachMarkCard(
         )
     }
 }
+
+/** "Movies", "Movies and TV Shows", "Collections, Movies, and TV Shows" */
+@Composable
+private fun joinNames(names: List<String>): String =
+    when (names.size) {
+        0 -> ""
+        1 -> names[0]
+        2 -> stringResource(R.string.coach_list_two, names[0], names[1])
+        else -> stringResource(R.string.coach_list_last, names.dropLast(1).joinToString(", "), names.last())
+    }
 
 /** A button look; the remote's ◀ ▶ choose it and OK takes it (see [CoachMarkTour.onKey]) */
 @Composable

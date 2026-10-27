@@ -15,6 +15,8 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.github.damontecres.wholphin.R
 import timber.log.Timber
 import javax.inject.Inject
@@ -36,24 +38,44 @@ object CoachMarkIds {
 
 /**
  * The tour's steps in order. [target] is a [CoachMarkIds] id, or with [group] a prefix whose targets are spotlit
- * together. A step whose target isn't on screen when the tour starts (a kid's menu has no Settings) is left out.
+ * together. [body] is a paragraph, or with [bullets] one line per entry. [padding] is the room left around the target.
+ * A step that's neither on screen nor in the menu ([CoachMarkRail.has]) when the tour starts is left out.
  */
 enum class CoachMarkStep(
     val target: String,
     @param:StringRes val title: Int,
-    @param:StringRes val body: Int,
+    // A string, or a string array with [bullets]
+    val body: Int,
     val group: Boolean = false,
+    val bullets: Boolean = false,
+    val padding: Dp = 8.dp,
 ) {
-    HOME_ROW(CoachMarkIds.HOME_ROW, R.string.coach_home_row_title, R.string.coach_home_row_body),
-    HOME_HEADER(CoachMarkIds.HOME_HEADER, R.string.coach_home_header_title, R.string.coach_home_header_body),
-    MENU(CoachMarkIds.MENU, R.string.coach_menu_title, R.string.coach_menu_body),
-    PROFILE(CoachMarkIds.PROFILE, R.string.coach_profile_title, R.string.coach_profile_body),
-    SEARCH(CoachMarkIds.SEARCH, R.string.search, R.string.coach_search_body),
-    HOME(CoachMarkIds.HOME, R.string.home, R.string.coach_home_body),
-    WATCHLIST(CoachMarkIds.WATCHLIST, R.string.favorites, R.string.coach_watchlist_body),
-    REQUESTS(CoachMarkIds.REQUESTS, R.string.discover, R.string.coach_requests_body),
-    LIBRARIES(CoachMarkIds.LIBRARY_PREFIX, R.string.coach_libraries_title, R.string.coach_libraries_body, group = true),
-    SETTINGS(CoachMarkIds.SETTINGS, R.string.settings, R.string.coach_settings_body),
+    HOME_ROW(CoachMarkIds.HOME_ROW, R.string.coach_home_row_title, R.array.coach_home_row_bullets, bullets = true),
+
+    // Flush with the header, so the outline doesn't cut through the row title below it
+    HOME_HEADER(CoachMarkIds.HOME_HEADER, R.string.coach_home_header_title, R.string.coach_home_header_body, padding = 0.dp),
+    MENU(CoachMarkIds.MENU, R.string.coach_menu_title, R.string.coach_menu_body, padding = 0.dp),
+    PROFILE(CoachMarkIds.PROFILE, R.string.coach_profile_title, R.string.coach_profile_body, padding = 2.dp),
+    SEARCH(CoachMarkIds.SEARCH, R.string.search, R.string.coach_search_body, padding = 2.dp),
+    HOME(CoachMarkIds.HOME, R.string.home, R.string.coach_home_body, padding = 2.dp),
+    WATCHLIST(CoachMarkIds.WATCHLIST, R.string.favorites, R.string.coach_watchlist_body, padding = 2.dp),
+    REQUESTS(CoachMarkIds.REQUESTS, R.string.discover, R.string.coach_requests_body, padding = 2.dp),
+
+    // The body names the libraries (%1$s), from [CoachMarkRail.libraryNames]
+    LIBRARIES(CoachMarkIds.LIBRARY_PREFIX, R.string.coach_libraries_title, R.string.coach_libraries_body, group = true, padding = 2.dp),
+    SETTINGS(CoachMarkIds.SETTINGS, R.string.settings, R.string.coach_settings_body, padding = 2.dp),
+}
+
+/**
+ * The menu's part in the tour. Its list only lays out the rows on screen, so it says which steps it has and scrolls a
+ * step's row into view when that step comes up.
+ */
+interface CoachMarkRail {
+    val libraryNames: List<String>
+
+    fun has(step: CoachMarkStep): Boolean
+
+    suspend fun bringIntoView(step: CoachMarkStep)
 }
 
 /** A running tour: the steps found on screen, the current one, and whether Skip (instead of Next) is chosen */
@@ -93,6 +115,9 @@ class CoachMarkTour
 
         val active get() = pending || state != null
 
+        /** Set by the menu while it's on screen */
+        var rail: CoachMarkRail? = null
+
         /** Keys pressed down while the tour ran; a key only acts when it comes back up, so a stray release never does */
         private val downKeys = mutableSetOf<Int>()
 
@@ -110,7 +135,7 @@ class CoachMarkTour
         fun begin() {
             if (!pending) return
             pending = false
-            val steps = CoachMarkStep.entries.filter { bounds(it) != null }
+            val steps = CoachMarkStep.entries.filter { bounds(it) != null || rail?.has(it) == true }
             Timber.i("Coach-mark tour started: %s", steps)
             state = if (steps.isEmpty()) null else CoachMarkState(steps)
         }

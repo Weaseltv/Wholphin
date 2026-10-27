@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.collectAsState
@@ -97,6 +98,9 @@ import com.github.damontecres.wholphin.services.SetupNavigationManager
 import com.github.damontecres.wholphin.services.versionedUserImageUrl
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.coachmark.CoachMarkIds
+import com.github.damontecres.wholphin.ui.coachmark.CoachMarkRail
+import com.github.damontecres.wholphin.ui.coachmark.CoachMarkStep
+import com.github.damontecres.wholphin.ui.coachmark.LocalCoachMarkTour
 import com.github.damontecres.wholphin.ui.coachmark.coachMarkTarget
 import com.github.damontecres.wholphin.ui.components.TimeDisplay
 import com.github.damontecres.wholphin.ui.ifElse
@@ -307,6 +311,52 @@ data class ServerNavDrawerItem(
 
 private const val HOME_INDEX = -1
 
+/**
+ * The menu's side of the coach-mark tour. [state]'s rows: Search, Home, then [items] (pinned), then More and its rows,
+ * Settings last.
+ */
+private fun coachMarkRail(
+    context: Context,
+    items: List<NavDrawerItem>,
+    hasSettings: Boolean,
+    state: LazyListState,
+) = object : CoachMarkRail {
+    private val libraries = items.withIndex().filter { it.value is ServerNavDrawerItem }
+
+    override val libraryNames = libraries.map { it.value.name(context) }
+
+    override fun has(step: CoachMarkStep) =
+        when (step) {
+            CoachMarkStep.MENU, CoachMarkStep.PROFILE, CoachMarkStep.SEARCH, CoachMarkStep.HOME -> true
+            CoachMarkStep.WATCHLIST -> NavDrawerItem.Favorites in items
+            CoachMarkStep.REQUESTS -> NavDrawerItem.Discover in items
+            CoachMarkStep.LIBRARIES -> libraries.isNotEmpty()
+            CoachMarkStep.SETTINGS -> hasSettings
+            else -> false
+        }
+
+    override suspend fun bringIntoView(step: CoachMarkStep) {
+        val rows =
+            when (step) {
+                CoachMarkStep.MENU, CoachMarkStep.SEARCH -> 0..0
+                CoachMarkStep.HOME -> 1..1
+                CoachMarkStep.WATCHLIST -> items.indexOf(NavDrawerItem.Favorites).let { 2 + it..2 + it }
+                CoachMarkStep.REQUESTS -> items.indexOf(NavDrawerItem.Discover).let { 2 + it..2 + it }
+                CoachMarkStep.LIBRARIES -> if (libraries.isEmpty()) return else 2 + libraries.first().index..2 + libraries.last().index
+                CoachMarkStep.SETTINGS -> if (hasSettings) (state.layoutInfo.totalItemsCount - 1).let { it..it } else return
+                else -> return
+            }
+        val info = state.layoutInfo
+        val inView =
+            rows.all { row ->
+                info.visibleItemsInfo.any {
+                    it.index == row && it.offset >= info.viewportStartOffset && it.offset + it.size <= info.viewportEndOffset
+                }
+            }
+        if (!inView && rows.first >= 0) state.animateScrollToItem(rows.first)
+    }
+}
+
 /** What the coach-mark tour calls a pinned menu item; libraries are spotlit together */
 private fun coachMarkId(item: NavDrawerItem): String? =
     when (item) {
@@ -357,6 +407,18 @@ fun NavDrawer(
     val moreExpanded = state.moreExpanded
     // A negative index is a built-in page, >=0 is a library
     val selectedIndex = state.selectedIndex
+
+    LocalCoachMarkTour.current?.let { tour ->
+        val items = serviceState.items
+        val rail =
+            remember(items, kidSession, navDrawerListState) {
+                coachMarkRail(context, items, hasSettings = !kidSession, navDrawerListState)
+            }
+        DisposableEffect(tour, rail) {
+            tour.rail = rail
+            onDispose { if (tour.rail === rail) tour.rail = null }
+        }
+    }
 
     BackHandler(enabled = moreExpanded && drawerState.currentValue == DrawerValue.Open) {
         viewModel.setShowMore(false)

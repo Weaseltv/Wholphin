@@ -13,21 +13,29 @@
     <string name="coach_hint_first">OK to continue · ◀ ▶ to choose · BACK to leave</string>
     <string name="coach_hint">OK to continue · ◀ ▶ to choose · BACK for the previous step</string>
     <string name="coach_hint_last">OK to finish · BACK for the previous step</string>
+    <!-- Joining library names: "Movies and TV Shows", "Collections, Movies, and TV Shows" -->
+    <string name="coach_list_two">%1$s and %2$s</string>
+    <string name="coach_list_last">%1$s, and %2$s</string>
 
-    <!-- Steps -->
-    <string name="coach_home_row_title">Your rows</string>
-    <string name="coach_home_row_body">Press ◀ ▶ to move along a row and ▲ ▼ to change rows. Press OK on a poster to open it, or hold OK for more options.</string>
-    <string name="coach_home_header_title">At a glance</string>
-    <string name="coach_home_header_body">The top of Home shows details about whichever poster you\'re on.</string>
-    <string name="coach_menu_title">The menu</string>
-    <string name="coach_menu_body">Everything in WeaselPlex starts here. Press ◀ from the first poster in a row to open it, or press BACK on Home.</string>
-    <string name="coach_profile_title">Who\'s watching</string>
-    <string name="coach_profile_body">Your profile. Select it to switch to someone else.</string>
-    <string name="coach_search_body">Find movies and shows by typing, or use the mic button on the Search page.</string>
-    <string name="coach_home_body">Brings you back to Home from anywhere. Selecting it while you\'re on Home refreshes your rows.</string>
-    <string name="coach_watchlist_body">Titles you\'ve saved for later. To add one, hold OK on its poster.</string>
-    <string name="coach_requests_body">Ask for a movie or show that isn\'t here yet, then follow it in History.</string>
+    <!-- Steps (owner's wording, 2026-10-26) -->
+    <string name="coach_home_row_title">Home page rows</string>
+    <string-array name="coach_home_row_bullets">
+        <item>Press ◀ ▶ to navigate the row</item>
+        <item>Press ▲ ▼ to change rows</item>
+        <item>Press OK on a poster card to open it</item>
+        <item>Hold OK on a poster card for more options</item>
+    </string-array>
+    <string name="coach_home_header_title">Look up here</string>
+    <string name="coach_home_header_body">When you highlight a poster, its details appear at the top: name, episode, how long it is, and what it\'s about. You don\'t have to open it to peek.</string>
+    <string name="coach_menu_title">The side menu</string>
+    <string name="coach_menu_body">This column is your main menu: Home, Watchlist, Search, Movies, TV Shows, and Settings. From a poster in a row, press Left, or press Back while you\'re on Home.</string>
+    <string name="coach_profile_title">Your profile</string>
+    <string name="coach_profile_body">This is the account you\'re signed in as. Select it to switch to another person, so everyone keeps their own watchlist and progress.</string>
+    <string name="coach_search_body">Looking for something specific? Type its name, or use the mic button on the Search page to say it.</string>
+    <string name="coach_home_body">Your starting point. Select it from anywhere to jump back to Home. Select it while you\'re already on Home to update your rows with the newest content.</string>
+    <string name="coach_watchlist_body">Your saved list of things to watch later. To add something, highlight its poster and hold OK, then choose to add it.</string>
+    <string name="coach_requests_body">Can\'t find a movie or show? Request it here. Check back to see whether it\'s been approved and added.</string>
     <string name="coach_libraries_title">Your libraries</string>
-    <string name="coach_libraries_body">Browse everything in one place at a time, like all the movies or all the TV shows.</string>
-    <string name="coach_settings_body">Change how WeaselPlex looks and plays. You can take this tour again from Settings → Help.</string>
+    <string name="coach_libraries_body">These icons open your content by type: %1$s. Pick one to browse everything in that category.</string>
+    <string name="coach_settings_body">Adjust playback, subtitles, and how the app looks. Want to see this tour again? Go to Settings → Help.</string>
 </resources>
