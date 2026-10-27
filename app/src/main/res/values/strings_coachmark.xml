@@ -32,6 +32,8 @@
     <string name="coach_requests_body">Can\'t find a movie or show? Request it here, then check back to see whether it\'s been approved and added.</string>
     <string name="coach_libraries_title">Browse by type</string>
     <string name="coach_libraries_body">These icons open your content by category, top to bottom: Collections, Movies, TV Shows, Stand Up Comedy, and Sports.</string>
+    <string name="coach_updates_title">Keep WeaselPlex up to date</string>
+    <string name="coach_updates_body">When a new version is ready, this pops up as you open the app. Select Update and WeaselPlex updates itself. Always update when asked. To check yourself, go to Settings → About.</string>
     <string name="coach_settings_title_last">You\'re all set</string>
     <string name="coach_settings_body">Settings is where you change playback, subtitles, and how the app looks. You can replay this tour anytime from Settings → Help.</string>
 </resources>

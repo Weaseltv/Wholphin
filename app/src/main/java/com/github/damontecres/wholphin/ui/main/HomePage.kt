@@ -573,10 +573,11 @@ fun HomePageContent(
                 ) {
                     itemsIndexed(homeRows, key = if (keyed) { index, _ -> rowKeys!![index] } else null) { rowIndex, row ->
                         val reordering = reorder?.row == rowIndex
+                        // The tour spotlights the focused row's posters, leaving room above them for its card
+                        val coachRow = Modifier.coachMarkTarget(CoachMarkIds.HOME_ROW.takeIf { rowIndex == position.row })
                         val rowModifier =
                             Modifier
                                 .animateItem(placementSpec = null)
-                                .coachMarkTarget(CoachMarkIds.HOME_ROW.takeIf { rowIndex == position.row })
                                 .onSizeChanged { rowHeights[rowKey(rowIndex)] = it.height }
                                 .then(if (reordering) Modifier.onPreviewKeyEvent { reorder!!.onKey(it) } else Modifier)
                                 .padding(
@@ -599,7 +600,7 @@ fun HomePageContent(
                                     FocusableItemRow(
                                         title = r.title.getString(),
                                         subtitle = stringResource(R.string.loading),
-                                        modifier = rowModifier,
+                                        modifier = rowModifier.then(coachRow),
                                     )
                                 }
 
@@ -608,7 +609,7 @@ fun HomePageContent(
                                         title = r.title.getString(),
                                         subtitle = r.localizedMessage,
                                         isError = true,
-                                        modifier = rowModifier,
+                                        modifier = rowModifier.then(coachRow),
                                     )
                                 }
 
@@ -663,6 +664,7 @@ fun HomePageContent(
                                                     .fillMaxWidth()
                                                     .focusGroup()
                                                     .focusRequester(rowFocusRequesters[rowIndex]),
+                                            cardsModifier = coachRow,
                                             horizontalPadding = viewOptions.spacing.dp,
                                             dividerGap = if (isWeaselTv()) viewOptions.dividerGapDp.dp else 8.dp,
                                             titleDividerGap = if (isWeaselTv()) viewOptions.titleDividerGapDp.dp else 4.dp,
@@ -810,7 +812,7 @@ fun HomePageContent(
                                         FocusableItemRow(
                                             title = r.title.getString(),
                                             subtitle = stringResource(R.string.no_results),
-                                            modifier = rowModifier,
+                                            modifier = rowModifier.then(coachRow),
                                         )
                                     }
                                 }

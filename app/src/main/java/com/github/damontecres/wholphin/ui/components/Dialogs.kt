@@ -476,9 +476,24 @@ fun BasicDialog(
         onDismissRequest = onDismissRequest,
         properties = properties,
     ) {
-        val neon = isWeaselTv()
-        Box(
-            modifier =
+        BasicDialogPanel(elevation = elevation, tallyColor = tallyColor, content = content)
+    }
+}
+
+/**
+ * The panel [BasicDialog] draws its content on, without the dialog window around it
+ */
+@Composable
+fun BasicDialogPanel(
+    modifier: Modifier = Modifier,
+    elevation: Dp = 1.dp,
+    tallyColor: Color = LocalNeonAccent.current,
+    content: @Composable () -> Unit,
+) {
+    val neon = isWeaselTv()
+    Box(
+        modifier =
+            modifier.then(
                 if (neon) {
                     Modifier
                         .shadow(elevation = 20.dp, shape = RectangleShape)
@@ -493,11 +508,11 @@ fun BasicDialog(
                             shape = RoundedCornerShape(8.dp),
                         )
                 },
-        ) {
-            // A dialog is its own panel; page gutters must not extend its rules.
-            CompositionLocalProvider(LocalNeonRuleInsets provides NeonRuleInsets()) {
-                content()
-            }
+            ),
+    ) {
+        // A dialog is its own panel; page gutters must not extend its rules.
+        CompositionLocalProvider(LocalNeonRuleInsets provides NeonRuleInsets()) {
+            content()
         }
     }
 }

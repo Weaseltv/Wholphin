@@ -34,12 +34,14 @@ object CoachMarkIds {
     const val REQUESTS = "requests"
     const val LIBRARY_PREFIX = "library:"
     const val SETTINGS = "settings"
+    const val UPDATE_PROMPT = "update_prompt"
 }
 
 /**
  * The tour's steps in order. [target] is a [CoachMarkIds] id, or with [group] a prefix whose targets are spotlit
- * together; the opening card has none and sits in the middle of the dimmed screen. [padding] is the room left around
- * the target. A step that's neither on screen nor in the menu ([CoachMarkRail.has]) when the tour starts is left out.
+ * together; the opening card has none and sits in the middle of the dimmed screen. With [picture] the tour draws the
+ * target itself (the update popup). [padding] is the room left around the target. A step that's neither on screen nor
+ * in the menu ([CoachMarkRail.has]) when the tour starts is left out.
  */
 enum class CoachMarkStep(
     val target: String,
@@ -47,9 +49,10 @@ enum class CoachMarkStep(
     @param:StringRes val body: Int,
     val group: Boolean = false,
     val padding: Dp = 8.dp,
+    val picture: Boolean = false,
 ) {
     WELCOME("", R.string.coach_welcome_title, R.string.coach_welcome_body),
-    HOME_ROW(CoachMarkIds.HOME_ROW, R.string.coach_home_row_title, R.string.coach_home_row_body),
+    HOME_ROW(CoachMarkIds.HOME_ROW, R.string.coach_home_row_title, R.string.coach_home_row_body, padding = 4.dp),
 
     // Flush with the header, so the outline doesn't cut through the row title below it
     HOME_HEADER(CoachMarkIds.HOME_HEADER, R.string.coach_home_header_title, R.string.coach_home_header_body, padding = 0.dp),
@@ -60,6 +63,7 @@ enum class CoachMarkStep(
     WATCHLIST(CoachMarkIds.WATCHLIST, R.string.favorites, R.string.coach_watchlist_body, padding = 2.dp),
     REQUESTS(CoachMarkIds.REQUESTS, R.string.discover, R.string.coach_requests_body, padding = 2.dp),
     LIBRARIES(CoachMarkIds.LIBRARY_PREFIX, R.string.coach_libraries_title, R.string.coach_libraries_body, group = true, padding = 2.dp),
+    UPDATES(CoachMarkIds.UPDATE_PROMPT, R.string.coach_updates_title, R.string.coach_updates_body, padding = 4.dp, picture = true),
     SETTINGS(CoachMarkIds.SETTINGS, R.string.coach_settings_title_last, R.string.coach_settings_body, padding = 2.dp),
     ;
 
@@ -133,9 +137,9 @@ class CoachMarkTour
         fun begin() {
             if (!pending) return
             pending = false
-            val steps = CoachMarkStep.entries.filter { bounds(it) != null || rail?.has(it) == true }
+            val steps = CoachMarkStep.entries.filter { it.picture || bounds(it) != null || rail?.has(it) == true }
             Timber.i("Coach-mark tour started: %s", steps)
-            state = if (steps.isEmpty()) null else CoachMarkState(listOf(CoachMarkStep.WELCOME) + steps)
+            state = if (steps.all { it.picture }) null else CoachMarkState(listOf(CoachMarkStep.WELCOME) + steps)
         }
 
         fun end() {

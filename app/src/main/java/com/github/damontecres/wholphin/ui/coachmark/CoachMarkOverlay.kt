@@ -17,10 +17,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -28,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -48,14 +52,19 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.services.NavigationManager
+import com.github.damontecres.wholphin.ui.components.BasicDialogPanel
 import com.github.damontecres.wholphin.ui.nav.Destination
+import com.github.damontecres.wholphin.ui.setup.UpdatePromptContent
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonType
+import com.github.damontecres.wholphin.util.Version
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.max
@@ -70,6 +79,10 @@ private val CardWidth = 740.dp
 private val CardGap = 28.dp
 private val ScreenMarginX = 48.dp
 private val ScreenMarginY = 27.dp
+
+// The shorter, screen-wide card for when the full one would cover the target (the row of posters)
+private val CompactGap = 22.dp
+private val CompactMarginY = 18.dp
 
 /**
  * Draws the [tour] over the signed-in app: the screen dimmed, the current step's target cut out of the dim with a
@@ -186,33 +199,56 @@ fun CoachMarkOverlay(
             )
         }
 
+        val cardModifier = Modifier.graphicsLayer { alpha = cardAlpha.value }
         Layout(
             content = {
-                CoachMarkCard(
-                    state = state,
-                    modifier = Modifier.graphicsLayer { alpha = cardAlpha.value },
-                )
+                CoachMarkCard(state = state, compact = false, modifier = cardModifier)
+                CoachMarkCard(state = state, compact = true, modifier = cardModifier)
+                if (step.picture) {
+                    // Tagged like the real things, so the spotlight finds it the same way
+                    CompositionLocalProvider(LocalCoachMarkTour provides tour) {
+                        UpdatePromptPicture(cardModifier.coachMarkTarget(step.target))
+                    }
+                }
             },
             modifier = Modifier.fillMaxSize(),
         ) { measurables, constraints ->
-            val card = measurables.first().measure(Constraints(maxWidth = minOf(CardWidth.roundToPx(), constraints.maxWidth)))
-            layout(constraints.maxWidth, constraints.maxHeight) {
-                if (!step.hasTarget) {
-                    card.place((constraints.maxWidth - card.width) / 2, (constraints.maxHeight - card.height) / 2)
+            val screenWidth = constraints.maxWidth
+            val screenHeight = constraints.maxHeight
+            val marginX = ScreenMarginX.roundToPx()
+            val full = measurables[0].measure(Constraints(maxWidth = minOf(CardWidth.roundToPx(), screenWidth)))
+            val compact = measurables[1].measure(Constraints(maxWidth = max(0, screenWidth - 2 * marginX)))
+            val picture = measurables.getOrNull(2)?.measure(Constraints())
+            layout(screenWidth, screenHeight) {
+                if (picture != null) {
+                    // The popup and the card under it, together in the middle of the screen
+                    val useFull = picture.height + CardGap.roundToPx() + full.height <= screenHeight - 2 * ScreenMarginY.roundToPx()
+                    val card = if (useFull) full else compact
+                    val gap = (if (useFull) CardGap else CompactGap).roundToPx()
+                    val top = max(0, (screenHeight - picture.height - gap - card.height) / 2)
+                    picture.place((screenWidth - picture.width) / 2, top)
+                    card.place((screenWidth - card.width) / 2, top + picture.height + gap)
                     return@layout
                 }
-                card.place(
+                if (!step.hasTarget) {
+                    full.place((screenWidth - full.width) / 2, (screenHeight - full.height) / 2)
+                    return@layout
+                }
+                // Placed for where the spotlight is going, so the card doesn't hop while it moves
+                val spot =
                     placeCard(
-                        hole = onScreen(hole.value, constraints.maxWidth.toFloat(), constraints.maxHeight.toFloat(), HoleScreenInset.toPx()),
-                        width = card.width,
-                        height = card.height,
-                        screenWidth = constraints.maxWidth,
-                        screenHeight = constraints.maxHeight,
+                        hole = onScreen(target ?: hole.value, screenWidth.toFloat(), screenHeight.toFloat(), HoleScreenInset.toPx()),
+                        full = IntSize(full.width, full.height),
+                        compact = IntSize(compact.width, compact.height),
+                        screenWidth = screenWidth,
+                        screenHeight = screenHeight,
                         gap = CardGap.roundToPx(),
-                        marginX = ScreenMarginX.roundToPx(),
+                        compactGap = CompactGap.roundToPx(),
+                        marginX = marginX,
                         marginY = ScreenMarginY.roundToPx(),
-                    ),
-                )
+                        compactMarginY = CompactMarginY.roundToPx(),
+                    )
+                (if (spot.compact) compact else full).place(spot.offset)
             }
         }
     }
@@ -231,60 +267,100 @@ private fun onScreen(
     bottom = hole.bottom.coerceIn(inset, height - inset),
 )
 
+internal data class CardSpot(
+    val offset: IntOffset,
+    val compact: Boolean,
+)
+
 /**
- * Beside a narrow target (a menu item), otherwise below it or above it, whichever fits; always on screen
+ * Where the card goes without covering [hole]: the full card beside a narrow target (a menu item), otherwise below or
+ * above it; then the shorter [compact] card below or above. Only when neither fits does the compact card go in the
+ * bigger space, as clear of the target as it can be.
  */
 internal fun placeCard(
     hole: Rect,
-    width: Int,
-    height: Int,
+    full: IntSize,
+    compact: IntSize,
     screenWidth: Int,
     screenHeight: Int,
     gap: Int,
+    compactGap: Int,
     marginX: Int,
     marginY: Int,
-): IntOffset {
-    fun x(v: Float) = v.roundToInt().coerceIn(marginX, max(marginX, screenWidth - marginX - width))
+    compactMarginY: Int,
+): CardSpot {
+    fun x(v: Float) = v.roundToInt().coerceIn(marginX, max(marginX, screenWidth - marginX - full.width))
 
-    fun y(v: Float) = v.roundToInt().coerceIn(marginY, max(marginY, screenHeight - marginY - height))
-    val besideY = y(hole.center.y - height / 2f)
+    fun y(v: Float) = v.roundToInt().coerceIn(marginY, max(marginY, screenHeight - marginY - full.height))
+
+    fun full(offset: IntOffset) = CardSpot(offset, compact = false)
+    val besideY = y(hole.center.y - full.height / 2f)
     if (hole.width < screenWidth * .4f) {
-        if (hole.right + gap + width <= screenWidth - marginX) return IntOffset((hole.right + gap).roundToInt(), besideY)
-        if (hole.left - gap - width >= marginX) return IntOffset((hole.left - gap - width).roundToInt(), besideY)
+        if (hole.right + gap + full.width <= screenWidth - marginX) return full(IntOffset((hole.right + gap).roundToInt(), besideY))
+        if (hole.left - gap - full.width >= marginX) return full(IntOffset((hole.left - gap - full.width).roundToInt(), besideY))
     }
-    if (hole.bottom + gap + height <= screenHeight - marginY) return IntOffset(x(hole.left), (hole.bottom + gap).roundToInt())
-    if (hole.top - gap - height >= marginY) return IntOffset(x(hole.left), (hole.top - gap - height).roundToInt())
-    return IntOffset(x((screenWidth - marginX - width).toFloat()), y((screenHeight - marginY - height).toFloat()))
+    if (hole.bottom + gap + full.height <= screenHeight - marginY) return full(IntOffset(x(hole.left), (hole.bottom + gap).roundToInt()))
+    if (hole.top - gap - full.height >= marginY) return full(IntOffset(x(hole.left), (hole.top - gap - full.height).roundToInt()))
+
+    val compactX = (screenWidth - compact.width) / 2
+    val below = (hole.bottom + compactGap).roundToInt()
+    val above = (hole.top - compactGap - compact.height).roundToInt()
+    val y =
+        when {
+            below + compact.height <= screenHeight - compactMarginY -> below
+            above >= compactMarginY -> above
+            screenHeight - hole.bottom >= hole.top -> screenHeight - compactMarginY - compact.height
+            else -> compactMarginY
+        }
+    return CardSpot(IntOffset(compactX, y), compact = true)
 }
 
+/**
+ * The step's card. [compact] packs the same things into fewer lines: the step count beside the title, and the hint
+ * beside the buttons.
+ */
 @Composable
 private fun CoachMarkCard(
     state: CoachMarkState,
+    compact: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val step = state.step
     val shape = RoundedCornerShape(16.dp)
     Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 12.dp),
         modifier =
             modifier
                 .background(NeonBoard.Card, shape)
                 .border(1.dp, NeonBoard.Line2, shape)
-                .padding(24.dp)
+                .padding(if (compact) PaddingValues(horizontal = 24.dp, vertical = 16.dp) else PaddingValues(24.dp))
                 .semantics { liveRegion = LiveRegionMode.Polite },
     ) {
-        Text(
-            text = stringResource(R.string.coach_step_count, state.index + 1, state.steps.size).uppercase(),
-            style = NeonType.eyebrow(),
-            color = NeonBoard.Mid,
-        )
+        val count: @Composable () -> Unit = {
+            Text(
+                text = stringResource(R.string.coach_step_count, state.index + 1, state.steps.size).uppercase(),
+                style = NeonType.eyebrow(),
+                color = NeonBoard.Mid,
+            )
+        }
         // Volt only for the title and the chosen button
-        Text(
-            text = stringResource(step.title),
-            style = NeonType.dialogTitle(),
-            color = NeonBoard.Volt,
-            modifier = Modifier.semantics { heading() },
-        )
+        val title: @Composable (Modifier) -> Unit = {
+            Text(
+                text = stringResource(step.title),
+                style = NeonType.dialogTitle(),
+                color = NeonBoard.Volt,
+                modifier = it.semantics { heading() },
+            )
+        }
+        if (compact) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                title(Modifier.weight(1f))
+                count()
+            }
+        } else {
+            count()
+            title(Modifier)
+        }
         Text(
             text = stringResource(step.body),
             style = NeonType.rowSubtitle().copy(fontSize = 17.sp, lineHeight = 24.sp),
@@ -292,7 +368,8 @@ private fun CoachMarkCard(
         )
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.padding(top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(top = if (compact) 4.dp else 8.dp),
         ) {
             CoachMarkPill(
                 text =
@@ -308,19 +385,41 @@ private fun CoachMarkCard(
             if (!state.isLast) {
                 CoachMarkPill(text = stringResource(R.string.coach_skip), selected = state.skipSelected)
             }
+            if (compact) {
+                Spacer(Modifier.weight(1f))
+                CoachMarkHint(state)
+            }
         }
-        Text(
-            text =
-                stringResource(
-                    when {
-                        state.isLast -> R.string.coach_hint_last
-                        state.index == 0 -> R.string.coach_hint_first
-                        else -> R.string.coach_hint
-                    },
-                ),
-            style = NeonType.rowSubtitle(),
-            color = NeonBoard.Mid,
-        )
+        if (!compact) CoachMarkHint(state)
+    }
+}
+
+@Composable
+private fun CoachMarkHint(state: CoachMarkState) {
+    Text(
+        text =
+            stringResource(
+                when {
+                    state.isLast -> R.string.coach_hint_last
+                    state.index == 0 -> R.string.coach_hint_first
+                    else -> R.string.coach_hint
+                },
+            ),
+        style = NeonType.rowSubtitle(),
+        color = NeonBoard.Mid,
+    )
+}
+
+/** The "update available" popup as it looks when WeaselPlex opens, offering the next version; only a picture */
+@Composable
+private fun UpdatePromptPicture(modifier: Modifier = Modifier) {
+    val version =
+        remember {
+            Version.fromStringLenient(BuildConfig.VERSION_NAME)?.let { it.copy(patch = it.patch + 1, numCommits = null, hash = null) }
+                ?: Version(1, 3, 0)
+        }
+    BasicDialogPanel(modifier = modifier, elevation = 6.dp) {
+        UpdatePromptContent(version = version, onUpdate = {}, onNotNow = {}, picture = true)
     }
 }
 
