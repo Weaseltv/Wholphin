@@ -135,6 +135,7 @@ class CoachMarkTour
             state = null
             downKeys.clear()
             homeRowReady = false
+            homeToTop = false
             pendingSince = SystemClock.uptimeMillis()
             pending = true
         }
@@ -148,6 +149,9 @@ class CoachMarkTour
             state = if (steps.all { it.picture }) null else CoachMarkState(listOf(CoachMarkStep.WELCOME) + steps)
         }
 
+        /** Set when the tour is closed on Home (Done, Skip tour, or BACK from the first card), for Home to go back to its top row */
+        var homeToTop by mutableStateOf(false)
+
         fun end() {
             if (active) Timber.i("Coach-mark tour ended at %s", state?.step)
             pending = false
@@ -155,14 +159,19 @@ class CoachMarkTour
             downKeys.clear()
         }
 
+        private fun finish() {
+            end()
+            homeToTop = true
+        }
+
         private fun next() {
             val s = state ?: return
-            if (s.isLast) end() else state = s.copy(index = s.index + 1, skipSelected = false)
+            if (s.isLast) finish() else state = s.copy(index = s.index + 1, skipSelected = false)
         }
 
         private fun previous() {
             val s = state ?: return
-            if (s.index == 0) end() else state = s.copy(index = s.index - 1, skipSelected = false)
+            if (s.index == 0) finish() else state = s.copy(index = s.index - 1, skipSelected = false)
         }
 
         /** True when the tour took the key */
@@ -183,7 +192,7 @@ class CoachMarkTour
             if (event.action != KeyEvent.ACTION_UP || !downKeys.remove(code)) return true
             val s = state ?: return true
             when (code) {
-                in okKeys -> if (s.skipSelected) end() else next()
+                in okKeys -> if (s.skipSelected) finish() else next()
                 in backKeys -> previous()
             }
             return true

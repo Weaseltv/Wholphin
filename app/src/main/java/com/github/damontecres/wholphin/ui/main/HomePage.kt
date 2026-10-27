@@ -513,6 +513,17 @@ fun HomePageContent(
             }
         }
     }
+    // Once the tour is closed, Home goes back to its top row
+    if (coachMarkTour?.homeToTop == true) {
+        LaunchedEffect(Unit) {
+            coachMarkTour.homeToTop = false
+            val first = homeRows.indexOfFirst(hasContent)
+            if (first < 0) return@LaunchedEffect
+            listState.scrollToItem(first)
+            withTimeoutOrNull(1_000) { snapshotFlow { listState.layoutInfo.visibleItemsInfo.any { it.index == first } }.first { it } }
+            rowFocusRequesters.getOrNull(first)?.tryRequestFocus()
+        }
+    }
     LaunchedEffect(onUpdateBackdrop, focusedItem) {
         focusedItem?.let { onUpdateBackdrop.invoke(it) }
     }
