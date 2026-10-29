@@ -94,15 +94,16 @@ below after the final review and installation.
 
 - Final arm64 Alpha build: **BUILD SUCCESSFUL**, 36 seconds with incremental
   outputs retained. Helper package/native-dependency safeguards passed.
-- Direct VPS → Shield install attempted through the approved helper.
-  ADB returned **device unauthorized**; the Shield must approve this VPS's
-  existing debugging key. No replacement key, other host, fallback route,
-  uninstall or data reset was used.
-- The owner reported approving the Shield prompt. A direct install retry,
-  disconnect/reconnect and restart of the VPS ADB daemon still returned
-  **device unauthorized**. The existing September 17 host key is unchanged;
-  installation remains blocked on the Shield accepting it. A new prompt/status
-  confirmation was requested. The built APK is
+- Initial direct VPS → Shield installs were blocked by **device unauthorized**,
+  including retries after the first reported approval.
+- Authorization resolved on 2026-10-29: an owner-authorized helper used its
+  existing ThinkCentre connection solely to approve the Shield system dialog
+  matching this VPS's independently verified public-key fingerprint. No private
+  keys were copied or regenerated. Build and installation stayed on srv1160496.
+- Final direct in-place install of the already-built arm64 Alpha APK:
+  `adb -s 100.105.135.30:5555 install -r` returned **Success**, exit 0.
+  The authorized VPS connection was retained without reconnecting or restarting
+  ADB. No uninstall or data reset was used. The installed APK is
   `app/build/outputs/apk/weaselfin/alpha/WeaselPlex-alpha-arm64-v8a.apk`.
 - No app launch, screenshots, playback, D-pad testing or installed-package
   inspection performed. All active Alpha build/Gradle/Kotlin caches retained.
