@@ -413,7 +413,8 @@
   "transitionCases": [
     {
       "name": "failed_retried_ready",
-      "cases": ["failed", "failed_request_retried", "retried_request_ready"]
+      "cases": ["failed", "failed_request_retried", "retried_request_ready"],
+      "expectedPending": ["v1|11|hd|ready|-"]
     },
     {
       "name": "season_p_to_a_to_ready",
