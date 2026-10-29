@@ -98,7 +98,11 @@ below after the final review and installation.
   ADB returned **device unauthorized**; the Shield must approve this VPS's
   existing debugging key. No replacement key, other host, fallback route,
   uninstall or data reset was used.
-- Installation is pending the owner's Shield approval. The built APK is
+- The owner reported approving the Shield prompt. A direct install retry,
+  disconnect/reconnect and restart of the VPS ADB daemon still returned
+  **device unauthorized**. The existing September 17 host key is unchanged;
+  installation remains blocked on the Shield accepting it. A new prompt/status
+  confirmation was requested. The built APK is
   `app/build/outputs/apk/weaselfin/alpha/WeaselPlex-alpha-arm64-v8a.apk`.
 - No app launch, screenshots, playback, D-pad testing or installed-package
   inspection performed. All active Alpha build/Gradle/Kotlin caches retained.
