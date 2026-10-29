@@ -3,6 +3,8 @@
 The source contract is `runbooks/request-notifications/phase0-findings.md`.
 The implementation is `services/RequestStage.kt`; examples for the phone port
 are in `request-stages.fixture.json`. These are documentation fixtures, not a test suite.
+The phone port consumes their expected event keys, retry/season transitions,
+initial seeded baseline and push/poll presentation-order cases in its unit tests.
 
 Use request quality (`is4k`) consistently for media status, season status, queue,
 and library ID. Never substitute the other quality. Evaluate in this order:
