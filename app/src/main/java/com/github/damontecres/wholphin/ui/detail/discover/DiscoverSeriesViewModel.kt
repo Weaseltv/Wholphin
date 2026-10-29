@@ -59,6 +59,7 @@ class DiscoverSeriesViewModel
         private val navigationManager: NavigationManager,
         private val backdropService: BackdropService,
         val serverRepository: ServerRepository,
+        val requestStatusRepository: com.github.damontecres.wholphin.services.RequestStatusRepository,
         val seerrService: SeerrService,
         private val seerrServerRepository: SeerrServerRepository,
         @Assisted val item: DiscoverItem,
@@ -335,10 +336,12 @@ class DiscoverSeriesViewModel
                     val currentRequest =
                         tv.mediaInfo?.requests?.firstOrNull {
                             it.status == RequestStatus.PENDING.status &&
+                                it.is4k == request.is4k &&
                                 it.requestedBy?.id == currentUserId
                         }
                     try {
-                        if (currentRequest != null) {
+                        val submittingScope = requestStatusRepository.state.value.scope
+                        val created = if (currentRequest != null) {
                             Timber.v("User has pending request, will update")
                             seerrService.api.requestApi.requestRequestIdPut(
                                 requestId = currentRequest.id.toString(),
@@ -377,6 +380,11 @@ class DiscoverSeriesViewModel
                                 ),
                             )
                         }
+                        requestStatusRepository.seed(created, submittingScope, item)
+                        if (requestStatusRepository.state.value.scope == submittingScope) {
+                            showToast(context, "Requested. We'll let you know when it's ready.")
+                            kotlinx.coroutines.withContext(WholphinDispatchers.Main) { navigationManager.navigateToFromDrawer(Destination.Discover(1, created.id)) }
+                        }
                     } catch (ex: CancellationException) {
                         throw ex
                     } catch (ex: Exception) {
@@ -394,10 +402,12 @@ class DiscoverSeriesViewModel
 
         fun cancelRequest(id: Int) {
             viewModelScope.launchIO {
-                state.value.tvSeries.successValue?.mediaInfo?.requests?.firstOrNull()?.let {
+                state.value.tvSeries.successValue?.mediaInfo?.requests?.firstOrNull { it.id == id }?.takeIf { canUserCancelRequest(userConfig.firstOrNull(), listOf(it)) }?.let {
                     // TODO handle multiple requests? Or just delete self's request?
                     try {
+                        val deletingScope = requestStatusRepository.state.value.scope
                         seerrService.api.requestApi.requestRequestIdDelete(it.id.toString())
+                        requestStatusRepository.forget(it.id, deletingScope)
                     } catch (ex: CancellationException) {
                         throw ex
                     } catch (ex: Exception) {

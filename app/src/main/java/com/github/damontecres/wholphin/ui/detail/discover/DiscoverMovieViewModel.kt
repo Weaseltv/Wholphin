@@ -59,6 +59,7 @@ class DiscoverMovieViewModel
         private val navigationManager: NavigationManager,
         private val backdropService: BackdropService,
         val serverRepository: ServerRepository,
+        val requestStatusRepository: com.github.damontecres.wholphin.services.RequestStatusRepository,
         val seerrService: SeerrService,
         private val seerrServerRepository: SeerrServerRepository,
         @Assisted val item: DiscoverItem,
@@ -191,7 +192,8 @@ class DiscoverMovieViewModel
                     return@launchIO
                 }
                 try {
-                    seerrService.api.requestApi.requestPost(
+                    val submittingScope = requestStatusRepository.state.value.scope
+                    val created = seerrService.api.requestApi.requestPost(
                         RequestPostRequest(
                             is4k = request.is4k,
                             mediaId = request.movieId,
@@ -207,6 +209,11 @@ class DiscoverMovieViewModel
                             tags = emptyList(),
                         ),
                     )
+                    requestStatusRepository.seed(created, submittingScope, item)
+                    if (requestStatusRepository.state.value.scope == submittingScope) {
+                        showToast(context, "Requested. We'll let you know when it's ready.")
+                        kotlinx.coroutines.withContext(WholphinDispatchers.Main) { navigationManager.navigateToFromDrawer(Destination.Discover(1, created.id)) }
+                    }
                 } catch (ex: CancellationException) {
                     throw ex
                 } catch (ex: Exception) {
@@ -220,10 +227,12 @@ class DiscoverMovieViewModel
 
         fun cancelRequest(id: Int) {
             viewModelScope.launchIO {
-                state.value.movie.successValue?.mediaInfo?.requests?.firstOrNull()?.let {
+                state.value.movie.successValue?.mediaInfo?.requests?.firstOrNull { it.id == id }?.takeIf { canUserCancelRequest(userConfig.firstOrNull(), listOf(it)) }?.let {
                     // TODO handle multiple requests? Or just delete self's request?
                     try {
+                        val deletingScope = requestStatusRepository.state.value.scope
                         seerrService.api.requestApi.requestRequestIdDelete(it.id.toString())
+                        requestStatusRepository.forget(it.id, deletingScope)
                     } catch (ex: kotlinx.coroutines.CancellationException) {
                         throw ex
                     } catch (ex: Exception) {
@@ -262,17 +271,9 @@ class DiscoverMovieViewModel
 fun canUserCancelRequest(
     user: SeerrUserConfig?,
     requests: List<MediaRequest>?,
-) = (user.hasPermission(SeerrPermission.MANAGE_REQUESTS) && requests?.isNotEmpty() == true) ||
-    (
-        // User requested this
-        user.hasPermission(SeerrPermission.REQUEST) &&
-            requests
-                .orEmpty()
-                .any {
-                    equalsNotNull(it.requestedBy?.id, user?.id) &&
-                        RequestStatus.from(it.status) < RequestStatus.APPROVED
-                }
-    )
+): Boolean = (user.hasPermission(SeerrPermission.REQUEST) || user.hasPermission(SeerrPermission.MANAGE_REQUESTS)) && requests.orEmpty().any {
+    it.requestedBy?.id == user?.id && it.status == RequestStatus.PENDING.status
+}
 
 data class DiscoverMovieState(
     val movie: DataLoadingState<MovieDetails> = DataLoadingState.Pending,

@@ -59,7 +59,10 @@ class SeerrApiClient(
     val overrideruleApi by create(::OverrideruleApi)
     val personApi by create(::PersonApi)
     val publicApi by create(::PublicApi)
-    val requestApi by create(::RequestApi)
+    // Polling and actions keep this session's credentials but are bounded and never retry a transport failure.
+    val requestApi: RequestApi by lazy {
+        RequestApi(baseUrl, client.newBuilder().callTimeout(30, TimeUnit.SECONDS).retryOnConnectionFailure(false).build())
+    }
     val searchApi by create(::SearchApi)
 
     // Request searches should fail promptly without changing discovery or sign-in timeouts.

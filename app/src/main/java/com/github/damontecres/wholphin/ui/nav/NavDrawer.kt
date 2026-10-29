@@ -8,6 +8,7 @@ import androidx.compose.animation.core.animateIntOffsetAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -160,7 +161,7 @@ class NavDrawerViewModel
                 NavDrawerItem.Discover -> {
                     setIndex(index)
                     navigationManager.navigateToFromDrawer(
-                        Destination.Discover,
+                        Destination.Discover(),
                     )
                 }
 
@@ -194,7 +195,7 @@ class NavDrawerViewModel
                         when (it) {
                             is ServerNavDrawerItem -> it.destination
                             is NavDrawerItem.Favorites -> Destination.Favorites
-                            is NavDrawerItem.Discover -> Destination.Discover
+                            is NavDrawerItem.Discover -> Destination.Discover()
                             else -> null
                         }
                     }
@@ -210,7 +211,7 @@ class NavDrawerViewModel
                         } else if (key is Destination.NowPlaying) {
                             NOW_PLAYING_INDEX
                         } else {
-                            val idx = asDestinations.indexOf(key)
+                            val idx = asDestinations.indexOfFirst { it == key || it is Destination.Discover && key is Destination.Discover }
                             if (idx >= 0) {
                                 idx
                             } else {
@@ -790,6 +791,8 @@ fun NavigationDrawerScope.NavItem(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     containerColor: Color = Color.Unspecified,
 ) {
+    val requestsVM: com.github.damontecres.wholphin.ui.discover.SeerrRequestsViewModel = androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel()
+    val requestState by requestsVM.requests.state.collectAsState()
     val context = LocalContext.current
     val useFont = library !is ServerNavDrawerItem || library.type != CollectionType.LIVETV
     val icon =
@@ -867,6 +870,16 @@ fun NavigationDrawerScope.NavItem(
                         contentDescription = null,
                         tint = color,
                         modifier = Modifier.size(DrawerIconSize),
+                    )
+                }
+                if (library is NavDrawerItem.Discover && requestState.badgeCount > 0) {
+                    Text(
+                        text = if (requestState.badgeCount > 9) "9+" else requestState.badgeCount.toString(),
+                        fontSize = 10.sp,
+                        color = Color.Black,
+                        modifier = Modifier.align(Alignment.TopEnd)
+                            .background(Color(0xFF00F2D6), androidx.compose.foundation.shape.CircleShape)
+                            .padding(horizontal = 4.dp),
                     )
                 }
             }

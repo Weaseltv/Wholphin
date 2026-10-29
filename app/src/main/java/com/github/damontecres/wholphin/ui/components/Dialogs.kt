@@ -472,6 +472,11 @@ fun BasicDialog(
     tallyColor: Color = LocalNeonAccent.current,
     content: @Composable () -> Unit,
 ) {
+    val requestUi = LocalRequestUiState.current
+    androidx.compose.runtime.DisposableEffect(requestUi) {
+        requestUi.dialogs++
+        onDispose { requestUi.dialogs-- }
+    }
     Dialog(
         onDismissRequest = onDismissRequest,
         properties = properties,

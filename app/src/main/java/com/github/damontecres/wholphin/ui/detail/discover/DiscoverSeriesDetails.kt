@@ -148,7 +148,7 @@ fun DiscoverSeriesDetails(
                     showRequestSeasonDialog = true
                 },
                 cancelOnClick = {
-                    item.id?.let { viewModel.cancelRequest(it) }
+                    item.mediaInfo?.requests?.filter { it.requestedBy?.id == userConfig?.id && it.status == 1 }?.let { own -> own.firstOrNull { it.is4k != true } ?: own.firstOrNull() }?.let { viewModel.cancelRequest(it.id) }
                 },
                 moreOnClick = {
                 },
@@ -276,6 +276,8 @@ fun DiscoverSeriesDetailsContent(
                             )
                         }
                         ExpandableDiscoverButtons(
+                            requestTmdbId = series.id,
+                            requestMediaType = "tv",
                             availability =
                                 SeerrAvailability.from(series.mediaInfo?.status)
                                     ?: SeerrAvailability.UNKNOWN,

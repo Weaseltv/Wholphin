@@ -166,7 +166,7 @@ sealed class Destination(
     data object Favorites : Destination(false)
 
     @Serializable
-    data object Discover : Destination(false)
+    data class Discover(val initialTab: Int? = null, val focusRequestId: Int? = null) : Destination(false)
 
     @Serializable
     data class DiscoveredItem(

@@ -22,6 +22,8 @@ import com.github.damontecres.wholphin.util.DiscoverRequestType
 fun DiscoverPage(
     preferences: UserPreferences,
     modifier: Modifier = Modifier,
+    initialTab: Int? = null,
+    focusRequestId: Int? = null,
 ) {
     // WeaselPlex: the Requests page is a search box first and a request history second.
     // Upstream's Discover, Movies and TV Shows browse tabs are hidden (the composables stay
@@ -31,13 +33,14 @@ fun DiscoverPage(
         remember {
             listOf(
                 TabDetails(R.string.search),
-                TabDetails(R.string.requests_history),
+                TabDetails(R.string.my_requests),
             )
         }
     var showHeader by rememberSaveable { mutableStateOf(true) }
 
     TabbedPage(
         itemId = NavDrawerItem.Discover.id,
+        initialTab = initialTab,
         tabs = tabs,
         modifier = modifier,
         showTabs = showHeader,
@@ -58,6 +61,7 @@ fun DiscoverPage(
             // History (upstream's Requests tab: current and prior requests)
             1 -> {
                 SeerrRequestsPage(
+                    focusRequestId = focusRequestId,
                     focusRequesterOnEmpty = tabDetails.tabFocusRequester,
                     positionCallback = { columns, index -> showHeader = index < columns },
                     modifier =

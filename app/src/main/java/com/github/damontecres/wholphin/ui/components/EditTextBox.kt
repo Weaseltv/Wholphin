@@ -175,7 +175,7 @@ fun EditTextBox(
         BasicSecureTextField(
             state = state,
             modifier =
-                modifier.defaultMinSize(
+                modifier.trackRequestTextInput().defaultMinSize(
                     minWidth = TextFieldDefaults.MinWidth,
                 ),
             enabled = enabled,
@@ -191,7 +191,7 @@ fun EditTextBox(
         BasicTextField(
             state = state,
             modifier =
-                modifier.defaultMinSize(
+                modifier.trackRequestTextInput().defaultMinSize(
                     minWidth = TextFieldDefaults.MinWidth,
                 ),
             enabled = enabled,
@@ -282,7 +282,7 @@ fun EditTextBox(
     CompositionLocalProvider(LocalTextSelectionColors provides colors.textSelectionColors) {
         BasicTextField(
             value = value,
-            modifier = modifier.defaultMinSize(minWidth = TextFieldDefaults.MinWidth, minHeight = height),
+            modifier = modifier.trackRequestTextInput().defaultMinSize(minWidth = TextFieldDefaults.MinWidth, minHeight = height),
             onValueChange = onValueChange,
             enabled = enabled,
             readOnly = readOnly,

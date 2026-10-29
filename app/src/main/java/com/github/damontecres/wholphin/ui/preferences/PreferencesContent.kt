@@ -113,6 +113,8 @@ fun PreferencesContent(
     onFocus: (Int, Int) -> Unit = { _, _ -> },
     onUpdateNotesChange: (Release?) -> Unit = {},
 ) {
+    val requestsVM: com.github.damontecres.wholphin.ui.discover.SeerrRequestsViewModel = hiltViewModel()
+    val requestState by requestsVM.requests.state.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
@@ -497,6 +499,17 @@ fun PreferencesContent(
                                     )
                                 }
 
+                                AppPreference.RequestNotifications -> {
+                                    SwitchPreference(
+                                        title = stringResource(R.string.request_notifications),
+                                        value = requestState.notifications.enabled,
+                                        onClick = { requestsVM.requests.setNotificationsEnabled(!requestState.notifications.enabled) },
+                                        summary = "Show request updates while browsing",
+                                        modifier = focusModifier,
+                                        interactionSource = interactionSource,
+                                    )
+                                }
+
                                 AppPreference.SeerrIntegration -> {
                                     ClickPreference(
                                         title = stringResource(pref.title),
@@ -514,6 +527,7 @@ fun PreferencesContent(
                                                         SeerrDialogMode.Add
                                                     }
 
+                                                    is SeerrConnectionStatus.Expired -> SeerrDialogMode.Remove(conn.current.server.url)
                                                     is SeerrConnectionStatus.Success -> {
                                                         SeerrDialogMode.Remove(
                                                             conn.current.server.url,
@@ -534,6 +548,7 @@ fun PreferencesContent(
                                                     )
                                                 }
 
+                                                is SeerrConnectionStatus.Expired -> stringResource(R.string.pending)
                                                 is SeerrConnectionStatus.Success -> {
                                                     stringResource(R.string.enabled)
                                                 }

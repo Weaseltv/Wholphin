@@ -1,6 +1,9 @@
 package com.github.damontecres.wholphin
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -34,6 +37,7 @@ import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.ScreensaverService
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.UpdateChecker
+import com.github.damontecres.wholphin.ui.components.RequestChipHost
 import com.github.damontecres.wholphin.ui.components.AppScreensaver
 import com.github.damontecres.wholphin.ui.nav.ApplicationContent
 import com.github.damontecres.wholphin.ui.setup.PinnedServerContent
@@ -52,6 +56,7 @@ fun MainContent(
     backdropService: BackdropService,
     screensaverService: ScreensaverService,
     updateChecker: UpdateChecker,
+    requestStatusRepository: com.github.damontecres.wholphin.services.RequestStatusRepository,
     modifier: Modifier = Modifier,
 ) {
     val preferences by rememberUpdatedState(userPreferences)
@@ -65,7 +70,9 @@ fun MainContent(
 //                            setupNavigationManager.backStack = backStack
         val interfaceCustomization =
             remember(userPreferences.appPreferences) { InterfaceCustomization(userPreferences.appPreferences) }
-        CompositionLocalProvider(LocalInterfaceCustomization provides interfaceCustomization) {
+        val requestUi = remember { com.github.damontecres.wholphin.ui.components.RequestUiState() }
+        CompositionLocalProvider(LocalInterfaceCustomization provides interfaceCustomization,
+            com.github.damontecres.wholphin.ui.components.LocalRequestUiState provides requestUi) {
             NavDisplay(
                 backStack = backStack,
                 onBack = { backStack.removeLastOrNull() },
@@ -120,15 +127,26 @@ fun MainContent(
                                 }
 
                                 if (showContent) {
-                                    ApplicationContent(
-                                        user = current.user,
-                                        server = current.server,
-                                        navigationManager = navigationManager,
-                                        preferences = preferences,
-                                        modifier = Modifier.fillMaxSize(),
-                                    )
-                                    // Only once signed in, so it never interrupts sign-in.
-                                    UpdatePrompt(updateChecker, navigationManager)
+                                    val pageFocus = remember(current.user.rowId) { FocusRequester() }
+                                    Box(Modifier.fillMaxSize()) {
+                                        Box(Modifier.fillMaxSize().focusRequester(pageFocus).focusGroup()) {
+                                            ApplicationContent(
+                                                user = current.user,
+                                                server = current.server,
+                                                navigationManager = navigationManager,
+                                                preferences = preferences,
+                                                modifier = Modifier.fillMaxSize(),
+                                            )
+                                        }
+                                        UpdatePrompt(updateChecker, navigationManager)
+                                        RequestChipHost(
+                                            repository = requestStatusRepository,
+                                            navigation = navigationManager,
+                                            screensaver = screensaverService,
+                                            pageFocus = pageFocus,
+                                            ownerRowId = current.user.rowId,
+                                        )
+                                    }
                                 } else {
                                     Box(
                                         modifier = Modifier.size(200.dp),

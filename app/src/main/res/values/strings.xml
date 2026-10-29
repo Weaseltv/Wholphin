@@ -969,4 +969,6 @@
     <string name="recommended_title_released">Released</string>
     <string name="recommended_title_added">Added</string>
     <string name="recommended_title_unwatched">Unwatched</string>
+    <string name="my_requests">My Requests</string>
+    <string name="request_notifications">Request notifications</string>
 </resources>

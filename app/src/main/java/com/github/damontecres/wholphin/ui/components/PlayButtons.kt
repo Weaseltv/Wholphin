@@ -391,6 +391,7 @@ fun ExpandableFaButton(
     contentColor: Color = Color.Unspecified,
     /** Show only the icon until focused, with an uppercase label in the button font. */
     collapsed: Boolean = false,
+    titleOverride: String? = null,
 ) {
     val isFocused = interactionSource.collectIsFocusedAsState().value
     Button(
@@ -424,7 +425,7 @@ fun ExpandableFaButton(
         if (collapsed) {
             AnimatedVisibility(isFocused) {
                 Text(
-                    text = stringResource(title).uppercase(),
+                    text = (titleOverride ?: stringResource(title)).uppercase(),
                     color = contentColor,
                     fontSize = COMPACT_FONT_SIZE,
                     modifier = Modifier.padding(start = 2.dp, end = 6.dp),
@@ -433,7 +434,7 @@ fun ExpandableFaButton(
         } else {
             AnimatedVisibility(isWeaselTv() || isFocused) {
                 Text(
-                    text = stringResource(title),
+                    text = titleOverride ?: stringResource(title),
                     style = MaterialTheme.typography.titleSmall,
                     color = contentColor,
                     modifier = Modifier.padding(end = 4.dp),

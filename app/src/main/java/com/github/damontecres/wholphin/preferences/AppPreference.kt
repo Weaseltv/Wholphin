@@ -1052,6 +1052,13 @@ sealed interface AppPreference<Pref, T> {
                 summaryOff = R.string.disabled,
             )
 
+        val RequestNotifications =
+            AppClickablePreference<AppPreferences>(
+                title = R.string.request_notifications,
+                getter = { },
+                setter = { prefs, _ -> prefs },
+            )
+
         val SeerrIntegration =
             AppClickablePreference<AppPreferences>(
                 title = R.string.seerr_integration,
@@ -1174,6 +1181,7 @@ val basicPreferences =
             preferences =
                 buildList {
                     if (BuildConfig.DISCOVER_ENABLED) {
+                        add(AppPreference.RequestNotifications)
                         add(AppPreference.SeerrIntegration)
                     }
                     add(AppPreference.AdvancedSettings)

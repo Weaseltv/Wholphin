@@ -60,6 +60,7 @@ import com.github.damontecres.wholphin.ui.CoilConfig
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.collectLatestIn
 import com.github.damontecres.wholphin.ui.components.LoadingPage
+import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.playback.PlayExternalViewModel
@@ -153,6 +154,8 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var screensaverService: ScreensaverService
 
+    @Inject lateinit var requestStatusRepository: com.github.damontecres.wholphin.services.RequestStatusRepository
+    private var requestStatusJob: Job? = null
     private var updateCheckJob: Job? = null
 
     @Inject
@@ -283,6 +286,7 @@ class MainActivity : AppCompatActivity() {
                                             backdropService = backdropService,
                                             screensaverService = screensaverService,
                                             updateChecker = updateChecker,
+                                            requestStatusRepository = requestStatusRepository,
                                             modifier = Modifier.fillMaxSize(),
                                         )
                                     }
@@ -345,6 +349,10 @@ class MainActivity : AppCompatActivity() {
         super.onStart()
         Timber.d("onStart")
         startPeriodicUpdateCheck()
+        requestStatusJob?.cancel()
+        requestStatusJob = lifecycleScope.launchIO {
+            repeatOnLifecycle(Lifecycle.State.STARTED) { requestStatusRepository.runForeground() }
+        }
     }
 
     /**

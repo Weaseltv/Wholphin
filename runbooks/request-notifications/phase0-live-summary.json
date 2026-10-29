@@ -1,0 +1,59 @@
+{
+  "authMode": "documented X-API-User impersonation; no normal-session login",
+  "permissions": 160,
+  "requestView": false,
+  "manageRequests": false,
+  "admin": false,
+  "list": {
+    "http": 200,
+    "pageInfo": {
+      "pages": 1,
+      "pageSize": 50,
+      "results": 1,
+      "page": 1
+    },
+    "allOwned": true,
+    "rows": [
+      {
+        "status": 2,
+        "type": "movie",
+        "is4k": false,
+        "mediaStatus": 3,
+        "mediaStatus4k": 1,
+        "downloadStatusPresent": true,
+        "downloadStatus4kPresent": true,
+        "downloadCount": 0,
+        "queueStatuses": [],
+        "queueKeys": [],
+        "mediaSeasonsPresent": false
+      }
+    ]
+  },
+  "detail": {
+    "http": 200,
+    "pageInfo": null,
+    "allOwned": true,
+    "rows": [
+      {
+        "status": 2,
+        "type": "movie",
+        "is4k": false,
+        "mediaStatus": 3,
+        "mediaStatus4k": 1,
+        "downloadStatusPresent": true,
+        "downloadStatus4kPresent": true,
+        "downloadCount": 0,
+        "queueStatuses": [],
+        "queueKeys": [],
+        "mediaSeasonsPresent": true
+      }
+    ]
+  },
+  "singlePasswordLoginHttp": 401,
+  "passwordLoginRetries": 0,
+  "version": "3.5.0",
+  "commitTag": "e2f24cb46079746936516c723b09820360f95113",
+  "webhookTestHttp": 204,
+  "webhookSettingsUnchanged": true,
+  "disposableCaptureDeletedHttp": 204
+}

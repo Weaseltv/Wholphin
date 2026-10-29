@@ -124,7 +124,7 @@ fun DiscoverMovieDetails(
                     showRequestDialog = true
                 },
                 cancelOnClick = {
-                    movie.id?.let { viewModel.cancelRequest(it) }
+                    movie.mediaInfo?.requests?.filter { it.requestedBy?.id == userConfig?.id && it.status == 1 }?.let { own -> own.firstOrNull { it.is4k != true } ?: own.firstOrNull() }?.let { viewModel.cancelRequest(it.id) }
                 },
                 onClickItem = { index, item ->
                     viewModel.navigateTo(Destination.DiscoveredItem(item))
@@ -245,6 +245,8 @@ fun DiscoverMovieDetailsContent(
                             )
                         }
                         ExpandableDiscoverButtons(
+                            requestTmdbId = movie.id,
+                            requestMediaType = "movie",
                             availability =
                                 SeerrAvailability.from(movie.mediaInfo?.status)
                                     ?: SeerrAvailability.UNKNOWN,
