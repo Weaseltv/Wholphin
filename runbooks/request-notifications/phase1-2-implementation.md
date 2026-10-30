@@ -128,12 +128,14 @@ current uppercase button renderer. No destructive database fallback, data reset
 or authentication retry was added.
 
 - Arm64 Alpha: **BUILD SUCCESSFUL in 6m 14s** using `scripts/build-alpha.sh`.
-- Direct install: **paused, device unauthorized**. The helper found no running
-  ADB daemon and started it normally; the Shield requires device-side approval
-  again. The existing VPS public-key fingerprint was verified unchanged. No
-  ADB server restart, key replacement or other-machine fallback was attempted.
-- The rebuilt APK and build record remain at the normal active Alpha path.
-  Resume with a direct in-place install of that APK after owner approval.
+- Initial install was paused as **device unauthorized**. The helper found no
+  running ADB daemon and started it normally; the existing VPS public-key
+  fingerprint was verified unchanged. The owner approved the Shield prompt.
+- Final direct in-place installation from the VPS of the already-built APK:
+  `adb -s 100.105.135.30:5555 install -r` returned **Success**, exit 0.
+  The saved Alpha accounts/settings were retained. No ADB server restart,
+  key replacement, other-machine fallback, uninstall or data reset was used.
+- The installed APK and build record remain at the normal active Alpha path.
 - No optional tests, lint, review or device navigation/visual checks. Owner
   verification remains pending. Alpha incremental files and signing key retained;
   **58 GB free** after the build. No stable release or deployment.
