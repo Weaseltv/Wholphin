@@ -108,3 +108,32 @@ below after the final review and installation.
 - No app launch, screenshots, playback, D-pad testing or installed-package
   inspection performed. All active Alpha build/Gradle/Kotlin caches retained.
 - Disk after build: **60 GB free** on srv1160496.
+
+## Startup compatibility correction — 2026-10-30
+
+The owner reported "Can't reach WeaselPlex right now" when opening the installed
+Alpha. The request branch was still based on `599dfca4` (2026-10-12), with Room
+schema 36, while the newer installed Alpha work had already moved to schema 37
+for kid profiles. `PinnedServerViewModel.connect()` reads the saved servers
+before making a network request and labels every exception, including database
+downgrade errors, as a connection failure. This source mismatch is the likely
+cause; no device logs or app inspection were performed. The public media-server
+info endpoint returned HTTP 200 with a valid server ID from the VPS.
+
+Merged current `origin/weaselfin` (`ce17145a`, v1.2.43) into the request branch at
+`79018aca`, preserving its exact schema-37 entities/migrations and the existing
+profile protections, wake/network recovery and guided tour. Request chips now
+wait while the tour is active, and dynamic request-stage labels work with the
+current uppercase button renderer. No destructive database fallback, data reset
+or authentication retry was added.
+
+- Arm64 Alpha: **BUILD SUCCESSFUL in 6m 14s** using `scripts/build-alpha.sh`.
+- Direct install: **paused, device unauthorized**. The helper found no running
+  ADB daemon and started it normally; the Shield requires device-side approval
+  again. The existing VPS public-key fingerprint was verified unchanged. No
+  ADB server restart, key replacement or other-machine fallback was attempted.
+- The rebuilt APK and build record remain at the normal active Alpha path.
+  Resume with a direct in-place install of that APK after owner approval.
+- No optional tests, lint, review or device navigation/visual checks. Owner
+  verification remains pending. Alpha incremental files and signing key retained;
+  **58 GB free** after the build. No stable release or deployment.
