@@ -47,6 +47,7 @@ import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
 import com.github.damontecres.wholphin.ui.bleedHorizontal
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.LocalNeonOutlineRest
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
@@ -230,7 +231,11 @@ fun Tab(
             onClick = onClick,
             interactionSource = interactionSource,
             colors = neonOutlineColors(accent),
-            border = neonSurfaceBorder(restWidth = 1.dp, restColor = if (selected) accent else NeonBoard.Line2),
+            border =
+                neonSurfaceBorder(
+                    restWidth = 1.dp,
+                    restColor = if (selected) accent else LocalNeonOutlineRest.current ?: NeonBoard.Line2,
+                ),
             contentPadding = PaddingValues(horizontal = 12.dp),
             modifier = modifier,
         ) {

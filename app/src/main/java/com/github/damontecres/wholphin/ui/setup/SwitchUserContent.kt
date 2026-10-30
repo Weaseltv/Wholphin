@@ -24,6 +24,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -55,7 +56,13 @@ import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
+import com.github.damontecres.wholphin.kids.PinRules
+import com.github.damontecres.wholphin.kids.ProfileKind
+import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.services.SetupDestination
+import com.github.damontecres.wholphin.services.profilePicturesEnabled
+import com.github.damontecres.wholphin.services.versionedUserImageUrl
+import com.github.damontecres.wholphin.ui.avatars.FirstAvatarDialog
 import com.github.damontecres.wholphin.ui.components.BasicDialog
 import com.github.damontecres.wholphin.ui.components.CircularProgress
 import com.github.damontecres.wholphin.ui.components.EditTextBox
@@ -65,10 +72,23 @@ import com.github.damontecres.wholphin.ui.components.TextButton
 import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.dimAndBlur
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
+import com.github.damontecres.wholphin.ui.kids.AddKidFlow
+import com.github.damontecres.wholphin.ui.kids.ChooserChangePicture
+import com.github.damontecres.wholphin.ui.kids.ChooserChangePin
+import com.github.damontecres.wholphin.ui.kids.ChooserRemovePin
+import com.github.damontecres.wholphin.ui.kids.KidButton
+import com.github.damontecres.wholphin.ui.kids.KidErrorText
+import com.github.damontecres.wholphin.ui.kids.KidGap
+import com.github.damontecres.wholphin.ui.kids.KidListRow
+import com.github.damontecres.wholphin.ui.kids.KidPanelDialog
+import com.github.damontecres.wholphin.ui.kids.KidProfilesViewModel
+import com.github.damontecres.wholphin.ui.kids.KidSpinner
+import com.github.damontecres.wholphin.ui.kids.KidSubtitle
+import com.github.damontecres.wholphin.ui.kids.KidTitle
+import com.github.damontecres.wholphin.ui.kids.OkBackHints
 import com.github.damontecres.wholphin.ui.nav.Destination
-import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.preferences.SetPinFlow
 import com.github.damontecres.wholphin.ui.theme.NeonBrandRow
-import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
 import com.github.damontecres.wholphin.ui.theme.NeonRule
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
@@ -84,6 +104,7 @@ fun SwitchUserContent(
         hiltViewModel<SwitchUserViewModel, SwitchUserViewModel.Factory>(
             creationCallback = { it.create(server) },
         ),
+    kidViewModel: KidProfilesViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -94,12 +115,24 @@ fun SwitchUserContent(
     val state by viewModel.state.collectAsState()
 
     val currentUser by viewModel.serverRepository.currentUserFlow.collectAsState(null)
+    val savedUsers = state.users.filter { it.known }.map { it.user }
     val connectOnly = weaselPlexConnectOnly()
+    // WeaselPlex kid profiles: a kid session hides Add User, Add kid and Switch server (plan 4.4).
+    val kidSession by kidViewModel.isKidSession.collectAsState()
+    val pictureVersions by kidViewModel.pictureVersions.collectAsState()
+    // Review round 1: a pinless adult's picture needs a parent's PIN on a protected TV (assumed protected until known)
+    val deviceProtected by kidViewModel.gate.isDeviceProtected.collectAsState(initial = true)
+    var showAddKid by remember { mutableStateOf(false) }
+    var changePictureFor by remember { mutableStateOf<JellyfinUser?>(null) }
+    var changePinFor by remember { mutableStateOf<JellyfinUser?>(null) }
+    var removePinFor by remember { mutableStateOf<JellyfinUser?>(null) }
     var showAddUser by remember { mutableStateOf(false) }
     var addUser by remember(server) { mutableStateOf<JellyfinUser?>(null) }
     var username by remember(addUser) { mutableStateOf(addUser?.name ?: "") }
 
     fun showAddUserDialog(user: JellyfinUser?) {
+        // Kid profiles: a pick still in progress never publishes or navigates behind Add User
+        viewModel.leaveForOtherAction()
         addUser = user
         showAddUser = true
     }
@@ -141,9 +174,77 @@ fun SwitchUserContent(
     }
     var switchUserWithPin by remember { mutableStateOf<JellyfinUser?>(null) }
 
+    // Kid profiles: a gated switch that failed with the server (eg expired token)
+    LaunchedEffect(state.switchError) {
+        state.switchError?.let { error ->
+            viewModel.clearSwitchError()
+            Toast.makeText(context, error.errorMessage, Toast.LENGTH_LONG).show()
+            if (error.showLogin && error.user != null) {
+                showAddUserDialog(error.user)
+            }
+        }
+    }
+    // Kid profiles: an adult signing in on a protected device sets a PIN before anything is published
+    state.pendingPinSetup?.let {
+        SetPinFlow(
+            currentPin = null,
+            onAddPin = { viewModel.completePinSetup(it) },
+            onRemovePin = {},
+            onDismissRequest = {
+                viewModel.cancelPinSetup()
+                hideAddUserDialog()
+            },
+        )
+    }
+
+    // Contract 11.1: an adult signing in without a picture chooses one before anything is published
+    state.pendingAvatar?.let { pending ->
+        FirstAvatarDialog(
+            pending = pending,
+            avatars = viewModel.firstAvatarChoices,
+            onPick = viewModel::chooseFirstAvatar,
+            onRetry = viewModel::retryFirstAvatar,
+            onContinue = viewModel::continueWithoutAvatar,
+            onDismissRequest = {
+                viewModel.cancelFirstAvatar()
+                hideAddUserDialog()
+            },
+        )
+    }
+
+    // Review round 1: on a protected TV a sign-in waits until its account PIN can be read
+    state.pendingPinCheck?.let { pending ->
+        KidPanelDialog(
+            onDismissRequest = {
+                viewModel.cancelPinCheck()
+                hideAddUserDialog()
+            },
+            width = 620.dp,
+        ) {
+            KidTitle(pending.authenticationResult.user?.name ?: stringResource(R.string.enter_pin))
+            KidGap(14.dp)
+            KidErrorText(stringResource(R.string.pin_check_failed))
+            KidGap(24.dp)
+            val retryFocus = remember { FocusRequester() }
+            LaunchedEffect(Unit) { retryFocus.tryRequestFocus() }
+            if (pending.checking) {
+                KidSpinner(size = 40.dp, strokeWidth = 4.dp)
+            } else {
+                KidButton(
+                    stringResource(R.string.try_again),
+                    onClick = viewModel::retryPinCheck,
+                    modifier = Modifier.focusRequester(retryFocus),
+                )
+            }
+            KidGap(24.dp)
+            OkBackHints()
+        }
+    }
+
     when (val st = state.loading) {
         is LoadingState.Error -> {
-            ErrorMessage(st, modifier)
+            // It also loads again by itself when the network comes back
+            ErrorMessage(st, modifier, onRetry = viewModel::loadUsers)
         }
 
         LoadingState.Loading,
@@ -158,7 +259,7 @@ fun SwitchUserContent(
                 return@SwitchUserContent
             }
             Box(
-                modifier = modifier.dimAndBlur(showAddUser || switchUserWithPin != null),
+                modifier = modifier.dimAndBlur(showAddUser || switchUserWithPin != null || showAddKid),
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -174,10 +275,9 @@ fun SwitchUserContent(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         if (isWeaselTv()) {
-                            // Neon Board (T9): mascot + wordmark, the server host as an eyebrow,
-                            // the title on a volt rule.
+                            // Neon Board (T9): mascot + wordmark, then the title on a volt rule. The server-name
+                            // eyebrow only repeated the wordmark, so it went (owner mockup, 2026-10-22).
                             NeonBrandRow(mascotSize = 40.dp, wordmarkSize = 34.sp)
-                            NeonEyebrow(text = server.name ?: server.url, accent = NeonBoard.Mid)
                             Text(
                                 text = stringResource(R.string.select_user).uppercase(),
                                 style = NeonType.pageTitle(),
@@ -203,20 +303,25 @@ fun SwitchUserContent(
                         onSwitchUser = { user ->
                             if (user.accessToken == null || user.requireLogin) {
                                 showAddUserDialog(user)
+                            } else if (BuildConfig.KID_PROFILES_ENABLED) {
+                                viewModel.onProfileSelected(user)
                             } else if (user.hasPin) {
                                 switchUserWithPin = user
                             } else {
                                 trySwitchUser(user)
                             }
                         },
-                        onAddUser = {
-                            showAddUserDialog(null)
-                        },
+                        onAddUser =
+                            if (kidSession && BuildConfig.KID_PROFILES_ENABLED) {
+                                null
+                            } else {
+                                { showAddUserDialog(null) }
+                            },
                         onRemoveUser = { user ->
                             viewModel.removeUser(user)
                         },
                         onSwitchServer =
-                            if (connectOnly || isServerPinned) {
+                            if (connectOnly || isServerPinned || (kidSession && BuildConfig.KID_PROFILES_ENABLED)) {
                                 null
                             } else {
                                 {
@@ -226,6 +331,54 @@ fun SwitchUserContent(
                                 }
                             },
                         modifier = Modifier.fillMaxWidth(),
+                        onAddKid =
+                            if (kidViewModel.canAddKid(state.users.filter { it.known }.map { it.user }, kidSession)) {
+                                {
+                                    // A pick still in progress never publishes or navigates behind Add kid
+                                    viewModel.leaveForOtherAction()
+                                    showAddKid = true
+                                }
+                            } else {
+                                null
+                            },
+                        isKid = kidViewModel::isKid,
+                        canChangePicture = { user -> kidViewModel.canChangePicture(user, savedUsers, deviceProtected) },
+                        onChangePicture =
+                            if (profilePicturesEnabled) {
+                                { user ->
+                                    if (kidViewModel.canChangePicture(user, savedUsers, deviceProtected)) {
+                                        // A pick still in progress never publishes or navigates behind it
+                                        viewModel.leaveForOtherAction()
+                                        changePictureFor = user
+                                    }
+                                }
+                            } else {
+                                null
+                            },
+                        pictureVersions = pictureVersions,
+                        onChangePin =
+                            if (BuildConfig.KID_PROFILES_ENABLED) {
+                                { user ->
+                                    if (kidViewModel.canChangePin(user)) {
+                                        viewModel.leaveForOtherAction()
+                                        changePinFor = user
+                                    }
+                                }
+                            } else {
+                                null
+                            },
+                        canRemovePin = kidViewModel::canRemovePin,
+                        onRemovePin =
+                            if (BuildConfig.KID_PROFILES_ENABLED) {
+                                { user ->
+                                    if (kidViewModel.canRemovePin(user)) {
+                                        viewModel.leaveForOtherAction()
+                                        removePinFor = user
+                                    }
+                                }
+                            } else {
+                                null
+                            },
                     )
                 }
                 when (state.serverVersionSupported) {
@@ -263,7 +416,7 @@ fun SwitchUserContent(
         }
     }
 
-    if (showAddUser) {
+    if (showAddUser && state.pendingPinSetup == null && state.pendingAvatar == null && state.pendingPinCheck == null) {
         var useQuickConnect by remember { mutableStateOf(state.quickConnectEnabled || connectOnly) }
         LaunchedEffect(Unit) {
             viewModel.clearSwitchUserState()
@@ -469,6 +622,132 @@ fun SwitchUserContent(
             }
         }
     }
+    when (val prompt = state.prompt) {
+        is ChooserPrompt.Pin -> {
+            ChooserPinPrompt(
+                prompt = prompt,
+                onDismissRequest = viewModel::dismissPrompt,
+                onClickServerAuth = {
+                    viewModel.dismissPrompt()
+                    showAddUserDialog(prompt.target)
+                },
+                // Latched until the check (and what it starts) is done
+                onSubmit = {
+                    var wrong = false
+                    viewModel.submitPin(it) { wrong = true }?.join()
+                    if (wrong) PinOutcome.WRONG else PinOutcome.OTHER
+                },
+            )
+        }
+
+        is ChooserPrompt.NeedsPin -> {
+            NeedsPinPanel(
+                prompt = prompt,
+                onCreatePin = {
+                    // Contract 12.4 (v1.7): only the profile's owner sets its PIN, so it signs in again first; that
+                    // sign-in asks for the new PIN (protected TV, no PIN) and then goes in
+                    viewModel.dismissPrompt()
+                    showAddUserDialog(prompt.target)
+                },
+                onRemove = viewModel::askRemoveNeedsPin,
+                onConfirmRemove = { viewModel.confirmRemoveNeedsPin() },
+                onCancelRemove = viewModel::cancelRemoveNeedsPin,
+                onDismissRequest = viewModel::dismissPrompt,
+            )
+        }
+
+        is ChooserPrompt.PickParent -> {
+            val targetName = prompt.target.shownName.orEmpty()
+            KidPanelDialog(onDismissRequest = viewModel::dismissPrompt, width = 620.dp) {
+                KidTitle(targetName)
+                KidGap(10.dp)
+                KidSubtitle(
+                    if (prompt.locked) {
+                        stringResource(R.string.kid_profile_locked, targetName)
+                    } else {
+                        stringResource(R.string.kid_ask_parent, targetName)
+                    },
+                )
+                KidGap(24.dp)
+                val firstFocus = remember { FocusRequester() }
+                LaunchedEffect(Unit) { firstFocus.tryRequestFocus() }
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    prompt.parents.forEachIndexed { index, parent ->
+                        KidListRow(
+                            text = stringResource(R.string.kid_parent_pin_title, parent.shownName.orEmpty()),
+                            glyph = stringResource(R.string.fa_user),
+                            onClick = { viewModel.pickParent(parent) },
+                            modifier = if (index == 0) Modifier.focusRequester(firstFocus) else Modifier,
+                        )
+                    }
+                    if (prompt.purpose == PinPurpose.SWITCH) {
+                        KidListRow(
+                            text = stringResource(R.string.kid_sign_in_quick_connect, targetName),
+                            glyph = stringResource(R.string.fa_arrow_left_arrow_right),
+                            onClick = {
+                                viewModel.dismissPrompt()
+                                showAddUserDialog(prompt.target)
+                            },
+                            modifier = if (prompt.parents.isEmpty()) Modifier.focusRequester(firstFocus) else Modifier,
+                        )
+                    }
+                }
+                KidGap(24.dp)
+                OkBackHints()
+            }
+        }
+
+        null -> {}
+    }
+    if (showAddKid) {
+        AddKidFlow(
+            server = server,
+            users = state.users.filter { it.known }.map { it.user },
+            imageUrls = state.users.associate { it.user.id to versionedUserImageUrl(it.imageUrl, it.user.id, pictureVersions) },
+            onClose = {
+                showAddKid = false
+                // Contract 12.4: adults may have set a PIN or left the TV in the flow
+                viewModel.reloadUsers()
+            },
+        )
+    }
+    changePictureFor?.let { user ->
+        ChooserChangePicture(
+            server = server,
+            user = user,
+            gate = kidViewModel.gate,
+            onDone = { changePictureFor = null },
+            savedUsers = state.users.filter { it.known }.map { it.user },
+            refresh = kidViewModel::refreshed,
+        )
+    }
+    changePinFor?.let { user ->
+        ChooserChangePin(
+            user = user,
+            gate = kidViewModel.gate,
+            refresh = kidViewModel::refreshed,
+            changePin = kidViewModel::changePin,
+            onDone = {
+                changePinFor = null
+                // The list shows the saved PIN rows again
+                viewModel.reloadUsers()
+            },
+        )
+    }
+    removePinFor?.let { user ->
+        ChooserRemovePin(
+            user = user,
+            gate = kidViewModel.gate,
+            refresh = kidViewModel::refreshed,
+            kidsOnTv = kidViewModel::kidsOnTv,
+            removePin = kidViewModel::removePin,
+            onDone = {
+                removePinFor = null
+                // The list shows the saved PIN rows again
+                viewModel.reloadUsers()
+            },
+        )
+    }
     switchUserWithPin?.let { user ->
         PinEntryDialog(
             onDismissRequest = { switchUserWithPin = null },
@@ -476,9 +755,18 @@ fun SwitchUserContent(
                 showAddUserDialog(user)
                 switchUserWithPin = null
             },
-            onTextChange = {
+            length = PinRules.entryLength(user.pin),
+            prompt = pinPromptFor(user.shownName),
+            onSubmit = {
                 if (it == user.pin) {
+                    // The PIN prompt is done: a switch that then fails (toast, or the login dialog) never leaves it
+                    // frozen underneath
+                    switchUserWithPin = null
                     trySwitchUser(user)
+                    PinOutcome.OTHER
+                } else {
+                    Toast.makeText(context, context.getString(R.string.incorrect), Toast.LENGTH_SHORT).show()
+                    PinOutcome.WRONG
                 }
             },
         )
@@ -653,5 +941,100 @@ private fun UserStateError(
         }
 
         else -> {}
+    }
+}
+
+/**
+ * A chooser PIN prompt. Its entry is keyed on the prompt's identity: a replacement prompt (eg the parent's PIN after
+ * a kid's own) starts with a fresh entry, while a wrong try (a copy with a message) keeps the same one.
+ */
+@Composable
+fun ChooserPinPrompt(
+    prompt: ChooserPrompt.Pin,
+    onDismissRequest: () -> Unit,
+    onClickServerAuth: () -> Unit,
+    onSubmit: suspend (String) -> PinOutcome,
+) {
+    key(prompt.id) {
+        PinEntryDialog(
+            onDismissRequest = onDismissRequest,
+            onClickServerAuth = onClickServerAuth,
+            onSubmit = onSubmit,
+            length = PinRules.entryLength(prompt.pinOwner.pin),
+            lockedUntilMillis = prompt.lockedUntilMillis,
+            title =
+                when (prompt.purpose) {
+                    PinPurpose.SWITCH -> {
+                        prompt.target.shownName ?: stringResource(R.string.enter_pin)
+                    }
+
+                    PinPurpose.DELETE -> {
+                        stringResource(
+                            if (prompt.target.profileKind == ProfileKind.KID) R.string.remove_from_this_tv else R.string.delete,
+                        )
+                    }
+                },
+            prompt = pinPromptFor(prompt.pinOwner.shownName),
+            message = prompt.message,
+            serverAuthRemovesPin = false,
+        )
+    }
+}
+
+/**
+ * Contract 12.4 (v1.7): "<Name> needs a PIN" for a pinless adult on a TV with kids, with "Create a PIN" and "Remove from
+ * this TV" (which asks first). Back closes it with no change; Back on the question goes back to the panel.
+ */
+@Composable
+private fun NeedsPinPanel(
+    prompt: ChooserPrompt.NeedsPin,
+    onCreatePin: () -> Unit,
+    onRemove: () -> Unit,
+    onConfirmRemove: () -> Unit,
+    onCancelRemove: () -> Unit,
+    onDismissRequest: () -> Unit,
+) {
+    val name = prompt.target.shownName.orEmpty()
+    KidPanelDialog(
+        onDismissRequest = if (prompt.confirmRemove) onCancelRemove else onDismissRequest,
+        width = 620.dp,
+    ) {
+        key(prompt.confirmRemove) {
+            val firstFocus = remember { FocusRequester() }
+            LaunchedEffect(Unit) { firstFocus.tryRequestFocus() }
+            if (prompt.confirmRemove) {
+                KidTitle(stringResource(R.string.remove_from_tv_question, name))
+                KidGap(28.dp)
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    KidButton(
+                        stringResource(R.string.remove),
+                        onClick = onConfirmRemove,
+                        minWidth = 180.dp,
+                        modifier = Modifier.focusRequester(firstFocus),
+                    )
+                    KidButton(stringResource(R.string.cancel), onClick = onCancelRemove, minWidth = 180.dp)
+                }
+            } else {
+                KidTitle(stringResource(R.string.needs_a_pin, name))
+                KidGap(10.dp)
+                KidSubtitle(stringResource(R.string.needs_a_pin_subtitle))
+                KidGap(24.dp)
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    KidListRow(
+                        text = stringResource(R.string.create_a_pin),
+                        glyph = stringResource(R.string.fa_user),
+                        onClick = onCreatePin,
+                        modifier = Modifier.focusRequester(firstFocus),
+                    )
+                    KidListRow(
+                        text = stringResource(R.string.remove_from_this_tv),
+                        glyph = stringResource(R.string.fa_xmark),
+                        onClick = onRemove,
+                    )
+                }
+            }
+            KidGap(24.dp)
+            OkBackHints()
+        }
     }
 }

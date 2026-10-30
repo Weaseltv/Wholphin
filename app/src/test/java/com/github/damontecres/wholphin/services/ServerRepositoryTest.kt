@@ -4,12 +4,15 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.datastore.core.DataStoreFactory
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.JellyfinServerDao
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinServerUsers
 import com.github.damontecres.wholphin.data.model.JellyfinUser
+import com.github.damontecres.wholphin.kids.KidProtectionStore
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.AppPreferencesSerializer
 import com.github.damontecres.wholphin.test.nonBlankString
@@ -47,6 +50,7 @@ import org.jellyfin.sdk.model.api.PublicSystemInfo
 import org.jellyfin.sdk.model.api.UserDto
 import org.junit.After
 import org.junit.Assert
+import org.junit.Assume
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -77,6 +81,14 @@ class ServerRepositoryTest {
                 ),
         )
 
+    private val keyValueDataStore by lazy {
+        PreferenceDataStoreFactory.create(
+            scope = CoroutineScope(testDispatcher),
+            produceFile = { java.io.File(temporaryFolder.root, "key_value.preferences_pb") },
+        )
+    }
+    private val kidProtectionStore by lazy { KidProtectionStore(keyValueDataStore) }
+
     private val mockUserApi = mockk<UserApi>()
     private val mockSystemApi = mockk<SystemApi>()
     private val mockSharedPreferences = mockk<SharedPreferences>(relaxed = true)
@@ -87,6 +99,8 @@ class ServerRepositoryTest {
         WholphinDispatchers.configure(testDispatcher)
 
         every { mockContext.getSharedPreferences(any(), any()) } returns mockSharedPreferences
+        every { mockJellyfin.createApi(any(), any(), any(), any(), any()) } returns mockApiClient
+        every { mockJellyfinServerDao.getUser(any(), any()) } returns null
         every { mockApiClient.userApi } returns mockUserApi
         every { mockApiClient.systemApi } returns mockSystemApi
         coEvery { mockUserApi.getCurrentUser() } returns successResponse(userDto)
@@ -103,6 +117,9 @@ class ServerRepositoryTest {
         coEvery { mockJellyfinServerDao.addOrUpdateUser(user) } returns user
         every { mockApiClient.clientInfo } returns ClientInfo("Wholphin test", "0.0.1")
         every { mockApiClient.deviceInfo } returns DeviceInfo("Wholphin test ID", "Wholphin test device")
+        every { mockApiClient.httpClientOptions } returns
+            org.jellyfin.sdk.api.client
+                .HttpClientOptions()
         every { mockApiClient.update(any(), any(), any(), any()) } just Runs
     }
 
@@ -120,6 +137,7 @@ class ServerRepositoryTest {
             mockApiClient,
             dataStore,
             testDispatcher,
+            kidProtectionStore,
         )
 
     private val serverId = UUID.randomUUID()
@@ -176,7 +194,7 @@ class ServerRepositoryTest {
             val serverRepository = create()
             Assert.assertNull(serverRepository.currentUser)
 
-            serverRepository.changeUser(server, user)
+            serverRepository.changeUser(server, user, authorize = {})
             verify(exactly = 1) {
                 mockApiClient.update(
                     baseUrl = server.url,
@@ -203,6 +221,8 @@ class ServerRepositoryTest {
     @Test
     fun `Test restoreUser via changeUser`() =
         runTest {
+            // Kid profiles never restore through an ungated switch (KidSessionGateImpl.restoreGated does, gated)
+            Assume.assumeFalse(BuildConfig.KID_PROFILES_ENABLED)
             every { mockJellyfinServerDao.addOrUpdateServer(any()) } just Runs
             every { mockJellyfinServerDao.addOrUpdateUser(user) } returns user
             every { mockJellyfinServerDao.getServer(serverId) } returns JellyfinServerUsers(server, listOf(user))
@@ -364,7 +384,7 @@ class ServerRepositoryTest {
                     accessToken = user.accessToken,
                 )
             val serverRepository = create()
-            serverRepository.changeUser(server.url, authResult, null)
+            serverRepository.changeUser(server.url, authResult, null, authorize = {})
 
             verify(exactly = 1) {
                 mockApiClient.update(
@@ -405,7 +425,7 @@ class ServerRepositoryTest {
                     accessToken = user.accessToken,
                 )
             val serverRepository = create()
-            serverRepository.changeUser(server.url, authResult, user)
+            serverRepository.changeUser(server.url, authResult, user, authorize = {})
 
             verify(exactly = 1) {
                 mockApiClient.update(
@@ -421,8 +441,13 @@ class ServerRepositoryTest {
             // Existing user, so rowId should not change
             Assert.assertEquals(user.rowId, savedUser.captured.rowId)
             Assert.assertEquals(user.id, savedUser.captured.id)
-            // PIN should be removed when re-authing existing user
-            Assert.assertNull(savedUser.captured.pin)
+            if (BuildConfig.KID_PROFILES_ENABLED) {
+                // Kid profiles: re-auth of the same user keeps the PIN
+                Assert.assertEquals(user.pin, savedUser.captured.pin)
+            } else {
+                // PIN should be removed when re-authing existing user
+                Assert.assertNull(savedUser.captured.pin)
+            }
 
             Assert.assertEquals(server, serverRepository.currentServer)
             Assert.assertEquals(user, serverRepository.currentUser)
@@ -445,7 +470,7 @@ class ServerRepositoryTest {
                         serverId = serverId.toServerString(),
                         accessToken = null,
                     )
-                create().changeUser(server.url, authResult, user)
+                create().changeUser(server.url, authResult, user, authorize = {})
             }
         }
         Assert.assertThrows(IllegalArgumentException::class.java) {
@@ -456,7 +481,7 @@ class ServerRepositoryTest {
                         serverId = null,
                         accessToken = user.accessToken,
                     )
-                create().changeUser(server.url, authResult, user)
+                create().changeUser(server.url, authResult, user, authorize = {})
             }
         }
         Assert.assertThrows(IllegalArgumentException::class.java) {
@@ -467,7 +492,7 @@ class ServerRepositoryTest {
                         serverId = "invalid-uuid",
                         accessToken = user.accessToken,
                     )
-                create().changeUser(server.url, authResult, user)
+                create().changeUser(server.url, authResult, user, authorize = {})
             }
         }
         Assert.assertThrows(IllegalArgumentException::class.java) {
@@ -478,7 +503,7 @@ class ServerRepositoryTest {
                         serverId = "invalid-uuid",
                         accessToken = user.accessToken,
                     )
-                create().changeUser(server.url, authResult, user)
+                create().changeUser(server.url, authResult, user, authorize = {})
             }
         }
     }

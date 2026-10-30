@@ -96,6 +96,9 @@ fun <T> ItemRow(
     focusIndex: Int? = null,
     /** Stable keys for the cards; must be unique within the row. */
     itemKey: ((index: Int, item: T?) -> Any)? = null,
+    showCount: Boolean = true,
+    /** For the strip of cards alone, without the title above it */
+    cardsModifier: Modifier = Modifier,
 ) {
     val state = rememberLazyListState()
     val firstFocus = remember { FocusRequester() }
@@ -141,7 +144,7 @@ fun <T> ItemRow(
         ItemRowTitle(
             title,
             kicker = titleKicker,
-            count = items.size.takeIf { isWeaselTv() },
+            count = items.size.takeIf { isWeaselTv() && showCount },
             accent = titleAccent,
             dividerGap = titleDividerGap,
             modifier = Modifier.onSizeChanged { onTitleHeightChanged(it.height) },
@@ -167,7 +170,7 @@ fun <T> ItemRow(
                     bottom = cardPadding.calculateBottomPadding(),
                 ),
             modifier =
-                Modifier
+                cardsModifier
                     .fillMaxWidth()
                     // Move the clipping edge into the gutter without moving the cards.
                     .bleedHorizontal(start = startInset, end = 0.dp)

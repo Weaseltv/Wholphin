@@ -119,7 +119,7 @@ class ConditionalOverlayLayoutTest {
         }
         for (videoClip in listOf(false, true)) {
             compose.runOnIdle { clip.value = videoClip }
-            compose.onNode(hasText("Play slideshow") and isFocusable()).requestFocus()
+            compose.onNode(hasText("Play slideshow", ignoreCase = true) and isFocusable()).requestFocus()
             compose.waitForIdle()
             repeat(14) {
                 val f = compose.onNode(isFocused()).getUnclippedBoundsInRoot()

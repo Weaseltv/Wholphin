@@ -17,6 +17,7 @@ import com.github.damontecres.wholphin.ui.components.HeaderUtils
 import com.github.damontecres.wholphin.ui.components.OverviewText
 import com.github.damontecres.wholphin.ui.components.QuickDetails
 import com.github.damontecres.wholphin.ui.components.VideoStreamDetails
+import com.github.damontecres.wholphin.ui.detail.KidEpisodeInfo
 
 @Composable
 fun FocusedEpisodeHeader(
@@ -26,6 +27,9 @@ fun FocusedEpisodeHeader(
     overviewOnClick: () -> Unit,
     overviewOnFocus: (FocusState) -> Unit,
     modifier: Modifier = Modifier,
+    /** The kid design (owner 2026-10-23): "S1 E9 • 23m • [rating]" and the full description; [seriesRating] is the fallback */
+    kid: Boolean = false,
+    seriesRating: String? = null,
 ) {
     val context = LocalContext.current
     val dto = ep?.data
@@ -34,6 +38,10 @@ fun FocusedEpisodeHeader(
         modifier = modifier,
     ) {
         EpisodeName(dto, modifier = Modifier.padding(start = HeaderUtils.startPadding))
+        if (kid) {
+            dto?.let { KidEpisodeInfo(it, seriesRating) }
+            return@Column
+        }
 
         ep?.ui?.quickDetails?.let {
             QuickDetails(

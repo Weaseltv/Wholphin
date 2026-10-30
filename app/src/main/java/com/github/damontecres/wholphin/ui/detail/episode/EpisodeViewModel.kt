@@ -17,6 +17,7 @@ import com.github.damontecres.wholphin.services.StreamChoiceService
 import com.github.damontecres.wholphin.services.ThemeSongPlayer
 import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.deleteItem
+import com.github.damontecres.wholphin.ui.components.isKidOrUnknown
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.nav.Destination
@@ -68,6 +69,9 @@ class EpisodeViewModel
         private val _state = MutableStateFlow(EpisodeState())
         val state: StateFlow<EpisodeState> = _state
 
+        /** The kid design (owner 2026-10-23) for a kid or unknown session (fail closed); adults keep theirs */
+        val kidPage: Boolean = isKidOrUnknown(serverRepository.currentUser)
+
         val canDelete = MutableStateFlow(false)
 
         init {
@@ -115,6 +119,7 @@ class EpisodeViewModel
                         )
                     }
                     backdropService.submit(item)
+                    if (kidPage && item.data.officialRating.isNullOrBlank()) loadSeriesRating(item)
                 } catch (ex: CancellationException) {
                     throw ex
                 } catch (ex: Exception) {
@@ -122,6 +127,22 @@ class EpisodeViewModel
                     _state.update { it.copy(episode = DataLoadingState.Error(ex)) }
                 }
             }
+
+        /** The kid page's rating badge falls back to the series' rating when the episode has none */
+        private suspend fun loadSeriesRating(episode: BaseItem) {
+            val seriesId = episode.data.seriesId ?: return
+            try {
+                val rating =
+                    api.userLibraryApi
+                        .getItem(seriesId)
+                        .content.officialRating
+                _state.update { it.copy(seriesRating = rating) }
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                Timber.w(ex, "Couldn't get the series rating for episode %s", episode.id)
+            }
+        }
 
         fun setWatched(
             itemId: UUID,
@@ -221,4 +242,6 @@ class EpisodeViewModel
 data class EpisodeState(
     val episode: DataLoadingState<BaseItem> = DataLoadingState.Pending,
     val chosenStreams: ChosenStreams? = null,
+    /** The kid page's rating fallback: the series' rating, when the episode has none */
+    val seriesRating: String? = null,
 )

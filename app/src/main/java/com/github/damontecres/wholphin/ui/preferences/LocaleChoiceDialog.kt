@@ -20,6 +20,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.data.isSameIdentity
 import com.github.damontecres.wholphin.ui.components.DialogItem
 import com.github.damontecres.wholphin.ui.components.DialogPopupContent
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
@@ -45,12 +46,18 @@ class LocaleChoiceViewModel
         @param:ApplicationContext private val context: Context,
         private val serverRepository: ServerRepository,
     ) : ViewModel() {
+        /** The profile whose settings these are; a language picked here only ever applies to that profile */
+        private val owner = serverRepository.current.value
+
         fun changeLocale(locale: Locale) {
             viewModelScope.launchDefault {
-                serverRepository.current.value?.let {
+                serverRepository.current.value?.takeIf { owner != null && it.isSameIdentity(owner) }?.let {
                     Timber.i("Updating user's locale to %s", locale.toLanguageTag())
-                    val newUser = it.user.copy(uiLanguage = locale.toLanguageTag())
-                    serverRepository.changeUser(it.server, newUser)
+                    // An update of this session, never a switch: refused if another session replaced it meanwhile
+                    // (review round 9)
+                    if (serverRepository.updateCurrentUserLanguage(it, locale.toLanguageTag()) == null) {
+                        Timber.w("Locale not updated, the session was replaced")
+                    }
                 }
             }
         }

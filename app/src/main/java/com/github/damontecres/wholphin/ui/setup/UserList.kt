@@ -20,7 +20,10 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Face
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,6 +38,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -43,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.Border
@@ -55,6 +60,7 @@ import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.JellyfinUser
+import com.github.damontecres.wholphin.services.versionedUserImageUrl
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
@@ -62,6 +68,9 @@ import com.github.damontecres.wholphin.ui.components.DialogItem
 import com.github.damontecres.wholphin.ui.components.DialogPopup
 import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
+import com.github.damontecres.wholphin.ui.kids.KidColors
+import com.github.damontecres.wholphin.ui.kids.KidText
+import com.github.damontecres.wholphin.ui.kids.kidGlow
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
@@ -81,10 +90,19 @@ fun UserList(
     users: List<JellyfinUserAndImage>,
     currentUser: JellyfinUser?,
     onSwitchUser: (JellyfinUser) -> Unit,
-    onAddUser: () -> Unit,
+    onAddUser: (() -> Unit)?,
     onRemoveUser: (JellyfinUser) -> Unit,
     onSwitchServer: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    // WeaselPlex kid profiles (runbooks/kid-profiles); the defaults leave the chooser unchanged.
+    onAddKid: (() -> Unit)? = null,
+    isKid: (JellyfinUser) -> Boolean = { false },
+    onChangePicture: ((JellyfinUser) -> Unit)? = null,
+    pictureVersions: Map<UUID, Int> = emptyMap(),
+    onChangePin: ((JellyfinUser) -> Unit)? = null,
+    canChangePicture: (JellyfinUser) -> Boolean = { true },
+    onRemovePin: ((JellyfinUser) -> Unit)? = null,
+    canRemovePin: (JellyfinUser) -> Boolean = { false },
 ) {
     var showDeleteDialog by remember { mutableStateOf<JellyfinUserAndImage?>(null) }
 
@@ -115,17 +133,30 @@ fun UserList(
                 itemsIndexed(users) { index, user ->
                     UserIconCard(
                         user = user,
+                        imageUrl = versionedUserImageUrl(user.imageUrl, user.user.id, pictureVersions),
+                        isKid = isKid(user.user),
                         isCurrentUser = user.user.id == currentUser?.id,
                         onClick = { onSwitchUser.invoke(user.user) },
                         onLongClick = { showDeleteDialog = user },
                         modifier = if (index == 0) Modifier.focusRequester(firstFocusRequester) else Modifier,
                     )
                 }
+                if (onAddKid != null) {
+                    item {
+                        AddUserCard(
+                            onClick = onAddKid,
+                            label = stringResource(R.string.add_kid_profile),
+                            icon = Icons.Default.Face,
+                        )
+                    }
+                }
                 // Add User card - always rightmost
-                item {
-                    AddUserCard(
-                        onClick = { onAddUser.invoke() },
-                    )
+                if (onAddUser != null) {
+                    item {
+                        AddUserCard(
+                            onClick = { onAddUser.invoke() },
+                        )
+                    }
                 }
             }
         }
@@ -176,10 +207,43 @@ fun UserList(
                             onSwitchUser.invoke(user.user)
                         },
                     )
+                    // Contract 11: every saved profile with its own token (the change is saved with it)
+                    if (onChangePicture != null && user.known && user.user.accessToken != null && canChangePicture(user.user)) {
+                        add(
+                            DialogItem(
+                                stringResource(R.string.change_picture),
+                                Icons.Default.Create,
+                            ) {
+                                onChangePicture.invoke(user.user)
+                            },
+                        )
+                    }
+                    if (onChangePin != null && user.known && user.user.hasPin && user.user.accessToken != null) {
+                        add(
+                            DialogItem(
+                                stringResource(R.string.change_pin),
+                                Icons.Default.Lock,
+                            ) {
+                                onChangePin.invoke(user.user)
+                            },
+                        )
+                    }
+                    // Owner 2026-10-25: adults with a PIN; on a TV with kids it says why it can't
+                    if (onRemovePin != null && user.known && canRemovePin(user.user)) {
+                        add(
+                            DialogItem(
+                                stringResource(R.string.remove_pin),
+                                Icons.Default.Lock,
+                            ) {
+                                onRemovePin.invoke(user.user)
+                            },
+                        )
+                    }
                     if (user.known) {
                         add(
                             DialogItem(
-                                stringResource(R.string.delete),
+                                // A kid's row is only this TV's sign-in; the kid stays on the account.
+                                if (isKid(user.user)) stringResource(R.string.remove_from_this_tv) else stringResource(R.string.delete),
                                 Icons.Default.Delete,
                                 Color.Red.copy(alpha = .8f),
                             ) {
@@ -199,6 +263,8 @@ fun UserList(
 @Composable
 private fun UserIconCard(
     user: JellyfinUserAndImage,
+    imageUrl: String?,
+    isKid: Boolean,
     isCurrentUser: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
@@ -208,8 +274,8 @@ private fun UserIconCard(
     // Generate unique color for this user
     val userColor = rememberIdColor(user.user.id)
 
-    // Track image loading errors
-    var imageError by remember { mutableStateOf(false) }
+    // Track image loading errors (per URL, so a newly picked picture loads again)
+    var imageError by remember(imageUrl) { mutableStateOf(false) }
 
     // Card dimensions - circular card
     // Neon Board (T9): square 120dp tiles, `card2` with a 1dp `line2` edge, scale 1.06 on focus.
@@ -269,9 +335,9 @@ private fun UserIconCard(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
-                if (user.imageUrl.isNotNullOrBlank() && !imageError) {
+                if (imageUrl.isNotNullOrBlank() && !imageError) {
                     AsyncImage(
-                        model = user.imageUrl,
+                        model = imageUrl,
                         contentDescription = user.user.name,
                         contentScale = ContentScale.Crop,
                         onError = { imageError = true },
@@ -299,6 +365,9 @@ private fun UserIconCard(
                         color = MaterialTheme.colorScheme.onSurface,
                         textAlign = TextAlign.Center,
                     )
+                }
+                if (isKid) {
+                    KidBadge(Modifier.align(Alignment.TopEnd).padding(6.dp))
                 }
             }
         }
@@ -328,7 +397,7 @@ fun UserIconCardImage(
     modifier: Modifier = Modifier,
     alpha: Float = 1f,
 ) {
-    var imageError by remember { mutableStateOf(false) }
+    var imageError by remember(imageUrl) { mutableStateOf(false) }
     val userColor = rememberIdColor(id, alpha)
     // Neon Board: user avatars are SQUARE (`card2`, 1dp `line2`); only people stay round.
     val neon = isWeaselTv()
@@ -370,6 +439,24 @@ fun UserIconCardImage(
     }
 }
 
+/** The kid-profile lime (owner mockups, 2026-10-22). */
+private val KidBadgeColor = KidColors.Lime
+
+/** "Kid" on a kid profile's tile (plan 4.4): a lime chip with dark Exo 2 lettering and a soft glow. */
+@Composable
+fun KidBadge(modifier: Modifier = Modifier) {
+    Text(
+        text = stringResource(R.string.kid_badge).uppercase(),
+        style = KidText.body(11.sp, FontWeight.Bold, tracking = .12.em),
+        color = NeonBoard.OnAccent,
+        modifier =
+            modifier
+                .kidGlow(radius = 8.dp, alpha = .5f)
+                .background(KidBadgeColor)
+                .padding(horizontal = 7.dp, vertical = 2.dp),
+    )
+}
+
 @PreviewTvSpec
 @Composable
 fun UserIconCardImagePreview() {
@@ -390,6 +477,8 @@ fun UserIconCardImagePreview() {
 private fun AddUserCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    label: String = stringResource(R.string.add_user),
+    icon: ImageVector = Icons.Default.Add,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
@@ -439,8 +528,8 @@ private fun AddUserCard(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(R.string.add_user),
+                    imageVector = icon,
+                    contentDescription = label,
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(cardSize * 0.4f), // Size of the + icon
                 )
@@ -449,7 +538,7 @@ private fun AddUserCard(
 
         // "Add User" text below the card
         Text(
-            text = stringResource(R.string.add_user),
+            text = label,
             style =
                 MaterialTheme.typography.bodyLarge.copy(
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,

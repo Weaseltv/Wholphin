@@ -126,5 +126,5 @@ fun currentUser(
     userId: UUID = UUID.randomUUID(),
 ) = CurrentUser(
     server(serverId),
-    user(userId),
+    user(serverId, userId),
 )

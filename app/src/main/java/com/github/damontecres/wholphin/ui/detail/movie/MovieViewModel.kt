@@ -3,6 +3,7 @@ package com.github.damontecres.wholphin.ui.detail.movie
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.ChosenStreams
 import com.github.damontecres.wholphin.data.ExtrasItem
 import com.github.damontecres.wholphin.data.ItemPlaybackRepository
@@ -27,6 +28,7 @@ import com.github.damontecres.wholphin.services.TrailerService
 import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.deleteItem
 import com.github.damontecres.wholphin.ui.ItemRowFields
+import com.github.damontecres.wholphin.ui.components.isKidOrUnknown
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.letNotEmpty
@@ -80,6 +82,9 @@ class MovieViewModel
 
         private val _state = MutableStateFlow(MovieState())
         val state: StateFlow<MovieState> = _state
+
+        /** The kid title page (owner mockup 2026-10-23) for a kid or unknown session (fail closed); adults keep theirs */
+        val kidPage: Boolean = isKidOrUnknown(serverRepository.currentUser)
 
         init {
             init()
@@ -152,12 +157,15 @@ class MovieViewModel
                         )
                     }
                 }
-                viewModelScope.launchIO {
-                    val results = seerrService.similar(movie).orEmpty()
-                    _state.update {
-                        it.copy(
-                            discovered = results,
-                        )
+                // WeaselPlex has no Requests row on movie pages
+                if (BuildConfig.FLAVOR != "weaselfin") {
+                    viewModelScope.launchIO {
+                        val results = seerrService.similar(movie).orEmpty()
+                        _state.update {
+                            it.copy(
+                                discovered = results,
+                            )
+                        }
                     }
                 }
 

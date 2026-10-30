@@ -161,6 +161,12 @@ configure<ApplicationExtension> {
         buildConfigField("String", "QUICK_CONNECT_APPROVE_URL", "\"\"")
         // The short address shown next to the QR code for typing it by hand.
         buildConfigField("String", "QUICK_CONNECT_APPROVE_LABEL", "\"\"")
+
+        // WeaselPlex kid profiles (runbooks/kid-profiles): the session gate, kid protection, the
+        // always-show-the-profile-screen rule and the website's kid routes. Off, with no website,
+        // for every upstream flavor; only `weaselfin` turns them on.
+        buildConfigField("boolean", "KID_PROFILES_ENABLED", "false")
+        buildConfigField("String", "WEASELPLEX_WEBSITE_URL", "\"\"")
     }
 
     signingConfigs {
@@ -258,6 +264,7 @@ configure<ApplicationExtension> {
         val featureLeanback = "leanback"
         val featureUpdate = "UPDATING_ENABLED"
         val featureDiscover = "DISCOVER_ENABLED"
+        val featureCoachMarks = "COACH_MARK_TOUR_ENABLED"
 
         fun ProductFlavor.setFeatureFlag(
             name: String,
@@ -271,6 +278,7 @@ configure<ApplicationExtension> {
             manifestPlaceholders += mapOf(featureLeanback to false)
             setFeatureFlag(featureUpdate, true)
             setFeatureFlag(featureDiscover, true)
+            setFeatureFlag(featureCoachMarks, false)
         }
         // WeaselPlex (DaCrib) — mirrors `default` exactly, which is the only flavor with
         // DISCOVER_ENABLED (the Seerr integration), plus the pinned server URL.
@@ -299,6 +307,7 @@ configure<ApplicationExtension> {
             manifestPlaceholders += mapOf(featureLeanback to false)
             setFeatureFlag(featureUpdate, true)
             setFeatureFlag(featureDiscover, true)
+            setFeatureFlag(featureCoachMarks, true)
             buildConfigField("String", "DEFAULT_SERVER_URL", "\"https://media.theweasel.tv\"")
             buildConfigField("String", "UPDATE_REPO", "\"Weaseltv/Wholphin\"")
             buildConfigField("String", "DEFAULT_SEERR_URL", "\"https://requests.theweasel.tv\"")
@@ -308,6 +317,8 @@ configure<ApplicationExtension> {
                 "\"https://theweasel.tv/weaselplex/connect\"",
             )
             buildConfigField("String", "QUICK_CONNECT_APPROVE_LABEL", "\"theweasel.tv/plex\"")
+            buildConfigField("boolean", "KID_PROFILES_ENABLED", "true")
+            buildConfigField("String", "WEASELPLEX_WEBSITE_URL", "\"https://theweasel.tv\"")
             buildConfigField("String", "DEFAULT_THEME", "\"WEASELTV\"")
             buildConfigField("String", "DEFAULT_SUBTITLE_MODE", "\"ONLY_FORCED\"")
             // 🛑 Deliberately still "WeaselFin" (ruling R5, 2026-08-25). The in-app updater
@@ -326,12 +337,14 @@ configure<ApplicationExtension> {
             manifestPlaceholders += mapOf(featureLeanback to true)
             setFeatureFlag(featureUpdate, false)
             setFeatureFlag(featureDiscover, true)
+            setFeatureFlag(featureCoachMarks, false)
         }
         create("firetv") {
             dimension = "version"
             manifestPlaceholders += mapOf(featureLeanback to true)
             setFeatureFlag(featureUpdate, false)
             setFeatureFlag(featureDiscover, false)
+            setFeatureFlag(featureCoachMarks, false)
         }
     }
     compileOptions {

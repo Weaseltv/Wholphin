@@ -5,7 +5,10 @@ repos:
       - id: check-xml
       - id: check-yaml
       - id: end-of-file-fixer
+        exclude: '\.patch$'
+      # Patches keep their trailing spaces: a blank context line is a single space
       - id: trailing-whitespace
+        exclude: '\.patch$'
 - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
   rev: v2.15.0
   hooks:

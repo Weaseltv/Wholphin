@@ -8,6 +8,7 @@ import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.NavDrawerPinnedItem
 import com.github.damontecres.wholphin.data.model.NavPinType
+import com.github.damontecres.wholphin.kids.isStaleSession
 import com.github.damontecres.wholphin.services.hilt.DefaultCoroutineScope
 import com.github.damontecres.wholphin.ui.collectLatestIn
 import com.github.damontecres.wholphin.ui.launchDefault
@@ -89,7 +90,7 @@ class NavDrawerService
                     throw ex
                 } catch (ex: Exception) {
                     Timber.e(ex, "Error updating nav drawer")
-                    showToast(context, "Error fetching user's views")
+                    if (!ex.isStaleSession()) showToast(context, "Error fetching user's views")
                 }
             }
 

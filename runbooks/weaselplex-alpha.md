@@ -13,7 +13,8 @@ explicitly requests them. Compilation and the helper's existing Alpha-package an
 native-dependency safeguards remain. Do not gate an Alpha install on a clean tree,
 commit, PR, merge or CI result. Track finalized changes afterward.
 
-On the assigned VPS, from the working branch containing the change:
+On the machine the thread was opened on (VPS or ThinkCentre; see `AGENTS.md`),
+from the working branch containing the change:
 
 ```bash
 export PATH="$HOME/Android/Sdk/platform-tools:$PATH"
@@ -28,10 +29,10 @@ D-pad behavior. Device diagnostics are only for actual connection/install errors
 The owner performs visual checks and requests the next change.
 
 Keep Tailscale connected and network debugging enabled on the Shield. The target
-is `100.105.135.30:5555` (`shield.taildbfaa7.ts.net`), reached directly from VPS
-`srv1160496` (`100.72.23.45`). The owner approves ADB authorization if prompted.
-Do not use ThinkCentre or another machine for builds, transfers or ADB without
-explicit owner approval; a connection failure does not authorize a fallback.
+is `100.105.135.30:5555` (`shield.taildbfaa7.ts.net`), reached directly over
+Tailscale from the thread's machine. The owner approves ADB authorization if
+prompted. Never move a build, transfer or install to the other machine; a
+connection failure does not authorize a fallback.
 
 The helper builds only arm64-v8a, skips release code/resource shrinking, and keeps
 Gradle's incremental outputs across tasks for subsequent builds. The first build on a fresh
@@ -262,9 +263,10 @@ Poster focus enlargement and poster badge settings remain Home-card controls.
 - Version names end in `-alpha`. Alpha's versionCode stays at 1 so testing another
   branch or an older commit does not require uninstalling it.
 - Alpha uses the build host's debug keystore, with no production signing key
-  required. Keep building on the same host. Changing debug signing keys requires
-  uninstalling Alpha and loses its local settings. For multiple build hosts,
-  provision the same **non-production** debug key privately on those hosts.
+  required. Changing debug signing keys requires uninstalling Alpha and loses
+  its local settings. The VPS and ThinkCentre share the same **non-production**
+  debug key (synced 2026-10-12), so either can install over the other's Alpha.
+  Provision any new build host the same way, privately.
 - Configure the Android SDK and the usual JDK/Gradle dependencies on the host.
   Native extensions come from the existing host-only
   `WholphinExtensionsUsername` / `WholphinExtensionsPassword` settings in

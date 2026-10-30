@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
@@ -22,13 +23,17 @@ import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.FavoriteWatchManager
+import com.github.damontecres.wholphin.services.JustWatchRowService
 import com.github.damontecres.wholphin.services.MediaManagementService
 import com.github.damontecres.wholphin.services.MusicService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.ServerReportService
+import com.github.damontecres.wholphin.services.StreamingCollections
+import com.github.damontecres.wholphin.services.StreamingOrderService
 import com.github.damontecres.wholphin.services.SuggestionService
 import com.github.damontecres.wholphin.services.SuggestionsResource
 import com.github.damontecres.wholphin.services.UserPreferencesService
+import com.github.damontecres.wholphin.services.WeaselHomeRows
 import com.github.damontecres.wholphin.services.deleteItem
 import com.github.damontecres.wholphin.ui.OneTimeLaunchedEffect
 import com.github.damontecres.wholphin.ui.data.AddPlaylistViewModel
@@ -46,6 +51,7 @@ import com.github.damontecres.wholphin.ui.rememberPosition
 import com.github.damontecres.wholphin.ui.theme.LocalHomeCardAppearance
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.toBaseItems
+import com.github.damontecres.wholphin.ui.util.ResArgStringProvider
 import com.github.damontecres.wholphin.ui.util.ResStringProvider
 import com.github.damontecres.wholphin.util.ApiRequestPager
 import com.github.damontecres.wholphin.util.GetItemsRequestHandler
@@ -65,6 +71,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.api.client.ApiClient
+import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import timber.log.Timber
@@ -84,24 +91,32 @@ class RecommendedViewModel
         private val backdropService: BackdropService,
         private val mediaManagementService: MediaManagementService,
         private val suggestionService: SuggestionService,
+        private val justWatchRowService: JustWatchRowService,
+        private val streamingOrderService: StreamingOrderService,
         val serverReportService: ServerReportService,
         @Assisted private val parentId: UUID,
-        @Assisted private val suggestionsType: BaseItemKind,
+        @Assisted("suggestionsType") private val suggestionsType: BaseItemKind,
         @Assisted private val recommendedRows: List<RecommendedRow<*>>,
         @Assisted private val viewOptions: HomeRowViewOptions,
+        /** Movies or shows for the streaming services' Top 10 rows; null for libraries without them. */
+        @Assisted("serviceTop10Type") private val serviceTop10Type: BaseItemKind?,
     ) : ViewModel() {
         @AssistedFactory
         interface Factory {
             fun create(
                 parentId: UUID,
-                suggestionsType: BaseItemKind,
+                @Assisted("suggestionsType") suggestionsType: BaseItemKind,
                 recommendedRows: List<RecommendedRow<*>>,
                 viewOptions: HomeRowViewOptions,
+                @Assisted("serviceTop10Type") serviceTop10Type: BaseItemKind?,
             ): RecommendedViewModel
         }
 
         private val _state = MutableStateFlow(RecommendedState())
         val state: StateFlow<RecommendedState> = _state
+
+        /** The rows this library shows, before Suggestions. */
+        private var shownRows: List<RecommendedRow<*>> = recommendedRows
 
         fun init() {
             viewModelScope.launchDefault {
@@ -109,16 +124,24 @@ class RecommendedViewModel
                     userPreferencesService.flow
                         .first()
                         .appPreferences.homePagePreferences.maxItemsPerRow
+                // WeaselPlex's Movies and TV Shows (owner, 2026-10-16): Just Released, Just Added, Your
+                // Suggestions, then each streaming service's Top 10. Stand Up Comedy and Sports keep every row.
+                val services = if (serviceTop10Type != null && isMainLibrary()) streamingServices() else null
+                val rows = if (services != null) recommendedRows.filter { it.title in MAIN_LIBRARY_ROWS } else recommendedRows
+                shownRows = rows
+                val serviceTitles =
+                    services.orEmpty().map { (_, name) -> ResArgStringProvider(R.string.recommended_title_on_service, name) }
                 _state.update {
                     it.copy(
                         loading = LoadingState.Loading,
                         rows =
-                            recommendedRows.map { HomeRowLoadingState.Loading(ResStringProvider(it.title)) } +
-                                listOf(HomeRowLoadingState.Loading(ResStringProvider(R.string.suggestions))),
+                            rows.map { HomeRowLoadingState.Loading(ResStringProvider(it.title)) } +
+                                listOf(HomeRowLoadingState.Loading(ResStringProvider(R.string.suggestions))) +
+                                serviceTitles.map { HomeRowLoadingState.Loading(it) },
                     )
                 }
                 val jobs =
-                    recommendedRows.mapIndexed { index, row ->
+                    rows.mapIndexed { index, row ->
                         val title = ResStringProvider(row.title)
                         viewModelScope.launchIO {
                             val result =
@@ -144,17 +167,69 @@ class RecommendedViewModel
                             }
                         }
                     }
-                fetchSuggestions()
-                jobs.forEachIndexed { index, job ->
+                fetchSuggestions(rows.size)
+                val serviceJobs =
+                    services.orEmpty().mapIndexed { index, (code, _) ->
+                        val rowIndex = rows.size + 1 + index
+                        val title = serviceTitles[index]
+                        viewModelScope.launchIO {
+                            val result =
+                                try {
+                                    val items = justWatchRowService.serviceTop10(userId(), code, serviceTop10Type == BaseItemKind.MOVIE)
+                                    HomeRowLoadingState.Success(title, items, viewOptions, showViewMore = false)
+                                } catch (ex: Exception) {
+                                    Timber.e(ex, "Exception fetching the %s Top 10", code)
+                                    HomeRowLoadingState.Error(title, null, ex)
+                                }
+                            _state.update {
+                                it.copy(
+                                    rows =
+                                        it.rows.toMutableList().apply {
+                                            set(rowIndex, result)
+                                        },
+                                )
+                            }
+                        }
+                    }
+                (jobs + serviceJobs).forEach { job ->
                     job.join()
-                    val row = state.value.rows[index]
-                    if (row is HomeRowLoadingState.Success && row.items.isNotEmpty()) {
+                    if (state.value.rows.any { it is HomeRowLoadingState.Success && it.items.isNotEmpty() }) {
                         // Report loading success once the first non-empty row is ready
                         _state.update { it.copy(loading = LoadingState.Success) }
                     }
                 }
             }
         }
+
+        private fun userId() = requireNotNull(serverRepository.currentUser).id
+
+        /** Whether this is Movies or TV Shows, rather than Stand Up Comedy or Sports. */
+        private suspend fun isMainLibrary(): Boolean =
+            BuildConfig.FLAVOR == "weaselfin" &&
+                try {
+                    val library = api.userLibraryApi.getItem(itemId = parentId).content
+                    WeaselHomeRows.isMainLibrary(library.name.orEmpty(), library.collectionType)
+                } catch (ex: Exception) {
+                    Timber.w(ex, "Couldn't read library %s", parentId)
+                    false
+                }
+
+        /**
+         * The member's streaming services with lists, in their Streaming Services order, as (JustWatch code,
+         * name) pairs. The server says which collection has which lists.
+         */
+        private suspend fun streamingServices(): List<Pair<String, String>> =
+            try {
+                val userId = userId()
+                streamingOrderService.sort(userId, StreamingCollections.fetch(api, userId)).mapNotNull { service ->
+                    val name = service.name ?: return@mapNotNull null
+                    val code = justWatchRowService.serviceLists(userId, service.id, name)?.code ?: return@mapNotNull null
+                    code to name
+                }
+            } catch (ex: Exception) {
+                Timber.w(ex, "Couldn't read the streaming services")
+                emptyList()
+            }
 
         private suspend fun <T> execute(
             row: RecommendedRow<T>,
@@ -175,7 +250,7 @@ class RecommendedViewModel
                 ).init()
             }
 
-        private fun fetchSuggestions() {
+        private fun fetchSuggestions(index: Int) {
             viewModelScope.launch(WholphinDispatchers.IO) {
                 val limit =
                     userPreferencesService
@@ -214,7 +289,7 @@ class RecommendedViewModel
                                 it.copy(
                                     rows =
                                         it.rows.toMutableList().apply {
-                                            set(lastIndex, result)
+                                            set(index, result)
                                         },
                                 )
                             }
@@ -227,7 +302,7 @@ class RecommendedViewModel
                         it.copy(
                             rows =
                                 it.rows.toMutableList().apply {
-                                    set(lastIndex, HomeRowLoadingState.Error(title, null, ex))
+                                    set(index, HomeRowLoadingState.Error(title, null, ex))
                                 },
                         )
                     }
@@ -303,8 +378,8 @@ class RecommendedViewModel
             position: RowColumn,
             row: HomeRowLoadingState.Success,
         ) {
-            if (position.row in recommendedRows.indices) {
-                val recommendedRow = recommendedRows[position.row] as RecommendedRow<Any>
+            if (position.row in shownRows.indices) {
+                val recommendedRow = shownRows[position.row] as RecommendedRow<Any>
                 navigationManager.navigateTo(
                     Destination.ItemGrid(
                         title = row.title,
@@ -337,6 +412,9 @@ class RecommendedViewModel
             }
         }
     }
+
+/** The rows Movies and TV Shows keep from their library's list, before Suggestions and the Top 10 rows. */
+private val MAIN_LIBRARY_ROWS = setOf(R.string.recently_released, R.string.recently_added)
 
 data class RecommendedState(
     val loading: LoadingState = LoadingState.Pending,
@@ -379,7 +457,12 @@ private fun recommendedRowHeading(row: HomeRowLoadingState.Success): Pair<String
         }
 
         else -> {
-            row.title.getString() to null
+            if ((row.title as? ResArgStringProvider)?.stringResId == R.string.recommended_title_on_service) {
+                // A streaming service's Top 10: "TOP 10" over "ON NETFLIX"
+                row.title.getString() to stringResource(R.string.quick_list_top_10)
+            } else {
+                row.title.getString() to null
+            }
         }
     }
 

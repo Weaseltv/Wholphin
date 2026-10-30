@@ -31,6 +31,7 @@ fun BoxScope.RequestChipHost(
     screensaver: ScreensaverService,
     pageFocus: FocusRequester,
     ownerRowId: Int,
+    presentationBlocked: Boolean = false,
 ) {
     val state by repository.state.collectAsState()
     val saver by screensaver.state.collectAsState()
@@ -41,7 +42,7 @@ fun BoxScope.RequestChipHost(
     val safe = state.ownerRowId == ownerRowId && state.connected && state.notifications.enabled && windowFocused &&
         lifecycleState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) &&
         !navigation.backStack.lastOrNull().isPlayback && !saver.show && !saver.showDim &&
-        !ui.textInputActive && ui.dialogs == 0
+        !ui.textInputActive && ui.dialogs == 0 && !presentationBlocked
     var events by remember(state.scope) { mutableStateOf<List<RequestEvent>>(emptyList()) }
     var closedKeys by remember(state.scope) { mutableStateOf<Set<String>>(emptySet()) }
     var nextPresentationAt by remember(state.scope) { mutableLongStateOf(0L) }

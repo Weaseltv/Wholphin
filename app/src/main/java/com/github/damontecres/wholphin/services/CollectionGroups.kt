@@ -1,0 +1,48 @@
+package com.github.damontecres.wholphin.services
+
+import org.jellyfin.sdk.model.api.BaseItemDto
+
+/**
+ * The Collections page's group shortcuts. Every collection on the server carries one
+ * "WeaselPlex Group: <group>" tag; other WeaselPlex tags are internal and ignored.
+ */
+object CollectionGroups {
+    const val TAG_PREFIX = "WeaselPlex Group: "
+
+    /** The owner's order (revised 2026-10-14). Groups that aren't listed follow it, by name. */
+    private val order =
+        listOf(
+            "New & Trending",
+            "Moods & Picks",
+            "TV Binges",
+            "Top Episodes",
+            "Based On",
+            "Charts & Awards",
+            "Sports",
+            "Studios",
+            "TV Networks",
+            "Actors & Directors",
+            "Franchises & Universes",
+            "Streaming Services",
+        )
+
+    private val groupOrder = compareBy<String>({ order.indexOf(it).takeIf { index -> index >= 0 } ?: order.size }, { it })
+
+    /** The groups that [collections] belong to, in the owner's order. Groups with no collections are left out. */
+    fun groups(collections: List<BaseItemDto>): List<String> =
+        collections
+            .mapNotNull(::group)
+            .distinct()
+            .sortedWith(groupOrder)
+
+    /** [collections] group by group in the owner's order, keeping their order within each group. Untagged ones go last. */
+    fun inGroupOrder(collections: List<BaseItemDto>): List<BaseItemDto> =
+        collections.sortedWith(compareBy(nullsLast(groupOrder)) { group(it) })
+
+    private fun group(collection: BaseItemDto): String? =
+        collection.tags
+            ?.firstOrNull { it.startsWith(TAG_PREFIX) && it.length > TAG_PREFIX.length }
+            ?.removePrefix(TAG_PREFIX)
+
+    fun tag(group: String) = TAG_PREFIX + group
+}

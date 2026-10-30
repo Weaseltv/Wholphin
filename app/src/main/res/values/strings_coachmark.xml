@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings → Help -->
+    <string name="coach_help">Help</string>
+    <string name="coach_settings_title">WeaselPlex tour</string>
+    <string name="coach_settings_summary">A quick look around Home and the menu, one thing at a time</string>
+
+    <!-- The card -->
+    <string name="coach_step_count">Step %1$d of %2$d</string>
+    <string name="coach_start">Start</string>
+    <string name="coach_next">Next</string>
+    <string name="coach_done">Done</string>
+    <string name="coach_skip">Skip tour</string>
+    <string name="coach_hint_first">OK to continue · ◀ ▶ to choose · BACK to leave</string>
+    <string name="coach_hint">OK to continue · ◀ ▶ to choose · BACK for the previous step</string>
+    <string name="coach_hint_last">OK to finish · BACK for the previous step</string>
+
+    <!-- Steps (owner's exact wording, 2026-10-26) -->
+    <string name="coach_welcome_title">Quick tour</string>
+    <string name="coach_welcome_body">Here\'s a one-minute look at how WeaselPlex works. Press OK to start.</string>
+    <string name="coach_home_row_title">Home page rows</string>
+    <string name="coach_home_row_body">Left and Right move along a row. Up and Down change rows. Press OK to open a poster, or hold OK for options like adding it to your Watchlist.</string>
+    <string name="coach_home_header_title">Look up here</string>
+    <string name="coach_home_header_body">When you highlight a poster, its details appear at the top: name, episode, how long it is, and what it\'s about. You don\'t have to open it to peek.</string>
+    <string name="coach_menu_title">The side menu</string>
+    <string name="coach_menu_body">This is your main menu. Everything in WeaselPlex starts here. Press Left from a poster, or press Back on Home, to open it.</string>
+    <string name="coach_profile_title">Your profile</string>
+    <string name="coach_profile_body">This is the account you\'re signed in as. Select it to switch to another person. Everyone keeps their own watchlist and progress.</string>
+    <string name="coach_search_body">Looking for something specific? Open Search to type its name, or use the mic button to say it. It finds what\'s already here.</string>
+    <string name="coach_home_body">Your starting point. Select it from anywhere to jump back to Home. Select it while you\'re already on Home to update your rows with the newest content.</string>
+    <string name="coach_watchlist_body">Your saved list of things to watch later. To add something, hold OK on its poster and choose Add to Watchlist.</string>
+    <string name="coach_requests_body">Can\'t find a movie or show? Request it here, then check back to see whether it\'s been approved and added.</string>
+    <string name="coach_libraries_title">Browse by type</string>
+    <string name="coach_libraries_body">These icons open your content by category, top to bottom: Collections, Movies, TV Shows, Stand Up Comedy, and Sports.</string>
+    <string name="coach_updates_title">Keep WeaselPlex up to date</string>
+    <string name="coach_updates_body">When a new version is ready, this pops up as you open the app. Select Update and WeaselPlex updates itself. Always update when asked. To check yourself, go to Settings → About.</string>
+    <string name="coach_settings_title_last">You\'re all set</string>
+    <string name="coach_settings_body">Settings is where you change playback, subtitles, and how the app looks. You can replay this tour anytime from Settings → Help.</string>
+</resources>

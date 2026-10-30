@@ -4,9 +4,11 @@ import androidx.datastore.core.DataStore
 import androidx.work.Data
 import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.preferences.AppPreferences
+import com.github.damontecres.wholphin.test.currentUser
 import com.github.damontecres.wholphin.util.GetItemsRequestHandler
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -27,6 +29,7 @@ import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assume
 import org.junit.Before
 import org.junit.Test
 import java.util.UUID
@@ -47,6 +50,8 @@ class SuggestionsWorkerTest {
         every { mockApi.baseUrl } returns "http://localhost"
         every { mockApi.accessToken } returns "test-token"
         coEvery { mockCache.get(any(), any(), any()) } returns null
+        // The scheduled user is the current session
+        every { mockServerRepository.current } returns MutableStateFlow(currentUser(testServerId, testUserId))
     }
 
     @After
@@ -108,6 +113,8 @@ class SuggestionsWorkerTest {
     @Test
     fun restores_session_when_api_not_configured() =
         runTest {
+            // Kid profiles: workers never restore a session (see the kid tests below)
+            Assume.assumeFalse(BuildConfig.KID_PROFILES_ENABLED)
             every { mockApi.baseUrl } returns null
             every { mockApi.accessToken } returns null
             val mockUser = mockk<CurrentUser>()
@@ -291,6 +298,55 @@ class SuggestionsWorkerTest {
             val result = createWorker().doWork()
 
             assertEquals(ListenableWorker.Result.retry(), result)
+        }
+
+    // Kid profiles (plan 4.1): workers never touch the foreground session
+
+    @Test
+    fun kid_skips_without_current_user_and_never_restores() =
+        runTest {
+            Assume.assumeTrue(BuildConfig.KID_PROFILES_ENABLED)
+            every { mockServerRepository.current } returns MutableStateFlow(null)
+            every { mockApi.baseUrl } returns null
+            every { mockApi.accessToken } returns null
+
+            val result = createWorker().doWork()
+
+            assertEquals(ListenableWorker.Result.success(), result)
+            coVerify(exactly = 0) { mockServerRepository.restoreSession(any(), any()) }
+            coVerify(exactly = 0) { mockUserViewsApi.getUserViews(userId = any()) }
+        }
+
+    @Test
+    fun kid_retries_when_another_user_is_current() =
+        runTest {
+            Assume.assumeTrue(BuildConfig.KID_PROFILES_ENABLED)
+            every { mockServerRepository.current } returns MutableStateFlow(currentUser(testServerId, UUID.randomUUID()))
+
+            val result = createWorker().doWork()
+
+            assertEquals(ListenableWorker.Result.retry(), result)
+            coVerify(exactly = 0) { mockServerRepository.restoreSession(any(), any()) }
+            coVerify(exactly = 0) { mockUserViewsApi.getUserViews(userId = any()) }
+        }
+
+    @Test
+    fun kid_drops_results_when_the_user_changes_mid_run() =
+        runTest {
+            Assume.assumeTrue(BuildConfig.KID_PROFILES_ENABLED)
+            val current = MutableStateFlow<CurrentUser?>(currentUser(testServerId, testUserId))
+            every { mockServerRepository.current } returns current
+            every { mockPreferences.data } returns flowOf(mockPrefs())
+            coEvery { mockUserViewsApi.getUserViews(userId = testUserId) } coAnswers {
+                // A kid switched in while the views were loading
+                current.value = currentUser(testServerId, UUID.randomUUID())
+                mockQueryResult(listOf(mockk(relaxed = true)))
+            }
+
+            val result = createWorker().doWork()
+
+            assertEquals(ListenableWorker.Result.retry(), result)
+            coVerify(exactly = 0) { mockCache.put(any(), any(), any(), any()) }
         }
 }
 

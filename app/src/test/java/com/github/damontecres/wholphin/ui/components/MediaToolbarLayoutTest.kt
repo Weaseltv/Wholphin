@@ -12,6 +12,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.unit.dp
+import androidx.test.core.app.ApplicationProvider
+import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.SeerrAvailability
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.ui.detail.collection.CollectionButtons
@@ -80,10 +82,11 @@ class MediaToolbarLayoutTest {
     }
 
     @Test
-    fun `collection actions and filters retain their own focus clearance`() {
+    fun `collection actions stay clear of Random, sort and filter`() {
         compose.setContent {
             WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
-                Box(Modifier.width(800.dp)) {
+                // A collection page on a 960dp TV: closed rail 72dp, start gutter 24dp, end gutter 8dp
+                Box(Modifier.width(856.dp)) {
                     CollectionButtons(
                         state = CollectionState(),
                         onSortChange = {},
@@ -94,27 +97,26 @@ class MediaToolbarLayoutTest {
                         onClickViewOptions = {},
                         favoriteOnClick = {},
                         onConfirmDelete = {},
-                        canDelete = true,
+                        // Delete shows only with media management on, which is off by default
+                        canDelete = false,
                         moreOnClick = {},
                     )
                 }
             }
         }
-        for (label in listOf("Random", "More")) {
-            compose.onAllNodes(hasScrollAction())[0].performScrollToNode(hasText(label))
-            val button = compose.onNode(hasText(label) and isFocusable())
-            button.requestFocus()
-            compose.waitForIdle()
-            val viewport = compose.onAllNodes(hasScrollAction())[0].getUnclippedBoundsInRoot()
-            val bounds = button.getUnclippedBoundsInRoot()
-            assertTrue(
-                "$label and glow must fit collection actions: $bounds in $viewport",
-                bounds.top.value - viewport.top.value >= 12 && viewport.bottom.value - bounds.bottom.value >= 12,
-            )
-        }
-        val actions = compose.onAllNodes(hasScrollAction())[0].getUnclippedBoundsInRoot()
-        val filters = compose.onAllNodes(hasScrollAction())[1].getUnclippedBoundsInRoot()
-        assertTrue("Actions must reserve room for sort/filter controls", actions.right <= filters.left && filters.right.value <= 800)
+        val context = ApplicationProvider.getApplicationContext<Application>()
+        val random = compose.onNode(hasText(context.getString(R.string.fa_dice)) and isFocusable())
+        // Focused, Random shows its label: the widest the right-hand group gets
+        random.requestFocus()
+        compose.waitForIdle()
+        val all = compose.onNode(hasText("All", ignoreCase = true) and isFocusable()).getUnclippedBoundsInRoot()
+        val more = compose.onNode(hasText("More", ignoreCase = true) and isFocusable()).getUnclippedBoundsInRoot()
+        val randomBounds = random.getUnclippedBoundsInRoot()
+        val filter =
+            compose.onNode(hasText(context.getString(R.string.fa_filter)) and isFocusable()).getUnclippedBoundsInRoot()
+        assertTrue("ALL / MOVIES / SHOWS must sit above the actions: $all, $more", all.bottom <= more.top)
+        assertTrue("Actions must leave room for Random: $more, $randomBounds", more.right <= randomBounds.left)
+        assertTrue("Filter must fit the row: $filter", filter.right.value <= 856)
     }
 
     @Test
@@ -131,8 +133,9 @@ class MediaToolbarLayoutTest {
     }
 
     private fun checkClearance(label: String) {
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText(label))
-        val button = compose.onNode(hasText(label) and isFocusable())
+        // Labels are uppercase on WeaselPlex
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(label, ignoreCase = true))
+        val button = compose.onNode(hasText(label, ignoreCase = true) and isFocusable())
         button.requestFocus()
         compose.waitForIdle()
         val viewport = compose.onNode(hasScrollAction()).getUnclippedBoundsInRoot()

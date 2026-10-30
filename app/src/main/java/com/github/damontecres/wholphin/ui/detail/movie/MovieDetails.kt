@@ -42,6 +42,7 @@ import com.github.damontecres.wholphin.ui.cards.ExtrasRow
 import com.github.damontecres.wholphin.ui.cards.ItemRow
 import com.github.damontecres.wholphin.ui.cards.PersonRow
 import com.github.damontecres.wholphin.ui.cards.SeasonCard
+import com.github.damontecres.wholphin.ui.cards.personRowCardWidth
 import com.github.damontecres.wholphin.ui.components.ContextMenu
 import com.github.damontecres.wholphin.ui.components.ContextMenuActions
 import com.github.damontecres.wholphin.ui.components.ContextMenuDialog
@@ -58,6 +59,9 @@ import com.github.damontecres.wholphin.ui.data.AddPlaylistViewModel
 import com.github.damontecres.wholphin.ui.data.ChooseVersionParams
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialog
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialogInfo
+import com.github.damontecres.wholphin.ui.detail.KidAction
+import com.github.damontecres.wholphin.ui.detail.KidTitleButtons
+import com.github.damontecres.wholphin.ui.detail.KidTitlePage
 import com.github.damontecres.wholphin.ui.detail.PlaylistDialog
 import com.github.damontecres.wholphin.ui.discover.DiscoverRow
 import com.github.damontecres.wholphin.ui.discover.DiscoverRowData
@@ -77,6 +81,7 @@ import org.jellyfin.sdk.model.extensions.ticks
 import org.jellyfin.sdk.model.serializer.toUUID
 import java.util.UUID
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun MovieDetails(
@@ -242,12 +247,14 @@ fun MovieDetails(
                     canDelete = state.canDelete,
                     onConfirmDelete = { state.movie?.let { viewModel.deleteItem(it) } },
                     onChooseVersion = { contextActions.onChooseVersion.invoke(movie, it) },
+                    kid = viewModel.kidPage,
                     modifier = modifier,
                 )
             }
         }
     }
-    showContextMenu?.let { contextMenu ->
+    // A kid's page has no long-press or More menu
+    KidTitlePage.contextMenuFor(viewModel.kidPage, showContextMenu)?.let { contextMenu ->
         ContextMenuDialog(
             onDismissRequest = { showContextMenu = null },
             getMediaSource = viewModel.streamChoiceService::chooseSource,
@@ -293,6 +300,19 @@ private const val EXTRAS_ROW = CHAPTER_ROW + 1
 private const val SIMILAR_ROW = EXTRAS_ROW + 1
 private const val DISCOVER_ROW = SIMILAR_ROW + 1
 
+/**
+ * The space kept below the buttons for the cast row: its title, pictures, names and roles. It
+ * leaves out the empty focus room under the names, so the header has more height and its text is
+ * shrunk less.
+ */
+private val CastRowReserve = personRowCardWidth + 110.dp
+
+/**
+ * The kid page keeps room only for the top of its first row (its title and the top of the posters), as in the owner's
+ * mockup: the rows scroll up from below, and the header and its bigger buttons get the room.
+ */
+internal val KidRowPeek = 96.dp
+
 @Composable
 fun MovieDetailsContent(
     preferences: UserPreferences,
@@ -314,10 +334,13 @@ fun MovieDetailsContent(
     onConfirmDelete: () -> Unit,
     onChooseVersion: (MediaSourceInfo) -> Unit,
     modifier: Modifier = Modifier,
+    /** The kid title page (owner mockup 2026-10-23, [KidTitlePage]) */
+    kid: Boolean = false,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var position by rememberInt(0)
+    val kidFirstFocus = remember { FocusRequester() }
     val focusRequesters = remember { List(DISCOVER_ROW + 1) { FocusRequester() } }
     val dto = movie.data
     val resumePosition = dto.userData?.playbackPositionTicks?.ticks ?: Duration.ZERO
@@ -340,8 +363,9 @@ fun MovieDetailsContent(
                             .fillMaxWidth()
                             .bringIntoViewRequester(bringIntoViewRequester),
                 ) {
-                    FittedDetailHeader {
+                    FittedDetailHeader(firstRowHeight = if (kid) KidRowPeek else CastRowReserve) {
                         MovieDetailsHeader(
+                            kid = kid,
                             preferences = preferences,
                             movie = movie,
                             chosenStreams = state.chosenStreams,
@@ -353,101 +377,145 @@ fun MovieDetailsContent(
                                     .padding(top = HeaderUtils.detailTopPadding(), bottom = 8.dp),
                         )
                     }
-                    ExpandablePlayButtons(
-                        title = movie.title ?: "",
-                        resumePosition = resumePosition,
-                        watched = dto.userData?.played ?: false,
-                        favorite = dto.userData?.isFavorite ?: false,
-                        playOnClick = {
-                            position = HEADER_ROW
-                            playOnClick.invoke(it)
-                        },
-                        moreOnClick = moreOnClick,
-                        watchOnClick = watchOnClick,
-                        favoriteOnClick = favoriteOnClick,
-                        buttonOnFocusChanged = {
-                            if (it.isFocused) {
+                    if (kid) {
+                        val play = remember(movie) { KidTitlePage.moviePlay(dto) }
+                        KidTitleButtons(
+                            play = play,
+                            actions = KidTitlePage.movieActions(play),
+                            onWatchlist = dto.userData?.isFavorite ?: false,
+                            onPlay = {
                                 position = HEADER_ROW
-                                scope.launch(ExceptionHandler()) {
-                                    bringIntoViewRequester.bringIntoView()
-                                }
-                            }
-                        },
-                        trailers = state.trailers,
-                        trailerOnClick = {
-                            position = TRAILER_ROW
-                            trailerOnClick.invoke(it)
-                        },
-                        canDelete = canDelete,
-                        onConfirmDelete = onConfirmDelete,
-                        chooseVersionParams =
-                            remember(state.chosenStreams, movie, onChooseVersion) {
-                                ChooseVersionParams(
-                                    chosenStreams = state.chosenStreams,
-                                    mediaSources = movie.data.mediaSources.orEmpty(),
-                                    onChooseVersion = onChooseVersion,
-                                )
+                                playOnClick.invoke(it.positionMs.milliseconds)
                             },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 16.dp)
-                                .focusRequester(focusRequesters[HEADER_ROW]),
-                    )
+                            onAction = { action ->
+                                position = HEADER_ROW
+                                when (action) {
+                                    KidAction.START_OVER -> {
+                                        playOnClick.invoke(Duration.ZERO)
+                                    }
+
+                                    KidAction.WATCHLIST -> {
+                                        favoriteOnClick.invoke()
+                                    }
+
+                                    KidAction.SHUFFLE -> {}
+                                }
+                            },
+                            onFocusChanged = {
+                                if (it.isFocused) {
+                                    position = HEADER_ROW
+                                    scope.launch(ExceptionHandler()) {
+                                        bringIntoViewRequester.bringIntoView()
+                                    }
+                                }
+                            },
+                            firstFocus = kidFirstFocus,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .focusRequester(focusRequesters[HEADER_ROW]),
+                        )
+                    } else {
+                        ExpandablePlayButtons(
+                            title = movie.title ?: "",
+                            resumePosition = resumePosition,
+                            watched = dto.userData?.played ?: false,
+                            favorite = dto.userData?.isFavorite ?: false,
+                            playOnClick = {
+                                position = HEADER_ROW
+                                playOnClick.invoke(it)
+                            },
+                            moreOnClick = moreOnClick,
+                            watchOnClick = watchOnClick,
+                            favoriteOnClick = favoriteOnClick,
+                            buttonOnFocusChanged = {
+                                if (it.isFocused) {
+                                    position = HEADER_ROW
+                                    scope.launch(ExceptionHandler()) {
+                                        bringIntoViewRequester.bringIntoView()
+                                    }
+                                }
+                            },
+                            trailers = state.trailers,
+                            trailerOnClick = {
+                                position = TRAILER_ROW
+                                trailerOnClick.invoke(it)
+                            },
+                            canDelete = canDelete,
+                            onConfirmDelete = onConfirmDelete,
+                            chooseVersionParams =
+                                remember(state.chosenStreams, movie, onChooseVersion) {
+                                    ChooseVersionParams(
+                                        chosenStreams = state.chosenStreams,
+                                        mediaSources = movie.data.mediaSources.orEmpty(),
+                                        onChooseVersion = onChooseVersion,
+                                    )
+                                },
+                            collapseMore = true,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 16.dp)
+                                    .focusRequester(focusRequesters[HEADER_ROW]),
+                        )
+                    }
                 }
             }
-            state.people.letNotEmpty { people ->
-                item {
-                    PersonRow(
-                        people = people,
-                        onClick = {
-                            position = PEOPLE_ROW
-                            onClickPerson.invoke(it)
-                        },
-                        onLongClick = { index, person ->
-                            position = PEOPLE_ROW
-                            onLongClickPerson.invoke(index, person)
-                        },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .reportDetailRowHeight(PEOPLE_ROW)
-                                .focusRequester(focusRequesters[PEOPLE_ROW]),
-                    )
+            // Kids get only More like this (owner 2026-10-23)
+            if (!kid) {
+                state.people.letNotEmpty { people ->
+                    item {
+                        PersonRow(
+                            people = people,
+                            onClick = {
+                                position = PEOPLE_ROW
+                                onClickPerson.invoke(it)
+                            },
+                            onLongClick = { index, person ->
+                                position = PEOPLE_ROW
+                                onLongClickPerson.invoke(index, person)
+                            },
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .reportDetailRowHeight(PEOPLE_ROW)
+                                    .focusRequester(focusRequesters[PEOPLE_ROW]),
+                        )
+                    }
                 }
-            }
-            state.chapters.letNotEmpty { chapters ->
-                item {
-                    ChapterRow(
-                        chapters = chapters,
-                        onClick = {
-                            position = CHAPTER_ROW
-                            playOnClick.invoke(it.position)
-                        },
-                        onLongClick = {},
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .reportDetailRowHeight(CHAPTER_ROW)
-                                .focusRequester(focusRequesters[CHAPTER_ROW]),
-                    )
+                state.chapters.letNotEmpty { chapters ->
+                    item {
+                        ChapterRow(
+                            chapters = chapters,
+                            onClick = {
+                                position = CHAPTER_ROW
+                                playOnClick.invoke(it.position)
+                            },
+                            onLongClick = {},
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .reportDetailRowHeight(CHAPTER_ROW)
+                                    .focusRequester(focusRequesters[CHAPTER_ROW]),
+                        )
+                    }
                 }
-            }
-            state.extras.letNotEmpty { extras ->
-                item {
-                    ExtrasRow(
-                        extras = extras,
-                        onClickItem = { index, item ->
-                            position = EXTRAS_ROW
-                            onClickExtra.invoke(index, item)
-                        },
-                        onLongClickItem = { _, _ -> },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .reportDetailRowHeight(EXTRAS_ROW)
-                                .focusRequester(focusRequesters[EXTRAS_ROW]),
-                    )
+                state.extras.letNotEmpty { extras ->
+                    item {
+                        ExtrasRow(
+                            extras = extras,
+                            onClickItem = { index, item ->
+                                position = EXTRAS_ROW
+                                onClickExtra.invoke(index, item)
+                            },
+                            onLongClickItem = { _, _ -> },
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .reportDetailRowHeight(EXTRAS_ROW)
+                                    .focusRequester(focusRequesters[EXTRAS_ROW]),
+                        )
+                    }
                 }
             }
             state.similar.letNotEmpty { similar ->
@@ -490,7 +558,7 @@ fun MovieDetailsContent(
                     )
                 }
             }
-            state.discovered.letNotEmpty { discovered ->
+            state.discovered.takeUnless { kid }?.letNotEmpty { discovered ->
                 item {
                     DiscoverRow(
                         row =

@@ -18,10 +18,14 @@ import androidx.compose.ui.unit.times
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
+import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.alphabetSortName
 import com.github.damontecres.wholphin.data.model.createGenreDestination
+import com.github.damontecres.wholphin.kids.ProfileKind
+import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.services.ImageUrlService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.ui.OneTimeLaunchedEffect
@@ -128,6 +132,7 @@ class GenreViewModel
                             parentId = itemId,
                             includeItemTypes = includeItemTypes,
                             cardWidthPx = cardWidthPx,
+                            kidSession = isKidOrUnknown(serverRepository.currentUser),
                         )
                     val genresWithImages =
                         genres.map {
@@ -173,6 +178,12 @@ data class GenreCacheKey(
     val parentId: UUID,
 )
 
+/**
+ * Kid content rules (review round 6): whether the signed-in profile is a kid or unknown one, which never uses the
+ * cached genre backdrops or the saved Collections lists; adults keep their caching
+ */
+internal fun isKidOrUnknown(user: JellyfinUser?): Boolean = BuildConfig.KID_PROFILES_ENABLED && user?.profileKind != ProfileKind.ADULT
+
 private val genreCache by lazy {
     InMemoryKache<GenreCacheKey, Map<UUID, String?>>(8) {
         expireAfterWriteDuration = 2.hours
@@ -192,9 +203,10 @@ suspend fun getGenreImageMap(
     includeItemTypes: List<BaseItemKind>?,
     cardWidthPx: Int?,
     useCache: Boolean = true,
+    kidSession: Boolean = false,
 ): Map<UUID, String?> {
     val key = GenreCacheKey(userId, parentId)
-    if (useCache) {
+    if (useCache && !kidSession) {
         genreCache.getIfAvailable(key)?.let {
             Timber.v("Got cached entry")
             return it
@@ -241,7 +253,7 @@ suspend fun getGenreImageMap(
                 }
             }
         }.awaitAll()
-    genreCache.put(key, genreToUrl)
+    if (!kidSession) genreCache.put(key, genreToUrl)
     return genreToUrl
 }
 

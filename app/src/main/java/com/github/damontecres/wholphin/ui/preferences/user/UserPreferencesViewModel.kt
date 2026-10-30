@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.github.damontecres.wholphin.data.JellyfinServerDao
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinUserPreferences
 import com.github.damontecres.wholphin.preferences.AppPreferences
@@ -43,7 +42,6 @@ class UserPreferencesViewModel
         val backdropService: BackdropService,
         val screensaverService: ScreensaverService,
         private val serverRepository: ServerRepository,
-        private val serverDao: JellyfinServerDao,
     ) : ViewModel() {
         private val mutex = Mutex()
 
@@ -144,7 +142,9 @@ class UserPreferencesViewModel
                 mutex.withLock {
                     val user = currentUser.first { it != null }!!
                     val newAppPrefs = block.invoke(user.appPreferences)
-                    serverDao.updateUser(user.copy(appPreferences = newAppPrefs))
+                    // Only these columns (review round 10): [user] may be older than a PIN or policy saved meanwhile.
+                    // Under the session lock (review round 11), so a switch never saves an older copy over them.
+                    serverRepository.updateUserAppPreferences(user.rowId, newAppPrefs)
                 }
             }
         }

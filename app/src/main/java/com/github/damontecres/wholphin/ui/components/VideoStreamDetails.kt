@@ -22,6 +22,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
@@ -51,6 +52,7 @@ fun VideoStreamDetails(
     chosenStreams: ChosenStreams?,
     numberOfVersions: Int,
     modifier: Modifier = Modifier,
+    fontSize: TextUnit = 12.sp,
 ) = VideoStreamDetails(
     chosenStreams?.source,
     chosenStreams?.videoStream,
@@ -58,6 +60,7 @@ fun VideoStreamDetails(
     chosenStreams?.subtitleStream,
     numberOfVersions,
     modifier,
+    fontSize,
 )
 
 @Composable
@@ -68,6 +71,7 @@ fun VideoStreamDetails(
     subtitleStream: MediaStream?,
     numberOfVersions: Int = 0,
     modifier: Modifier = Modifier,
+    fontSize: TextUnit = 12.sp,
 ) {
     val resources = LocalResources.current
     Row(
@@ -104,10 +108,11 @@ fun VideoStreamDetails(
             StreamLabel(
                 text = it,
                 count = numberOfVersions,
+                fontSize = fontSize,
             )
         }
         videoStream?.codec?.uppercase()?.let {
-            StreamLabel(it)
+            StreamLabel(it, fontSize = fontSize)
         }
 
         val audioCount = remember(source) { source?.audioStreamCount ?: 0 }
@@ -128,6 +133,7 @@ fun VideoStreamDetails(
             count = audioCount,
             icon = R.string.fa_volume_high,
             modifier = Modifier.widthIn(max = 200.dp),
+            fontSize = fontSize,
         )
 
         val subtitleCount =
@@ -158,6 +164,7 @@ fun VideoStreamDetails(
                 icon = R.string.fa_closed_captioning,
                 modifier = Modifier.widthIn(max = 160.dp),
                 disabled = disabled,
+                fontSize = fontSize,
             )
         }
     }
@@ -170,6 +177,7 @@ fun StreamLabel(
     @StringRes icon: Int? = null,
     count: Int = 0,
     disabled: Boolean = false,
+    fontSize: TextUnit = 12.sp,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -185,7 +193,7 @@ fun StreamLabel(
         ProvideTextStyle(
             TextStyle(
                 color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 12.sp,
+                fontSize = fontSize,
                 fontWeight = FontWeight.SemiBold,
             ),
         ) {

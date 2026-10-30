@@ -49,7 +49,9 @@ google-services.json
 .cxx
 local.properties
 local_scripts/
-app/libs/
+app/libs/*
+# Patched ffmpeg decoder: rebuild with scripts/ffmpeg-decoder/build.sh
+!app/libs/lib-decoder-ffmpeg-release.aar
 ffmpeg_decoder/
 app/release/
 app/debug/

@@ -2,8 +2,12 @@ package com.github.damontecres.wholphin.services
 
 import android.content.Intent
 import android.net.Uri
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.CurrentUser
+import com.github.damontecres.wholphin.data.JellyfinServerDao
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.kids.GateDecision
+import com.github.damontecres.wholphin.kids.KidSessionGateImpl
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.preferences.update
@@ -31,6 +35,7 @@ import org.jellyfin.sdk.model.extensions.inWholeTicks
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assume
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -44,6 +49,8 @@ class IntentServiceTest {
     private val api: ApiClient = mockk()
     private val serverRepository: ServerRepository = mockk()
     private val userPreferencesService: UserPreferencesService = mockk()
+    private val serverDao: JellyfinServerDao = mockk()
+    private val kidSessionGate: KidSessionGateImpl = mockk()
 
     lateinit var intentService: IntentService
 
@@ -59,7 +66,18 @@ class IntentServiceTest {
 
     @Before
     fun setup() {
-        intentService = IntentService(api, serverRepository, userPreferencesService)
+        intentService = IntentService(api, serverRepository, userPreferencesService, kidSessionGate)
+        every { serverRepository.serverDao } returns serverDao
+        every { serverDao.getUser(serverId, userId) } returns currentUser.user
+        // Kid profiles (weaselfin): an unprotected TV, the gate allows and restores like restoreSession
+        coEvery { kidSessionGate.evaluate(any()) } returns GateDecision.Allow
+        coEvery { kidSessionGate.restoreGated(any(), any()) } coAnswers {
+            serverRepository.restoreSession(firstArg(), secondArg())
+        }
+        // ...and the restore shortcut for the current profile too
+        coEvery { serverRepository.restoreCurrentSession(any(), any()) } coAnswers {
+            serverRepository.restoreSession(firstArg(), secondArg())
+        }
     }
 
     private fun setupPreferences(block: AppPreferences.Builder.() -> Unit) {
@@ -138,12 +156,15 @@ class IntentServiceTest {
             }
             every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(null)
             coEvery { serverRepository.restoreSession(serverId, userId) } returns protectedCurrentUser
+            every { serverDao.getUser(serverId, userId) } returns protectedCurrentUser.user
 
             val intent = Intent()
             val result = intentService.prepare(intent)
             assertTrue(result is IntentResult.Error)
 
-            coVerify(exactly = 1) { serverRepository.restoreSession(serverId, userId) }
+            // Kid profiles read the saved row first, so a PIN profile is never restored
+            val restores = if (BuildConfig.KID_PROFILES_ENABLED) 0 else 1
+            coVerify(exactly = restores) { serverRepository.restoreSession(serverId, userId) }
         }
 
     @Test
@@ -342,5 +363,83 @@ class IntentServiceTest {
             assertTrue(result is IntentResult.Error)
 
             coVerify(exactly = 0) { serverRepository.restoreSession(serverId, userId) }
+        }
+
+    @Test
+    fun `Gate - intent naming a gated profile is refused before restoring`() =
+        runTest {
+            Assume.assumeTrue(BuildConfig.KID_PROFILES_ENABLED)
+            setupPreferences {
+                signInAutomatically = true
+            }
+            val otherUserId = UUID.randomUUID()
+            every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(currentUser)
+            val sibling = user(serverId, otherUserId)
+            every { serverDao.getUser(serverId, otherUserId) } returns sibling
+            coEvery { kidSessionGate.evaluate(sibling) } returns GateDecision.NeedsParentUnlock
+
+            val intent =
+                Intent().apply {
+                    putExtra(IntentService.INTENT_SERVER_ID, serverId.toServerString())
+                    putExtra(IntentService.INTENT_USER_ID, otherUserId.toServerString())
+                }
+            val result = intentService.prepare(intent)
+            assertTrue(result is IntentResult.Error)
+            coVerify(exactly = 0) { kidSessionGate.restoreGated(any(), any()) }
+            coVerify(exactly = 0) { serverRepository.restoreSession(any(), any()) }
+        }
+
+    @Test
+    fun `Gate - auto restore of a locked adult is refused before restoring`() =
+        runTest {
+            Assume.assumeTrue(BuildConfig.KID_PROFILES_ENABLED)
+            setupPreferences {
+                signInAutomatically = true
+                currentServerId = serverId.toServerString()
+                currentUserId = userId.toServerString()
+            }
+            every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(null)
+            coEvery { kidSessionGate.evaluate(currentUser.user) } returns GateDecision.LockedAdult
+
+            val result = intentService.prepare(Intent())
+            assertTrue(result is IntentResult.Error)
+            coVerify(exactly = 0) { kidSessionGate.restoreGated(any(), any()) }
+            coVerify(exactly = 0) { serverRepository.restoreSession(any(), any()) }
+        }
+
+    @Test
+    fun `Chooser target - only a complete server and user pair is a deep link's target`() {
+        val unknownServer = UUID.randomUUID()
+        val serverOnly = Intent().apply { putExtra(IntentService.INTENT_SERVER_ID, unknownServer.toServerString()) }
+        val userOnly = Intent().apply { putExtra(IntentService.INTENT_USER_ID, userId.toServerString()) }
+        val both =
+            Intent().apply {
+                putExtra(IntentService.INTENT_SERVER_ID, serverId.toServerString())
+                putExtra(IntentService.INTENT_USER_ID, userId.toServerString())
+            }
+        assertNull(intentService.intentTarget(serverOnly))
+        assertNull(intentService.intentTarget(userOnly))
+        assertEquals(IntentTarget(serverId, userId), intentService.intentTarget(both))
+    }
+
+    @Test
+    fun `Gate - an unpaired server id falls back to the saved profile, like the chooser count`() =
+        runTest {
+            Assume.assumeTrue(BuildConfig.KID_PROFILES_ENABLED)
+            setupPreferences {
+                signInAutomatically = true
+                currentServerId = serverId.toServerString()
+                currentUserId = userId.toServerString()
+            }
+            every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(null)
+            coEvery { serverRepository.restoreSession(serverId, userId) } returns currentUser
+            val unknownServer = UUID.randomUUID()
+
+            val intent = Intent().apply { putExtra(IntentService.INTENT_SERVER_ID, unknownServer.toServerString()) }
+            assertNull(intentService.prepare(intent))
+
+            // The same server MainActivity counted profiles for: the saved one, never the intent's
+            coVerify(exactly = 1) { kidSessionGate.restoreGated(serverId, userId) }
+            coVerify(exactly = 0) { kidSessionGate.restoreGated(unknownServer, any()) }
         }
 }

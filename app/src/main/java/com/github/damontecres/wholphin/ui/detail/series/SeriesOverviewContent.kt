@@ -52,11 +52,13 @@ import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.cards.BannerCard
 import com.github.damontecres.wholphin.ui.cards.ExtrasRow
 import com.github.damontecres.wholphin.ui.cards.PersonRow
+import com.github.damontecres.wholphin.ui.components.ButtonGlowRoom
 import com.github.damontecres.wholphin.ui.components.DetailPageViewport
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.FittedDetailHeader
 import com.github.damontecres.wholphin.ui.components.FocusSafeLazyRow
 import com.github.damontecres.wholphin.ui.components.HeaderUtils
+import com.github.damontecres.wholphin.ui.components.KeepFocusRoomOnScroll
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.components.TabDetails
 import com.github.damontecres.wholphin.ui.components.TabRow
@@ -67,6 +69,8 @@ import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.logTab
 import com.github.damontecres.wholphin.ui.playback.isPlayKeyUp
 import com.github.damontecres.wholphin.ui.rememberInt
+import com.github.damontecres.wholphin.ui.theme.ProvideButtonsOverArtwork
+import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
 import com.github.damontecres.wholphin.ui.util.rememberDelayedNestedScroll
@@ -74,6 +78,9 @@ import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.MediaSourceInfo
 import org.jellyfin.sdk.model.api.PersonKind
 import kotlin.time.Duration
+
+/** Room under the kid header for the episode row and the kid buttons (the adult page keeps 160dp) */
+private val KidButtonsReserve = 216.dp
 
 @Composable
 fun SeriesOverviewContent(
@@ -105,6 +112,11 @@ fun SeriesOverviewContent(
     onClickExtra: (Int, ExtrasItem) -> Unit,
     onChooseVersion: (BaseItem, MediaSourceInfo) -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * The kid design (owner 2026-10-23): a short episode header with the full description, the kid buttons, and no
+     * cast, guest star or extras rows; the season tabs and the episode row work as before
+     */
+    kid: Boolean = false,
 ) {
     val scope = rememberCoroutineScope()
     val bringIntoViewRequester = remember { BringIntoViewRequester() }
@@ -161,33 +173,45 @@ fun SeriesOverviewContent(
                         .focusGroup()
                         .bringIntoViewRequester(bringIntoViewRequester),
             ) {
+                val neon = isWeaselTv()
                 val paddingValues =
-                    remember(preferences.appPreferences.interfacePreferences.showClock) {
-                        if (preferences.appPreferences.interfacePreferences.showClock) {
+                    remember(preferences.appPreferences.interfacePreferences.showClock, neon) {
+                        if (neon) {
+                            // The tabs sit below the clock, so they run to the edge of the page.
+                            // The first tab lines up with the title and buttons below.
+                            PaddingValues(start = HeaderUtils.startPadding, end = 0.dp)
+                        } else if (preferences.appPreferences.interfacePreferences.showClock) {
                             PaddingValues(start = 0.dp, end = 184.dp)
                         } else {
                             PaddingValues(start = 0.dp, end = 16.dp)
                         }
                     }
-                TabRow(
-                    selectedTabIndex = selectedTabIndex,
-                    tabs = tabs,
-                    onClick =
-                        remember {
-                            {
-                                selectedTabIndex = it
-                                currentOnChangeSeason(it)
-                                requestFocusAfterSeason = true
-                            }
-                        },
-                    modifier =
-                        Modifier
-                            .focusRequester(tabRowFocusRequester)
-                            .padding(paddingValues)
-                            .padding(bottom = 4.dp)
-                            .fillMaxWidth(),
-                )
-                FittedDetailHeader(reservedHeight = 160.dp) {
+                // Like the series page's buttons: white outlines and a dark backing over the artwork,
+                // and a focused tab keeps its border and glow clear of the row's ends
+                ProvideButtonsOverArtwork {
+                    KeepFocusRoomOnScroll(ButtonGlowRoom) {
+                        TabRow(
+                            selectedTabIndex = selectedTabIndex,
+                            tabs = tabs,
+                            onClick =
+                                remember {
+                                    {
+                                        selectedTabIndex = it
+                                        currentOnChangeSeason(it)
+                                        requestFocusAfterSeason = true
+                                    }
+                                },
+                            modifier =
+                                Modifier
+                                    .focusRequester(tabRowFocusRequester)
+                                    .padding(paddingValues)
+                                    .padding(bottom = 4.dp)
+                                    .fillMaxWidth(),
+                        )
+                    }
+                }
+                // The kid buttons are taller (66dp, a focus ring and a progress line under Play)
+                FittedDetailHeader(reservedHeight = if (kid) KidButtonsReserve else 160.dp) {
                     Column {
                         TitleOrLogo(
                             item = series,
@@ -207,6 +231,8 @@ fun SeriesOverviewContent(
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(.6f),
+                            kid = kid,
+                            seriesRating = series.data.officialRating,
                         )
                     }
                 }
@@ -338,6 +364,7 @@ fun SeriesOverviewContent(
                         canDelete = canDelete.invoke(ep),
                         onConfirmDelete = { onConfirmDelete.invoke(ep) },
                         onChooseVersion = { onChooseVersion.invoke(ep, it) },
+                        kid = kid,
                         modifier =
                             Modifier
                                 .padding(top = 4.dp)
@@ -352,7 +379,7 @@ fun SeriesOverviewContent(
                 }
 
             AnimatedVisibility(
-                visible = peopleInEpisode.isNotEmpty(),
+                visible = peopleInEpisode.isNotEmpty() && !kid,
                 enter = fadeIn(),
                 exit = fadeOut(),
             ) {
@@ -385,7 +412,7 @@ fun SeriesOverviewContent(
                 }
             }
             AnimatedVisibility(
-                visible = seasonExtras.isNotEmpty(),
+                visible = seasonExtras.isNotEmpty() && !kid,
                 enter = fadeIn(),
                 exit = fadeOut(),
             ) {

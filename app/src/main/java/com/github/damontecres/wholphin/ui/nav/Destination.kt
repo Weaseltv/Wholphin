@@ -60,6 +60,10 @@ sealed class Destination(
 
     data object UserAppPreferences : Destination(true)
 
+    /** WeaselPlex: the signed-in profile's picture (kid-profiles plan 4.6). */
+    @Serializable
+    data object ProfilePicture : Destination(true)
+
     @Serializable
     data class SeriesOverview(
         val itemId: UUID,
@@ -115,6 +119,10 @@ sealed class Destination(
                 "subtitleStreamIndex=$subtitleStreamIndex, queueSize=${itemIds.size}, startIndex=$startIndex)"
     }
 
+    /**
+     * @param startItemId the item at [startIndex] the user picked: playback starts at it even when [startIndex], a
+     * position in a list the kid content rules filtered, is ahead of its position on the server
+     */
     @Serializable
     data class PlaybackList(
         val itemId: UUID,
@@ -123,6 +131,7 @@ sealed class Destination(
         val shuffle: Boolean = false,
         val recursive: Boolean = false,
         val sortAndDirection: SortAndDirection? = null,
+        val startItemId: UUID? = null,
     ) : Destination(true) {
         override fun toString(): String = "PlaybackList(itemId=$itemId)"
     }

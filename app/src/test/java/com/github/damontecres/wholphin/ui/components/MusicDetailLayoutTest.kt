@@ -101,7 +101,7 @@ class MusicDetailLayoutTest {
                 }
             }
         }
-        compose.onNode(hasText("Play") and isFocusable()).requestFocus()
+        compose.onNode(hasText("Play", ignoreCase = true) and isFocusable()).requestFocus()
         compose.waitForIdle()
         repeat(30) { index ->
             compose.onRoot().performKeyInput {

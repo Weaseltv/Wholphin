@@ -64,7 +64,8 @@ fun ErrorMessage(
     exception: Throwable?,
     modifier: Modifier = Modifier,
     viewModel: ErrorViewModel = hiltViewModel(),
-) = ErrorMessageContent(message, exception, viewModel::sendLogs, modifier)
+    onRetry: (() -> Unit)? = null,
+) = ErrorMessageContent(message, exception, viewModel::sendLogs, modifier, onRetry)
 
 /** Error details remain readable and scrollable even for a long server exception chain. */
 @Composable
@@ -73,6 +74,7 @@ fun ErrorMessageContent(
     exception: Throwable?,
     onSendLogs: () -> Unit,
     modifier: Modifier = Modifier,
+    onRetry: (() -> Unit)? = null,
 ) {
     val neon = isWeaselTv()
     val scrollState = rememberScrollState()
@@ -119,6 +121,12 @@ fun ErrorMessageContent(
             color = if (neon) NeonBoard.Text else MaterialTheme.colorScheme.error,
             style = if (neon) NeonType.condensedTitle(30.sp) else MaterialTheme.typography.titleMedium,
         )
+        onRetry?.let {
+            TextButton(
+                stringRes = R.string.try_again,
+                onClick = it,
+            )
+        }
         TextButton(
             stringRes = R.string.send_app_logs,
             onClick = onSendLogs,
@@ -155,10 +163,12 @@ fun ErrorMessageContent(
 fun ErrorMessage(
     error: LoadingState.Error,
     modifier: Modifier = Modifier,
+    onRetry: (() -> Unit)? = null,
 ) = ErrorMessage(
     message = error.message,
     exception = error.exception,
     modifier = modifier,
+    onRetry = onRetry,
 )
 
 @Composable

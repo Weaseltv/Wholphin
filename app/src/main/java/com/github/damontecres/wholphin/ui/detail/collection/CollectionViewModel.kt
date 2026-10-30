@@ -15,10 +15,10 @@ import com.github.damontecres.wholphin.data.model.GetItemsFilter
 import com.github.damontecres.wholphin.data.model.LibraryDisplayInfo
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.services.BackdropService
-import com.github.damontecres.wholphin.services.CuratedCollections
 import com.github.damontecres.wholphin.services.FavoriteWatchManager
 import com.github.damontecres.wholphin.services.FilterOptionCache
 import com.github.damontecres.wholphin.services.ImageUrlService
+import com.github.damontecres.wholphin.services.JustWatchRowService
 import com.github.damontecres.wholphin.services.KeyValueService
 import com.github.damontecres.wholphin.services.MediaManagementService
 import com.github.damontecres.wholphin.services.MusicService
@@ -104,6 +104,7 @@ class CollectionViewModel
         val serverReportService: ServerReportService,
         private val filterOptionCache: FilterOptionCache,
         private val quickListService: StreamingQuickListService,
+        private val justWatchRowService: JustWatchRowService,
         @Assisted private val itemId: UUID,
     ) : ViewModel() {
         @AssistedFactory
@@ -134,7 +135,15 @@ class CollectionViewModel
             viewOptionsFlow.collectLatestIn(viewModelScope) { viewOptions ->
                 Timber.v("Updated viewOptions")
                 _state.update {
-                    it.copy(viewOptions = if (it.isStreaming || it.isCurated) StreamingViewOptions else viewOptions)
+                    it.copy(
+                        viewOptions =
+                            if (it.isStreaming) {
+                                StreamingViewOptions
+                            } else {
+                                // Navigating the grid never swaps the header for the focused card, like library pages
+                                viewOptions.copy(cardViewOptions = viewOptions.cardViewOptions.copy(showDetails = false))
+                            },
+                    )
                 }
             }
             libraryDisplayInfoFlow
@@ -175,9 +184,7 @@ class CollectionViewModel
                             collection = collection,
                             logoImageUrl = logoImageUrl,
                             viewOptions =
-                                if (streaming ||
-                                    (BuildConfig.FLAVOR == "weaselfin" && CuratedCollections.isCuratedCollection(collection.data))
-                                ) {
+                                if (streaming) {
                                     StreamingViewOptions
                                 } else {
                                     it.viewOptions
@@ -192,7 +199,14 @@ class CollectionViewModel
                         )
                     }
                     if (state.value.isStreaming) {
-                        quickListService.prefetch(StreamingCollections.justWatchPackages(collection.name))
+                        serverRepository.currentUser?.id?.let { userId ->
+                            viewModelScope.launchIO {
+                                // The server says which lists this service has (owner, 2026-10-16)
+                                val justWatch = justWatchRowService.serviceLists(userId, collection.id, collection.name)
+                                _state.update { it.copy(justWatch = justWatch) }
+                                quickListService.prefetch(userId, justWatch)
+                            }
+                        }
                     }
                     listenForStateUpdates()
                     themeSongPlayer.playThemeFor(itemId)
@@ -310,18 +324,19 @@ class CollectionViewModel
                 )
             }
             if (!separateTypes) {
-                val types =
-                    when {
-                        state.value.isCurated -> CuratedCollections.types
-                        state.value.isStreaming -> StreamingCollections.types
-                        else -> typesInCollection
-                    }
+                val types = if (state.value.isStreaming) StreamingCollections.types else typesInCollection
                 val result = fetchItems(sort, filter, types)
                 _state.update { it.copy(items = result) }
             } else {
                 supervisorScope {
+                    // One row per type the ALL / MOVIES / SHOWS choice allows
+                    val rowTypes =
+                        filter.includeItemTypes
+                            ?.takeIf { it.isNotEmpty() }
+                            ?.let { chosen -> typesInCollection.filter { it in chosen } }
+                            ?: typesInCollection
                     val jobs =
-                        typesInCollection.map { type ->
+                        rowTypes.map { type ->
                             async(WholphinDispatchers.IO) {
                                 val title = ResStringProvider(formatTypeName(type))
                                 val result =
@@ -366,12 +381,12 @@ class CollectionViewModel
             filter: GetItemsFilter,
         ): List<BaseItem?> {
             val userId = serverRepository.currentUser?.id ?: return emptyList()
-            val packages = StreamingCollections.justWatchPackages(state.value.collection?.name)
+            val justWatch = state.value.justWatch
             if (quickListService.canFilterLocally(filter)) {
-                return quickListService.items(userId, itemId, packages, quickList, filter)
+                return quickListService.items(userId, itemId, justWatch, quickList, filter)
             }
             // Other filters need the server: rank the members, then fetch them with the filter
-            val ranked = quickListService.items(userId, itemId, packages, quickList, GetItemsFilter())
+            val ranked = quickListService.items(userId, itemId, justWatch, quickList, GetItemsFilter())
             val ids = ranked.map { it.id }
             val byId =
                 coroutineScope {
@@ -438,8 +453,8 @@ class CollectionViewModel
                     fields = SlimItemFields,
                 ).let {
                     val filtered = filter?.applyTo(it, false) ?: it
-                    if (state.value.isStreaming || state.value.isCurated) {
-                        val allowedTypes = if (state.value.isCurated) CuratedCollections.types else StreamingCollections.types
+                    if (state.value.isStreaming) {
+                        val allowedTypes = StreamingCollections.types
                         filtered.copy(
                             userId = requireNotNull(serverRepository.currentUser).id,
                             includeItemTypes =
@@ -449,7 +464,13 @@ class CollectionViewModel
                                     ?.takeIf { it.isNotEmpty() } ?: allowedTypes,
                         )
                     } else {
-                        filtered
+                        // ALL / MOVIES / SHOWS narrow the collection's own types
+                        val chosen = filter?.includeItemTypes?.takeIf { it.isNotEmpty() }
+                        if (chosen == null) {
+                            filtered
+                        } else {
+                            filtered.copy(includeItemTypes = types.filter { it in chosen }.ifEmpty { chosen })
+                        }
                     }
                 }
             return request
@@ -554,12 +575,7 @@ class CollectionViewModel
         fun onClickRandom() {
             viewModelScope.launchIO {
                 try {
-                    val types =
-                        when {
-                            state.value.isCurated -> CuratedCollections.types
-                            state.value.isStreaming -> StreamingCollections.types
-                            else -> typesInCollection
-                        }
+                    val types = if (state.value.isStreaming) StreamingCollections.types else typesInCollection
                     val request =
                         createGetItemsRequest(
                             sort = SortAndDirection(ItemSortBy.RANDOM, SortOrder.ASCENDING),
@@ -715,10 +731,9 @@ data class CollectionState(
     val quickList: StreamingQuickList? = null,
     /** The quick list being loaded, while the previous posters stay on screen. */
     val quickListLoading: StreamingQuickList? = null,
+    /** A streaming service's lists, once known; null for one without any (no quick-list buttons). */
+    val justWatch: StreamingCollections.JustWatchLists? = null,
 ) {
-    val isCurated: Boolean
-        get() = BuildConfig.FLAVOR == "weaselfin" && collection?.data?.let(CuratedCollections::isCuratedCollection) == true
-
     val isStreaming: Boolean
         get() = BuildConfig.FLAVOR == "weaselfin" && collection?.data?.let(StreamingCollections::isStreamingCollection) == true
 }

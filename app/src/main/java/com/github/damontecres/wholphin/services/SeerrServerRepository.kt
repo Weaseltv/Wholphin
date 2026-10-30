@@ -15,6 +15,7 @@ import com.github.damontecres.wholphin.data.model.SeerrPermission
 import com.github.damontecres.wholphin.data.model.SeerrServer
 import com.github.damontecres.wholphin.data.model.SeerrUser
 import com.github.damontecres.wholphin.data.model.hasPermission
+import com.github.damontecres.wholphin.kids.KidSessionGate
 import com.github.damontecres.wholphin.services.hilt.StandardOkHttpClient
 import com.github.damontecres.wholphin.ui.setup.seerr.createSeerrApiUrl
 import com.github.damontecres.wholphin.util.LoadingState
@@ -32,6 +33,7 @@ import okhttp3.OkHttpClient
 import org.jellyfin.sdk.model.api.ImageType
 import timber.log.Timber
 import javax.inject.Inject
+import javax.inject.Provider
 import javax.inject.Singleton
 import kotlin.time.Duration.Companion.seconds
 
@@ -47,6 +49,7 @@ class SeerrServerRepository
         private val seerrServerDao: SeerrServerDao,
         private val serverRepository: ServerRepository,
         @param:StandardOkHttpClient private val okHttpClient: OkHttpClient,
+        private val kidSessionGate: Provider<KidSessionGate>,
     ) {
         private val _connection =
             MutableStateFlow<SeerrConnectionStatus>(SeerrConnectionStatus.NotConfigured)
@@ -80,13 +83,58 @@ class SeerrServerRepository
             seerrApi.update("", null)
         }
 
+        /**
+         * WeaselFin: whether [user] may use Seerr at all. Kid profiles never may; see
+         * [SeerrKidGuard]. [user] must also still be the current session, so a sign-in
+         * started for one profile never lands in another's. With kid profiles on, the
+         * session must also not be a kid (or unknown) session per [KidSessionGate]
+         * (plan 4.4). Upstream flavors are unaffected.
+         */
+        private fun seerrAllowedFor(user: JellyfinUser?): Boolean {
+            if (BuildConfig.FLAVOR != "weaselfin") return true
+            val current = serverRepository.currentUser
+            val allowed =
+                user != null &&
+                    current != null &&
+                    current.serverId == user.serverId &&
+                    current.id == user.id &&
+                    SeerrKidGuard.isConfirmedAdult(user.id, serverRepository.currentUserDto) &&
+                    !(BuildConfig.KID_PROFILES_ENABLED && kidSessionGate.get().isKidSession.value)
+            if (!allowed) Timber.i("Seerr skipped: not a confirmed adult profile, or the session changed")
+            return allowed
+        }
+
+        /**
+         * A sign-in finished after the session changed: publish nothing for it, and take
+         * Seerr down if the new session may not have it (a kid, or no profile)
+         */
+        private fun dropStale() {
+            Timber.i("Dropping a Seerr result for a profile that is no longer the session")
+            if (!seerrAllowedFor(serverRepository.currentUser)) clear()
+        }
+
+        /**
+         * Publishes the Seerr session of [forUser], the Jellyfin profile whose sign-in
+         * produced it; nothing is published if that is no longer the session.
+         */
         suspend fun set(
             server: SeerrServer,
             user: SeerrUser,
             userConfig: SeerrUserConfig,
+            forUser: JellyfinUser? = serverRepository.currentUser,
         ) {
+            // Last line of defence: never publish a Seerr session for a kid profile.
+            if (!seerrAllowedFor(forUser)) {
+                dropStale()
+                return
+            }
             val publicSettings = seerrApi.api.settingsApi.settingsPublicGet()
             if (serverRepository.currentUser?.rowId != user.jellyfinUserRowId) return
+            // The session may have changed during that request
+            if (!seerrAllowedFor(forUser)) {
+                dropStale()
+                return
+            }
             _connection.update {
                 SeerrConnectionStatus.Success(
                     CurrentSeerr(server, user, userConfig, publicSettings),
@@ -98,6 +146,7 @@ class SeerrServerRepository
             url: String,
             apiKey: String,
         ) {
+            if (!seerrAllowedFor(serverRepository.currentUser)) return
             var server = seerrServerDao.getServer(url)
             if (server == null) {
                 seerrServerDao.addServer(SeerrServer(url = url))
@@ -119,7 +168,7 @@ class SeerrServerRepository
 
                     seerrApi.update(server.url, apiKey)
                     val userConfig = seerrApi.api.usersApi.authMeGet()
-                    set(server, user, userConfig)
+                    set(server, user, userConfig, jellyfinUser)
                 }
             }
         }
@@ -130,6 +179,7 @@ class SeerrServerRepository
             username: String,
             password: String,
         ) {
+            if (!seerrAllowedFor(serverRepository.currentUser)) return
             var server = seerrServerDao.getServer(url)
             if (server == null) {
                 seerrServerDao.addServer(SeerrServer(url = url))
@@ -151,7 +201,7 @@ class SeerrServerRepository
                             credential = null,
                         )
                     seerrServerDao.addUser(user)
-                    set(server, user, userConfig)
+                    set(server, user, userConfig, jellyfinUser)
                 }
             }
         }
@@ -185,6 +235,11 @@ class SeerrServerRepository
          */
         suspend fun connectForUser(user: JellyfinUser): Boolean =
             connectMutex.withLock {
+                if (!seerrAllowedFor(user)) {
+                    // Never leave a previous adult's Seerr session up for a kid.
+                    clear()
+                    return@withLock false
+                }
                 if (connection.value is SeerrConnectionStatus.Success &&
                     lastAttemptUserRowId == user.rowId
                 ) {
@@ -230,12 +285,12 @@ class SeerrServerRepository
                         } else {
                             seerrApi.api.usersApi.authMeGet()
                         }
-                    set(server, existing, userConfig)
+                    set(server, existing, userConfig, user)
                     recordAttempt(user, null)
                     true
                 } catch (ex: Exception) {
                     Timber.w(ex, "Error logging into %s", server.url)
-                    error(server, existing, ex)
+                    if (seerrAllowedFor(user)) error(server, existing, ex) else dropStale()
                     recordAttempt(user, ex)
                     false
                 }
@@ -276,6 +331,7 @@ class SeerrServerRepository
             val expired = connection.value as? SeerrConnectionStatus.Expired
             if (expired != null && expired.current.user.authMethod !in listOf(SeerrAuthMethod.QUICK_CONNECT, SeerrAuthMethod.API_KEY)) return false
             val user = serverRepository.currentUser ?: return false
+            if (!seerrAllowedFor(user)) return false
             return connectForUser(user)
         }
 
@@ -295,6 +351,7 @@ class SeerrServerRepository
             val pinned = BuildConfig.DEFAULT_SEERR_URL
             if (pinned.isBlank()) return false
             if (jellyfinUser == null) return false
+            if (!seerrAllowedFor(jellyfinUser)) return false
 
             val url = createSeerrApiUrl(pinned)
             var stored = seerrServerDao.getServer(url)
@@ -322,7 +379,7 @@ class SeerrServerRepository
                         credential = null,
                     )
                 seerrServerDao.addUser(seerrUser)
-                set(server, seerrUser, userConfig)
+                set(server, seerrUser, userConfig, jellyfinUser)
                 recordAttempt(jellyfinUser, null)
                 Timber.i("Connected to the pinned Seerr server silently")
                 true

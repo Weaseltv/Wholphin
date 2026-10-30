@@ -720,6 +720,13 @@ sealed interface AppPreference<Pref, T> {
                 valueToIndex = { if (it != MediaExtensionStatus.UNRECOGNIZED) it.number else 0 },
             )
 
+        /** Settings → Help: starts the coach-mark tour on Home */
+        val CoachMarkTour =
+            AppClickablePreference<AppPreferences>(
+                title = R.string.coach_settings_title,
+                summary = R.string.coach_settings_summary,
+            )
+
         val ClearImageCache =
             AppClickablePreference<AppPreferences>(
                 title = R.string.clear_image_cache,
@@ -740,6 +747,14 @@ sealed interface AppPreference<Pref, T> {
                 title = R.string.customize_home,
                 destination = Destination.HomeSettings,
                 summary = if (BuildConfig.FLAVOR == "weaselfin") null else R.string.customize_home_summary,
+            )
+
+        /** WeaselPlex: the signed-in profile's picture (kid-profiles plan 4.6). */
+        val ProfilePicture =
+            AppDestinationPreference<AppPreferences>(
+                title = R.string.profile_picture,
+                destination = Destination.ProfilePicture,
+                summary = R.string.profile_picture_summary,
             )
 
         val UserInterfaceLanguage =
@@ -1122,8 +1137,25 @@ sealed interface AppPreference<Pref, T> {
     }
 }
 
+/**
+ * WeaselPlex kid profiles (plan 4.4): account and server settings a kid session never shows.
+ * Live TV is already gone by server policy, and Discover/Requests by the Seerr guard.
+ */
+val kidHiddenPreferences: Set<AppPreference<*, *>> =
+    setOf(
+        AppPreference.SeerrIntegration,
+        AppPreference.QuickConnect,
+        AppPreference.UpdateUrl,
+    )
+
 val basicPreferences =
-    listOf(
+    listOfNotNull(
+        // Help sits at the top, before Interface
+        if (BuildConfig.COACH_MARK_TOUR_ENABLED) {
+            PreferenceGroup(title = R.string.coach_help, preferences = listOf(AppPreference.CoachMarkTour))
+        } else {
+            null
+        },
         PreferenceGroup(
             title = R.string.ui_interface,
             preferences =
@@ -1158,13 +1190,14 @@ val basicPreferences =
         PreferenceGroup(
             title = R.string.profile_specific_settings,
             preferences =
-                listOf(
-                    AppPreference.ProtectProfilePreference,
-                    AppPreference.CustomizeHome,
-                    AppPreference.UserPinnedNavDrawerItems,
-                    AppPreference.UserInterfaceLanguage,
-                    AppPreference.UserProfileSettings,
-                ),
+                buildList {
+                    add(AppPreference.ProtectProfilePreference)
+                    if (BuildConfig.KID_PROFILES_ENABLED) add(AppPreference.ProfilePicture)
+                    add(AppPreference.CustomizeHome)
+                    add(AppPreference.UserPinnedNavDrawerItems)
+                    add(AppPreference.UserInterfaceLanguage)
+                    add(AppPreference.UserProfileSettings)
+                },
         ),
         PreferenceGroup(
             title = R.string.about,

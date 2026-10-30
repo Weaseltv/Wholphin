@@ -117,6 +117,14 @@ data class BaseItem(
             formatEpisodeNumber(episode)
         }
 
+    /**
+     * The number on a card's count badge. A collection counts its titles, so a series with 200
+     * episodes counts once; anything else counts its unwatched items (e.g. a series' episodes).
+     */
+    @Transient
+    val countBadge: Int? =
+        if (data.type == BaseItemKind.BOX_SET) data.childCount else data.userData?.unplayedItemCount
+
     @Transient
     val ui =
         BaseItemUi(
@@ -130,8 +138,7 @@ data class BaseItem(
                     type == BaseItemKind.BOX_SET
                 ) {
                     data.indexNumber?.let(::episodeBadge)
-                        ?: data.userData
-                            ?.unplayedItemCount
+                        ?: countBadge
                             ?.takeIf { it > 0 }
                             ?.let { abbreviateNumber(it) }
                 } else {

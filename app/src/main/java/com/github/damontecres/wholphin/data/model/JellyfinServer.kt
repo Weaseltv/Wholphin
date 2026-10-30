@@ -68,8 +68,18 @@ data class JellyfinUser(
     val lastUsed: ZonedDateTime? = null,
     val uiLanguage: String? = null,
     @Embedded val appPreferences: JellyfinUserPreferences = JellyfinUserPreferences(),
+    // Kid profiles: the server policy's MaxParentalRating (null for adults), as last fetched
+    val maxParentalRating: Int? = null,
+    // Kid profiles: whether the server policy said adult or kid; unknown until first fetched
+    @ColumnInfo(defaultValue = "unknown")
+    val policyState: PolicyState = PolicyState.UNKNOWN,
+    // Kid profiles: the name the website gave this kid, shown instead of the server name
+    val displayName: String? = null,
 ) {
     val hasPin: Boolean get() = pin.isNotNullOrBlank()
+
+    /** The name to show for this profile */
+    val shownName: String? get() = displayName?.takeIf { it.isNotBlank() } ?: name
 
     val isProtected: Boolean get() = hasPin || requireLogin
 
@@ -77,7 +87,24 @@ data class JellyfinUser(
         "JellyfinUser(rowId=$rowId, id=$id, name=$name, serverId=$serverId, lastUsed=$lastUsed, " +
             "accessToken?=${accessToken.isNotNullOrBlank()}, pin?=${pin.isNotNullOrBlank()}), " +
             "requireLogin=$requireLogin, lastUsed=$lastUsed, uiLanguage=$uiLanguage, " +
-            "appPreferences=$appPreferences"
+            "appPreferences=$appPreferences, policyState=$policyState, maxParentalRating=$maxParentalRating"
+}
+
+/**
+ * What the server policy said about a saved profile (kid profiles, contract section 1). Stored as
+ * `unknown`, `adult` or `kid`.
+ */
+enum class PolicyState(
+    val dbValue: String,
+) {
+    UNKNOWN("unknown"),
+    ADULT("adult"),
+    KID("kid"),
+    ;
+
+    companion object {
+        fun fromDbValue(value: String?): PolicyState = entries.firstOrNull { it.dbValue == value } ?: UNKNOWN
+    }
 }
 
 /**

@@ -130,6 +130,7 @@ fun RecommendedTvShow(
                             preferences.appPreferences.homePagePreferences.enableRewatchingNextUp,
                         ),
                     viewOptions = HomeRowViewOptions(),
+                    serviceTop10Type = BaseItemKind.SERIES,
                 )
             },
         ),

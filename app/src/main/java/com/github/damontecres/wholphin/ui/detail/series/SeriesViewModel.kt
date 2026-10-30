@@ -4,6 +4,7 @@ import android.content.Context
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.ChosenStreams
 import com.github.damontecres.wholphin.data.ExtrasItem
 import com.github.damontecres.wholphin.data.ItemPlaybackRepository
@@ -13,6 +14,7 @@ import com.github.damontecres.wholphin.data.model.DiscoverItem
 import com.github.damontecres.wholphin.data.model.ItemPlayback
 import com.github.damontecres.wholphin.data.model.Person
 import com.github.damontecres.wholphin.data.model.Trailer
+import com.github.damontecres.wholphin.data.model.mergeRepeated
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.ExtrasService
@@ -28,6 +30,11 @@ import com.github.damontecres.wholphin.services.TrailerService
 import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.deleteItem
 import com.github.damontecres.wholphin.ui.ItemRowFields
+import com.github.damontecres.wholphin.ui.components.isKidOrUnknown
+import com.github.damontecres.wholphin.ui.detail.KidEpisodeSource
+import com.github.damontecres.wholphin.ui.detail.KidPlay
+import com.github.damontecres.wholphin.ui.detail.KidSeriesPlay
+import com.github.damontecres.wholphin.ui.detail.KidTitlePage
 import com.github.damontecres.wholphin.ui.equalsNotNull
 import com.github.damontecres.wholphin.ui.gt
 import com.github.damontecres.wholphin.ui.launchDefault
@@ -118,6 +125,39 @@ class SeriesViewModel
         val state: StateFlow<SeriesState> = _state
 
         val position = MutableStateFlow(SeriesOverviewPosition(0, 0))
+
+        /** The kid title page (owner mockup 2026-10-23) for a kid or unknown session (fail closed); adults keep theirs */
+        val kidPage: Boolean = isKidOrUnknown(serverRepository.currentUser)
+
+        /** The kid page's Play button, found after the page shows (review round 2) */
+        private val kidSeriesPlay: KidSeriesPlay? =
+            if (kidPage && seriesPageType == SeriesPageType.DETAILS) {
+                KidSeriesPlay(
+                    scope = viewModelScope,
+                    source =
+                        object : KidEpisodeSource {
+                            override suspend fun nextUp() =
+                                api.tvShowsApi
+                                    .getNextUp(seriesId = seriesId)
+                                    .content.items
+
+                            override suspend fun episodes(
+                                startIndex: Int,
+                                limit: Int,
+                            ): KidTitlePage.EpisodePage {
+                                val page =
+                                    api.tvShowsApi
+                                        .getEpisodes(seriesId, startIndex = startIndex, limit = limit, enableImages = false)
+                                        .content
+                                return KidTitlePage.EpisodePage(page.items, page.totalRecordCount)
+                            }
+                        },
+                    publish = { play -> _state.update { it.copy(kidPlay = play) } },
+                    context = WholphinDispatchers.IO,
+                )
+            } else {
+                null
+            }
 
         init {
             viewModelScope.launchIO {
@@ -220,6 +260,8 @@ class SeriesViewModel
                         trailers = remoteTrailers,
                     )
                 }
+                // The kid page's Play button follows the page (review round 2)
+                kidSeriesPlay?.open()
 
                 if (seriesPageType == SeriesPageType.DETAILS) {
                     viewModelScope.launchIO {
@@ -251,9 +293,12 @@ class SeriesViewModel
                             _state.update { it.copy(similar = similar) }
                         }
                     }
-                    viewModelScope.launchIO {
-                        val results = seerrService.similar(series).orEmpty()
-                        _state.update { it.copy(discovered = results) }
+                    // WeaselPlex has no Requests row on series pages
+                    if (BuildConfig.FLAVOR != "weaselfin") {
+                        viewModelScope.launchIO {
+                            val results = seerrService.similar(series).orEmpty()
+                            _state.update { it.copy(discovered = results) }
+                        }
                     }
                     viewModelScope.launchIO {
                         seerrService.active.collectLatest { active ->
@@ -293,6 +338,8 @@ class SeriesViewModel
 
         fun onResumePage() {
             state.value.series.successValue?.let { item ->
+                // Back from watching, the next episode has moved on; not on the first display, which [open] covers
+                kidSeriesPlay?.resumed()
                 viewModelScope.launchDefault { backdropService.submit(item) }
                 viewModelScope.launchDefault {
                     themeSongPlayer.playThemeFor(seriesId)
@@ -531,6 +578,35 @@ class SeriesViewModel
             }
         }
 
+        /** Open a random episode of the series. */
+        fun onClickRandomEpisode() {
+            viewModelScope.launchIO {
+                try {
+                    val episode =
+                        GetItemsRequestHandler
+                            .execute(
+                                api,
+                                GetItemsRequest(
+                                    userId = serverRepository.currentUser?.id,
+                                    parentId = seriesId,
+                                    recursive = true,
+                                    includeItemTypes = listOf(BaseItemKind.EPISODE),
+                                    sortBy = listOf(ItemSortBy.RANDOM),
+                                    limit = 1,
+                                    enableTotalRecordCount = false,
+                                ),
+                            ).content.items
+                            .firstOrNull()
+                            ?.let { BaseItem(it, false) }
+                    episode?.let { navigateTo(it.destination()) }
+                } catch (ex: CancellationException) {
+                    throw ex
+                } catch (ex: Exception) {
+                    Timber.e(ex, "Error getting a random episode of %s", seriesId)
+                }
+            }
+        }
+
         fun navigateTo(destination: Destination) {
             release()
             navigationManager.navigateTo(destination)
@@ -616,6 +692,7 @@ class SeriesViewModel
                                         .content.people
                                         ?.map { Person.fromDto(context, it, api) }
                                         .orEmpty()
+                                        .mergeRepeated()
 
                                 PeopleInItem(item.id, list)
                             }
@@ -896,4 +973,6 @@ data class SeriesState(
     val discovered: List<DiscoverItem> = emptyList(),
     val discoverSeries: DiscoverItem? = null,
     val chosenStreams: ChosenStreams? = null,
+    /** The kid page's Play button (null: none, or not a kid page) */
+    val kidPlay: KidPlay? = null,
 )

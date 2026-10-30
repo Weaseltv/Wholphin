@@ -1,6 +1,8 @@
 package com.github.damontecres.wholphin.services
 
 import android.content.Context
+import android.net.Uri
+import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
@@ -9,10 +11,14 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSpec
 import androidx.media3.session.MediaSession
+import com.github.damontecres.wholphin.BuildConfig
+import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.AudioItem
 import com.github.damontecres.wholphin.data.model.BaseItem
+import com.github.damontecres.wholphin.kids.KidContentGuard
 import com.github.damontecres.wholphin.preferences.enabled
 import com.github.damontecres.wholphin.preferences.get
 import com.github.damontecres.wholphin.services.hilt.DefaultCoroutineScope
@@ -22,6 +28,7 @@ import com.github.damontecres.wholphin.ui.main.settings.MoveDirection
 import com.github.damontecres.wholphin.ui.onMain
 import com.github.damontecres.wholphin.ui.seekBack
 import com.github.damontecres.wholphin.ui.seekForward
+import com.github.damontecres.wholphin.ui.showToast
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.util.BlockingList
 import com.github.damontecres.wholphin.util.LoadingState
@@ -36,9 +43,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -57,6 +66,7 @@ import org.jellyfin.sdk.model.extensions.ticks
 import org.jellyfin.sdk.model.serializer.toUUID
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
+import java.io.IOException
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -79,25 +89,76 @@ class MusicService
         private val serverRepository: ServerRepository,
         private val imageUrlService: ImageUrlService,
         private val userPreferencesService: UserPreferencesService,
+        private val kidContentGuard: KidContentGuard,
     ) {
         private val _state = MutableStateFlow(MusicServiceState.EMPTY)
         val state: StateFlow<MusicServiceState> = _state
 
         private val audioFormats by lazy { listOf(*supportedAudioCodecs) }
 
-        val player: Player by lazy {
-            val disableAudioOffload =
+        private val playerHolder =
+            lazy {
+                val disableAudioOffload =
+                    runBlocking {
+                        userPreferencesService
+                            .getCurrent()
+                            .appPreferences.experimentalPreferences
+                            .get { disableAudioOffload } ?: false
+                    }
+                playerFactory
+                    .createAudioPlayer(
+                        disableAudioOffload = disableAudioOffload,
+                        resolver = if (BuildConfig.KID_PROFILES_ENABLED) ::checkStream else null,
+                    ).also {
+                        it.addListener(MusicPlayerListener(it, _state))
+                    }
+            }
+
+        val player: Player by playerHolder
+
+        init {
+            if (BuildConfig.KID_PROFILES_ENABLED) {
+                // Kid content rules (review round 3): any session or ceiling change stops the music and clears the
+                // queue, so nothing queued or buffered for one session plays in the next
+                defaultScope.launch {
+                    serverRepository.sessionEpoch.drop(1).collect {
+                        if (playerHolder.isInitialized()) {
+                            Timber.i("Kid content rules: the session changed, stopping music")
+                            stop()
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * Kid content rules (contract section 10, review round 4): kid and unknown sessions get no music at all (rule 2
+         * hides nearly all of it anyway). Every way to start or queue music asks this first: it refuses with a short
+         * message, and stops whatever a kid session might have queued.
+         */
+        private suspend fun refuseKidMusic(): Boolean {
+            if (!BuildConfig.KID_PROFILES_ENABLED || kidContentGuard.currentPolicy() == null) return false
+            Timber.i("Kid content rules: no music for kid sessions")
+            showToast(context, context.getString(R.string.kid_music_unavailable), Toast.LENGTH_SHORT)
+            if (playerHolder.isInitialized()) stop()
+            return true
+        }
+
+        /**
+         * Kid content rules (review round 2), a backstop: runs before every stream is opened. Adults pass with an
+         * in-memory check; a kid session (which never queues music) is refused.
+         */
+        private fun checkStream(dataSpec: DataSpec): DataSpec {
+            val itemId = audioItemId(dataSpec.uri)
+            val allowed =
                 runBlocking {
-                    userPreferencesService
-                        .getCurrent()
-                        .appPreferences.experimentalPreferences
-                        .get { disableAudioOffload } ?: false
+                    if (itemId == null) kidContentGuard.currentPolicy() == null else kidContentGuard.isPlaybackAllowed(api, itemId)
                 }
-            playerFactory
-                .createAudioPlayer(disableAudioOffload = disableAudioOffload)
-                .also {
-                    it.addListener(MusicPlayerListener(it, _state))
-                }
+            if (!allowed) {
+                Timber.i("Kid content rules: song refused")
+                throw IOException("Not available on this profile")
+            }
+            return dataSpec
         }
 
         private val mutex = Mutex()
@@ -118,6 +179,7 @@ class MusicService
          * Sets up the media session, activity tracking, and actual playback
          */
         suspend fun start() {
+            if (refuseKidMusic()) return
             if (mediaSession == null) {
                 mutex.withLock {
                     if (mediaSession == null) {
@@ -180,6 +242,7 @@ class MusicService
          */
         suspend fun startInstantMix(itemId: UUID) =
             loading {
+                if (refuseKidMusic()) return@loading
                 val items =
                     api.instantMixApi
                         .getInstantMixFromItem(
@@ -202,6 +265,7 @@ class MusicService
             startIndex: Int,
             shuffled: Boolean,
         ) = withContext(WholphinDispatchers.IO) {
+            if (refuseKidMusic()) return@withContext
             Timber.d("setQueue: %s items, startIndex=%s, shuffled=%s", items.size, startIndex, shuffled)
             withContext(WholphinDispatchers.Main) {
                 player.setMediaItems(emptyList())
@@ -218,6 +282,7 @@ class MusicService
             items: List<BaseItem>,
             shuffled: Boolean,
         ) {
+            if (refuseKidMusic()) return
             Timber.d("setQueue: %s items, shuffled=%s", items.size, shuffled)
             val preferAc3Surround = preferAc3Surround()
             val mediaItems =
@@ -239,6 +304,7 @@ class MusicService
             item: BaseItem,
             index: Int? = null,
         ) {
+            if (refuseKidMusic()) return
             if (item.type == BaseItemKind.AUDIO) {
                 val preferAc3Surround = preferAc3Surround()
                 val mediaItem = convert(item, preferAc3Surround)
@@ -268,6 +334,7 @@ class MusicService
             list: BlockingList<BaseItem?>,
             startIndex: Int,
         ) = loading {
+            if (refuseKidMusic()) return@loading
             val preferAc3Surround = preferAc3Surround()
             var remaining = startIndex
             list.indices
@@ -394,6 +461,7 @@ class MusicService
          * Start playback at the given index of the queue
          */
         suspend fun playIndex(index: Int) {
+            if (refuseKidMusic()) return
             onMain {
                 player.seekTo(index, 0L)
                 player.play()
@@ -405,6 +473,7 @@ class MusicService
          * Play this item next after the current, ie add the item as the next index in the queue
          */
         suspend fun playNext(song: BaseItem) {
+            if (refuseKidMusic()) return
             val mediaItem = convert(song, preferAc3Surround())
             onMain {
                 player.addMediaItem(state.value.currentIndex + 1, mediaItem)
@@ -602,3 +671,10 @@ fun rememberQueue(
             override fun get(index: Int): AudioItem = player.getMediaItemAt(index).localConfiguration?.tag as AudioItem
         }
     }
+
+/** The item id in a Jellyfin audio stream URL (`/Audio/{itemId}/...`), or null */
+internal fun audioItemId(uri: Uri): UUID? {
+    val segments = uri.pathSegments
+    val at = segments.indexOfFirst { it.equals("Audio", ignoreCase = true) }
+    return segments.getOrNull(at + 1)?.takeIf { at >= 0 }?.toUUIDOrNull()
+}

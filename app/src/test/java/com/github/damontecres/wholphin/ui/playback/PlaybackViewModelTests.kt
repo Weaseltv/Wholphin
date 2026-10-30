@@ -13,6 +13,7 @@ import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.Playlist
 import com.github.damontecres.wholphin.data.model.PlaylistItem
 import com.github.damontecres.wholphin.data.model.TrackIndex
+import com.github.damontecres.wholphin.kids.KidContentGuard
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.PlaybackPreferences
 import com.github.damontecres.wholphin.preferences.ShowNextUpWhen
@@ -137,6 +138,12 @@ class PlaybackViewModelTests {
             musicService = mockMusicService,
             activePlaybackRegistry = activePlaybackRegistry,
             volumeService = mockVolumeService,
+            kidContentGuard =
+                mockk {
+                    coEvery { isPlaybackAllowed(any(), any()) } returns true
+                    coEvery { playbackPermit(any(), any()) } answers { KidContentGuard.PlaybackPermit(secondArg(), 0) }
+                    every { isCurrent(any()) } returns true
+                },
             destination = destination,
         )
 

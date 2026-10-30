@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -24,11 +25,6 @@ import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.ui.playOnClickSound
 import com.github.damontecres.wholphin.ui.playSoundOnFocus
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
-import com.github.damontecres.wholphin.ui.theme.neonOutlineColors
-import com.github.damontecres.wholphin.ui.theme.neonSurfaceBorder
-import com.github.damontecres.wholphin.ui.theme.neonSurfaceGlow
-import com.github.damontecres.wholphin.ui.theme.neonSurfaceScale
-import com.github.damontecres.wholphin.ui.theme.neonSurfaceShape
 
 /**
  * Show a clickable overview. WeaselPlex measures complete text lines naturally.
@@ -42,9 +38,12 @@ fun OverviewText(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     textBoxHeight: Dp = maxLines * 20.dp,
     enabled: Boolean = true,
+    textStyle: TextStyle = MaterialTheme.typography.bodyMedium,
+    /** Lines shown when the header is compact (the kid page shows more of its description) */
+    compactMaxLines: Int = 2,
 ) {
     val compact = LocalCompactDetailHeader.current
-    val visibleLines = if (compact) minOf(maxLines, 2) else maxLines
+    val visibleLines = if (compact) minOf(maxLines, compactMaxLines) else maxLines
     val visibleHeight = if (isWeaselTv()) Dp.Unspecified else textBoxHeight
     val context = LocalContext.current
     val isFocused = interactionSource.collectIsFocusedAsState().value
@@ -57,7 +56,7 @@ fun OverviewText(
     val textContent: @Composable () -> Unit = {
         Text(
             text = overview,
-            style = MaterialTheme.typography.bodyMedium,
+            style = textStyle,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = visibleLines,
             overflow = TextOverflow.Ellipsis,
@@ -68,20 +67,8 @@ fun OverviewText(
         )
     }
     if (isWeaselTv()) {
-        Surface(
-            onClick = {
-                playOnClickSound(context)
-                onClick()
-            },
-            enabled = enabled,
-            interactionSource = interactionSource,
-            shape = neonSurfaceShape(),
-            border = neonSurfaceBorder(),
-            glow = neonSurfaceGlow(),
-            scale = neonSurfaceScale(),
-            colors = neonOutlineColors(),
-            modifier = modifier.keepFocusedItemVisible().playSoundOnFocus(true),
-        ) { textContent() }
+        // WeaselPlex: descriptions are plain text. They can't be selected or opened in a popup.
+        Box(modifier = modifier) { textContent() }
     } else {
         Box(
             modifier =

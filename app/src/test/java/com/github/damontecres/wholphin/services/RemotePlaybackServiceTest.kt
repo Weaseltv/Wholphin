@@ -1,8 +1,11 @@
 package com.github.damontecres.wholphin.services
 
 import android.content.Context
+import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.data.model.PolicyState
+import com.github.damontecres.wholphin.kids.ProfileChooserLock
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.preferences.updatePlaybackPreferences
@@ -10,6 +13,7 @@ import com.github.damontecres.wholphin.test.currentUser
 import com.github.damontecres.wholphin.test.server
 import com.github.damontecres.wholphin.test.user
 import com.github.damontecres.wholphin.ui.nav.Destination
+import com.github.damontecres.wholphin.ui.preferences.PreferenceScreenOption
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import com.github.damontecres.wholphin.util.configure
 import com.github.damontecres.wholphin.util.reset
@@ -55,6 +59,7 @@ class RemotePlaybackServiceTest {
     private val userPreferencesService = mockk<UserPreferencesService>()
     private val registry = ActivePlaybackRegistry()
     private val volumeService = mockk<VolumeService>(relaxed = true)
+    private val profileChooserLock = mockk<ProfileChooserLock>()
 
     private val serverId = UUID.randomUUID()
     private val userId = UUID.randomUUID()
@@ -70,6 +75,7 @@ class RemotePlaybackServiceTest {
         every { serverRepository.current } returns MutableStateFlow<CurrentUser?>(currentUser)
         every { navigationManager.backStack } returns mutableListOf(Destination.Home())
         every { setupNavigationManager.backStack } returns mutableListOf(SetupDestination.AppContent(currentUser))
+        every { profileChooserLock.isPlayOnLocked() } returns false
         service =
             RemotePlaybackService(
                 context = context,
@@ -80,6 +86,7 @@ class RemotePlaybackServiceTest {
                 userPreferencesService = userPreferencesService,
                 activePlaybackRegistry = registry,
                 volumeService = volumeService,
+                profileChooserLock = profileChooserLock,
             )
     }
 
@@ -221,6 +228,27 @@ class RemotePlaybackServiceTest {
         }
 
     @Test
+    fun `Go to settings is refused for a kid or unknown session and works for an adult`() =
+        runTest(testDispatcher) {
+            val goToSettings = GeneralCommand(GeneralCommandType.GO_TO_SETTINGS, controllingUserId, emptyMap())
+            val settings = Destination.Settings(PreferenceScreenOption.BASIC)
+            // Owner 2026-10-23: a kids profile has no Settings; a profile not known to be an adult counts as a kid. Builds
+            // without kid profiles (eg the default flavor) open Settings for everyone.
+            val kidsAllowed = !BuildConfig.KID_PROFILES_ENABLED
+            for (state in listOf(PolicyState.KID, PolicyState.UNKNOWN)) {
+                every { serverRepository.current } returns
+                    MutableStateFlow<CurrentUser?>(currentUser.copy(user = currentUser.user.copy(policyState = state)))
+                assertEquals(kidsAllowed, service.onGeneralCommand(goToSettings))
+            }
+            verify(exactly = if (kidsAllowed) 2 else 0) { navigationManager.navigateTo(settings) }
+
+            every { serverRepository.current } returns
+                MutableStateFlow<CurrentUser?>(currentUser.copy(user = currentUser.user.copy(policyState = PolicyState.ADULT)))
+            assertTrue(service.onGeneralCommand(goToSettings))
+            verify(exactly = if (kidsAllowed) 3 else 1) { navigationManager.navigateTo(settings) }
+        }
+
+    @Test
     fun `Volume and mute commands reach the volume service`() =
         runTest(testDispatcher) {
             fun command(
@@ -278,5 +306,18 @@ class RemotePlaybackServiceTest {
             verify(exactly = 1) { navigationManager.goToHome() }
             verify(exactly = 1) { navigationManager.goBack() }
             verify(exactly = 1) { navigationManager.navigateTo(Destination.Search()) }
+        }
+
+    @Test
+    fun `Play On is refused while the profile screen lock is up`() =
+        runTest(testDispatcher) {
+            every { profileChooserLock.isPlayOnLocked() } returns true
+
+            service.onPlayRequest(playRequest(listOf(UUID.randomUUID())))
+
+            verify(exactly = 0) { navigationManager.navigateTo(any()) }
+            verify(exactly = 0) { navigationManager.replaceTop(any()) }
+            verify(exactly = 0) { setupNavigationManager.navigateTo(any()) }
+            assertEquals(null, service.createLaunchIntent(playRequest(listOf(UUID.randomUUID()))))
         }
 }

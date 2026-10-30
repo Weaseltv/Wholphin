@@ -181,6 +181,21 @@ val LocalNeonAccent = compositionLocalOf { NeonBoard.Volt }
 /** Rest outline colour for outline [com.github.damontecres.wholphin.ui.components.Button]s; null keeps `line2`. */
 val LocalNeonOutlineRest = compositionLocalOf<Color?> { null }
 
+/** Background for outline buttons at rest; null keeps them transparent. */
+val LocalNeonOutlineContainer = compositionLocalOf<Color?> { null }
+
+/**
+ * Outline buttons over artwork (detail pages): a white outline and a dark backing so the artwork
+ * doesn't show through the labels.
+ */
+@Composable
+fun ProvideButtonsOverArtwork(content: @Composable () -> Unit) =
+    CompositionLocalProvider(
+        LocalNeonOutlineRest provides Color.White,
+        LocalNeonOutlineContainer provides Color.Black.copy(alpha = .8f),
+        content = content,
+    )
+
 @Composable
 fun ProvideNeonAccent(
     accent: Color,
@@ -361,36 +376,6 @@ fun streamingProviderBorderAccent(name: String?): Color? =
     when (name?.trim()?.lowercase(java.util.Locale.ROOT)) {
         "paramount+", "paramount plus", "hallmark", "hallmark+", "hallmark plus" -> streamingProviderAccent("Apple TV")
         "britbox", "crunchyroll" -> Color.Black
-        else -> null
-    }
-
-/** Owner-supplied Picks poster theme colors, shared by their focus border and glow. */
-fun curatedPickAccent(name: String?): Color? =
-    when (
-        name
-            ?.trim()
-            ?.lowercase(java.util.Locale.ROOT)
-            ?.replace("’", "")
-            ?.replace("'", "")
-    ) {
-        "blockbuster friday" -> Color(0xFF2567F6)
-        "clear your evening" -> Color(0xFFFFA91E)
-        "cozy season" -> Color(0xFF40C7FF)
-        "critics circle", "critic circle" -> Color(0xFFF4AA3D)
-        "crowd pleasers" -> Color(0xFFFF1438)
-        "date night" -> Color(0xFFFF40A2)
-        "hot right now" -> Color(0xFFFE3B04)
-        "just dropped" -> Color(0xFFFFDF0F)
-        "lights off" -> Color(0xFFFC1132)
-        "originals only" -> Color(0xFFF6C93E)
-        "passport night" -> Color(0xFF0CD8CA)
-        "quick fix" -> Color(0xFF35FCAD)
-        "ripped from the headlines", "ripped from headlines" -> Color(0xFFFF080B)
-        "spin the wheel" -> Color(0xFFAA32FF)
-        "spooky season" -> Color(0xFFFF6F00)
-        "the big score" -> Color(0xFF40D4FF)
-        "vhs vault" -> Color(0xFFFF0AD5)
-        "y2k rewind" -> Color(0xFF406AFF)
         else -> null
     }
 
@@ -580,7 +565,7 @@ private fun homeCardAccent(default: Color): Color =
 fun neonSurfaceBorder(
     accent: Color = LocalNeonAccent.current,
     restWidth: Dp = 0.dp,
-    restColor: Color = NeonBoard.Line2,
+    restColor: Color = LocalNeonOutlineRest.current ?: NeonBoard.Line2,
     fallback: ClickableSurfaceBorder? = null,
 ): ClickableSurfaceBorder {
     if (!isWeaselTv()) return fallback ?: ClickableSurfaceDefaults.border()
@@ -659,14 +644,15 @@ fun neonOutlineColors(
     fallback: ClickableSurfaceColors? = null,
 ): ClickableSurfaceColors {
     if (!isWeaselTv()) return fallback ?: ClickableSurfaceDefaults.colors()
+    val rest = LocalNeonOutlineContainer.current ?: Color.Transparent
     return ClickableSurfaceDefaults.colors(
-        containerColor = Color.Transparent,
+        containerColor = rest,
         contentColor = NeonBoard.Text,
         focusedContainerColor = NeonBoard.chipOn(accent),
         focusedContentColor = accent,
         pressedContainerColor = NeonBoard.chipOn(accent),
         pressedContentColor = accent,
-        disabledContainerColor = Color.Transparent,
+        disabledContainerColor = rest,
         disabledContentColor = NeonBoard.Text.copy(alpha = NeonBoard.DISABLED_ALPHA),
     )
 }

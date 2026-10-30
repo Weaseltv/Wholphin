@@ -7,6 +7,8 @@ import com.github.damontecres.wholphin.data.model.CollectionFolderFilter
 import com.github.damontecres.wholphin.data.model.GetItemsFilter
 import com.github.damontecres.wholphin.data.model.GetItemsFilterOverride
 import com.github.damontecres.wholphin.data.model.JellyfinUser
+import com.github.damontecres.wholphin.data.model.PolicyState
+import com.github.damontecres.wholphin.services.CollectionGroups
 import com.github.damontecres.wholphin.services.DeletedItem
 import com.github.damontecres.wholphin.services.MediaManagementService
 import com.github.damontecres.wholphin.ui.successQueryResult
@@ -41,6 +43,7 @@ import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assume
 import org.junit.Before
 import org.junit.Test
 import java.util.UUID
@@ -147,6 +150,65 @@ class CollectionFolderViewModelTest {
             )
             assertEquals(null, itemsRequest.captured.tags)
             assertTrue(viewModel.state.value.items is com.github.damontecres.wholphin.util.DataLoadingState.Success)
+        }
+
+    /** Kid content rules (review round 6): a kid session never shows collections from before a failed refresh */
+    @Test
+    fun `a kid session shows no stale collections after a failed refresh and a group pick`() =
+        runTest(testDispatcher) {
+            Assume.assumeTrue(BuildConfig.FLAVOR == "weaselfin" && BuildConfig.KID_PROFILES_ENABLED)
+            val kid =
+                JellyfinUser(
+                    1,
+                    UUID.randomUUID(),
+                    "kid",
+                    UUID.randomUUID(),
+                    "kid-token",
+                    policyState = PolicyState.KID,
+                    maxParentalRating = 10,
+                )
+            every { mockServerRepository.currentUser } returns kid
+            library = library.copy(collectionType = CollectionType.BOXSETS)
+            coEvery { mockUserLibraryApi.getItem(libraryId) } returns successResponse(library)
+            val inGroup =
+                BaseItemDto(id = UUID.randomUUID(), type = BaseItemKind.BOX_SET, name = "In G", tags = listOf(CollectionGroups.tag("G")))
+            val other = BaseItemDto(id = UUID.randomUUID(), type = BaseItemKind.BOX_SET, name = "Other")
+            coEvery { GetItemsRequestHandler.execute(mockApi, any()) } returns successQueryResult(listOf(inGroup, other))
+            val viewModel = createViewModel(GetItemsFilter())
+            advanceUntilIdle()
+            assertTrue(viewModel.state.value.items is com.github.damontecres.wholphin.util.DataLoadingState.Success)
+
+            // The server can't be reached any more: picking a group fetches fresh, fails, and shows the error
+            coEvery { GetItemsRequestHandler.execute(mockApi, any()) } throws IllegalStateException("offline")
+            viewModel.onCollectionGroupChange("G")
+            advanceUntilIdle()
+            assertTrue(viewModel.state.value.items is com.github.damontecres.wholphin.util.DataLoadingState.Error)
+
+            // Another group pick: still nothing from before, never the earlier list
+            viewModel.onCollectionGroupChange(null)
+            advanceUntilIdle()
+            assertTrue(viewModel.state.value.items is com.github.damontecres.wholphin.util.DataLoadingState.Error)
+        }
+
+    /** Review round 7: an adult keeps the saved Collections list as before, eg while the server can't be reached */
+    @Test
+    fun `an adult reopening Collections gets the saved list`() =
+        runTest(testDispatcher) {
+            Assume.assumeTrue(BuildConfig.FLAVOR == "weaselfin")
+            val adult = JellyfinUser(2, UUID.randomUUID(), "adult", UUID.randomUUID(), "adult-token", policyState = PolicyState.ADULT)
+            every { mockServerRepository.currentUser } returns adult
+            library = library.copy(collectionType = CollectionType.BOXSETS)
+            coEvery { mockUserLibraryApi.getItem(libraryId) } returns successResponse(library)
+            val saved = BaseItemDto(id = UUID.randomUUID(), type = BaseItemKind.BOX_SET, name = "Saved")
+            coEvery { GetItemsRequestHandler.execute(mockApi, any()) } returns successQueryResult(listOf(saved))
+            createViewModel(GetItemsFilter())
+            advanceUntilIdle()
+
+            coEvery { GetItemsRequestHandler.execute(mockApi, any()) } throws IllegalStateException("offline")
+            val reopened = createViewModel(GetItemsFilter())
+            advanceUntilIdle()
+            val items = reopened.state.value.items
+            assertTrue(items is com.github.damontecres.wholphin.util.DataLoadingState.Success)
         }
 
     /** Counting via /Items would return every song and album, overshooting the artist grid */

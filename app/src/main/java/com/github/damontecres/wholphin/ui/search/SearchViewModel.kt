@@ -10,6 +10,7 @@ import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.DiscoverItem
 import com.github.damontecres.wholphin.data.model.SeerrItemType
+import com.github.damontecres.wholphin.kids.isStaleSession
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.updateSearchPreferences
 import com.github.damontecres.wholphin.services.FavoriteWatchManager
@@ -18,6 +19,7 @@ import com.github.damontecres.wholphin.services.LiveTvService
 import com.github.damontecres.wholphin.services.MediaManagementService
 import com.github.damontecres.wholphin.services.NavDrawerService
 import com.github.damontecres.wholphin.services.NavigationManager
+import com.github.damontecres.wholphin.services.SearchIndexService
 import com.github.damontecres.wholphin.services.SeerrService
 import com.github.damontecres.wholphin.services.ServerReportService
 import com.github.damontecres.wholphin.services.UserPreferencesService
@@ -38,11 +40,17 @@ import com.github.damontecres.wholphin.ui.showToast
 import com.github.damontecres.wholphin.ui.toBaseItems
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.ExceptionHandler
+import com.github.damontecres.wholphin.util.FuzzySearch
 import com.github.damontecres.wholphin.util.SearchRelevance
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -83,6 +91,7 @@ class SearchViewModel
         private val liveTvService: LiveTvService,
         private val keyValueService: KeyValueService,
         private val navDrawerService: NavDrawerService,
+        private val searchIndexService: SearchIndexService,
     ) : ViewModel(),
         ContextMenuProvider {
         val seerrActive =
@@ -104,11 +113,25 @@ class SearchViewModel
 
         private var userLibraryTypes: Set<BaseItemKind> = emptySet()
 
+        /** A movies, shows or collections section ([type] null: combined results) shown before the title index was ready. */
+        private class Unindexed(
+            val type: BaseItemKind?,
+            val query: String,
+            val types: List<BaseItemKind>,
+            val items: List<BaseItem>,
+        )
+
+        private val unindexed = MutableStateFlow<List<Unindexed>>(emptyList())
+
         init {
             init()
         }
 
         private fun init() {
+            viewModelScope.launchIO {
+                // Sections searched before the title index was ready gain its matches once it is
+                searchIndexService.index.collect { if (it != null) addIndexMatchesWhenReady() }
+            }
             viewModelScope.launchDefault {
                 val defaultExcludes = if (BuildConfig.FLAVOR == "weaselfin") listOf(BaseItemKind.BOX_SET) else emptyList()
                 val defaultDiscover = BuildConfig.FLAVOR != "weaselfin"
@@ -164,6 +187,7 @@ class SearchViewModel
                                     },
                             )
                         }
+                        warmIndex(searchableTypes)
                         if (previousTypes != searchableTypes && currentQuery.isNotNullOrBlank()) {
                             search(currentQuery, combinedMode, force = true)
                         }
@@ -205,6 +229,7 @@ class SearchViewModel
             }
             currentQuery = query
             combinedMode = combined
+            unindexed.value = emptyList()
             if (query.isNotNullOrBlank()) {
                 _state.update {
                     it.copy(
@@ -246,6 +271,8 @@ class SearchViewModel
         ) {
             viewModelScope.launchIO {
                 try {
+                    val indexTypes = listOf(type).filter { it in FuzzySearch.TYPES }
+                    val indexed = indexMatchesAsync(query, indexTypes)
                     val items: List<BaseItem> =
                         when (type) {
                             BaseItemKind.LIVE_TV_PROGRAM -> {
@@ -297,8 +324,10 @@ class SearchViewModel
                         items.sortedWith(
                             compareBy<BaseItem> { SearchRelevance.score(it, query) },
                         )
-                    Timber.v("Search finished for %s, %s results", type, sorted.size)
-                    _state.value.results[type] = SearchResult.Success(sorted)
+                    val results = indexed?.let { FuzzySearch.merge(it.await(), sorted) { item -> item.id } } ?: sorted
+                    Timber.v("Search finished for %s, %s results", type, results.size)
+                    _state.value.results[type] = SearchResult.Success(results)
+                    if (indexed == null) addIndexMatchesLater(type, query, indexTypes, sorted)
                 } catch (ex: CancellationException) {
                     throw ex
                 } catch (ex: Exception) {
@@ -312,11 +341,14 @@ class SearchViewModel
             viewModelScope.launch(ExceptionHandler() + WholphinDispatchers.IO) {
                 try {
                     Timber.v("Starting searchCombined")
+                    val types = state.value.includedSearchableTypes
+                    val indexTypes = types.filter { it in FuzzySearch.TYPES }
+                    val indexed = indexMatchesAsync(query, indexTypes)
                     val request =
                         GetItemsRequest(
                             searchTerm = query,
                             recursive = true,
-                            includeItemTypes = state.value.includedSearchableTypes,
+                            includeItemTypes = types,
                             fields = SlimItemFields,
                             limit = SEARCH_LIMIT,
                         )
@@ -330,11 +362,116 @@ class SearchViewModel
                         items.sortedWith(
                             compareBy<BaseItem> { SearchRelevance.score(it, query) },
                         )
-                    Timber.v("searchCombined complete %s results", sorted.size)
-                    _state.update { it.copy(combinedResults = SearchResult.Success(sorted)) }
+                    val results = indexed?.let { FuzzySearch.merge(it.await(), sorted) { item -> item.id } } ?: sorted
+                    Timber.v("searchCombined complete %s results", results.size)
+                    _state.update { it.copy(combinedResults = SearchResult.Success(results)) }
+                    if (indexed == null) addIndexMatchesLater(null, query, indexTypes, sorted)
                 } catch (ex: Exception) {
                     Timber.e(ex, "Exception in combined search")
                     _state.update { it.copy(combinedResults = SearchResult.Error(ex)) }
+                }
+            }
+        }
+
+        /** Get the member's title index ready for the movie, show and collection sections Search shows. */
+        private fun warmIndex(types: List<BaseItemKind>) {
+            val user = serverRepository.currentUser ?: return
+            searchIndexService.warm(user.serverId, user.id, types.filter { it in FuzzySearch.TYPES }.toSet())
+        }
+
+        /** The member's title index, if it's ready and holds [types]. */
+        private fun readyIndex(types: List<BaseItemKind>): SearchIndexService.Index? {
+            val user = serverRepository.currentUser ?: return null
+            return searchIndexService.index.value?.takeIf { it.holds(user.serverId, user.id, types) }
+        }
+
+        /**
+         * Start fetching the title index's matches for [query] among [types] alongside the server's
+         * search (owner, 2026-10-16). Null when there are none of those types or the index isn't ready:
+         * search never waits for it.
+         */
+        private fun CoroutineScope.indexMatchesAsync(
+            query: String,
+            types: List<BaseItemKind>,
+        ): Deferred<FuzzySearch.Ranked<BaseItem>>? {
+            if (types.isEmpty()) return null
+            val index = readyIndex(types) ?: return null
+            return async { indexMatches(index, query, types) }
+        }
+
+        /**
+         * The title index's matches for [query] among [types], best first, fetched by ID with the fields
+         * and images the sections' own search uses. Titles the member can't see don't come back.
+         */
+        private suspend fun indexMatches(
+            index: SearchIndexService.Index,
+            query: String,
+            types: List<BaseItemKind>,
+        ): FuzzySearch.Ranked<BaseItem> =
+            try {
+                val ranked = FuzzySearch.rank(index.entries.filter { it.type in types }, query)
+                val byId =
+                    coroutineScope {
+                        // One request per type, so even combined results keep the URL short
+                        ranked.all
+                            .groupBy { it.type }
+                            .values
+                            .map { entries ->
+                                async {
+                                    api.itemsApi
+                                        .getItems(
+                                            GetItemsRequest(
+                                                userId = index.userId,
+                                                ids = entries.map { it.id },
+                                                fields = SlimItemFields,
+                                                enableTotalRecordCount = false,
+                                            ),
+                                        ).content.items
+                                }
+                            }.awaitAll()
+                            .flatten()
+                            .associateBy { it.id }
+                    }
+                // The server returns them in its own order, so put them back in ranked order
+                ranked.mapNotNull { entry -> byId[entry.id]?.let { BaseItem.from(it, api, false) } }
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                // The server's results still show
+                Timber.w(ex, "Couldn't fetch the title index's matches")
+                FuzzySearch.Ranked(emptyList(), emptyList())
+            }
+
+        /** Add the title index's matches to a section shown with only the server's [items], once the index is ready. */
+        private fun addIndexMatchesLater(
+            type: BaseItemKind?,
+            query: String,
+            types: List<BaseItemKind>,
+            items: List<BaseItem>,
+        ) {
+            if (types.isEmpty()) return
+            unindexed.update { it + Unindexed(type, query, types, items) }
+            // In case the index became ready during the search
+            addIndexMatchesWhenReady()
+        }
+
+        private fun addIndexMatchesWhenReady() {
+            val user = serverRepository.currentUser ?: return
+            val index = searchIndexService.index.value ?: return
+            var ready: List<Unindexed> = emptyList()
+            unindexed.update { sections ->
+                ready = sections.filter { index.holds(user.serverId, user.id, it.types) }
+                sections - ready.toSet()
+            }
+            ready.forEach { section ->
+                viewModelScope.launchIO {
+                    val indexed = indexMatches(index, section.query, section.types)
+                    if (indexed.all.isEmpty() || section.query != currentQuery) return@launchIO
+                    val result = SearchResult.Success(FuzzySearch.merge(indexed, section.items) { it.id })
+                    when {
+                        section.type == null -> if (combinedMode) _state.update { it.copy(combinedResults = result) }
+                        !combinedMode -> _state.value.results[section.type] = result
+                    }
                 }
             }
         }
@@ -439,7 +576,7 @@ class SearchViewModel
                 }
             } catch (ex: Exception) {
                 Timber.e(ex, "Error refreshing item %s", itemId)
-                showToast(context, "Error refreshing")
+                if (!ex.isStaleSession()) showToast(context, "Error refreshing")
             }
         }
 
@@ -496,7 +633,7 @@ class SearchViewModel
                     throw ex
                 } catch (ex: Exception) {
                     Timber.e(ex, "Error canceling timer %s, series=%s", timerId, series)
-                    showToast(context, "Error: ${ex.localizedMessage}")
+                    if (!ex.isStaleSession()) showToast(context, "Error: ${ex.localizedMessage}")
                 }
             }
         }
@@ -514,7 +651,7 @@ class SearchViewModel
                     throw ex
                 } catch (ex: Exception) {
                     Timber.e(ex, "Error recording %s, series=%s", programId, series)
-                    showToast(context, "Error: ${ex.localizedMessage}")
+                    if (!ex.isStaleSession()) showToast(context, "Error: ${ex.localizedMessage}")
                 }
             }
         }
@@ -546,6 +683,7 @@ class SearchViewModel
                             excludedSearchableTypes = newExcludes,
                         )
                     }
+                    warmIndex(searchableTypes)
                     if (updateSearch && currentQuery.isNotNullOrBlank()) {
                         Timber.d("Need to update search")
                         search(currentQuery, combinedMode, true)
@@ -554,7 +692,7 @@ class SearchViewModel
                     throw ex
                 } catch (ex: Exception) {
                     Timber.e(ex, "Exception toggling %s", type)
-                    showToast(context, "An error occurred: ${ex.localizedMessage}")
+                    if (!ex.isStaleSession()) showToast(context, "An error occurred: ${ex.localizedMessage}")
                 }
             }
         }

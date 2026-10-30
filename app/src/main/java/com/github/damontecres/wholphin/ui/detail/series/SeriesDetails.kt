@@ -52,10 +52,12 @@ import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.TrailerService
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.RequestOrRestoreFocus
+import com.github.damontecres.wholphin.ui.bleedHorizontal
 import com.github.damontecres.wholphin.ui.cards.ExtrasRow
 import com.github.damontecres.wholphin.ui.cards.ItemRow
 import com.github.damontecres.wholphin.ui.cards.PersonRow
 import com.github.damontecres.wholphin.ui.cards.SeasonCard
+import com.github.damontecres.wholphin.ui.components.ButtonGlowRoom
 import com.github.damontecres.wholphin.ui.components.ConfirmDialog
 import com.github.damontecres.wholphin.ui.components.ContextMenu
 import com.github.damontecres.wholphin.ui.components.ContextMenuActions
@@ -66,10 +68,10 @@ import com.github.damontecres.wholphin.ui.components.DialogItem
 import com.github.damontecres.wholphin.ui.components.DialogParams
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
 import com.github.damontecres.wholphin.ui.components.ExpandableFaButton
-import com.github.damontecres.wholphin.ui.components.ExpandablePlayButton
 import com.github.damontecres.wholphin.ui.components.FittedDetailHeader
 import com.github.damontecres.wholphin.ui.components.GenreText
 import com.github.damontecres.wholphin.ui.components.HeaderUtils
+import com.github.damontecres.wholphin.ui.components.KeepFocusRoomOnScroll
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.components.LocalCompactDetailHeader
 import com.github.damontecres.wholphin.ui.components.Optional
@@ -80,15 +82,25 @@ import com.github.damontecres.wholphin.ui.components.TitleOrLogo
 import com.github.damontecres.wholphin.ui.components.TrailerButton
 import com.github.damontecres.wholphin.ui.components.reportDetailActionHeight
 import com.github.damontecres.wholphin.ui.components.reportDetailRowHeight
+import com.github.damontecres.wholphin.ui.components.scaled
 import com.github.damontecres.wholphin.ui.data.AddPlaylistViewModel
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialog
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialogInfo
+import com.github.damontecres.wholphin.ui.detail.KidAction
+import com.github.damontecres.wholphin.ui.detail.KidMetadataLine
+import com.github.damontecres.wholphin.ui.detail.KidPlay
+import com.github.damontecres.wholphin.ui.detail.KidTitleButtons
+import com.github.damontecres.wholphin.ui.detail.KidTitlePage
 import com.github.damontecres.wholphin.ui.detail.PlaylistDialog
+import com.github.damontecres.wholphin.ui.detail.kidSeasonCount
+import com.github.damontecres.wholphin.ui.detail.movie.KidRowPeek
 import com.github.damontecres.wholphin.ui.discover.DiscoverRow
 import com.github.damontecres.wholphin.ui.discover.DiscoverRowData
 import com.github.damontecres.wholphin.ui.letNotEmpty
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.rememberInt
+import com.github.damontecres.wholphin.ui.seriesProductionYears
+import com.github.damontecres.wholphin.ui.theme.ProvideButtonsOverArtwork
 import com.github.damontecres.wholphin.ui.theme.ProvideNeonAccent
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonAccentFor
@@ -257,6 +269,7 @@ fun SeriesDetails(
                     onClickExtra = { _, extra ->
                         viewModel.navigateTo(extra.destination)
                     },
+                    onClickRandom = viewModel::onClickRandomEpisode,
                     discoverSeries = state.discoverSeries,
                     onClickDiscoverSeries = {
                         state.discoverSeries?.let {
@@ -271,6 +284,9 @@ fun SeriesDetails(
                         showContextMenu = it
                     },
                     actions = contextActions,
+                    kid = viewModel.kidPage,
+                    kidPlay = state.kidPlay,
+                    onKidPlay = { viewModel.navigateTo(Destination.Playback(it.itemId, it.positionMs)) },
                 )
             }
             if (showWatchConfirmation) {
@@ -289,7 +305,8 @@ fun SeriesDetails(
             }
         }
     }
-    showContextMenu?.let { contextMenu ->
+    // A kid's page has no long-press or More menu
+    KidTitlePage.contextMenuFor(viewModel.kidPage, showContextMenu)?.let { contextMenu ->
         ContextMenuDialog(
             onDismissRequest = { showContextMenu = null },
             getMediaSource = viewModel.streamChoiceService::chooseSource,
@@ -332,6 +349,13 @@ private const val EXTRAS_ROW = TRAILER_ROW + 1
 private const val SIMILAR_ROW = EXTRAS_ROW + 1
 private const val DISCOVER_ROW = SIMILAR_ROW + 1
 
+/**
+ * The space kept below the buttons for the Seasons row: its title, posters and captions. It leaves
+ * out the empty focus room under the captions, so the header has more height and its text is
+ * shrunk less.
+ */
+private val SeasonsRowReserve = Cards.height2x3 + 116.dp
+
 @Composable
 fun SeriesDetailsContent(
     preferences: UserPreferences,
@@ -359,7 +383,12 @@ fun SeriesDetailsContent(
     onClickDiscover: (Int, DiscoverItem) -> Unit,
     discoverSeries: DiscoverItem?,
     onClickDiscoverSeries: () -> Unit,
+    onClickRandom: () -> Unit = {},
     modifier: Modifier = Modifier,
+    /** The kid title page (owner mockup 2026-10-23, [KidTitlePage]): [kidPlay] is its Play button, if any */
+    kid: Boolean = false,
+    kidPlay: KidPlay? = null,
+    onKidPlay: (KidPlay) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -367,7 +396,7 @@ fun SeriesDetailsContent(
 
     var position by rememberInt()
     val focusRequesters = remember { List(DISCOVER_ROW + 1) { FocusRequester() } }
-    val playFocusRequester = remember { FocusRequester() }
+    val firstButtonFocusRequester = remember { FocusRequester() }
     RequestOrRestoreFocus(focusRequesters.getOrNull(position))
 
     DetailPageViewport(modifier = modifier) {
@@ -382,8 +411,10 @@ fun SeriesDetailsContent(
                 modifier = Modifier,
             ) {
                 item {
-                    FittedDetailHeader {
+                    FittedDetailHeader(firstRowHeight = if (kid) KidRowPeek else SeasonsRowReserve) {
                         SeriesDetailsHeader(
+                            kid = kid,
+                            seasonCount = seasons.size,
                             series = series,
                             showLogo = preferences.appPreferences.interfacePreferences.showLogos,
                             overviewOnClick = overviewOnClick,
@@ -395,128 +426,116 @@ fun SeriesDetailsContent(
                                     .padding(top = HeaderUtils.detailTopPadding(), bottom = 8.dp),
                         )
                     }
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier =
-                            Modifier
-                                .reportDetailActionHeight()
-                                .horizontalScroll(rememberScrollState())
-                                .padding(start = HeaderUtils.startPadding)
-                                .focusRequester(focusRequesters[HEADER_ROW])
-                                .focusRestorer(playFocusRequester)
-                                .focusGroup()
-                                .padding(bottom = 16.dp),
-                    ) {
-                        ExpandablePlayButton(
-                            title = R.string.play,
-                            resume = Duration.ZERO,
-                            icon = Icons.Default.PlayArrow,
-                            onClick = {
+                    if (kid) {
+                        KidTitleButtons(
+                            play = kidPlay,
+                            actions = KidTitlePage.seriesActions,
+                            onWatchlist = favorite,
+                            onPlay = {
                                 position = HEADER_ROW
-                                playOnClick.invoke(false)
+                                onKidPlay(it)
                             },
-                            modifier =
-                                Modifier
-                                    .focusRequester(playFocusRequester)
-                                    .onFocusChanged {
-                                        if (it.isFocused) {
-                                            scope.launch(ExceptionHandler()) {
-                                                bringIntoViewRequester.bringIntoView()
-                                            }
-                                        }
-                                    },
-                        )
-                        ExpandableFaButton(
-                            title = R.string.shuffle,
-                            iconStringRes = R.string.fa_shuffle,
-                            onClick = {
+                            onAction = { action ->
                                 position = HEADER_ROW
-                                playOnClick.invoke(true)
+                                when (action) {
+                                    KidAction.WATCHLIST -> {
+                                        favoriteOnClick.invoke()
+                                    }
+
+                                    KidAction.SHUFFLE -> {
+                                        playOnClick.invoke(true)
+                                    }
+
+                                    KidAction.START_OVER -> {}
+                                }
                             },
-                            modifier =
-                                Modifier.onFocusChanged {
-                                    if (it.isFocused) {
-                                        scope.launch(ExceptionHandler()) {
-                                            bringIntoViewRequester.bringIntoView()
-                                        }
-                                    }
-                                },
+                            onFocusChanged = {
+                                if (it.isFocused) {
+                                    scope.launch(ExceptionHandler()) { bringIntoViewRequester.bringIntoView() }
+                                }
+                            },
+                            // Play (or Watchlist) takes the first focus, through the row's own requester
+                            firstFocus = firstButtonFocusRequester,
+                            modifier = Modifier.fillMaxWidth().focusRequester(focusRequesters[HEADER_ROW]),
                         )
-                        ExpandableFaButton(
-                            title = if (played) R.string.mark_unwatched else R.string.mark_watched,
-                            iconStringRes = if (played) R.string.fa_eye else R.string.fa_eye_slash,
-                            onClick = watchOnClick,
-                            modifier =
-                                Modifier.onFocusChanged {
-                                    if (it.isFocused) {
-                                        scope.launch(ExceptionHandler()) {
-                                            bringIntoViewRequester.bringIntoView()
-                                        }
-                                    }
-                                },
-                        )
-                        ExpandableFaButton(
-                            title = if (favorite) R.string.remove_favorite else R.string.add_favorite,
-                            iconStringRes = R.string.fa_heart,
-                            onClick = favoriteOnClick,
-                            iconColor = if (favorite) Color.Red else Color.Unspecified,
-                            modifier =
-                                Modifier.onFocusChanged {
-                                    if (it.isFocused) {
-                                        scope.launch(ExceptionHandler()) {
-                                            bringIntoViewRequester.bringIntoView()
-                                        }
-                                    }
-                                },
-                        )
-                        TrailerButton(
-                            trailers = trailers,
-                            trailerOnClick = trailerOnClick,
-                            modifier =
-                                Modifier.onFocusChanged {
-                                    if (it.isFocused) {
-                                        scope.launch(ExceptionHandler()) {
-                                            bringIntoViewRequester.bringIntoView()
-                                        }
-                                    }
-                                },
-                        )
-                        if (canDelete) {
-                            DeleteButton(
-                                title = series.title ?: "",
-                                onConfirmDelete = {
-                                    position = HEADER_ROW
-                                    actions.onDeleteItem.invoke(series)
-                                },
-                                modifier =
-                                    Modifier
-                                        .onFocusChanged {
+                    } else {
+                        // Over the series artwork: white outlines and a dark backing for readability
+                        ProvideButtonsOverArtwork {
+                            KeepFocusRoomOnScroll(ButtonGlowRoom) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    modifier =
+                                        Modifier
+                                            .reportDetailActionHeight()
+                                            // Move the scroll's clipping edge out past the focus glow
+                                            // without moving the buttons off the posters' line
+                                            .bleedHorizontal(start = ButtonGlowRoom, end = 0.dp)
+                                            .horizontalScroll(rememberScrollState())
+                                            .padding(start = HeaderUtils.startPadding + ButtonGlowRoom, end = ButtonGlowRoom)
+                                            .focusRequester(focusRequesters[HEADER_ROW])
+                                            .focusRestorer(firstButtonFocusRequester)
+                                            .focusGroup()
+                                            .padding(bottom = 16.dp),
+                                ) {
+                                    val bringHeaderIntoView =
+                                        Modifier.onFocusChanged {
                                             if (it.isFocused) {
                                                 scope.launch(ExceptionHandler()) {
                                                     bringIntoViewRequester.bringIntoView()
                                                 }
                                             }
-                                        },
-                            )
-                        }
-                        AnimatedVisibility(
-                            visible = discoverSeries != null,
-                            enter = fadeIn(),
-                            exit = fadeOut(),
-                        ) {
-                            ExpandableFaButton(
-                                title = R.string.discover,
-                                iconStringRes = R.string.fa_magnifying_glass_plus,
-                                onClick = onClickDiscoverSeries,
-                                modifier =
-                                    Modifier.onFocusChanged {
-                                        if (it.isFocused) {
-                                            scope.launch(ExceptionHandler()) {
-                                                bringIntoViewRequester.bringIntoView()
-                                            }
                                         }
-                                    },
-                            )
+                                    // No Play here: pick a season first. Random and Shuffle expand on focus.
+                                    ExpandableFaButton(
+                                        title = if (favorite) R.string.remove_favorite else R.string.add_favorite,
+                                        iconStringRes = R.string.fa_heart,
+                                        onClick = favoriteOnClick,
+                                        iconColor = if (favorite) Color.Red else Color.Unspecified,
+                                        modifier = Modifier.focusRequester(firstButtonFocusRequester).then(bringHeaderIntoView),
+                                    )
+                                    TrailerButton(
+                                        trailers = trailers,
+                                        trailerOnClick = trailerOnClick,
+                                        modifier = bringHeaderIntoView,
+                                    )
+                                    ExpandableFaButton(
+                                        title = if (played) R.string.mark_unwatched else R.string.mark_watched,
+                                        iconStringRes = if (played) R.string.fa_eye else R.string.fa_eye_slash,
+                                        onClick = watchOnClick,
+                                        modifier = bringHeaderIntoView,
+                                    )
+                                    ExpandableFaButton(
+                                        title = R.string.sort_by_random,
+                                        iconStringRes = R.string.fa_dice,
+                                        onClick = {
+                                            position = HEADER_ROW
+                                            onClickRandom()
+                                        },
+                                        collapsed = true,
+                                        modifier = bringHeaderIntoView,
+                                    )
+                                    ExpandableFaButton(
+                                        title = R.string.shuffle,
+                                        iconStringRes = R.string.fa_shuffle,
+                                        onClick = {
+                                            position = HEADER_ROW
+                                            playOnClick.invoke(true)
+                                        },
+                                        collapsed = true,
+                                        modifier = bringHeaderIntoView,
+                                    )
+                                    if (canDelete) {
+                                        DeleteButton(
+                                            title = series.title ?: "",
+                                            onConfirmDelete = {
+                                                position = HEADER_ROW
+                                                actions.onDeleteItem.invoke(series)
+                                            },
+                                            modifier = bringHeaderIntoView,
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -550,7 +569,8 @@ fun SeriesDetailsContent(
                         },
                     )
                 }
-                if (people.isNotEmpty()) {
+                // Kids get only Seasons and More like this (owner 2026-10-23)
+                if (people.isNotEmpty() && !kid) {
                     item {
                         PersonRow(
                             people = people,
@@ -580,7 +600,7 @@ fun SeriesDetailsContent(
                         )
                     }
                 }
-                if (extras.isNotEmpty()) {
+                if (extras.isNotEmpty() && !kid) {
                     item {
                         ExtrasRow(
                             extras = extras,
@@ -641,7 +661,7 @@ fun SeriesDetailsContent(
                         )
                     }
                 }
-                if (discovered.isNotEmpty()) {
+                if (discovered.isNotEmpty() && !kid) {
                     item {
                         DiscoverRow(
                             row =
@@ -672,10 +692,15 @@ fun SeriesDetailsHeader(
     overviewOnClick: () -> Unit,
     bringIntoViewRequester: BringIntoViewRequester,
     modifier: Modifier = Modifier,
+    /** The kid title page: years aired, [seasonCount] seasons and the rating badge, genres and the description */
+    kid: Boolean = false,
+    seasonCount: Int = 0,
 ) {
     val scope = rememberCoroutineScope()
     val neon = isWeaselTv()
     val dto = series.data
+    val infoScale = HeaderUtils.detailInfoTextScale()
+    val typography = MaterialTheme.typography
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = modifier,
@@ -688,6 +713,10 @@ fun SeriesDetailsHeader(
                     .fillMaxWidth(.75f)
                     .padding(start = HeaderUtils.startPadding),
         )
+        if (kid) {
+            KidSeriesInfo(series, seasonCount)
+            return@Column
+        }
         Column(
             verticalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier.fillMaxWidth(.60f),
@@ -696,23 +725,29 @@ fun SeriesDetailsHeader(
                 series.ui.quickDetails,
                 null,
                 Modifier.padding(start = HeaderUtils.startPadding),
+                textStyle = typography.titleSmall.scaled(infoScale),
             )
             if (LocalCompactDetailHeader.current) {
                 GenreText(
                     series.studioNames + dto.genres.orEmpty(),
                     Modifier.padding(start = HeaderUtils.startPadding),
+                    textStyle = typography.bodyMedium.scaled(infoScale),
                 )
             } else {
                 dto.studios?.let {
                     val studios = remember { series.studioNames }
                     GenreText(
                         studios,
-                        textStyle = MaterialTheme.typography.bodyLarge,
+                        textStyle = typography.bodyLarge.scaled(infoScale),
                         modifier = Modifier.padding(start = HeaderUtils.startPadding),
                     )
                 }
                 dto.genres?.letNotEmpty {
-                    GenreText(it, Modifier.padding(start = HeaderUtils.startPadding, bottom = 4.dp))
+                    GenreText(
+                        it,
+                        Modifier.padding(start = HeaderUtils.startPadding, bottom = 4.dp),
+                        textStyle = typography.bodyMedium.scaled(infoScale),
+                    )
                 }
             }
             dto.overview?.let { overview ->
@@ -721,6 +756,7 @@ fun SeriesDetailsHeader(
                     maxLines = 3,
                     onClick = overviewOnClick,
                     textBoxHeight = Dp.Unspecified,
+                    textStyle = typography.bodyMedium.scaled(infoScale),
                     modifier =
                         Modifier.onFocusChanged {
                             if (it.isFocused && !neon) {
@@ -731,6 +767,49 @@ fun SeriesDetailsHeader(
                         },
                 )
             }
+        }
+    }
+}
+
+/**
+ * The kid page's series details: years aired, the number of seasons and the rating badge, the genres, and the
+ * description up to [KidTitlePage.overviewLines]. No scores or studios.
+ */
+@Composable
+private fun KidSeriesInfo(
+    series: BaseItem,
+    seasonCount: Int,
+) {
+    val dto = series.data
+    val infoScale = HeaderUtils.detailInfoTextScale()
+    val typography = MaterialTheme.typography
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.fillMaxWidth(.60f),
+    ) {
+        val seasons = if (seasonCount > 0) kidSeasonCount(seasonCount) else null
+        KidMetadataLine(
+            parts = listOfNotNull(dto.seriesProductionYears, seasons),
+            rating = dto.officialRating,
+            textStyle = typography.titleSmall.scaled(infoScale),
+            modifier = Modifier.padding(start = HeaderUtils.startPadding, top = 4.dp),
+        )
+        dto.genres?.letNotEmpty {
+            GenreText(
+                it,
+                Modifier.padding(start = HeaderUtils.startPadding),
+                textStyle = typography.bodyMedium.scaled(infoScale),
+            )
+        }
+        dto.overview?.takeIf { it.isNotBlank() }?.let { overview ->
+            OverviewText(
+                overview = overview,
+                maxLines = KidTitlePage.overviewLines(compact = false),
+                compactMaxLines = KidTitlePage.overviewLines(compact = true),
+                onClick = {},
+                textBoxHeight = Dp.Unspecified,
+                textStyle = typography.bodyMedium.scaled(infoScale),
+            )
         }
     }
 }

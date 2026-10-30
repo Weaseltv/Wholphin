@@ -24,6 +24,7 @@ import com.github.damontecres.wholphin.data.filter.PlayedFilter
 import com.github.damontecres.wholphin.data.filter.StudioFilter
 import com.github.damontecres.wholphin.data.filter.VideoTypeFilter
 import com.github.damontecres.wholphin.data.filter.YearFilter
+import com.github.damontecres.wholphin.kids.isStaleSession
 import com.github.damontecres.wholphin.services.hilt.IoCoroutineScope
 import com.github.damontecres.wholphin.ui.showToast
 import com.mayakapps.kache.InMemoryKache
@@ -85,7 +86,7 @@ class FilterOptionCache
                 throw ex
             } catch (ex: Exception) {
                 Timber.e(ex, "Error fetching options for %s", filterOption)
-                showToast(context, "Error occurred: ${ex.localizedMessage}")
+                if (!ex.isStaleSession()) showToast(context, "Error occurred: ${ex.localizedMessage}")
                 emptyList()
             }
         }

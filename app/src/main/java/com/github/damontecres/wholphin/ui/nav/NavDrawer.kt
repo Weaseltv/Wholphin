@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.collectAsState
@@ -84,15 +85,24 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
+import com.github.damontecres.wholphin.kids.KidNavigation
+import com.github.damontecres.wholphin.kids.KidSessionGate
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.MusicService
 import com.github.damontecres.wholphin.services.NavDrawerService
 import com.github.damontecres.wholphin.services.NavigationManager
+import com.github.damontecres.wholphin.services.ProfilePictureService
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.SetupNavigationManager
+import com.github.damontecres.wholphin.services.versionedUserImageUrl
 import com.github.damontecres.wholphin.ui.FontAwesome
+import com.github.damontecres.wholphin.ui.coachmark.CoachMarkIds
+import com.github.damontecres.wholphin.ui.coachmark.CoachMarkRail
+import com.github.damontecres.wholphin.ui.coachmark.CoachMarkStep
+import com.github.damontecres.wholphin.ui.coachmark.LocalCoachMarkTour
+import com.github.damontecres.wholphin.ui.coachmark.coachMarkTarget
 import com.github.damontecres.wholphin.ui.components.TimeDisplay
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.launchDefault
@@ -136,8 +146,15 @@ class NavDrawerViewModel
         val setupNavigationManager: SetupNavigationManager,
         val backdropService: BackdropService,
         private val musicService: MusicService,
+        private val profilePictureService: ProfilePictureService,
+        kidSessionGate: KidSessionGate,
     ) : ViewModel() {
         val serviceState = navDrawerService.state
+
+        /** A kid (or unknown) session's menu has no Settings (owner 2026-10-23, [KidNavigation]) */
+        val isKidSession: StateFlow<Boolean> = kidSessionGate.isKidSession
+
+        val pictureVersions = profilePictureService.versions
 
         private val _state = MutableStateFlow(NavDrawerState())
         val state: StateFlow<NavDrawerState> = _state
@@ -180,7 +197,10 @@ class NavDrawerViewModel
             _state.update { it.copy(moreExpanded = value) }
         }
 
-        fun getUserImage(user: JellyfinUser): String = api.imageApi.getUserImageUrl(user.id)
+        fun getUserImage(
+            user: JellyfinUser,
+            versions: Map<UUID, Int>,
+        ): String? = versionedUserImageUrl(api.imageApi.getUserImageUrl(user.id), user.id, versions)
 
         /**
          * Determine which nav drawer item should be highlighted as currently selected
@@ -291,6 +311,64 @@ data class ServerNavDrawerItem(
 }
 
 private const val HOME_INDEX = -1
+
+/**
+ * The menu's side of the coach-mark tour. [state]'s rows: Search, Home, then [items] (pinned), then More and its rows,
+ * Settings last.
+ */
+private fun coachMarkRail(
+    items: List<NavDrawerItem>,
+    hasSettings: Boolean,
+    state: LazyListState,
+) = object : CoachMarkRail {
+    private val libraries = items.withIndex().filter { it.value is ServerNavDrawerItem }
+
+    override fun has(step: CoachMarkStep) =
+        when (step) {
+            CoachMarkStep.MENU, CoachMarkStep.PROFILE, CoachMarkStep.SEARCH, CoachMarkStep.HOME -> true
+            CoachMarkStep.WATCHLIST -> NavDrawerItem.Favorites in items
+            CoachMarkStep.REQUESTS -> NavDrawerItem.Discover in items
+            CoachMarkStep.LIBRARIES -> libraries.isNotEmpty()
+            CoachMarkStep.SETTINGS -> hasSettings
+            else -> false
+        }
+
+    override suspend fun bringIntoView(step: CoachMarkStep) {
+        // The whole menu from the top, so profile, Search and Home all show as the menu steps begin
+        if (step == CoachMarkStep.MENU || step == CoachMarkStep.PROFILE) {
+            if (state.firstVisibleItemIndex != 0 || state.firstVisibleItemScrollOffset != 0) state.animateScrollToItem(0)
+            return
+        }
+        val rows =
+            when (step) {
+                CoachMarkStep.SEARCH -> 0..0
+                CoachMarkStep.HOME -> 1..1
+                CoachMarkStep.WATCHLIST -> items.indexOf(NavDrawerItem.Favorites).let { 2 + it..2 + it }
+                CoachMarkStep.REQUESTS -> items.indexOf(NavDrawerItem.Discover).let { 2 + it..2 + it }
+                CoachMarkStep.LIBRARIES -> if (libraries.isEmpty()) return else 2 + libraries.first().index..2 + libraries.last().index
+                CoachMarkStep.SETTINGS -> if (hasSettings) (state.layoutInfo.totalItemsCount - 1).let { it..it } else return
+                else -> return
+            }
+        val info = state.layoutInfo
+        val inView =
+            rows.all { row ->
+                info.visibleItemsInfo.any {
+                    it.index == row && it.offset >= info.viewportStartOffset && it.offset + it.size <= info.viewportEndOffset
+                }
+            }
+        if (!inView && rows.first >= 0) state.animateScrollToItem(rows.first)
+    }
+}
+
+/** What the coach-mark tour calls a pinned menu item; libraries are spotlit together */
+private fun coachMarkId(item: NavDrawerItem): String? =
+    when (item) {
+        NavDrawerItem.Favorites -> CoachMarkIds.WATCHLIST
+        NavDrawerItem.Discover -> CoachMarkIds.REQUESTS
+        is ServerNavDrawerItem -> CoachMarkIds.LIBRARY_PREFIX + item.id
+        else -> null
+    }
+
 private const val SEARCH_INDEX = -2
 private const val NOW_PLAYING_INDEX = -3
 
@@ -325,6 +403,7 @@ fun NavDrawer(
         focusRequester.requestFocus()
     }
     val serviceState by viewModel.serviceState.collectAsState()
+    val kidSession by viewModel.isKidSession.collectAsState()
     // The highlight is a position in the list, so pick it again whenever the items change,
     // e.g. when Playlists appears after a first playlist or goes away with the last one.
     LaunchedEffect(serviceState.items, serviceState.moreItems) { viewModel.updateSelectedIndex() }
@@ -332,6 +411,18 @@ fun NavDrawer(
     val moreExpanded = state.moreExpanded
     // A negative index is a built-in page, >=0 is a library
     val selectedIndex = state.selectedIndex
+
+    LocalCoachMarkTour.current?.let { tour ->
+        val items = serviceState.items
+        val rail =
+            remember(items, kidSession, navDrawerListState) {
+                coachMarkRail(items, hasSettings = !kidSession, navDrawerListState)
+            }
+        DisposableEffect(tour, rail) {
+            tour.rail = rail
+            onDispose { if (tour.rail === rail) tour.rail = null }
+        }
+    }
 
     BackHandler(enabled = moreExpanded && drawerState.currentValue == DrawerValue.Open) {
         viewModel.setShowMore(false)
@@ -368,11 +459,12 @@ fun NavDrawer(
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(spacedBy),
-                    modifier = Modifier.fillMaxHeight(),
+                    modifier = Modifier.fillMaxHeight().coachMarkTarget(CoachMarkIds.MENU),
                 ) {
                     // Even though some must be clicked, focusing on it should clear other focused items
                     val interactionSource = remember { MutableInteractionSource() }
-                    val userImageUrl = remember(user) { viewModel.getUserImage(user) }
+                    val pictureVersions by viewModel.pictureVersions.collectAsState()
+                    val userImageUrl = remember(user, pictureVersions) { viewModel.getUserImage(user, pictureVersions) }
                     if (neon) {
                         RailBrand(expanded = isOpen)
                     }
@@ -387,7 +479,7 @@ fun NavDrawer(
                                 SetupDestination.UserList(server),
                             )
                         },
-                        modifier = Modifier,
+                        modifier = Modifier.coachMarkTarget(CoachMarkIds.PROFILE),
                     )
                     AnimatedVisibility(
                         visible = serviceState.nowPlayingEnabled,
@@ -418,6 +510,8 @@ fun NavDrawer(
                     RailList(
                         state = navDrawerListState,
                         spacedBy = spacedBy,
+                        // Settings is the rail's footer; a kid's rail has none, so nothing is pinned to the bottom
+                        pinFooter = !kidSession,
                         modifier =
                             Modifier
                                 .focusGroup()
@@ -447,6 +541,7 @@ fun NavDrawer(
                                 },
                                 modifier =
                                     Modifier
+                                        .coachMarkTarget(CoachMarkIds.SEARCH)
                                         .focusRequester(searchFocusRequester)
                                         .ifElse(
                                             selectedIndex == SEARCH_INDEX,
@@ -475,6 +570,7 @@ fun NavDrawer(
                                 },
                                 modifier =
                                     Modifier
+                                        .coachMarkTarget(CoachMarkIds.HOME)
                                         .ifElse(
                                             selectedIndex == HOME_INDEX,
                                             Modifier.focusRequester(focusRequester),
@@ -494,6 +590,7 @@ fun NavDrawer(
                                 },
                                 modifier =
                                     Modifier
+                                        .coachMarkTarget(coachMarkId(it))
                                         .ifElse(
                                             selectedIndex == index,
                                             Modifier.focusRequester(focusRequester),
@@ -554,25 +651,28 @@ fun NavDrawer(
                                 )
                             }
                         }
-                        item {
-                            val interactionSource = remember { MutableInteractionSource() }
-                            IconNavItem(
-                                text = stringResource(R.string.settings),
-                                weaselIcon = WeaselNavIcons.SETTINGS,
-                                accent = RailAccents.Settings,
-                                icon = Icons.Default.Settings,
-                                selected = false,
-                                drawerOpen = isOpen,
-                                interactionSource = interactionSource,
-                                onClick = {
-                                    viewModel.navigationManager.navigateTo(
-                                        Destination.Settings(
-                                            PreferenceScreenOption.BASIC,
-                                        ),
-                                    )
-                                },
-                                modifier = Modifier,
-                            )
+                        // Never selected or a focus target, so leaving it out moves no focus
+                        if (!kidSession) {
+                            item {
+                                val interactionSource = remember { MutableInteractionSource() }
+                                IconNavItem(
+                                    text = stringResource(R.string.settings),
+                                    weaselIcon = WeaselNavIcons.SETTINGS,
+                                    accent = RailAccents.Settings,
+                                    icon = Icons.Default.Settings,
+                                    selected = false,
+                                    drawerOpen = isOpen,
+                                    interactionSource = interactionSource,
+                                    onClick = {
+                                        viewModel.navigationManager.navigateTo(
+                                            Destination.Settings(
+                                                PreferenceScreenOption.BASIC,
+                                            ),
+                                        )
+                                    },
+                                    modifier = Modifier.coachMarkTarget(CoachMarkIds.SETTINGS),
+                                )
+                            }
                         }
                     }
                 }
@@ -633,17 +733,28 @@ internal fun RailList(
     state: LazyListState,
     spacedBy: Dp,
     modifier: Modifier = Modifier,
+    pinFooter: Boolean = true,
     content: LazyListScope.() -> Unit,
 ) {
     LazyColumn(
         state = state,
         contentPadding = if (isWeaselTv()) PaddingValues(vertical = RailGlowRoom) else PaddingValues(0.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedByWithFooter(spacedBy),
+        verticalArrangement = railArrangement(spacedBy, pinFooter),
         modifier = modifier,
         content = content,
     )
 }
+
+/**
+ * The rail's items [spacedBy] apart. With [pinFooter] (Settings is the last item) the last one sits at the bottom;
+ * without it (a kid's rail has no Settings, owner 2026-10-23) every item follows the one above it, so the last library
+ * isn't pushed to the bottom with a gap above it.
+ */
+internal fun railArrangement(
+    spacedBy: Dp,
+    pinFooter: Boolean,
+): Arrangement.Vertical = if (pinFooter) Arrangement.spacedByWithFooter(spacedBy) else Arrangement.spacedBy(spacedBy)
 
 /** Owner's poster border values captured from all eight Alpha rows on 2026-10-07. */
 private val RailFocusBorderWidth = ApprovedHomeLayout.CARD_APPEARANCE.borderWidthDp.dp

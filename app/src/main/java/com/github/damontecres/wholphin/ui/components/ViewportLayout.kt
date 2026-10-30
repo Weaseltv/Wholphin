@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import com.github.damontecres.wholphin.ui.theme.LocalHomeCardAppearance
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.util.KeepVisibleBringIntoViewSpec
+import com.github.damontecres.wholphin.ui.util.KeepVisibleWithMarginBringIntoViewSpec
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -62,9 +63,15 @@ import kotlin.math.ceil
 
 /** Measured first-row budget, shared by item, cast, chapter and discovery rows. */
 class DetailViewportState(
-    val height: Dp,
-    val width: Dp = Dp.Unspecified,
+    height: Dp,
+    width: Dp = Dp.Unspecified,
 ) {
+    /** The page's current size. It changes as headers above the content animate in and out. */
+    var height by mutableStateOf(height)
+        internal set
+    var width by mutableStateOf(width)
+        internal set
+
     var firstRowHeight by mutableStateOf(280.dp)
         private set
     private var firstRow: Any? = null
@@ -148,7 +155,11 @@ fun DetailPageViewport(
     content: @Composable () -> Unit,
 ) {
     BoxWithConstraints(modifier) {
-        val state = remember(maxHeight, maxWidth) { DetailViewportState(maxHeight, maxWidth) }
+        // One state for the life of the page: a header animating above the content changes its
+        // size every frame, and a new state would hide the page and fade it in again (a black flash)
+        val state = remember { DetailViewportState(maxHeight, maxWidth) }
+        state.height = maxHeight
+        state.width = maxWidth
         val neon = isWeaselTv()
         val inheritedScrollSpec = LocalBringIntoViewSpec.current
         if (neon) {
@@ -175,6 +186,29 @@ fun DetailPageViewport(
             }
         }
     }
+}
+
+/**
+ * On detail pages, rows scroll far enough to leave [start] / [end] beside the focused item, so the
+ * item at either end keeps its border and glow instead of stopping flush against the clipping edge.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun KeepFocusRoomOnScroll(
+    start: Dp,
+    end: Dp = start,
+    content: @Composable () -> Unit,
+) {
+    val inherited = LocalBringIntoViewSpec.current
+    if (inherited !== KeepVisibleBringIntoViewSpec) {
+        content()
+        return
+    }
+    val density = LocalDensity.current
+    val startPx = with(density) { start.toPx() }
+    val endPx = with(density) { end.toPx() }
+    val spec = remember(startPx, endPx) { KeepVisibleWithMarginBringIntoViewSpec(startPx, endPx) }
+    CompositionLocalProvider(LocalBringIntoViewSpec provides spec, content = content)
 }
 
 /** Report a whole titled row, including captions and the clearance for focus effects. */
@@ -265,6 +299,7 @@ fun FitHeaderToHeight(
 }
 
 /** All media rows reserve the actual focus enlargement, outline and glow on both edges. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FocusSafeLazyRow(
     modifier: Modifier = Modifier,
@@ -293,33 +328,42 @@ fun FocusSafeLazyRow(
         }
     val top = maxOf(contentPadding.calculateTopPadding(), clearance)
     val bottom = maxOf(contentPadding.calculateBottomPadding(), clearance)
+    val start = contentPadding.calculateStartPadding(direction)
+    // Detail pages scroll only until the focused item is visible, which leaves the end item flush
+    // against the edge. There, keep room for its focus effects at the end and while scrolling.
+    // The start padding stays as given, so the first item keeps its place.
+    val detailPage = neon && LocalBringIntoViewSpec.current === KeepVisibleBringIntoViewSpec
+    val end =
+        contentPadding.calculateEndPadding(direction).let { if (detailPage) maxOf(it, clearance) else it }
     val padding =
         PaddingValues(
-            start = contentPadding.calculateStartPadding(direction),
-            end = contentPadding.calculateEndPadding(direction),
+            start = start,
+            end = end,
             top = top,
             bottom = bottom,
         )
-    LazyRow(
-        modifier =
-            modifier
-                .onSizeChanged {
-                    // Subtract the same rounded pixel padding used by LazyRow. Subtracting
-                    // fractional dp from rounded sizes feeds rounding error back into padding.
-                    contentHeight =
-                        with(density) {
-                            (it.height - top.roundToPx() - bottom.roundToPx()).coerceAtLeast(0).toDp()
-                        }
-                },
-        state = state,
-        contentPadding = padding,
-        reverseLayout = reverseLayout,
-        horizontalArrangement = horizontalArrangement,
-        verticalAlignment = verticalAlignment,
-        flingBehavior = flingBehavior,
-        userScrollEnabled = userScrollEnabled,
-        content = content,
-    )
+    KeepFocusRoomOnScroll(start = if (detailPage) maxOf(start, clearance) else start, end = end) {
+        LazyRow(
+            modifier =
+                modifier
+                    .onSizeChanged {
+                        // Subtract the same rounded pixel padding used by LazyRow. Subtracting
+                        // fractional dp from rounded sizes feeds rounding error back into padding.
+                        contentHeight =
+                            with(density) {
+                                (it.height - top.roundToPx() - bottom.roundToPx()).coerceAtLeast(0).toDp()
+                            }
+                    },
+            state = state,
+            contentPadding = padding,
+            reverseLayout = reverseLayout,
+            horizontalArrangement = horizontalArrangement,
+            verticalAlignment = verticalAlignment,
+            flingBehavior = flingBehavior,
+            userScrollEnabled = userScrollEnabled,
+            content = content,
+        )
+    }
 }
 
 /**

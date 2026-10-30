@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -17,6 +18,7 @@ import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
+import com.github.damontecres.wholphin.ui.theme.LocalNeonOutlineRest
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.neonOutlineColors
 import com.github.damontecres.wholphin.ui.theme.neonSurfaceBorder
@@ -96,10 +98,34 @@ fun QuickListButton(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    /** The label colour; the outline and glow use the accent. */
-    contentColor: Color = NeonBoard.Text,
+    /** The label colour, if fixed; by default white, and the accent while focused. */
+    contentColor: Color = Color.Unspecified,
     compact: Boolean = false,
     /** Shows a small spinner while this list loads. */
+    loading: Boolean = false,
+) = QuickListButton(
+    title = stringResource(title).uppercase(),
+    selected = selected,
+    onClick = onClick,
+    modifier = modifier,
+    contentColor = contentColor,
+    height = if (compact) COMPACT_BUTTON_SIZE else MinButtonSize,
+    horizontalPadding = if (compact) COMPACT_PADDING else 12.dp,
+    fontSize = if (compact) COMPACT_FONT_SIZE else TextUnit.Unspecified,
+    loading = loading,
+)
+
+/** A quick-list style button with a [title] that's shown as given, and its own size. */
+@Composable
+fun QuickListButton(
+    title: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    height: Dp,
+    horizontalPadding: Dp,
+    fontSize: TextUnit,
+    modifier: Modifier = Modifier,
+    contentColor: Color = Color.Unspecified,
     loading: Boolean = false,
 ) {
     val accent = LocalNeonAccent.current
@@ -110,19 +136,21 @@ fun QuickListButton(
                 containerColor = if (selected) NeonBoard.chipOn(accent) else Color.Transparent,
                 contentColor = NeonBoard.Text,
                 focusedContainerColor = NeonBoard.chipOn(accent),
-                focusedContentColor = NeonBoard.Text,
+                focusedContentColor = accent,
                 pressedContainerColor = NeonBoard.chipOn(accent),
-                pressedContentColor = NeonBoard.Text,
+                pressedContentColor = accent,
             ),
+        // Grey at rest like other outline buttons; the active list keeps the accent so it's clear
+        // which one is showing
         border =
             neonSurfaceBorder(
                 accent = accent,
                 restWidth = if (selected) 2.dp else 1.dp,
-                restColor = accent,
+                restColor = if (selected) accent else LocalNeonOutlineRest.current ?: NeonBoard.Line2,
             ),
         glow = neonSurfaceGlow(accent),
-        contentPadding = PaddingValues(horizontal = if (compact) COMPACT_PADDING else 12.dp),
-        contentHeight = if (compact) COMPACT_BUTTON_SIZE else MinButtonSize,
+        contentPadding = PaddingValues(horizontal = horizontalPadding),
+        contentHeight = height,
         modifier = modifier.semantics { this.selected = selected },
     ) {
         if (loading) {
@@ -133,9 +161,9 @@ fun QuickListButton(
             )
         }
         Text(
-            text = stringResource(title).uppercase(),
+            text = title,
             color = contentColor,
-            fontSize = if (compact) COMPACT_FONT_SIZE else TextUnit.Unspecified,
+            fontSize = fontSize,
         )
     }
 }

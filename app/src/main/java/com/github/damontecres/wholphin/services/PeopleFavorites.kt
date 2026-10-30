@@ -3,6 +3,7 @@ package com.github.damontecres.wholphin.services
 import android.content.Context
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.Person
+import com.github.damontecres.wholphin.data.model.mergeRepeated
 import com.github.damontecres.wholphin.ui.letNotEmpty
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.jellyfin.sdk.api.client.ApiClient
@@ -42,6 +43,7 @@ class PeopleFavorites
                                 )
                             }
                         }.orEmpty()
+                        .mergeRepeated()
                 people
             }
     }

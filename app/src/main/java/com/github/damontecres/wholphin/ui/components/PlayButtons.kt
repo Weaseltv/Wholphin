@@ -59,11 +59,13 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.Trailer
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.PreviewTvSpec
+import com.github.damontecres.wholphin.ui.bleedHorizontal
 import com.github.damontecres.wholphin.ui.data.ChooseVersionParams
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
 import com.github.damontecres.wholphin.ui.theme.PreviewInteractionSource
+import com.github.damontecres.wholphin.ui.theme.ProvideButtonsOverArtwork
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonOutlineColors
@@ -99,6 +101,8 @@ fun ExpandablePlayButtons(
     chooseVersionParams: ChooseVersionParams?,
     buttonOnFocusChanged: (FocusState) -> Unit,
     modifier: Modifier = Modifier,
+    /** Show MORE as just its icon until focused. */
+    collapseMore: Boolean = false,
 ) {
     val resources = LocalResources.current
     val firstFocus = remember { FocusRequester() }
@@ -113,117 +117,129 @@ fun ExpandablePlayButtons(
 
     var chooseVersion by remember { mutableStateOf<DialogParams?>(null) }
 
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(8.dp),
-        modifier =
-            Modifier
-                .reportDetailActionHeight()
-                .then(modifier)
-                .focusGroup()
-                .focusRestorer(firstFocus),
-    ) {
-        item("play") {
-            ExpandablePlayButton(
-                title = if (resumePosition > Duration.ZERO) R.string.resume else R.string.play,
-                resume = resumePosition,
-                icon = Icons.Default.PlayArrow,
-                onClick = playOnClick,
+    // Over the item's artwork: white outlines and a dark backing for readability
+    ProvideButtonsOverArtwork {
+        KeepFocusRoomOnScroll(ButtonGlowRoom) {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(start = 8.dp + ButtonGlowRoom, end = ButtonGlowRoom, top = 8.dp, bottom = 8.dp),
                 modifier =
                     Modifier
-                        .onFocusChanged(buttonOnFocusChanged)
-                        .focusRequester(firstFocus),
-            )
-        }
-        if (resumePosition > Duration.ZERO) {
-            item("restart") {
-                ExpandablePlayButton(
-                    title = R.string.restart,
-                    resume = Duration.ZERO,
-                    icon = Icons.Default.Refresh,
-                    onClick = playOnClick,
-                    modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
-                    mirrorIcon = true,
-                    interactionSource = restartInteractionSource,
-                )
+                        .reportDetailActionHeight()
+                        .then(modifier)
+                        // Move the clipping edge out past the focus glow without moving the buttons
+                        .bleedHorizontal(start = ButtonGlowRoom, end = 0.dp)
+                        .focusGroup()
+                        .focusRestorer(firstFocus),
+            ) {
+                item("play") {
+                    ExpandablePlayButton(
+                        title = if (resumePosition > Duration.ZERO) R.string.resume else R.string.play,
+                        resume = resumePosition,
+                        icon = Icons.Default.PlayArrow,
+                        onClick = playOnClick,
+                        modifier =
+                            Modifier
+                                .onFocusChanged(buttonOnFocusChanged)
+                                .focusRequester(firstFocus),
+                    )
+                }
+                if (resumePosition > Duration.ZERO) {
+                    item("restart") {
+                        ExpandablePlayButton(
+                            title = R.string.restart,
+                            resume = Duration.ZERO,
+                            icon = Icons.Default.Refresh,
+                            onClick = playOnClick,
+                            modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
+                            mirrorIcon = true,
+                            interactionSource = restartInteractionSource,
+                        )
+                    }
+                }
+
+                if (chooseVersionParams != null && chooseVersionParams.mediaSources.size > 1) {
+                    item {
+                        ExpandableFaButton(
+                            title = R.string.version,
+                            iconStringRes = R.string.fa_file_video,
+                            onClick = {
+                                chooseVersion =
+                                    chooseVersionParams(
+                                        resources,
+                                        chooseVersionParams.mediaSources.orEmpty(),
+                                        chooseVersionParams.chosenStreams
+                                            ?.source
+                                            ?.id
+                                            ?.toUUIDOrNull(),
+                                    ) { idx ->
+                                        val source = chooseVersionParams.mediaSources[idx]
+                                        chooseVersionParams.onChooseVersion.invoke(source)
+                                    }
+                            },
+                            modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
+                        )
+                    }
+                }
+
+                // Favorite button
+                item("favorite") {
+                    ExpandableFaButton(
+                        title = if (favorite) R.string.remove_favorite else R.string.add_favorite,
+                        iconStringRes = R.string.fa_heart,
+                        onClick = favoriteOnClick,
+                        iconColor = if (favorite) Color.Red else Color.Unspecified,
+                        modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
+                    )
+                }
+
+                // Watched button
+                item("watched") {
+                    ExpandableFaButton(
+                        title = if (watched) R.string.mark_unwatched else R.string.mark_watched,
+                        iconStringRes = if (watched) R.string.fa_eye else R.string.fa_eye_slash,
+                        onClick = watchOnClick,
+                        modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
+                    )
+                }
+
+                if (trailers != null) {
+                    item("trailers") {
+                        TrailerButton(
+                            trailers = trailers,
+                            trailerOnClick = trailerOnClick,
+                            modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
+                        )
+                    }
+                }
+                if (canDelete) {
+                    item("delete") {
+                        DeleteButton(
+                            title = title,
+                            onConfirmDelete = onConfirmDelete,
+                            modifier =
+                                Modifier
+                                    .onFocusChanged(buttonOnFocusChanged),
+                        )
+                    }
+                }
+
+                // More button
+                item("more") {
+                    ExpandablePlayButton(
+                        title = R.string.more,
+                        resume = Duration.ZERO,
+                        icon = Icons.Default.MoreVert,
+                        onClick = { moreOnClick.invoke() },
+                        modifier =
+                            Modifier
+                                .onFocusChanged(buttonOnFocusChanged)
+                                // Expanding on focus widens the row, so scroll again once it has grown
+                                .then(if (collapseMore) Modifier.keepFocusedItemVisible() else Modifier),
+                        collapsed = collapseMore,
+                    )
+                }
             }
-        }
-
-        if (chooseVersionParams != null && chooseVersionParams.mediaSources.size > 1) {
-            item {
-                ExpandableFaButton(
-                    title = R.string.version,
-                    iconStringRes = R.string.fa_file_video,
-                    onClick = {
-                        chooseVersion =
-                            chooseVersionParams(
-                                resources,
-                                chooseVersionParams.mediaSources.orEmpty(),
-                                chooseVersionParams.chosenStreams
-                                    ?.source
-                                    ?.id
-                                    ?.toUUIDOrNull(),
-                            ) { idx ->
-                                val source = chooseVersionParams.mediaSources[idx]
-                                chooseVersionParams.onChooseVersion.invoke(source)
-                            }
-                    },
-                    modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
-                )
-            }
-        }
-
-        // Watched button
-        item("watched") {
-            ExpandableFaButton(
-                title = if (watched) R.string.mark_unwatched else R.string.mark_watched,
-                iconStringRes = if (watched) R.string.fa_eye else R.string.fa_eye_slash,
-                onClick = watchOnClick,
-                modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
-            )
-        }
-
-        // Favorite button
-        item("favorite") {
-            ExpandableFaButton(
-                title = if (favorite) R.string.remove_favorite else R.string.add_favorite,
-                iconStringRes = R.string.fa_heart,
-                onClick = favoriteOnClick,
-                iconColor = if (favorite) Color.Red else Color.Unspecified,
-                modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
-            )
-        }
-
-        if (trailers != null) {
-            item("trailers") {
-                TrailerButton(
-                    trailers = trailers,
-                    trailerOnClick = trailerOnClick,
-                    modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
-                )
-            }
-        }
-        if (canDelete) {
-            item("delete") {
-                DeleteButton(
-                    title = title,
-                    onConfirmDelete = onConfirmDelete,
-                    modifier =
-                        Modifier
-                            .onFocusChanged(buttonOnFocusChanged),
-                )
-            }
-        }
-
-        // More button
-        item("more") {
-            ExpandablePlayButton(
-                title = R.string.more,
-                resume = Duration.ZERO,
-                icon = Icons.Default.MoreVert,
-                onClick = { moreOnClick.invoke() },
-                modifier = Modifier.onFocusChanged(buttonOnFocusChanged),
-            )
         }
     }
     chooseVersion?.let { params ->
@@ -255,9 +271,13 @@ fun ExpandablePlayButton(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     mirrorIcon: Boolean = false,
     enabled: Boolean = true,
+    allCaps: Boolean = isWeaselTv(),
+    collapsed: Boolean = false,
 ) = ExpandablePlayButton(
     title = title,
     resume = resume,
+    allCaps = allCaps,
+    collapsed = collapsed,
     icon = {
         Icon(
             imageVector = icon,
@@ -312,6 +332,10 @@ fun ExpandablePlayButton(
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     enabled: Boolean = true,
+    /** An uppercase label in the button font with the same padding as other text buttons. */
+    allCaps: Boolean = isWeaselTv(),
+    /** Show only the icon until focused, with an uppercase label in the button font. */
+    collapsed: Boolean = false,
 ) {
     val isFocused = interactionSource.collectIsFocusedAsState().value
     // Neon Board (`02-components-tv.md` § T5): the Play button is the PRIMARY in the item's
@@ -328,7 +352,13 @@ fun ExpandablePlayButton(
                 minHeight = MinButtonSize,
                 maxHeight = MinButtonSize,
             ),
-        contentPadding = DefaultButtonPadding,
+        contentPadding =
+            if (collapsed) {
+                // Centres the 28dp icon in the 40dp button while collapsed
+                PaddingValues(horizontal = (MinButtonSize - 28.dp) / 2)
+            } else {
+                DefaultButtonPadding
+            },
         interactionSource = interactionSource,
         colors =
             if (primaryAction) {
@@ -359,21 +389,40 @@ fun ExpandablePlayButton(
             contentAlignment = Alignment.Center,
             modifier =
                 Modifier
-                    .padding(start = 2.dp)
+                    .padding(start = if (collapsed) 0.dp else 2.dp)
                     .height(MinButtonSize),
         ) {
             icon.invoke(this)
         }
-        AnimatedVisibility(isWeaselTv() || isFocused) {
-            Spacer(Modifier.size(8.dp))
+        if (collapsed) {
+            // Expanded, it has the same spacing as the label below
+            AnimatedVisibility(isFocused) {
+                Text(
+                    text = stringResource(title).uppercase(),
+                    modifier = Modifier.padding(start = 6.dp, end = 6.dp),
+                )
+            }
+        } else if (allCaps) {
+            Spacer(Modifier.size(6.dp))
             Text(
-                text = stringResource(title),
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(end = 4.dp),
+                text = stringResource(title).uppercase(),
+                modifier = Modifier.padding(end = 8.dp),
             )
+        } else {
+            AnimatedVisibility(isWeaselTv() || isFocused) {
+                Spacer(Modifier.size(8.dp))
+                Text(
+                    text = stringResource(title),
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(end = 4.dp),
+                )
+            }
         }
     }
 }
+
+/** Room for a focused button's glow at the ends of a scrolling button row. */
+val ButtonGlowRoom = 16.dp
 
 /**
  * Similar to [ExpandablePlayButton], but uses a [FontAwesome] string instead of an Icon
@@ -392,6 +441,8 @@ fun ExpandableFaButton(
     /** Show only the icon until focused, with an uppercase label in the button font. */
     collapsed: Boolean = false,
     titleOverride: String? = null,
+    /** An uppercase label in the button font with the same padding as other text buttons. */
+    allCaps: Boolean = isWeaselTv(),
 ) {
     val isFocused = interactionSource.collectIsFocusedAsState().value
     Button(
@@ -399,12 +450,20 @@ fun ExpandableFaButton(
         enabled = enabled,
         modifier =
             modifier.requiredSizeIn(
-                minWidth = if (collapsed) COMPACT_BUTTON_SIZE else MinButtonSize,
-                minHeight = if (collapsed) COMPACT_BUTTON_SIZE else MinButtonSize,
-                maxHeight = if (collapsed) COMPACT_BUTTON_SIZE else MinButtonSize,
+                minWidth = MinButtonSize,
+                minHeight = MinButtonSize,
+                maxHeight = MinButtonSize,
             ),
-        contentPadding = if (collapsed) PaddingValues(0.dp) else DefaultButtonPadding,
-        contentHeight = if (collapsed) COMPACT_BUTTON_SIZE else MinButtonSize,
+        contentPadding =
+            when {
+                // Centres the 32dp icon in the 40dp button while collapsed
+                collapsed -> PaddingValues(horizontal = (MinButtonSize - 32.dp) / 2)
+
+                allCaps -> PaddingValues(start = 4.dp, end = 4.dp)
+
+                else -> DefaultButtonPadding
+            },
+        contentHeight = MinButtonSize,
         interactionSource = interactionSource,
     ) {
         Box(
@@ -427,10 +486,15 @@ fun ExpandableFaButton(
                 Text(
                     text = (titleOverride ?: stringResource(title)).uppercase(),
                     color = contentColor,
-                    fontSize = COMPACT_FONT_SIZE,
                     modifier = Modifier.padding(start = 2.dp, end = 6.dp),
                 )
             }
+        } else if (allCaps) {
+            Text(
+                text = (titleOverride ?: stringResource(title)).uppercase(),
+                color = contentColor,
+                modifier = Modifier.padding(start = 2.dp, end = 8.dp),
+            )
         } else {
             AnimatedVisibility(isWeaselTv() || isFocused) {
                 Text(
@@ -486,6 +550,7 @@ fun DeleteButton(
     title: String,
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    allCaps: Boolean = isWeaselTv(),
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     val focused by interactionSource.collectIsFocusedAsState()
@@ -520,6 +585,7 @@ fun DeleteButton(
         },
         onClick = { showDeleteDialog = true },
         interactionSource = interactionSource,
+        allCaps = allCaps,
         modifier = modifier,
     )
     if (showDeleteDialog) {
