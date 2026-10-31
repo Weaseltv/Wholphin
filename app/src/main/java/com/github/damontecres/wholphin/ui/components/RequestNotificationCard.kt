@@ -61,29 +61,32 @@ import com.github.damontecres.wholphin.services.RequestStageKind
 import com.github.damontecres.wholphin.services.RequestStatusItem
 import com.github.damontecres.wholphin.ui.theme.NeonSectionPalette
 
-/** Owner's poster-led TV popup. The countdown is read during drawing, without recomposing the card. */
+/** Shared poster-led style for ready notifications and the noninteractive submission confirmation. */
 @Composable
 fun RequestNotificationCard(
     rows: List<RequestStatusItem>,
     eventCount: Int,
     canWatch: Boolean,
-    firstFocus: FocusRequester,
+    firstFocus: FocusRequester?,
     remaining: () -> Float,
     onPrimary: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    confirmationLabel: String? = null,
 ) {
     val accent = NeonSectionPalette.Requests.glow
     val edge = NeonSectionPalette.Requests.border
     val single = rows.singleOrNull().takeIf { eventCount == 1 }
     val cover = single ?: rows.firstOrNull { it.item?.posterUrl != null } ?: rows.firstOrNull()
     val allReady = rows.size == eventCount && rows.all { it.stage.kind == RequestStageKind.READY }
-    val failed = single?.stage?.kind == RequestStageKind.FAILED
+    val confirmation = confirmationLabel != null
+    val failed = !confirmation && single?.stage?.kind == RequestStageKind.FAILED
     val badgeColor = if (failed) Color(0xFFFFB000) else accent
-    val status = single?.stage?.label ?: if (allReady) "Ready to watch" else "Request updates"
+    val status = confirmationLabel ?: single?.stage?.label ?: if (allReady) "Ready to watch" else "Request updates"
     val title = single?.title ?: if (allReady) "$eventCount requests ready" else "$eventCount request updates"
     val primary = when { eventCount > 1 -> "View requests"; canWatch -> "Watch now"; else -> "Details" }
     val instruction = when {
+        confirmation -> "We'll let you know when it's ready to watch."
         eventCount > 1 -> "Press OK to view your request updates."
         single?.stage?.kind == RequestStageKind.READY && canWatch -> "Your request is ready. Press OK to start."
         single?.stage?.kind == RequestStageKind.PARTIAL && canWatch -> "Some episodes are ready. Press OK to watch."
@@ -164,7 +167,7 @@ fun RequestNotificationCard(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Icon(
-                        if (single?.stage?.ready == true || allReady) Icons.Default.CheckCircle else Icons.Default.Info,
+                        if (confirmation || single?.stage?.ready == true || allReady) Icons.Default.CheckCircle else Icons.Default.Info,
                         contentDescription = null, tint = badgeColor, modifier = Modifier.size(11.dp),
                     )
                     Text(
@@ -193,43 +196,45 @@ fun RequestNotificationCard(
                         style = MaterialTheme.typography.bodyMedium.copy(fontSize = 11.sp, lineHeight = 15.sp),
                     )
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Button(
-                        onClick = onPrimary,
-                        modifier = Modifier.weight(1f, fill = false).widthIn(min = 122.dp).focusRequester(firstFocus),
-                        shape = ClickableSurfaceDefaults.shape(buttonShape),
-                        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f, pressedScale = 1f),
-                        colors = ClickableSurfaceDefaults.colors(
-                            containerColor = accent, contentColor = Color(0xFF001B1B),
-                            focusedContainerColor = accent, focusedContentColor = Color(0xFF001B1B),
-                            pressedContainerColor = accent, pressedContentColor = Color(0xFF001B1B),
-                        ),
-                        border = ClickableSurfaceDefaults.border(focusedBorder = focusRing, pressedBorder = focusRing),
-                        glow = ClickableSurfaceDefaults.glow(
-                            focusedGlow = Glow(accent.copy(alpha = .45f), 14.dp),
-                            pressedGlow = Glow(accent.copy(alpha = .45f), 14.dp),
-                        ),
-                        contentPadding = PaddingValues(horizontal = 12.dp), contentHeight = 32.dp,
-                    ) {
-                        if (canWatch) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(5.dp))
+                if (!confirmation && firstFocus != null) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Button(
+                            onClick = onPrimary,
+                            modifier = Modifier.weight(1f, fill = false).widthIn(min = 122.dp).focusRequester(firstFocus),
+                            shape = ClickableSurfaceDefaults.shape(buttonShape),
+                            scale = ClickableSurfaceDefaults.scale(focusedScale = 1f, pressedScale = 1f),
+                            colors = ClickableSurfaceDefaults.colors(
+                                containerColor = accent, contentColor = Color(0xFF001B1B),
+                                focusedContainerColor = accent, focusedContentColor = Color(0xFF001B1B),
+                                pressedContainerColor = accent, pressedContentColor = Color(0xFF001B1B),
+                            ),
+                            border = ClickableSurfaceDefaults.border(focusedBorder = focusRing, pressedBorder = focusRing),
+                            glow = ClickableSurfaceDefaults.glow(
+                                focusedGlow = Glow(accent.copy(alpha = .45f), 14.dp),
+                                pressedGlow = Glow(accent.copy(alpha = .45f), 14.dp),
+                            ),
+                            contentPadding = PaddingValues(horizontal = 12.dp), contentHeight = 32.dp,
+                        ) {
+                            if (canWatch) {
+                                Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Spacer(Modifier.width(5.dp))
+                            }
+                            Text(primary.uppercase(), style = display.copy(fontSize = 11.sp, lineHeight = 14.sp), maxLines = 1)
                         }
-                        Text(primary.uppercase(), style = display.copy(fontSize = 11.sp, lineHeight = 14.sp), maxLines = 1)
-                    }
-                    Button(
-                        onClick = onDismiss, modifier = Modifier.width(76.dp),
-                        shape = ClickableSurfaceDefaults.shape(buttonShape),
-                        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f, pressedScale = 1f),
-                        colors = ClickableSurfaceDefaults.colors(
-                            containerColor = Color(0xFF182426), contentColor = Color(0xFFDCE5E6),
-                            focusedContainerColor = Color(0xFF203638), focusedContentColor = Color.White,
-                        ),
-                        border = ClickableSurfaceDefaults.border(border = quietRing, focusedBorder = focusRing, pressedBorder = focusRing),
-                        glow = ClickableSurfaceDefaults.glow(),
-                        contentPadding = PaddingValues(horizontal = 8.dp), contentHeight = 32.dp,
-                    ) {
-                        Text("Dismiss", style = MaterialTheme.typography.labelLarge.copy(fontSize = 12.sp, lineHeight = 15.sp))
+                        Button(
+                            onClick = onDismiss, modifier = Modifier.width(76.dp),
+                            shape = ClickableSurfaceDefaults.shape(buttonShape),
+                            scale = ClickableSurfaceDefaults.scale(focusedScale = 1f, pressedScale = 1f),
+                            colors = ClickableSurfaceDefaults.colors(
+                                containerColor = Color(0xFF182426), contentColor = Color(0xFFDCE5E6),
+                                focusedContainerColor = Color(0xFF203638), focusedContentColor = Color.White,
+                            ),
+                            border = ClickableSurfaceDefaults.border(border = quietRing, focusedBorder = focusRing, pressedBorder = focusRing),
+                            glow = ClickableSurfaceDefaults.glow(),
+                            contentPadding = PaddingValues(horizontal = 8.dp), contentHeight = 32.dp,
+                        ) {
+                            Text("Dismiss", style = MaterialTheme.typography.labelLarge.copy(fontSize = 12.sp, lineHeight = 15.sp))
+                        }
                     }
                 }
             }

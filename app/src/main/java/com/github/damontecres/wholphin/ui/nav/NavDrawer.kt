@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
@@ -49,6 +50,7 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -82,6 +84,7 @@ import androidx.tv.material3.NavigationDrawerScope
 import androidx.tv.material3.ProvideTextStyle
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
+import com.github.damontecres.wholphin.ui.components.rememberRequestFocus
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
@@ -514,6 +517,7 @@ fun NavDrawer(
                         pinFooter = !kidSession,
                         modifier =
                             Modifier
+                                .focusRestorer()
                                 .focusGroup()
                                 .focusProperties {
                                     onEnter = {
@@ -680,7 +684,7 @@ fun NavDrawer(
         },
     ) {
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().rememberRequestFocus(),
         ) {
             // Page labels and cards keep their gutters; section rules extend to the rail and screen edge.
             // The page takes the SECTION accent of the rail item it belongs to; details
@@ -984,14 +988,21 @@ fun NavigationDrawerScope.NavItem(
                     )
                 }
                 if (library is NavDrawerItem.Discover && requestState.badgeCount > 0) {
-                    Text(
-                        text = if (requestState.badgeCount > 9) "9+" else requestState.badgeCount.toString(),
-                        fontSize = 10.sp,
-                        color = Color.Black,
+                    // The badge sits above the glyph, within the row, on both the open menu and collapsed rail.
+                    Box(
                         modifier = Modifier.align(Alignment.TopEnd)
+                            .offset(x = 2.dp, y = (-12).dp)
+                            .height(12.dp).widthIn(min = 12.dp)
                             .background(Color(0xFF00F2D6), androidx.compose.foundation.shape.CircleShape)
-                            .padding(horizontal = 4.dp),
-                    )
+                            .padding(horizontal = 3.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = if (requestState.badgeCount > 9) "9+" else requestState.badgeCount.toString(),
+                            fontSize = 9.sp, lineHeight = 12.sp,
+                            color = Color.Black,
+                        )
+                    }
                 }
             }
         },

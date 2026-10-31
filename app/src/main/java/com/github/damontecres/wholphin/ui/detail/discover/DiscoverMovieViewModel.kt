@@ -211,7 +211,6 @@ class DiscoverMovieViewModel
                     )
                     requestStatusRepository.seed(created, submittingScope, item)
                     if (requestStatusRepository.state.value.scope == submittingScope) {
-                        showToast(context, "Requested. We'll let you know when it's ready.")
                         kotlinx.coroutines.withContext(WholphinDispatchers.Main) { navigationManager.navigateToFromDrawer(Destination.Discover(1, created.id)) }
                     }
                 } catch (ex: CancellationException) {

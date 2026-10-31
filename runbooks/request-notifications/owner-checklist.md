@@ -204,5 +204,31 @@ every minute too. Observed download evidence persists across refresh/restart;
 if progress disappears before availability is confirmed, the status becomes
 Checking your library without an obsolete percentage or a claim of completion.
 
-Retest these three behaviors on the replacement Alpha. Notification delivery
-away from Requests is still pending owner confirmation; Phase 5 remains on hold.
+Retest these three behaviors on the replacement Alpha. The owner subsequently
+confirmed that the ready popup appeared on Home. Search handoff and the download
+transition still need their own confirmation; Phase 5 remains on hold.
+
+## Popup focus, submission confirmation and badge — 2026-10-31
+
+The owner confirmed Home delivery, but Dismiss opened the sidebar and selected
+the profile. The replacement saves the focused page/rail region and restores
+its child before removing the popup. The request-submission confirmation now
+shares the poster, teal pill, Orbitron title/year, dark glow and countdown style,
+at the bottom of the screen without taking selection. It lasts six seconds;
+the ready popup keeps its one-minute idle timer. The sidebar count is positioned
+above and to the right of the Requests icon, without covering the glyph.
+
+- [ ] While a Home card is selected, dismiss a ready popup. The same card should
+  be selected again, with the sidebar closed. Repeat with Back and timeout.
+- [ ] Request a movie or show. A matching bottom card says Request sent; editing
+  pending TV seasons says Request updated. Selection stays on the page.
+- [ ] With an unread ready request, the number sits above the Requests icon in
+  both the expanded sidebar and collapsed rail.
+
+The number counts unread ready/partly ready requests, not episodes or downloads.
+It appears after a foreground sync detects new availability while My Requests
+is closed; old ready requests are baselined on first connection. My Requests
+clears all unread counts. A single popup's primary action clears that request;
+View requests clears all. Dismiss, Back, timeout and turning popups off leave the
+count. A request no longer ready or confirmed removed stops contributing. Counts
+persist per account across restarts and display 9+ above nine.

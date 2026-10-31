@@ -270,3 +270,38 @@ returned **Success**, exit 0. Saved accounts/settings and active caches/key
 retained, Gradle daemon stopped, **58 GB free**. No optional tests/lint/review,
 app launch, remote navigation or visual checks; owner verification remains
 pending. No stable release, backend deployment or Phase 5 work.
+
+## Popup return selection, matching submission card and sidebar count — 2026-10-31
+
+The owner confirmed that the ready notification now appeared on Home. Dismiss
+closed it but opened the sidebar at the profile. Page content and the drawer
+now register separate focus-return regions, save their focused child, and use
+the existing row/item restorers. Dismiss/Back/idle timeout transfer focus before
+removing the popup. The app-root fallback that selected the profile is removed;
+disposed page regions are not requested.
+
+Successful movie/TV submissions seed a separate memory-only confirmation in the
+current account state. The former Android success toast is replaced by the same
+poster-led teal card at bottom center: Request sent (Request updated for a pending
+TV edit), Orbitron title, teal year, dark glow and shrinking timer. It lasts six
+seconds, has no focusable actions, and does not acknowledge ready notifications
+or change unread counts. Playback/dialog/keyboard/screensaver/account guards
+apply, and ready updates take precedence. Error/cancel feedback is unchanged.
+
+The Requests count is positioned just above/right of the icon rather than over
+the glyph, for expanded and collapsed navigation. Its existing logic is unchanged:
+unread ready/partial request IDs, per account, with 9+ above nine. My Requests
+clears all; a single popup primary action clears its request, grouped View requests
+clears all. Dismiss/Back/timeout and disabling popups do not clear the count.
+Old ready rows are baselined initially; unavailable/removed requests stop counting.
+
+Owner retest: dismiss on a selected Home card and verify that exact card stays
+selected, submit a movie/show and inspect the bottom confirmation, then check
+the number in the open sidebar and collapsed rail. No visual/device behavior
+is claimed verified by the agent. Phase 5 remains on hold.
+
+Arm64 Alpha **BUILD SUCCESSFUL in 3m 23s**; direct VPS → Shield in-place install
+returned **Success**, exit 0. Accounts/settings and active Alpha caches/key kept;
+Gradle daemon stopped, **58 GB free**. No optional tests/lint/reviews or app launch,
+remote navigation, screenshots or device verification. Owner checks above remain
+pending. No stable release, phone/backend deployment or Phase 5 work.

@@ -27,7 +27,6 @@ import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
-import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -69,6 +68,7 @@ import androidx.tv.material3.NavigationDrawerItemDefaults
 import androidx.tv.material3.NavigationDrawerScope
 import androidx.tv.material3.rememberDrawerState
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
+import com.github.damontecres.wholphin.ui.components.rememberRequestFocus
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 
 /**
@@ -134,7 +134,7 @@ private fun DrawerSheet(
                 if (initializationComplete) {
                     drawerState.setValue(if (it.hasFocus) DrawerValue.Open else DrawerValue.Closed)
                 }
-            }.focusGroup()
+            }.rememberRequestFocus()
 
     // Neon Board: the rail sits 24dp inside the overscan safe area; when expanded it is a
     // 240dp `card` panel with a 1dp `line2` edge and a depth shadow. Stock elsewhere.

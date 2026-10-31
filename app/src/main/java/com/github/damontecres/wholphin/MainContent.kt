@@ -1,9 +1,6 @@
 package com.github.damontecres.wholphin
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.focusGroup
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -133,9 +130,8 @@ fun MainContent(
                                 }
 
                                 if (showContent) {
-                                    val pageFocus = remember(current.user.rowId) { FocusRequester() }
                                     Box(Modifier.fillMaxSize()) {
-                                        Box(Modifier.fillMaxSize().focusRequester(pageFocus).focusGroup()) {
+                                        Box(Modifier.fillMaxSize()) {
                                             CompositionLocalProvider(
                                                 LocalCoachMarkTour provides coachMarkTour.takeIf { BuildConfig.COACH_MARK_TOUR_ENABLED },
                                             ) {
@@ -156,7 +152,6 @@ fun MainContent(
                                             repository = requestStatusRepository,
                                             navigation = navigationManager,
                                             screensaver = screensaverService,
-                                            pageFocus = pageFocus,
                                             ownerRowId = current.user.rowId,
                                             presentationBlocked = BuildConfig.COACH_MARK_TOUR_ENABLED && coachMarkTour.active,
                                         )

@@ -25,6 +25,13 @@ import javax.inject.Singleton
 @Serializable
 data class RequestEvent(val key: String, val requestId: Int, val scopeKey: String? = null)
 
+/** Transient submission feedback; never saved or counted as a ready notification. */
+data class RequestSubmission(
+    val item: RequestStatusItem,
+    val updated: Boolean,
+    val createdAt: Long = android.os.SystemClock.uptimeMillis(),
+)
+
 @Serializable
 data class RequestNotificationStore(
     val enabled: Boolean = true,
@@ -48,6 +55,7 @@ data class RequestsState(
     val error: String? = null,
     val syncComplete: Boolean = false,
     val notifications: RequestNotificationStore = RequestNotificationStore(),
+    val submission: RequestSubmission? = null,
 ) {
     val badgeCount: Int get() = items.count { it.stage.ready && it.request.id in notifications.unread }
 }
@@ -294,14 +302,22 @@ class RequestStatusRepository @Inject constructor(
         return store.copy(initialized = true, awaitingBaseline = (store.awaitingBaseline + if (!store.initialized) items.map { it.request.id } else emptyList()).filterNot { id -> items.any { it.request.id == id && it.fresh } }.toSet() - confirmedGone, baselined = baselined - confirmedGone, seeded = seeded - confirmedGone, delivered = delivered, pending = pending, unread = unread.filter { id -> id !in confirmedGone && byId[id]?.let { !it.fresh || it.stage.ready } != false }.toSet(), downloadObserved = downloads - confirmedGone)
     }
 
-    suspend fun seed(request: MediaRequest, expectedScope: String?, metadata: com.github.damontecres.wholphin.data.model.DiscoverItem? = null) = mutex.withLock {
+    suspend fun seed(request: MediaRequest, expectedScope: String?, metadata: com.github.damontecres.wholphin.data.model.DiscoverItem? = null, updated: Boolean = false) = mutex.withLock {
         val s = session ?: return@withLock
         if (!current(s) || s.key != expectedScope || request.requestedBy?.id != s.current.config.id) return@withLock
         val stage = deriveRequestStage(request)
         val store = _state.value.notifications.let { it.copy(seeded = it.seeded + request.id, baselined = it.baselined - request.id, downloadObserved = if (stage.downloadObserved) it.downloadObserved + request.id else it.downloadObserved) }
         keyValue.save(s.key, store)
-        if (current(s)) _state.update { it.copy(items = listOf(RequestStatusItem(request, stage, metadata)) + it.items.filterNot { it.request.id == request.id }, notifications = store) }
+        if (current(s)) {
+            val item = RequestStatusItem(request, stage, metadata)
+            val submission = RequestSubmission(item, updated)
+            _state.update { it.copy(items = listOf(item) + it.items.filterNot { it.request.id == request.id }, notifications = store, submission = submission) }
+        }
         refresh()
+    }
+
+    fun clearSubmission(submission: RequestSubmission) {
+        _state.update { if (it.submission === submission) it.copy(submission = null) else it }
     }
 
     fun loadMetadata(id: Int) {

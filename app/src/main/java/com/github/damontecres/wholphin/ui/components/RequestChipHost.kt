@@ -19,6 +19,7 @@ import kotlinx.coroutines.delay
 import org.jellyfin.sdk.model.api.BaseItemKind
 
 private const val REQUEST_CHIP_TIMEOUT_MILLIS = 60_000L
+private const val REQUEST_SUBMISSION_TIMEOUT_MILLIS = 6_000L
 
 /** Nonmodal root overlay. Native dialog/window focus is checked in addition to shared dialog tracking. */
 @Composable
@@ -26,7 +27,6 @@ fun BoxScope.RequestChipHost(
     repository: RequestStatusRepository,
     navigation: NavigationManager,
     screensaver: ScreensaverService,
-    pageFocus: FocusRequester,
     ownerRowId: Int,
     presentationBlocked: Boolean = false,
 ) {
@@ -36,10 +36,11 @@ fun BoxScope.RequestChipHost(
     val windowFocused = LocalWindowInfo.current.isWindowFocused
     val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
     val lifecycleState by lifecycle.currentStateFlow.collectAsState()
-    val safe = state.ownerRowId == ownerRowId && state.connected && state.notifications.enabled && windowFocused &&
+    val pageSafe = state.ownerRowId == ownerRowId && state.connected && windowFocused &&
         lifecycleState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) &&
         !navigation.backStack.lastOrNull().isPlayback && !saver.show && !saver.showDim &&
         !ui.textInputActive && ui.dialogs == 0 && !presentationBlocked
+    val safe = pageSafe && state.notifications.enabled
     var events by remember(state.scope) { mutableStateOf<List<RequestEvent>>(emptyList()) }
     var closedKeys by remember(state.scope) { mutableStateOf<Set<String>>(emptySet()) }
     var nextPresentationAt by remember(state.scope) { mutableLongStateOf(0L) }
@@ -52,6 +53,9 @@ fun BoxScope.RequestChipHost(
     var shownAt by remember { mutableLongStateOf(0L) }
     var armed by remember { mutableStateOf(false) }
     var validPress by remember { mutableStateOf(false) }
+    var returnFocus by remember(state.scope) { mutableStateOf<(() -> Boolean)?>(null) }
+    val submission = state.submission
+    var submissionRemaining by remember(submission) { mutableFloatStateOf(1f) }
     val candidates = state.notifications.pending.filter { e -> e.key !in closedKeys && state.items.any { it.request.id == e.requestId && it.fresh && it.eventKey() == e.key } }
 
     LaunchedEffect(safe, state.scope, candidates.map { it.key }) {
@@ -59,29 +63,32 @@ fun BoxScope.RequestChipHost(
     }
 
     fun restore() {
-        if (!runCatching { pageFocus.restoreFocusedChild() }.getOrDefault(false)) pageFocus.tryRequestFocus()
+        // Transfer focus while the chip is still attached, so removing it cannot select the rail.
+        returnFocus?.invoke()
+        returnFocus = null
     }
     fun close(restoreFocus: Boolean = true) {
         if (events.isNotEmpty()) {
             closedKeys = closedKeys + events.map { it.key }
             repository.delivered(events)
         }
+        if (restoreFocus && chipFocused) restore()
+        else returnFocus = null
         events = emptyList()
         displayed = false
-        if (restoreFocus && chipFocused) restore()
     }
     LaunchedEffect(safe, state.scope, candidates.map { it.key }, state.items.filter { row -> events.any { it.requestId == row.request.id } }.map { it.eventKey() to it.fresh }) {
         if (!safe) {
             // Do not consume a chip that was hidden by a dialog, playback, dimming or app stop.
             if (events.isNotEmpty()) {
+                if (chipFocused && windowFocused && lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) && !navigation.backStack.lastOrNull().isPlayback) restore()
                 events = emptyList()
                 displayed = false
-                if (chipFocused && windowFocused && lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) && !navigation.backStack.lastOrNull().isPlayback) restore()
             }
         } else if (events.isEmpty() && candidates.isNotEmpty()) {
             delay(maxOf(500L, nextPresentationAt - SystemClock.uptimeMillis())) // Let navigation settle; back off if focus was temporarily refused.
             events = candidates.toList()
-            runCatching { pageFocus.saveFocusedChild() }
+            returnFocus = ui.focusedRegion?.capture()
             shownAt = SystemClock.uptimeMillis()
             lastInput = shownAt
             remaining = 1f
@@ -89,7 +96,8 @@ fun BoxScope.RequestChipHost(
             validPress = false
             displayed = true
         } else if (events.isNotEmpty() && events.none { e -> state.items.any { it.request.id == e.requestId && it.eventKey() == e.key } }) {
-            events = emptyList(); displayed = false; if (chipFocused) restore()
+            if (chipFocused) restore()
+            events = emptyList(); displayed = false
         }
     }
     LaunchedEffect(displayed, events.map { it.key }) {
@@ -115,6 +123,32 @@ fun BoxScope.RequestChipHost(
         }
     }
     BackHandler(enabled = displayed && chipFocused) { close() }
+    LaunchedEffect(submission) {
+        if (submission != null) {
+            while (true) {
+                val left = (REQUEST_SUBMISSION_TIMEOUT_MILLIS - (SystemClock.uptimeMillis() - submission.createdAt)).coerceAtLeast(0)
+                submissionRemaining = left.toFloat() / REQUEST_SUBMISSION_TIMEOUT_MILLIS
+                if (left == 0L) {
+                    repository.clearSubmission(submission)
+                    break
+                }
+                delay(50)
+            }
+        }
+    }
+    if (submission != null && pageSafe && !displayed) {
+        RequestNotificationCard(
+            rows = listOf(submission.item),
+            eventCount = 1,
+            canWatch = false,
+            firstFocus = null,
+            remaining = { submissionRemaining },
+            onPrimary = {},
+            onDismiss = {},
+            confirmationLabel = if (submission.updated) "Request updated" else "Request sent",
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp, start = 24.dp, end = 24.dp).width(350.dp),
+        )
+    }
     if (displayed && safe && events.isNotEmpty()) {
         val rows = events.mapNotNull { event -> state.items.firstOrNull { it.request.id == event.requestId } }
         val single = rows.singleOrNull().takeIf { events.size == 1 }

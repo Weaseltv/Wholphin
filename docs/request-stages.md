@@ -52,7 +52,7 @@ no matching library ID is known. Cancel acts on the exact owned request.
 
 The nonmodal chip waits for a resumed, focused application window, browsing,
 no screensaver/dimming, no dialog and no focused editable field. It takes primary
-focus after saving the page's focused child, suppresses OK keys pressed before
+focus after saving the focused page/rail region and its child, suppresses OK keys pressed before
 its 700 ms guard, and restores focus on dismissal/Back/one minute without input.
 The top-center poster card uses the owner's teal status pill, Orbitron title,
 smaller teal year, filled primary action and outlined Dismiss button. Its thin
@@ -60,6 +60,25 @@ bottom bar shows the remaining minute and resets with remote input.
 Pending events are acknowledged on dismissal, activation or a visible timeout; an unsafe interruption leaves them pending for the next safe moment. Multiple updates form one
 chip. Per-account Settings → More → Request notifications defaults on; the
 Requests badge remains the fallback to ready updates.
+
+Dismissal restores the saved region before the chip is removed; it never falls
+back to requesting the whole app, whose first target is the profile button.
+The page and rail have separate restorers, with the existing row/item restorers
+preserving the selected item. Disposed regions are never requested again.
+
+A successful locally submitted request seeds a separate, memory-only confirmation
+in the account state. Request sent / Request updated uses the same poster card
+at bottom center for six seconds, without actions or focus acquisition. The
+ready-popup preference does not disable submission feedback. Normal presentation
+guards still apply; a ready popup takes precedence and expired confirmations do
+not replay. Submission does not acknowledge availability events or change badges.
+
+The Requests badge sits above/right of the icon in expanded/collapsed navigation.
+It counts unread request IDs with ready/partial stages, independently of the popup
+setting. My Requests clears all unread IDs; a single chip primary action clears
+that ID, while a grouped View requests action clears all. Dismiss, Back and timeout
+acknowledge the popup without clearing unread IDs. A no-longer-ready/confirmed-gone
+request stops contributing. State is durable per account, with a 9+ display cap.
 
 No separate backend account/password is required: use the existing website SSO
 and silent request-service Quick Connect path. Session expiry uses one separately
