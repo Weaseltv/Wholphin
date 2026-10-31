@@ -162,7 +162,7 @@ class RequestProgressRepository @Inject constructor(
         override fun hashCode(): Int = System.identityHashCode(current) * 31 + System.identityHashCode(client)
     }
     private data class Selection(val capture: Capture?, val restart: Long)
-    private data class Result(val code: Int = 0, val retry: Long = 0, val unsupported: Boolean = false, val snapshotRecovered: Boolean = false)
+    private data class Result(val code: Int = 0, val retry: Long = 0, val unsupported: Boolean = false)
     private sealed interface StreamMessage {
         data class Event(val type: String?, val data: String) : StreamMessage
         data class End(val result: Result) : StreamMessage
@@ -272,6 +272,8 @@ class RequestProgressRepository @Inject constructor(
         // the shared cursor without an older queued stream event overwriting it.
         val messages = Channel<StreamMessage>(64)
         val cursor = Cursor()
+        var auditFailures = 0
+        var nextAuditAt = 0L
         fun offer(message: StreamMessage) {
             if (!messages.trySend(message).isSuccess) messages.close()
         }
@@ -288,30 +290,32 @@ class RequestProgressRepository @Inject constructor(
         })
         try {
             while (currentCoroutineContext().isActive && current(c, token)) {
-                val wait = if (!cursor.snapshot) 15_000L else PROGRESS_REFRESH_INTERVAL_MS
+                val wait = if (!cursor.snapshot) 15_000L else maxOf(PROGRESS_REFRESH_INTERVAL_MS, nextAuditAt - SystemClock.uptimeMillis())
                 val incoming = withTimeoutOrNull(wait) { messages.receiveCatching() }
                 if (incoming == null) {
                     if (!cursor.snapshot) return@withContext Result()
                     // Heartbeats prove only that the socket is open. On a quiet stream,
                     // check the service's shared JSON cache at a one-second cadence.
-                    val before = _state.value.records
                     val auditCursor = Cursor()
                     val result = snapshot(c, token, onRecord, onDeleted, auditCursor, ProgressMode.LIVE)
-                    if (result.code != 200) return@withContext result
+                    if (result.code in setOf(401, 403)) return@withContext result
+                    if (result.code != 200) {
+                        // A failed backup read does not mean the live socket failed.
+                        // Back off audits while continuing to receive live messages.
+                        auditFailures = (auditFailures + 1).coerceAtMost(6)
+                        nextAuditAt = SystemClock.uptimeMillis() + maxOf(backoff(auditFailures), result.retry, if (result.unsupported) 60_000L else 0L)
+                        publish(c, token) { it.copy(transportStale = true) }
+                        continue
+                    }
+                    auditFailures = 0
+                    nextAuditAt = 0
                     if (!auditCursor.snapshot) continue
                     cursor.boot = auditCursor.boot
                     cursor.rev = auditCursor.rev
                     cursor.snapshot = true
                     cursor.paused = false
-                    val after = _state.value.records
-                    val missedChange = before.keys != after.keys || after.any { (id, row) ->
-                        before[id]?.copy(observedAt = row.observedAt, updatedAt = row.updatedAt) != row
-                    }
-                    if (missedChange) {
-                        Timber.w("Request progress: quiet stream missed a cached change; using automatic snapshots")
-                        publish(c, token) { it.copy(mode = ProgressMode.POLLING) }
-                        return@withContext Result(code = 200, snapshotRecovered = true)
-                    }
+                    // A snapshot can win a normal race with the next live event. Keep
+                    // the socket open; the advanced cursor rejects older queued events.
                     continue
                 }
                 val message = incoming.getOrNull() ?: return@withContext Result()
@@ -405,13 +409,7 @@ class RequestProgressRepository @Inject constructor(
                 }
                 continue
             }
-            if (wasStream && result.snapshotRecovered) {
-                // The cached snapshot has already repaired the display. Keep it fresh
-                // without repeatedly reopening a stream known to have missed changes.
-                nextStream = SystemClock.uptimeMillis() + 60_000
-                useStream = false
-                delay(PROGRESS_REFRESH_INTERVAL_MS)
-            } else if (wasStream) {
+            if (wasStream) {
                 streamFailures = (streamFailures + 1).coerceAtMost(6)
                 nextStream = SystemClock.uptimeMillis() + maxOf(backoff(streamFailures), result.retry)
                 publish(c, token) { it.copy(mode = ProgressMode.RECONNECTING, transportStale = true) }

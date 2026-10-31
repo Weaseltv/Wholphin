@@ -28,9 +28,11 @@ by the infrastructure agent. No production routing was changed from this thread.
 - A stream delivering events needs no snapshot polling. If it goes quiet,
   audit the service's shared JSON cache after 1 second, regardless of stage.
   Heartbeats alone do not prove request updates arrive.
-  An audit that finds missed changes repairs the display and switches to JSON
-  polling for a minute before retrying the stream. These are cached progress
-  reads, not direct calls to Seerr or the downloaders. If streaming fails but JSON
+  An audit merges newer data without closing the stream. Its cursor advances so
+  older queued events cannot undo that snapshot. A failed backup read backs off
+  independently and leaves the stream open; an authentication denial still
+  invokes the guarded recovery path. These are cached progress reads, not direct
+  calls to Seerr or the downloaders. If streaming fails but JSON
   works, poll the cached endpoint every second while My Requests is visible, with
   separate bounded stream retries. Failures use 2/4/8/.../60-second backoff,
   jitter and Retry-After. Unsupported routes are retried slowly so the same
@@ -88,18 +90,20 @@ Build/install success alone is not authenticated end-to-end verification.
 
 ## Recovery after the first owner trial — 2026-10-31
 
-The owner reported that **Ernest Scared Stupid (1991)** downloaded/imported
-while My Requests showed **Live updates**, with no corresponding screen changes.
-That verifies an initial signed-in snapshot, not delivery of subsequent changes.
-The failing request's server event payloads have not been captured, so the exact
-cause of this trial remains unconfirmed.
+The owner clarified that **Ernest Scared Stupid (1991)** did show the later TV
+stages; only Downloading was missing. The earlier interpretation that all TV
+progress stayed frozen was incorrect. The operator traced the missing stage to
+a 38-second torrent completing before Radarr's queue exposed its mapping, and
+reported deploying a grab-history matching fix (41/41 checks passed). Those are
+operator-reported results, not independently reproduced here.
 
 The recovery Alpha accepts finite nonnegative JSON numbers for bytes remaining
 and ETA, including fractions that the original Long fields rejected. ETA is
 rounded only for display. SSE events and quiet-stream snapshot audits apply
 through one serialized owner/cursor so older queued messages cannot undo a fresh
-snapshot. A changed audit switches to a one-second automatic fallback;
-there is no Refresh requirement. Logs identify rejected event types and recovery
+snapshot. This first recovery build switched to one-second automatic fallback
+when an audit was newer; the stream-race correction below supersedes that policy.
+There is no Refresh requirement. Logs identify rejected event types and recovery
 without recording payloads, parser exception text, cookies or account identities.
 
 The owner rejected reusing the spec's original 3s/10s fallback values for this
@@ -111,9 +115,31 @@ outage. The first build with the old timings was stopped before installation.
 The one-second recovery Alpha built successfully in **4m 32s** and installed
 directly on the Shield from srv1160496: **ADB Success, exit 0**. No app launch,
 device navigation, session extraction or optional tests were performed. The
-operator's stage log and sanitized progress record for the reported title were
-requested through the owner to continue the incident diagnosis; this delivery
-does not claim that title's end-to-end failure has been reproduced or resolved.
+operator's later log and the owner's clarification identify a missing Downloading
+stage, not a complete TV delivery failure. Real-download verification remains
+with the owner/operator.
+
+## Keep the stream open during cached recovery — 2026-10-31
+
+The Fly II recording and operator connection log showed roughly one minute of
+fallback after the live stream disconnected. The first recovery build treated
+a cached snapshot arriving ahead of its live event as a stream failure, closed
+the socket and imposed a 60-second retry delay. A normal timing race could
+therefore disconnect a healthy stream.
+
+The TV now applies the newer snapshot and advances the shared revision cursor
+while keeping the stream open. This removes the snapshot-triggered disconnect
+and its one-minute cooldown. Backup-read failures back off independently without
+closing the live stream. Real stream failures still use automatic one-second
+cached fallback with bounded reconnect/backoff; account/lifecycle cancellation
+and genuine authentication denial still end the connection. The Unraid-owned
+status regression and Jellyfin ingestion investigation are separate work.
+
+The corrected arm64 Alpha built successfully in **2m 4s** and installed directly
+from srv1160496 on the Shield: **ADB Success, exit 0**. No app/device navigation,
+optional tests or production changes were performed. The owner verifies live
+connection continuity on the next request; installation success is not a claim
+of a reproduced end-to-end streaming test.
 
 ## Delivery record — 2026-10-31
 
