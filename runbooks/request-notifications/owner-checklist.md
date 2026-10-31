@@ -34,6 +34,8 @@ real ready/failed/4K payload substitutions were not proven by that Test.
 
 ## Phases 1–2 — Shield Alpha
 
+- [ ] **Default selection:** open Requests → Search from the side menu. Voice
+  to search is selected first when voice search is enabled/available.
 - [ ] **Submit Search:** press Search on the on-screen keyboard. The keyboard
   closes and the first result is selected when results arrive. An empty result
   or error leaves Search usable; typing alone must not move focus away.

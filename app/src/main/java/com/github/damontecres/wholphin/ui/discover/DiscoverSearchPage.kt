@@ -152,6 +152,7 @@ fun DiscoverSearchPage(
     var submittedResults by remember { mutableIntStateOf(0) }
     val gridFocusRequester = remember { FocusRequester() }
     val textFieldFocusRequester = remember { FocusRequester() }
+    val voiceFocusRequester = remember { FocusRequester() }
 
     // Start with current preferences, but collect updates when view options change
     val prefs =
@@ -204,9 +205,10 @@ fun DiscoverSearchPage(
         }
     }
     LaunchedEffect(Unit) {
+        withFrameNanos { }
         if (position >= 0) {
             gridFocusRequester.tryRequestFocus("grid")
-        } else {
+        } else if (!prefs.showVoiceSearchButton || !voiceFocusRequester.tryRequestFocus("voice search")) {
             textFieldFocusRequester.tryRequestFocus("textField")
         }
     }
@@ -254,7 +256,7 @@ fun DiscoverSearchPage(
                             triggerImmediateSearch(spokenText)
                         },
                         voiceInputManager = viewModel.voiceInputManager,
-                        modifier = Modifier.padding(end = 12.dp),
+                        modifier = Modifier.padding(end = 12.dp).focusRequester(voiceFocusRequester),
                     )
                 }
 

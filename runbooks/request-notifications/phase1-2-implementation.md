@@ -255,3 +255,18 @@ delivery from Home; neither is claimed verified by installation. No optional
 tests/lint/review, screenshots, app launch or remote navigation. Gradle daemon
 stopped, active Alpha caches/key retained, **58 GB free**. No stable release,
 phone/backend deployment or Phase 5 work.
+
+## Requests Search defaults to voice selection — 2026-10-31
+
+The owner requested Voice to search as the default highlighted control when
+opening Requests Search from the side menu. A dedicated requester now selects
+the voice button after its first layout frame. Hidden/unavailable voice search
+falls back to the text field. Existing result-position restoration on return
+from title details and first-result selection after explicit submission remain.
+Selection does not invoke recording; the existing voice activation stays on OK.
+
+Arm64 Alpha **BUILD SUCCESSFUL in 1m 55s**; direct VPS → Shield in-place install
+returned **Success**, exit 0. Saved accounts/settings and active caches/key
+retained, Gradle daemon stopped, **58 GB free**. No optional tests/lint/review,
+app launch, remote navigation or visual checks; owner verification remains
+pending. No stable release, backend deployment or Phase 5 work.
