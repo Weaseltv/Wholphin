@@ -54,9 +54,12 @@ The nonmodal chip waits for a resumed, focused application window, browsing,
 no screensaver/dimming, no dialog and no focused editable field. It takes primary
 focus after saving the focused page/rail region and its child, suppresses OK keys pressed before
 its 700 ms guard, and restores focus on dismissal/Back/one minute without input.
-The top-center poster card uses the owner's teal status pill, Orbitron title,
-smaller teal year, filled primary action and outlined Dismiss button. Its thin
-bottom bar shows the remaining minute and resets with remote input.
+The top-center poster card is flat and square, with a one-pixel Requests-teal
+border and solid teal left stripe. Its uppercase title uses Audiowide; status,
+separate year/type line, copy and buttons use Exo 2. Only the selected Watch now
+button glows; the card, poster and Dismiss remain square without glow. The
+instruction is "Your request is ready." without OK/Back hints. The thin solid
+teal bottom bar shows the remaining minute and resets with remote input.
 Pending events are acknowledged on dismissal, activation or a visible timeout; an unsafe interruption leaves them pending for the next safe moment. Multiple updates form one
 chip. Per-account Settings → More → Request notifications defaults on; the
 Requests badge remains the fallback to ready updates.

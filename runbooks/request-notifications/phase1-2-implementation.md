@@ -305,3 +305,29 @@ returned **Success**, exit 0. Accounts/settings and active Alpha caches/key kept
 Gradle daemon stopped, **58 GB free**. No optional tests/lint/reviews or app launch,
 remote navigation, screenshots or device verification. Owner checks above remain
 pending. No stable release, phone/backend deployment or Phase 5 work.
+
+## Flat square notification card — 2026-10-31
+
+Implemented the owner's replacement mockup in the shared notification card:
+uppercase Audiowide title and explicit Exo 2 for all supporting text, square
+poster/card/buttons, flat dark background, one-physical-pixel Requests-teal
+border and a solid teal left stripe. The year and Movie/TV series type move to
+a separate muted line; request quality is retained. Status is a teal uppercase
+label, with no pill or icon. Copy no longer contains OK/Back instructions.
+Only the selected Watch now action glows; Dismiss and the card have no glow.
+The timer is a thin solid Requests-teal bar, without the former lime gradient.
+
+The ready card stays top center, now 360dp wide to follow the supplied layout;
+the shared bottom submission confirmation uses the same styling. Existing
+one-minute ready idle timeout, six-second confirmation timeout, action handling,
+700ms input guard and previously verified selection restoration are preserved.
+No new image assets or fonts are needed: Audiowide and Exo 2 already ship.
+Owner visual verification follows the Alpha install; no agent app navigation,
+screenshots or visual/device checks are performed.
+
+Arm64 Alpha **BUILD SUCCESSFUL in 2m 54s**; direct Hostinger T3 worker → Shield
+in-place installation returned **Success**, exit 0. Accounts/settings and active
+Alpha caches/key retained; Gradle daemon stopped, **57 GB free**. No optional
+tests, lint, formatting suites, extra reviews, screenshots or device/app
+verification. Owner visual check remains pending. No stable release or production
+service/routing changes.
