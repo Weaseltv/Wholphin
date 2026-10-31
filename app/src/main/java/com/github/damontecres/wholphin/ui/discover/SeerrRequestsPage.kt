@@ -1,6 +1,8 @@
 package com.github.damontecres.wholphin.ui.discover
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -20,8 +22,10 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import com.github.damontecres.wholphin.services.*
+import com.github.damontecres.wholphin.ui.components.keepTitledRowVisible
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.tryRequestFocus
+import com.github.damontecres.wholphin.ui.util.KeepVisibleBringIntoViewSpec
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -62,6 +66,7 @@ private fun RequestStatusItem.section(): Int = when {
 }
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 fun SeerrRequestsPage(
     focusRequesterOnEmpty: FocusRequester?,
     positionCallback: (columns: Int, position: Int) -> Unit,
@@ -84,7 +89,7 @@ fun SeerrRequestsPage(
     LaunchedEffect(items.map { it.request.id }, focusRequestId, state.scope) {
         if (!focusHandled && items.isNotEmpty()) {
             val index = items.indexOfFirst { it.request.id == focusRequestId }.takeIf { it >= 0 } ?: if (focusRequestId == null) 0 else return@LaunchedEffect
-            list.scrollToItem(index + 1)
+            list.scrollToItem(if (index == 0) 0 else index + 1)
             withFrameNanos { }
             focusHandled = requesters[items[index].request.id]?.tryRequestFocus() == true
         } else if (items.isEmpty() && !state.loading) { if (focusRequesterOnEmpty?.tryRequestFocus() != true) refreshFocus.tryRequestFocus() }
@@ -96,7 +101,8 @@ fun SeerrRequestsPage(
         }
         (viewModel.actionError ?: state.error)?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(vertical = 8.dp)) }
         if (!state.connected) Text("Requests are reconnecting. Your last update is kept here.", modifier = Modifier.padding(12.dp))
-        LazyColumn(state = list, contentPadding = PaddingValues(vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxSize()) {
+        CompositionLocalProvider(LocalBringIntoViewSpec provides KeepVisibleBringIntoViewSpec) {
+        LazyColumn(state = list, contentPadding = PaddingValues(vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth().weight(1f)) {
             item("top") { if (items.isEmpty() && !state.loading) Text(
                 if (state.lastUpdated != null && state.syncComplete && state.error == null && state.connected) {
                     if (state.items.isEmpty()) "You haven't requested anything yet. Find a title in Search to get started." else "No recent requests. Older completed requests are hidden."
@@ -104,7 +110,8 @@ fun SeerrRequestsPage(
             ) }
             itemsIndexed(items, key = { _, row -> row.request.id }) { index, row ->
                 LaunchedEffect(row.request.id, state.lastUpdated) { viewModel.requests.loadMetadata(row.request.id) }
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Reveal the section heading and full card, rather than centering only its action button.
+                Column(modifier = Modifier.keepTitledRowVisible(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (index == 0 || items[index - 1].section() != row.section()) {
                         Text(listOf("Ready", "In progress", "Needs attention")[row.section()], style = MaterialTheme.typography.headlineSmall)
                     }
@@ -129,6 +136,7 @@ fun SeerrRequestsPage(
                     }
                 }
             }
+        }
         }
     }
 }

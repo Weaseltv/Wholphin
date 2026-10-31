@@ -139,3 +139,22 @@ or authentication retry was added.
 - No optional tests, lint, review or device navigation/visual checks. Owner
   verification remains pending. Alpha incremental files and signing key retained;
   **58 GB free** after the build. No stable release or deployment.
+
+## My Requests heading visibility — 2026-10-31
+
+The owner's screenshot showed Ready clipped beneath Refresh while Watch now
+was focused. My Requests now uses keep-visible scrolling with the existing
+complete-row focus bounds, so a section heading and its card form one scroll
+target instead of only the inner action button. Initial focus on the first card
+retains the top inset; the list explicitly occupies the remaining height below
+the toolbar.
+
+Arm64 Alpha **BUILD SUCCESSFUL in 2m 4s** and direct VPS → Shield in-place install
+returned **Success**, exit 0. No rebuild of other variants, optional tests/lint,
+extra review, app navigation or device/visual checks. Owner verification remains
+pending. Alpha incremental files and signing key retained, Gradle daemon stopped,
+and **58 GB free** after the build. No stable release or backend deployment.
+
+The requested Phase 0–4 owner checklist is in `owner-checklist.md` and the
+existing Notion feature. Phone checks require the branch test build; backend
+integration remains gated, and phone system pushes require Phase 5.

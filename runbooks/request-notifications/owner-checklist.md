@@ -1,0 +1,140 @@
+# Request notifications: owner checklist for phases 0–4
+
+Prepared 2026-10-31. Check items only after observing them on the relevant device.
+The original implementation reviews and automated checks do not replace these
+owner checks. This checklist does not authorize deployment or backend changes.
+
+## What is available
+
+| Phase | What it covers | Where to test |
+| --- | --- | --- |
+| 0 | Discovery of account, status/progress and webhook behavior | Foundation checks below; genuine webhook substitutions remain a rollout check |
+| 1–2 | TV My Requests, status, chips and badge | WeaselPlex Alpha on the Shield |
+| 3 | Phone My requests and foreground banners | PR #172 build after Check TestFlight / an appropriate Android test build; not included in the Shield APK |
+| 4 | Backend webhook/device registry and push worker | PR #243 is undeployed; both process flags default off. Agent-assisted checks after separately authorized rollout |
+
+Phone background/system push notifications require phase 5. Discord cutover is
+phase 6. Neither is something to expect from this Shield Alpha or the phase 3
+phone changes.
+
+## Phase 0 foundations — observe during ordinary app use
+
+- [ ] Sign in/pair through the normal website account. Requests should connect
+  silently, without a separate Jellyfin or Seerr account/password prompt.
+- [ ] Use an ordinary member account as well as the owner account, if available.
+  My Requests contains only that person's requests. Switching people must not
+  expose the previous person's list, badge or notification. Kid profiles keep
+  Requests unavailable.
+- [ ] Observe a genuine active download if one occurs: progress appears only
+  when actual byte counts exist. No bar/ETA is also valid. An empty queue must
+  not become a false "not found on an index" or failure message.
+
+Phase 0 discovery is complete. A temporary webhook Test was already checked;
+real ready/failed/4K payload substitutions were not proven by that Test.
+
+## Phases 1–2 — Shield Alpha
+
+- [ ] **Layout and navigation:** open My Requests; focus Watch now, Details and
+  Refresh; move through Ready / In progress / Needs attention and back to the
+  first card. Each focused card and its section heading should remain readable,
+  including long/wrapped titles. Try returning from Search and a title page.
+- [ ] **New movie request:** request a title missing from the library. Success
+  opens My Requests with that exact request focused. Reopen the page and check
+  its title/poster/year, date and status. A failed submission must not appear as
+  a successful request.
+- [ ] **TV request:** choose specific seasons. Only those requested seasons
+  determine readiness; another season already in the library is insufficient.
+  Partial availability shows Some episodes ready; all requested seasons must be
+  available before Ready to watch. Add/edit seasons while pending if permitted.
+- [ ] **Stages and refresh:** Refresh updates the timestamp/status. Watch a real
+  request progress through the stages the server actually supplies: waiting,
+  downloading, adding, ready. Approved requests with no queue data can correctly
+  remain Waiting for your library. A future movie may show Not out yet.
+- [ ] **Watch now / quality:** a ready request opens the correct library title
+  and it can play. If you use both HD and 4K, check both independently; the app
+  must not substitute the other quality. Details is the fallback when no exact
+  library ID is known.
+- [ ] **Cancellation:** if an owned request is still pending, Cancel request
+  removes that exact request immediately. Approved/completed requests must not
+  offer Cancel. An auto-approved account may have no pending request to test.
+- [ ] **Ready notification and badge:** leave My Requests and browse Home while
+  a new request becomes ready. A chip should appear with Watch now or Details;
+  the ready count should also show on the collapsed Requests icon. Opening
+  My Requests clears its unread count.
+- [ ] **Chip controls:** test its primary action, Dismiss, Back and about 15
+  seconds with no input. Dismiss/Back returns focus to the page. Holding OK as
+  the chip appears must not accidentally activate it. Several updates should
+  batch rather than stack separate popups.
+- [ ] **Safe timing:** while an update is expected, try playback, a dialog,
+  typing in Search, the screensaver or the tour. Chips wait for safe browsing;
+  interrupting a visible chip must not silently lose that update.
+- [ ] **Restart and wake:** dismiss an update, restart Alpha and confirm it
+  does not replay. Let another tracked request finish while Alpha is closed;
+  reopening should catch up. Sleep/wake and temporary internet loss should
+  recover, preserving the last known status instead of inventing failure.
+- [ ] **Notifications setting:** Settings → More → Request notifications off
+  suppresses chips while My Requests still works. Turn it back on: updates
+  suppressed while off should not all flood the screen. The setting is per
+  request account.
+- [ ] **Failure/decline, when naturally available:** a genuinely failed or
+  declined request belongs in Needs attention and can generate an update. Do
+  not deliberately break downloads or remove library titles just for this check.
+
+Updates are polled, not instant: My Requests / active download polling is about
+one minute; other pending work can take five minutes. Library indexing has its
+own delay. Old terminal cards are hidden after 30 days unless opened as a
+specific request. Existing completed requests should not flood the screen on
+initial setup.
+
+## Phase 3 — phones, once the branch build is available
+
+[Draft phone PR #172](https://github.com/Weaseltv/streamyfin/pull/172) still needs
+Check TestFlight and owner iPhone approval before merge. Repeat on Android when
+its test build is available.
+
+- [ ] Repeat movie/season submission, exact-card navigation/highlight, stages,
+  quality-specific Watch now, refresh and owned pending cancellation. Phone
+  cancellation includes confirmation.
+- [ ] A new update shows one in-app banner during browsing. View requests opens
+  My requests; Dismiss closes it. A banner must never change tabs by itself.
+- [ ] Playback, a dialog/request sheet, keyboard, sign-in or backgrounding hides
+  the banner. Resume catches up; reopening does not replay consumed updates.
+- [ ] Switch people and notification preferences: no previous person's request
+  data/banner, and no flood after re-enabling notifications. Sign-in continues
+  using the website-linked session.
+- [ ] The existing Recent requests slide still works; the owner/admin can still
+  see its server-wide recent activity and download information there. This is
+  separate from the personal My requests list.
+
+These are foreground in-app banners. Lock-screen/background pushes are not
+implemented by phase 3.
+
+## Phase 4 — agent-assisted integration after authorized deployment
+
+[Draft backend PR #243](https://github.com/Weaseltv/weaseltv-platform/pull/243)
+has not been deployed. Follow its phase4.md rollout order; keep the worker off
+until phase 5 client registration/recipient guards and device checks are done.
+
+- [ ] Enable ingestion only in the approved rollout. Seerr Test is accepted,
+  stored as ignored and produces no customer notification. Use the frozen
+  template, exact Bearer header and event mask 88.
+- [ ] Observe authorized genuine movie-ready, requested-TV-season-ready and
+  failed/declined payloads, plus 4K when available. Request ID, recipient UUID,
+  media and quality must match; unsafe overall-series approval events must not
+  announce requested seasons as ready.
+- [ ] Verify duplicate events do not create duplicate deliveries, other users
+  cannot register/delete someone else's devices, and token rotation/account
+  switching prevents delivery to the old binding.
+- [ ] Verify delayed events older than 24 hours are not sent, queue outages
+  recover without a backlog flood or duplicate unrelated emails, and ambiguous
+  sends are not blindly retried.
+- [ ] After phase 5 is complete and delivery is explicitly enabled, check real
+  owner-device delivery, Expo receipts and removal/disable of invalid tokens.
+  Until then, absence of a phone system push is expected.
+
+Leave Discord notifications unchanged through these checks; switching them off
+is a separately approved phase 6 action.
+
+For a useful bug report, note the device, request title and quality, selected TV
+seasons, action, approximate time and actual result. Screenshots help with
+layout issues. Do not include passwords, tokens or webhook secrets.
