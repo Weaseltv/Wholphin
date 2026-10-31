@@ -45,6 +45,19 @@ pinned server normalized to `weaselplex`. Initialization is durable: existing
 terminal rows are baselined, newly submitted local rows are exempt. Polling,
 not phone push, is the only TV event source in these phases.
 
+TV popup presentation groups all partial signatures for the same account, request
+and quality into one milestone: one Some episodes ready alert, then a separate
+Ready to watch alert when all requested seasons are available. Season signatures
+still update the row and portable event key; a refresh, restart or a season moving
+from partial to full does not repeat an acknowledged partial popup or re-add its
+unread badge. Existing delivered keys are grouped too, so dismissals made before
+this change remain effective. Pending partial signatures are replaced in place;
+an on-screen partial chip keeps its timer/focus, and dismissal acknowledges a
+newer pending signature if one arrived during the chip. Account/quality isolation
+and distinct failure/full-ready alerts remain. The phone presentation/Phase 5
+push claim must adopt the same grouping before push rollout; the portable stage
+fixture and event-key format are unchanged.
+
 UI: Search / My Requests. My Requests has Ready, In progress and Needs attention,
 refresh, update age, title/year/poster, stage, bytes progress/ETA and requested
 date. Watch now opens the matching-quality library title; Details remains when

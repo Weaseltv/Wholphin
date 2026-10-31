@@ -61,9 +61,15 @@ fun BoxScope.RequestChipHost(
     var returnFocus by remember(state.scope) { mutableStateOf<(() -> Boolean)?>(null) }
     val submission = state.submission
     var submissionRemaining by remember(submission) { mutableFloatStateOf(1f) }
-    val candidates = state.notifications.pending.filter { e -> e.key !in closedKeys && state.items.any { it.request.id == e.requestId && it.fresh && it.eventKey() == e.key } }
+    val deliveredKeys = remember(state.notifications.delivered) {
+        state.notifications.delivered.mapTo(mutableSetOf()) { it.requestPresentationKey() }
+    }
+    val candidates = state.notifications.pending.filter { e ->
+        e.presentationKey() !in closedKeys && e.presentationKey() !in deliveredKeys &&
+            state.items.any { it.request.id == e.requestId && it.fresh && it.eventKey()?.requestPresentationKey() == e.presentationKey() }
+    }
 
-    LaunchedEffect(safe, state.scope, candidates.map { it.key }) {
+    LaunchedEffect(safe, state.scope, candidates.map { it.presentationKey() }) {
         if (safe) candidates.forEach { repository.loadMetadata(it.requestId) }
     }
 
@@ -74,7 +80,7 @@ fun BoxScope.RequestChipHost(
     }
     fun close(restoreFocus: Boolean = true) {
         if (events.isNotEmpty()) {
-            closedKeys = closedKeys + events.map { it.key }
+            closedKeys = closedKeys + events.map { it.presentationKey() }
             repository.delivered(events)
         }
         if (restoreFocus && chipFocused) restore()
@@ -82,7 +88,7 @@ fun BoxScope.RequestChipHost(
         events = emptyList()
         displayed = false
     }
-    LaunchedEffect(safe, state.scope, candidates.map { it.key }, state.items.filter { row -> events.any { it.requestId == row.request.id } }.map { it.eventKey() to it.fresh }) {
+    LaunchedEffect(safe, state.scope, candidates.map { it.presentationKey() }, state.items.filter { row -> events.any { it.requestId == row.request.id } }.map { it.eventKey() to it.fresh }) {
         if (!safe) {
             // Do not consume a chip that was hidden by a dialog, playback, dimming or app stop.
             if (events.isNotEmpty()) {
@@ -100,7 +106,7 @@ fun BoxScope.RequestChipHost(
             armed = false
             validPress = false
             displayed = true
-        } else if (events.isNotEmpty() && events.none { e -> state.items.any { it.request.id == e.requestId && it.eventKey() == e.key } }) {
+        } else if (events.isNotEmpty() && events.none { e -> state.items.any { it.request.id == e.requestId && it.eventKey()?.requestPresentationKey() == e.presentationKey() } }) {
             if (chipFocused) restore()
             events = emptyList(); displayed = false
         }

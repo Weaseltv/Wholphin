@@ -25,6 +25,16 @@ import javax.inject.Singleton
 @Serializable
 data class RequestEvent(val key: String, val requestId: Int, val scopeKey: String? = null)
 
+/** Season signatures can change without a new user-facing milestone. Keep the wire key intact. */
+internal fun String.requestPresentationKey(): String {
+    val parts = split('|', limit = 5)
+    return if (parts.size == 5 && parts[0] == "v1" && parts[3] == "partial") {
+        parts.take(4).joinToString("|")
+    } else this
+}
+
+internal fun RequestEvent.presentationKey(): String = key.requestPresentationKey()
+
 /** Transient submission feedback; never saved or counted as a ready notification. */
 data class RequestSubmission(
     val item: RequestStatusItem,
@@ -384,6 +394,9 @@ class RequestStatusRepository @Inject constructor(
     private fun trackEvents(store: RequestNotificationStore, items: List<RequestStatusItem>, scopeKey: String, confirmedGone: Set<Int>): RequestNotificationStore {
         val baselined = store.baselined.toMutableSet()
         val delivered = store.delivered.toMutableSet()
+        // Includes legacy acknowledgements: an already dismissed partial season signature
+        // suppresses later partial signatures for this request and quality after an upgrade.
+        val deliveredPresentations = delivered.mapTo(mutableSetOf()) { it.requestPresentationKey() }
         val pending = store.pending.toMutableList()
         val unread = store.unread.toMutableSet()
         val seeded = store.seeded.toMutableSet()
@@ -392,18 +405,32 @@ class RequestStatusRepository @Inject constructor(
             val id = item.request.id
             if (item.stage.terminal) downloads.remove(id) else if (item.stage.downloadObserved) downloads.add(id)
             val event = item.eventKey()
+            val presentation = event?.requestPresentationKey()
             if ((!store.initialized || id in store.awaitingBaseline) && id !in seeded) {
-                if (event != null) delivered.add(event)
-            } else if (event != null && event !in delivered && pending.none { it.key == event }) {
-                pending.removeAll { it.requestId == id }
-                if (store.enabled) pending.add(RequestEvent(event, id, scopeKey)) else delivered.add(event)
-                if (item.stage.ready && !myRequestsVisible) unread.add(id)
+                if (event != null) { delivered.add(event); deliveredPresentations.add(event.requestPresentationKey()) }
+            } else if (event != null && presentation != null) {
+                if (presentation in deliveredPresentations) {
+                    pending.removeAll { it.presentationKey() == presentation }
+                } else {
+                    val existing = pending.indexOfFirst { it.presentationKey() == presentation }
+                    if (existing >= 0) {
+                        // Keep one pending milestone current without restarting an on-screen chip.
+                        pending[existing] = RequestEvent(event, id, scopeKey)
+                    } else {
+                        pending.removeAll { it.requestId == id }
+                        if (store.enabled) pending.add(RequestEvent(event, id, scopeKey)) else {
+                            delivered.add(event)
+                            deliveredPresentations.add(presentation)
+                        }
+                        if (item.stage.ready && !myRequestsVisible) unread.add(id)
+                    }
+                }
             }
             baselined.add(id)
             seeded.remove(id)
         }
         val byId = items.associateBy { it.request.id }
-        pending.removeAll { event -> byId[event.requestId]?.let { it.fresh && it.eventKey() != event.key } == true || event.requestId in confirmedGone }
+        pending.removeAll { event -> byId[event.requestId]?.let { it.fresh && it.eventKey()?.requestPresentationKey() != event.presentationKey() } == true || event.requestId in confirmedGone }
         return store.copy(initialized = true, awaitingBaseline = (store.awaitingBaseline + if (!store.initialized) items.map { it.request.id } else emptyList()).filterNot { id -> items.any { it.request.id == id && it.fresh } }.toSet() - confirmedGone, baselined = baselined - confirmedGone, seeded = seeded - confirmedGone, delivered = delivered, pending = pending, unread = unread.filter { id -> id !in confirmedGone && byId[id]?.let { !it.fresh || it.stage.ready } != false }.toSet(), downloadObserved = downloads - confirmedGone)
     }
 
@@ -462,7 +489,9 @@ class RequestStatusRepository @Inject constructor(
         it.copy(enabled = enabled, delivered = if (enabled) it.delivered else it.delivered + it.pending.map { e -> e.key }, pending = if (enabled) it.pending else emptyList())
     }
     fun delivered(events: List<RequestEvent>) = changeStore(events.firstOrNull()?.scopeKey) { store ->
-        store.copy(delivered = store.delivered + events.map { it.key }, pending = store.pending.filterNot { p -> events.any { it.key == p.key } })
+        val presentations = events.mapTo(mutableSetOf()) { it.presentationKey() }
+        val acknowledged = events.map { it.key } + store.pending.filter { it.presentationKey() in presentations }.map { it.key }
+        store.copy(delivered = store.delivered + acknowledged, pending = store.pending.filterNot { it.presentationKey() in presentations })
     }
     private suspend fun readStore(key: String): RequestNotificationStore = try {
         keyValue.get(key, RequestNotificationStore()).first()
