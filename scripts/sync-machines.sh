@@ -6,14 +6,15 @@ usage() {
 Usage: scripts/sync-machines.sh
 
 Bring this repository's main checkout up to date with GitHub on this machine
-and on the other T3 machine (VPS <-> ThinkCentre). Run it from any checkout or
-worktree of the repo when you finish a task that pushed or merged code. Push
-your branch first: GitHub is the only transfer between machines.
+and on the other two T3 machines (VPS, ThinkCentre and t3-ovh). Run it from any
+checkout or worktree of the repo when you finish a task that pushed or merged
+code. Push your branch first: GitHub is the only transfer between machines.
 
 On each machine it fetches every remote and fast-forwards the main checkout and
 the local default branch (GitHub's default, e.g. main or weaselfin) when that is
 safe. It never discards changes, rebases, or touches another thread's worktree;
-anything it cannot update safely is reported instead.
+anything it cannot update safely is reported instead. A machine that cannot be
+reached is reported and the others are still updated.
 
 The same script is kept in every WeaselTV repo; keep the copies identical.
 EOF
@@ -25,17 +26,29 @@ if (($#)); then
     exit 2
 fi
 
-case "$(hostname)" in
-    srv1160496) this=VPS peer=thinkcentre peer_name=ThinkCentre ;;
-    justin-ThinkCentre-M73) this=ThinkCentre peer=srv1160496 peer_name=VPS ;;
-    *)
-        echo "Unknown machine $(hostname); expected the VPS or the ThinkCentre." >&2
-        exit 1
-        ;;
-esac
+# The T3 machines: hostname, name in reports, SSH alias the others use.
+machines=(
+    "srv1160496 VPS srv1160496"
+    "justin-ThinkCentre-M73 ThinkCentre thinkcentre"
+    "t3-ovh t3-ovh t3-ovh"
+)
+this=''
+peers=()
+for machine in "${machines[@]}"; do
+    read -r host name alias <<<"$machine"
+    if [[ "$(hostname)" == "$host" ]]; then
+        this=$name
+    else
+        peers+=("$alias $name")
+    fi
+done
+if [[ -z "$this" ]]; then
+    echo "Unknown machine $(hostname); expected the VPS, the ThinkCentre or t3-ovh." >&2
+    exit 1
+fi
 
-# The main checkout owns the shared .git directory. Both machines use the same
-# path under $HOME, so the peer's checkout is found the same way.
+# The main checkout owns the shared .git directory. All machines use the same
+# path under $HOME, so a peer's checkout is found the same way.
 common_dir=$(git rev-parse --path-format=absolute --git-common-dir)
 main_checkout=$(dirname "$common_dir")
 case "$main_checkout" in
@@ -89,9 +102,12 @@ echo "  latest: $(git log -1 --format="%h %cd %s" --date=short "origin/$branch")
 status=0
 echo "$(basename "$main_checkout") on $this (this machine):"
 bash -c "$refresh" refresh "$rel_checkout" "$branch" || status=1
-echo "$(basename "$main_checkout") on $peer_name:"
-if ! ssh -o BatchMode=yes -o ConnectTimeout=10 "$peer" bash -s -- "$(printf %q "$rel_checkout")" "$(printf %q "$branch")" <<<"$refresh"; then
-    echo "  could not refresh the $peer_name; report this to the owner" >&2
-    status=1
-fi
+for peer in "${peers[@]}"; do
+    read -r alias name <<<"$peer"
+    echo "$(basename "$main_checkout") on $name:"
+    if ! ssh -o BatchMode=yes -o ConnectTimeout=10 "$alias" bash -s -- "$(printf %q "$rel_checkout")" "$(printf %q "$branch")" <<<"$refresh"; then
+        echo "  could not refresh the $name; report this to the owner" >&2
+        status=1
+    fi
+done
 exit "$status"

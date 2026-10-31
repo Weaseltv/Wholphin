@@ -8,39 +8,46 @@
 
 ## Machines: work on the machine the thread was opened on (owner, 2026-10-12)
 
-The owner works on this project from two T3 machines and spreads threads between
-them to balance load: the VPS (`srv1160496`, `100.72.23.45`) and the ThinkCentre
-(`justin-ThinkCentre-M73`, SSH alias `thinkcentre`, `100.87.100.109`). Neither is
-the default. Follow these rules even when Notion is unavailable or has not been read.
+The owner works on this project from three T3 machines and spreads threads between
+them to balance load: the VPS (`srv1160496`, `100.72.23.45`), the ThinkCentre
+(`justin-ThinkCentre-M73`, SSH alias `thinkcentre`, `100.87.100.109`) and the
+OVH worker (`t3-ovh`, SSH alias `t3-ovh`, `100.115.38.48`; added 2026-10-31).
+None is the default. Follow these rules even when Notion is unavailable or has
+not been read.
 
 - Do all of a thread's work on the machine the owner opened it on: editing,
   builds, tests, APK transfers and Shield installs. Run `hostname` if unsure.
-- Never move a thread's work to the other machine. That includes falling back
+- Identify a machine by hostname, never by matching an IP address to
+  documentation: addresses get reused. 135.148.43.25 was the old production
+  server until 2026-10-27 and is now t3-ovh.
+- Never move a thread's work to another machine. That includes falling back
   when a build or ADB connection fails, the machine is busy, or an old procedure
-  or Notion log names the other machine. Stop and report instead. Move work only
+  or Notion log names another machine. Stop and report instead. Move work only
   when the owner says so for that task.
 - The one routine cross-machine action is the git refresh below. It only
   fetches and fast-forwards; it never builds, edits or transfers files.
 
-### Keep both machines' code current
+### Keep all three machines' code current
 
-Both machines keep a main checkout at `~/work/weaselfin/Wholphin`, and T3
+All three machines keep a main checkout at `~/work/weaselfin/Wholphin`, and T3
 worktrees branch from it. That copy must never be more than a day behind GitHub.
 On 2026-10-12 the ThinkCentre's copy was four weeks old.
 
 - Start every task from fresh code: `git fetch --all --prune`, then branch from
   `origin/weaselfin`, not a local `weaselfin` that may be stale. If the main
   checkout is more than a day behind, run `./scripts/sync-machines.sh` first.
-- Finishing a task that pushed or merged code includes refreshing both
+- Finishing a task that pushed or merged code includes refreshing all three
   machines: push your branch first (GitHub is the only transfer; never copy code
   between machines), then run `./scripts/sync-machines.sh`. It updates this
-  machine and the other one (VPS -> ThinkCentre, ThinkCentre -> VPS).
+  machine and the other two (VPS, ThinkCentre and t3-ovh). If one can't be
+  reached, it says so and still updates the other.
 - The script never discards changes or touches other threads' worktrees. Report
-  anything it couldn't update, and say in your report if the other machine
+  anything it couldn't update, and say in your report if a machine
   could not be reached.
-- Both machines sign Alpha builds with the same non-production debug key
-  (`~/.android/debug.keystore`, synced 2026-10-12), so an Alpha from either
-  machine installs over the other's. Never commit it or copy the release key.
+- All three machines sign Alpha builds with the same non-production debug key
+  (`~/.android/debug.keystore`, mode 0600; synced 2026-10-12, copied to t3-ovh
+  2026-10-31 with the owner's approval), so an Alpha from any of them installs
+  over the others'. Never commit it or copy the release key.
 
 ### Sending files to the owner's Windows PC: Taildrop
 
@@ -100,11 +107,11 @@ for. Taildrop files *from* the PC arrive with `tailscale file get <dir>`.
 
 ### Shield installs: direct ADB over Tailscale
 
-- Build and install from the thread's machine. Both machines are on Tailscale
+- Build and install from the thread's machine. All three machines are on Tailscale
   with the owner's Shield (`100.105.135.30:5555`, `shield.taildbfaa7.ts.net`);
   the VPS route was verified on 2026-10-07. Transfer the APK straight to the
   Shield; there is no jump host.
-- Keep Tailscale connected on both machines and the Shield, and network
+- Keep Tailscale connected on all three machines and the Shield, and network
   debugging enabled on the Shield. If prompted, the owner approves that
   machine's ADB authorization on the Shield. For a requested install, the helper
   connects to the known target:
