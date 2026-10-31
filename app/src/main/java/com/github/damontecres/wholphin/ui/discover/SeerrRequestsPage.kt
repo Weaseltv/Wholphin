@@ -75,6 +75,8 @@ fun SeerrRequestsPage(
     viewModel: SeerrRequestsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.requests.state.collectAsState()
+    val progressState by viewModel.requests.progress.state.collectAsState()
+    val progress = progressState.takeIf { state.connected && viewModel.requests.acceptsProgress(it) }
     var clock by remember { mutableStateOf(Instant.now()) }
     LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(60_000); clock = Instant.now() } }
     DisposableEffect(Unit) { viewModel.requests.setVisible(true); onDispose { viewModel.requests.setVisible(false) } }
@@ -83,7 +85,8 @@ fun SeerrRequestsPage(
         row.request.id == focusRequestId || !row.stage.terminal || runCatching { Instant.parse(row.request.updatedAt).isAfter(cutoff) }.getOrDefault(true)
     }.sortedBy { it.section() }
     val list = rememberLazyListState()
-    val requesters = remember(state.scope, items.map { it.request.id }) { items.associate { it.request.id to FocusRequester() } }
+    val requesters = remember(state.scope) { mutableMapOf<Int, FocusRequester>() }
+    items.forEach { requesters.getOrPut(it.request.id) { FocusRequester() } }
     var focusHandled by androidx.compose.runtime.saveable.rememberSaveable(state.scope, focusRequestId) { mutableStateOf(false) }
     val refreshFocus = remember { FocusRequester() }
     LaunchedEffect(items.map { it.request.id }, focusRequestId, state.scope) {
@@ -96,8 +99,13 @@ fun SeerrRequestsPage(
     }
     Column(modifier.padding(horizontal = 24.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Button(onClick = viewModel.requests::refresh, modifier = Modifier.focusRequester(refreshFocus)) { Text(if (state.loading) "Refreshing…" else "Refresh") }
-            Text(state.lastUpdated?.let { "Updated ${Duration.between(it, clock).toMinutes().coerceAtLeast(0)} min ago" } ?: if (state.loading) "Loading your requests…" else "Your requests will appear here", color = MaterialTheme.colorScheme.onSurface)
+            Button(onClick = viewModel.requests::refreshVisible, modifier = Modifier.focusRequester(refreshFocus)) { Text(if (state.loading) "Refreshing…" else "Refresh") }
+            Text(
+                progress?.takeIf { it.mode != ProgressMode.OFF }?.message
+                    ?: state.lastUpdated?.let { "Updated ${Duration.between(it, clock).toMinutes().coerceAtLeast(0)} min ago" }
+                    ?: if (state.loading) "Loading your requests…" else "Your requests will appear here",
+                color = MaterialTheme.colorScheme.onSurface,
+            )
         }
         (viewModel.actionError ?: state.error)?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(vertical = 8.dp)) }
         if (!state.connected) Text("Requests are reconnecting. Your last update is kept here.", modifier = Modifier.padding(12.dp))
@@ -109,6 +117,25 @@ fun SeerrRequestsPage(
                 } else if (state.lastUpdated == null && state.error == null) "Loading your requests…" else "Your requests couldn't be loaded right now."
             ) }
             itemsIndexed(items, key = { _, row -> row.request.id }) { index, row ->
+                // Progress never reorders or replaces canonical rows; Coil keeps the same poster URL.
+                val live = progress?.records?.get(row.request.id)?.takeIf {
+                    !row.stage.terminal && row.request.requestedBy?.id == progress.seerrUserId && it.matches(row)
+                }
+                val liveStale = live != null && (live.stale || progress?.transportStale == true)
+                val shownLabel = when {
+                    row.stage.kind == RequestStageKind.PARTIAL -> row.stage.label
+                    live != null -> live.label
+                    else -> row.stage.label
+                }
+                val shownDetail = when {
+                    live != null && row.stage.kind == RequestStageKind.PARTIAL -> live.label
+                    live?.stage == "waiting" && live.detail != "not_released_yet" -> "No download is active yet. Updates appear automatically."
+                    live?.stage == "confirming_availability" -> "Confirming it's ready to watch."
+                    live?.detail == "download_failed_retrying" -> "The previous download had a problem. Waiting for its replacement."
+                    live == null -> row.stage.detail
+                    else -> null
+                }
+                val bar = if (live != null) live.fraction else row.stage.progress
                 LaunchedEffect(row.request.id, state.lastUpdated) { viewModel.requests.loadMetadata(row.request.id) }
                 // Reveal the section heading and full card, rather than centering only its action button.
                 Column(modifier = Modifier.keepTitledRowVisible(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -119,11 +146,20 @@ fun SeerrRequestsPage(
                         AsyncImage(model = row.item?.posterUrl, contentDescription = null, modifier = Modifier.size(90.dp, 135.dp))
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(row.title + (row.item?.releaseDate?.year?.let { " ($it)" } ?: "") + if (row.request.is4k == true) " · 4K" else "", style = MaterialTheme.typography.titleLarge)
-                            Text(row.stage.label + if (!row.fresh) " · Last known status" else "", color = if (row.stage.ready) Color(0xFF00F2D6) else MaterialTheme.colorScheme.onSurface)
-                            row.stage.detail?.let { Text(it) }
-                            row.stage.progress?.let { androidx.compose.material3.LinearProgressIndicator(progress = { it }, modifier = Modifier.width(350.dp), color = Color(0xFF00F2D6)) }
-                            if (row.stage.kind == RequestStageKind.ADDING) androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.width(350.dp))
-                            row.stage.eta?.takeIf { it.isAfter(clock) }?.let { Text("Estimated ${Duration.between(clock, it).toMinutes().coerceAtLeast(1)} min remaining") }
+                            Text(shownLabel + if (!row.fresh || liveStale) " · Last known status" else "", color = if (row.stage.ready) Color(0xFF00F2D6) else MaterialTheme.colorScheme.onSurface)
+                            shownDetail?.let { Text(it) }
+                            bar?.let { androidx.compose.material3.LinearProgressIndicator(progress = { it }, modifier = Modifier.width(350.dp), color = Color(0xFF00F2D6)) }
+                            if (live == null && row.stage.kind == RequestStageKind.ADDING) androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.width(350.dp))
+                            if (live != null) {
+                                live.etaSeconds?.takeIf { it > 0 && live.stage == "downloading" && !liveStale }?.let {
+                                    Text(if (it < 60) "Estimated under a minute remaining" else "Estimated ${(it + 59) / 60} min remaining")
+                                }
+                                live.episodes?.let { episodes ->
+                                    val total = episodes.total
+                                    val imported = episodes.imported
+                                    if (total != null && total > 0 && imported != null) Text("$imported of $total episodes imported")
+                                }
+                            } else row.stage.eta?.takeIf { it.isAfter(clock) }?.let { Text("Estimated ${Duration.between(clock, it).toMinutes().coerceAtLeast(1)} min remaining") }
                             Text("Requested ${row.request.createdAt?.take(10) ?: "recently"}", style = MaterialTheme.typography.bodySmall)
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Button(onClick = { positionCallback(1, index); viewModel.open(row) }, modifier = Modifier.focusRequester(requesters.getValue(row.request.id))) {

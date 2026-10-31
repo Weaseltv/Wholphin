@@ -39,6 +39,26 @@ class SeerrApiClient(
                 )
             }.build()
 
+    // Live progress uses only the existing personal cookie, never API-key impersonation.
+    val hasProgressSession: Boolean
+        get() = apiKey.isNullOrBlank() && cookieJar.hasValidCredentials(baseUrl)
+
+    val progressStreamClient: OkHttpClient by lazy {
+        client.newBuilder()
+            .callTimeout(0, TimeUnit.SECONDS)
+            .readTimeout(40, TimeUnit.SECONDS)
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(false)
+            .followRedirects(false)
+            .followSslRedirects(false)
+            .addInterceptor { chain ->
+                chain.proceed(chain.request().newBuilder().removeHeader("X-Api-Key").removeHeader("X-API-User").build())
+            }.build()
+    }
+    val progressSnapshotClient: OkHttpClient by lazy {
+        progressStreamClient.newBuilder().callTimeout(15, TimeUnit.SECONDS).readTimeout(15, TimeUnit.SECONDS).build()
+    }
+
     val hasValidCredentials: Boolean
         get() =
             apiKey.isNotNullOrBlank() ||

@@ -87,3 +87,11 @@ No separate backend account/password is required: use the existing website SSO
 and silent request-service Quick Connect path. Session expiry uses one separately
 throttled identity probe and one silent reconnect; stored password authentication
 is never automatically retried on an expiry.
+
+TV My Requests can additionally display the personal v1 live-progress overlay
+from the pinned requests host. Its download/unpack/import/Finishing up labels
+are presentation-only; they do not change this canonical stage fixture, request
+history or notification journal. Ready/partial/failure hints trigger a verified
+Seerr refresh through the existing account/client guard. See
+`runbooks/request-notifications/tv-live-progress.md` for transport, lifecycle,
+fallback, source identity and owner verification.

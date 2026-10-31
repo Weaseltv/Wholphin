@@ -40,6 +40,11 @@ fun BoxScope.RequestChipHost(
         lifecycleState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) &&
         !navigation.backStack.lastOrNull().isPlayback && !saver.show && !saver.showDim &&
         !ui.textInputActive && ui.dialogs == 0 && !presentationBlocked
+    val progressHost = remember { Any() }
+    DisposableEffect(pageSafe, progressHost) {
+        repository.progress.setAllowed(progressHost, pageSafe)
+        onDispose { repository.progress.removeHost(progressHost) }
+    }
     val safe = pageSafe && state.notifications.enabled
     var events by remember(state.scope) { mutableStateOf<List<RequestEvent>>(emptyList()) }
     var closedKeys by remember(state.scope) { mutableStateOf<Set<String>>(emptySet()) }

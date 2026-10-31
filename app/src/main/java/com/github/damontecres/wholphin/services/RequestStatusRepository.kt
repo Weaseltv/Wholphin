@@ -63,6 +63,7 @@ data class RequestsState(
 /** One foreground coordinator, one captured client/user per generation, one durable notification store. */
 @Singleton
 class RequestStatusRepository @Inject constructor(
+    val progress: RequestProgressRepository,
     private val service: SeerrService,
     private val connections: SeerrServerRepository,
     private val servers: ServerRepository,
@@ -71,6 +72,8 @@ class RequestStatusRepository @Inject constructor(
 ) {
     private data class Session(val current: CurrentSeerr, val client: SeerrApiClient, val key: String, val generation: Long)
     private val mutex = Mutex()
+    private val probeMutex = Mutex()
+    private val liveHints = Channel<Unit>(Channel.CONFLATED)
     @Volatile private var session: Session? = null
     @Volatile private var generation = 0L
     private var listedCurrent: CurrentSeerr? = null
@@ -113,6 +116,18 @@ class RequestStatusRepository @Inject constructor(
     }
 
     suspend fun runForeground(): Unit = coroutineScope {
+        launch { for (hint in liveHints) { refresh(); delay(2_000) } }
+        launch {
+            progress.runForeground(
+                onRecord = ::onLiveRecord,
+                onDeleted = { requestCanonicalRefresh() },
+                onAuthIssue = { client ->
+                    scope.launch {
+                        session?.takeIf { it.client === client && current(it) }?.let { probeSession(it) }
+                    }
+                },
+            )
+        }
         var previous: Session? = null
         var failures = 0
         var resumed = true
@@ -163,7 +178,36 @@ class RequestStatusRepository @Inject constructor(
     }
 
     fun refresh() { wake.trySend(Unit) }
-    fun setVisible(visible: Boolean) { visiblePages.updateAndGet { (it + if (visible) 1 else -1).coerceAtLeast(0) }; if (visible) { refresh(); markOpened() } }
+    fun acceptsProgress(value: RequestProgressState): Boolean {
+        val s = session ?: return false
+        return current(s) && value.client === s.client && value.seerrUserId == s.current.config.id && value.ownerRowId == s.current.user.jellyfinUserRowId
+    }
+    fun refreshVisible() { progress.refresh(allowRetry = true); refresh() }
+    fun setVisible(visible: Boolean) {
+        visiblePages.updateAndGet { (it + if (visible) 1 else -1).coerceAtLeast(0) }
+        progress.setVisible(myRequestsVisible)
+        if (visible) { refresh(); markOpened() }
+    }
+
+    private fun requestCanonicalRefresh() { liveHints.trySend(Unit) }
+
+    private fun onLiveRecord(record: RequestProgressRecord) {
+        val row = _state.value.items.firstOrNull { it.request.id == record.requestId }
+        if (row == null) { requestCanonicalRefresh(); return }
+        if (!record.matches(row) || record.stale) return
+        val availability = when (row.stage.kind) {
+            RequestStageKind.READY -> "full"
+            RequestStageKind.PARTIAL -> "partial"
+            else -> "none"
+        }
+        val seasonsChanged = record.seasons.any { season ->
+            val old = row.request.media?.seasons?.firstOrNull { it.seasonNumber == season.n }
+            val oldStatus = if (record.is4k) old?.status4k else old?.status
+            val oldAvailability = when (oldStatus) { 5 -> "full"; 4 -> "partial"; else -> "none" }
+            season.availability != oldAvailability
+        }
+        if (!row.fresh || record.availability != availability || seasonsChanged || record.seerrStatus?.let { it != row.request.status } == true) requestCanonicalRefresh()
+    }
 
     private suspend fun sync(s: Session): Boolean = mutex.withLock {
         if (!current(s)) return@withLock false
@@ -262,16 +306,19 @@ class RequestStatusRepository @Inject constructor(
     }
 
     private suspend fun probeSession(s: Session) {
-        val now = System.currentTimeMillis()
-        if (now - (probeTimes[s.key] ?: 0L) < 900_000L) return
-        probeTimes[s.key] = now
-        try { s.client.usersApi.authMeGet() }
-        catch (ex: CancellationException) { throw ex }
-        catch (ex: Exception) {
-            if ((ex as? ClientException)?.statusCode in listOf(401, 403) && current(s)) {
-                // The probe has its own clock; the normal connect policy owns the one reconnect.
-                // A refused account can cost two auth strikes (probe + reconnect), then waits 15 minutes.
-                connections.expireAndReconnect(s.current)
+        probeMutex.withLock {
+            if (!current(s)) return@withLock
+            val now = System.currentTimeMillis()
+            if (now - (probeTimes[s.key] ?: 0L) < 900_000L) return@withLock
+            probeTimes[s.key] = now
+            try { s.client.usersApi.authMeGet() }
+            catch (ex: CancellationException) { throw ex }
+            catch (ex: Exception) {
+                if ((ex as? ClientException)?.statusCode in listOf(401, 403) && current(s)) {
+                    // The probe has its own clock; the normal connect policy owns the one reconnect.
+                    // A refused account can cost two auth strikes (probe + reconnect), then waits 15 minutes.
+                    connections.expireAndReconnect(s.current)
+                }
             }
         }
     }
@@ -313,6 +360,7 @@ class RequestStatusRepository @Inject constructor(
             val submission = RequestSubmission(item, updated)
             _state.update { it.copy(items = listOf(item) + it.items.filterNot { it.request.id == request.id }, notifications = store, submission = submission) }
         }
+        progress.refresh()
         refresh()
     }
 
@@ -386,6 +434,8 @@ class RequestStatusRepository @Inject constructor(
         keyValue.save(key, next)
         if (live != null && current(live)) {
             missing.remove(id)
+            progress.forget(id)
+            progress.refresh()
             _state.update { it.copy(items = it.items.filterNot { row -> row.request.id == id }, notifications = next) }
         }
     }
