@@ -64,10 +64,14 @@ Pending events are acknowledged on dismissal, activation or a visible timeout; a
 chip. Per-account Settings → More → Request notifications defaults on; the
 Requests badge remains the fallback to ready updates.
 
-Dismissal restores the saved region before the chip is removed; it never falls
-back to requesting the whole app, whose first target is the profile button.
-The page and rail have separate restorers, with the existing row/item restorers
-preserving the selected item. Disposed regions are never requested again.
+Dismissal restores focus before the chip is removed; it never falls back to
+requesting the whole app, whose first target is the profile button. My Requests
+also captures the exact selected action (Details/Watch now, Cancel or Refresh).
+The saved page region is re-entered first, then that stable control is explicitly
+focused so a tab entry policy cannot leave selection on My Requests. Controls
+retain their focus requester through status/label changes. Disposed controls and
+regions are never requested again. Other pages and the rail retain their existing
+region/row/item restorers.
 
 A successful locally submitted request seeds a separate, memory-only confirmation
 in the account state. Request sent / Request updated uses the same poster card

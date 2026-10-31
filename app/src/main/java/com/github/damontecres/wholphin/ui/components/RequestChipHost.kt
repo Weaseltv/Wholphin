@@ -93,7 +93,7 @@ fun BoxScope.RequestChipHost(
         } else if (events.isEmpty() && candidates.isNotEmpty()) {
             delay(maxOf(500L, nextPresentationAt - SystemClock.uptimeMillis())) // Let navigation settle; back off if focus was temporarily refused.
             events = candidates.toList()
-            returnFocus = ui.focusedRegion?.capture()
+            returnFocus = ui.captureFocus()
             shownAt = SystemClock.uptimeMillis()
             lastInput = shownAt
             remaining = 1f

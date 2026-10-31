@@ -15,9 +15,21 @@ import com.github.damontecres.wholphin.ui.tryRequestFocus
 class RequestUiState {
     private val textFields = mutableStateMapOf<Any, Boolean>()
     internal var focusedRegion: RequestFocusRegion? = null
+    internal var focusedTarget: RequestFocusTarget? = null
     var dialogs by mutableIntStateOf(0)
     val textInputActive: Boolean get() = textFields.values.any { it }
     fun field(token: Any, focused: Boolean) { if (focused) textFields[token] = true else textFields.remove(token) }
+
+    internal fun captureFocus(): (() -> Boolean)? {
+        val restoreRegion = focusedRegion?.capture()
+        val restoreTarget = focusedTarget?.capture() ?: return restoreRegion
+        return {
+            // Re-enter the page first, so an ancestor's tab/group entry policy
+            // cannot replace the explicit button request that follows it.
+            val regionRestored = restoreRegion?.invoke() == true
+            restoreTarget() || regionRestored
+        }
+    }
 }
 val LocalRequestUiState = staticCompositionLocalOf { RequestUiState() }
 
@@ -32,6 +44,35 @@ internal class RequestFocusRegion(val requester: FocusRequester) {
         return {
             attached && ((saved && runCatching { requester.restoreFocusedChild() }.getOrDefault(false)) || requester.tryRequestFocus())
         }
+    }
+}
+
+/** A stable control survives label/status changes; disposed controls are never requested. */
+internal class RequestFocusTarget(val requester: FocusRequester) {
+    var attached = false
+    var focused = false
+
+    fun capture(): (() -> Boolean)? = if (attached && focused) {
+        { attached && requester.tryRequestFocus() }
+    } else null
+}
+
+/** Remember the exact button as well as the surrounding page/rail focus region. */
+fun Modifier.rememberRequestFocusTarget(requester: FocusRequester? = null): Modifier = composed {
+    val ui = LocalRequestUiState.current
+    val localRequester = remember { FocusRequester() }
+    val target = remember(ui, requester) { RequestFocusTarget(requester ?: localRequester) }
+    DisposableEffect(target) {
+        target.attached = true
+        onDispose {
+            target.attached = false
+            if (ui.focusedTarget === target) ui.focusedTarget = null
+        }
+    }
+    this.focusRequester(target.requester).onFocusChanged {
+        target.focused = it.isFocused
+        if (it.isFocused) ui.focusedTarget = target
+        else if (ui.focusedTarget === target) ui.focusedTarget = null
     }
 }
 

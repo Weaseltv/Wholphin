@@ -141,6 +141,28 @@ optional tests or production changes were performed. The owner verifies live
 connection continuity on the next request; installation success is not a claim
 of a reproduced end-to-end streaming test.
 
+## Dismiss restores the exact My Requests action — 2026-10-31
+
+The Scooby-Doo (2002) recording showed My Requests selected after Dismiss, and
+the owner confirmed it moved there automatically. Saving the enclosing page
+alone was insufficient to preserve the exact action through nested tab/group
+focus entry.
+
+My Requests now tracks the attached focused control for Refresh, the stable
+Details/Watch now button and Cancel. The chip captures that target as well as its
+region. Dismiss/Back/timeout re-enters the saved region and then explicitly
+requests the original control before removing the chip. Detached targets are
+discarded safely; pages without an exact target retain their existing region
+restoration. A row's requester survives its Details-to-Watch-now label change.
+The primary popup action still navigates without restoring the old page.
+
+Arm64 Alpha built in **2m 38s** and installed directly from srv1160496 on the
+Shield: **ADB Success, exit 0**. No optional tests, device navigation, screenshots
+or production changes were performed. The owner verifies the next dismissal;
+build/install success is not a claim of device focus testing. Server-side stage
+correction and Jellyfin/Seerr timing optimizations remain the Unraid operator's
+separate work.
+
 ## Delivery record — 2026-10-31
 
 Arm64 Alpha built successfully in **4m 24s** and installed directly from

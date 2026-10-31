@@ -23,6 +23,7 @@ import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import com.github.damontecres.wholphin.services.*
 import com.github.damontecres.wholphin.ui.components.keepTitledRowVisible
+import com.github.damontecres.wholphin.ui.components.rememberRequestFocusTarget
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.KeepVisibleBringIntoViewSpec
@@ -99,7 +100,7 @@ fun SeerrRequestsPage(
     }
     Column(modifier.padding(horizontal = 24.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Button(onClick = viewModel.requests::refreshVisible, modifier = Modifier.focusRequester(refreshFocus)) { Text(if (state.loading) "Refreshing…" else "Refresh") }
+            Button(onClick = viewModel.requests::refreshVisible, modifier = Modifier.rememberRequestFocusTarget(refreshFocus)) { Text(if (state.loading) "Refreshing…" else "Refresh") }
             Text(
                 progress?.takeIf { it.mode != ProgressMode.OFF }?.message
                     ?: state.lastUpdated?.let { "Updated ${Duration.between(it, clock).toMinutes().coerceAtLeast(0)} min ago" }
@@ -163,10 +164,10 @@ fun SeerrRequestsPage(
                             } else row.stage.eta?.takeIf { it.isAfter(clock) }?.let { Text("Estimated ${Duration.between(clock, it).toMinutes().coerceAtLeast(1)} min remaining") }
                             Text("Requested ${row.request.createdAt?.take(10) ?: "recently"}", style = MaterialTheme.typography.bodySmall)
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Button(onClick = { positionCallback(1, index); viewModel.open(row) }, modifier = Modifier.focusRequester(requesters.getValue(row.request.id))) {
+                                Button(onClick = { positionCallback(1, index); viewModel.open(row) }, modifier = Modifier.rememberRequestFocusTarget(requesters.getValue(row.request.id))) {
                                     Text(if (row.stage.ready && row.jellyfinId != null) "Watch now" else "Details")
                                 }
-                                if (viewModel.requests.canCancel(row.request)) Button(onClick = { viewModel.cancel(row.request.id) }) { Text("Cancel request") }
+                                if (viewModel.requests.canCancel(row.request)) Button(onClick = { viewModel.cancel(row.request.id) }, modifier = Modifier.rememberRequestFocusTarget()) { Text("Cancel request") }
                             }
                             if (row.stage.ready && row.jellyfinId == null) Text("Ready. Find it in your library.", style = MaterialTheme.typography.bodySmall)
                         }
