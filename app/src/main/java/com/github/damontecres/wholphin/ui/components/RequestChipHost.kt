@@ -2,26 +2,23 @@ package com.github.damontecres.wholphin.ui.components
 
 import android.os.SystemClock
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.*
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
-import androidx.tv.material3.Button
-import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.isPlayback
 import com.github.damontecres.wholphin.services.*
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import kotlinx.coroutines.delay
 import org.jellyfin.sdk.model.api.BaseItemKind
+
+private const val REQUEST_CHIP_TIMEOUT_MILLIS = 60_000L
 
 /** Nonmodal root overlay. Native dialog/window focus is checked in addition to shared dialog tracking. */
 @Composable
@@ -49,12 +46,17 @@ fun BoxScope.RequestChipHost(
     var displayed by remember(state.scope) { mutableStateOf(false) }
     var chipFocused by remember(state.scope) { mutableStateOf(false) }
     var lastInput by remember { mutableLongStateOf(0L) }
+    var remaining by remember(state.scope) { mutableFloatStateOf(1f) }
     val firstFocus = remember { FocusRequester() }
     val chipFocus = remember { FocusRequester() }
     var shownAt by remember { mutableLongStateOf(0L) }
     var armed by remember { mutableStateOf(false) }
     var validPress by remember { mutableStateOf(false) }
     val candidates = state.notifications.pending.filter { e -> e.key !in closedKeys && state.items.any { it.request.id == e.requestId && it.fresh && it.eventKey() == e.key } }
+
+    LaunchedEffect(safe, state.scope, candidates.map { it.key }) {
+        if (safe) candidates.forEach { repository.loadMetadata(it.requestId) }
+    }
 
     fun restore() {
         if (!runCatching { pageFocus.restoreFocusedChild() }.getOrDefault(false)) pageFocus.tryRequestFocus()
@@ -82,6 +84,7 @@ fun BoxScope.RequestChipHost(
             runCatching { pageFocus.saveFocusedChild() }
             shownAt = SystemClock.uptimeMillis()
             lastInput = shownAt
+            remaining = 1f
             armed = false
             validPress = false
             displayed = true
@@ -101,28 +104,28 @@ fun BoxScope.RequestChipHost(
                 displayed = false
                 return@LaunchedEffect
             }
-            delay(700)
-            armed = true
             while (displayed) {
-                delay(200)
-                if (SystemClock.uptimeMillis() - lastInput >= 15_000) { close(); break }
+                val now = SystemClock.uptimeMillis()
+                armed = now - shownAt >= 700
+                val left = (REQUEST_CHIP_TIMEOUT_MILLIS - (now - lastInput)).coerceAtLeast(0)
+                remaining = left.toFloat() / REQUEST_CHIP_TIMEOUT_MILLIS
+                if (left == 0L) { close(); break }
+                delay(50)
             }
         }
     }
     BackHandler(enabled = displayed && chipFocused) { close() }
     if (displayed && safe && events.isNotEmpty()) {
         val rows = events.mapNotNull { event -> state.items.firstOrNull { it.request.id == event.requestId } }
-        LaunchedEffect(events) { events.forEach { repository.loadMetadata(it.requestId) } }
-        val single = rows.singleOrNull()
-        val title = if (events.size > 1) {
-            if (rows.all { it.stage.ready }) "${events.size} requests are ready" else "${events.size} request updates"
-        } else single?.let { "${it.title} · ${it.stage.label}" } ?: "Request update"
+        val single = rows.singleOrNull().takeIf { events.size == 1 }
         val canWatch = single?.stage?.ready == true && single.jellyfinId != null
-        val primary = when { events.size > 1 -> "View"; canWatch -> "Watch now"; else -> "Details" }
-        Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.align(Alignment.BottomEnd).padding(32.dp).widthIn(max = 560.dp)
-                .background(Color(0xFF101B20)).padding(20.dp)
+        RequestNotificationCard(
+            rows = rows,
+            eventCount = events.size,
+            canWatch = canWatch,
+            firstFocus = firstFocus,
+            remaining = { remaining },
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 18.dp, start = 24.dp, end = 24.dp).width(350.dp)
                 .focusRequester(chipFocus).onFocusChanged { chipFocused = it.hasFocus }.focusGroup()
                 .onPreviewKeyEvent { event ->
                     lastInput = SystemClock.uptimeMillis()
@@ -139,20 +142,16 @@ fun BoxScope.RequestChipHost(
                     }
                     false
                 },
-        ) {
-            Text(title, style = MaterialTheme.typography.titleMedium, color = Color.White)
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Button(onClick = {
-                    if (armed) {
-                        close(false)
-                        repository.markOpened(single?.request?.id)
-                        val itemId = single?.jellyfinId
-                        if (canWatch && itemId != null) navigation.navigateTo(Destination.MediaItem(itemId, if (single.request.type == "tv") BaseItemKind.SERIES else BaseItemKind.MOVIE))
-                        else navigation.navigateToFromDrawer(Destination.Discover(1, single?.request?.id))
-                    }
-                }, modifier = Modifier.focusRequester(firstFocus)) { Text(primary) }
-                Button(onClick = { if (armed) close() }) { Text("Dismiss") }
-            }
-        }
+            onPrimary = {
+                if (armed) {
+                    close(false)
+                    repository.markOpened(single?.request?.id)
+                    val itemId = single?.jellyfinId
+                    if (canWatch && itemId != null) navigation.navigateTo(Destination.MediaItem(itemId, if (single.request.type == "tv") BaseItemKind.SERIES else BaseItemKind.MOVIE))
+                    else navigation.navigateToFromDrawer(Destination.Discover(1, single?.request?.id))
+                }
+            },
+            onDismiss = { if (armed) close() },
+        )
     }
 }

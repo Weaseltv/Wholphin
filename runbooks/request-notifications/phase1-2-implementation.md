@@ -26,7 +26,7 @@ phone push, backend deployment and Discord cutover remain phases 3–6.
   playback, screensaver/dimming, dialog or focused text input. It saves page
   focus, selects its primary action, rejects OK presses begun before its 700 ms
   guard, handles Back while focused, and restores focus on dismissal or a
-  visible 15-second timeout without input. Multiple events form one chip.
+  visible one-minute timeout without input. Multiple events form one chip.
 - Settings → More → Request notifications defaults on and persists per request
   account. Turning chips off does not remove My Requests or its unread badge.
 
@@ -188,3 +188,29 @@ accounts/settings retained. No optional tests/lint/review or device app
 navigation/visual checks. Owner notification timing/copy retest remains pending.
 Gradle daemon stopped, active Alpha caches/key retained, **58 GB free**. No stable
 release, phone/backend deployment or Phase 5 implementation.
+
+## Owner's poster popup redesign — 2026-10-31
+
+Implemented the supplied mockup as a top-center, rounded dark card with the
+Requests teal border/glow, left poster, checked status pill, uppercase Orbitron
+title, smaller teal year, ready instruction, filled teal Watch now with a white
+focus ring and a quieter outlined Dismiss button. Orbitron ExtraBold and its
+existing OFL attribution were restored from repository commit `4ae1d95d` for the
+popup only, with the name-based font shrinker keep rule. Other app typography
+is unchanged. Missing artwork has a title-initial fallback; metadata starts
+loading when a pending update can safely be shown.
+
+The owner's follow-up sets the timeout to **one minute**. The thin bottom bar
+shows the actual remaining idle time, updates during drawing and resets on
+remote input. The prior 700 ms held-OK guard, safe-browsing gates, interrupted
+event persistence, focus restoration and acknowledgement on action/dismissal/
+visible timeout remain. Existing matching-quality title navigation is retained.
+Partial/failed updates use their real labels; grouped updates use a count and
+View requests rather than falsely claiming a single title is ready.
+
+Final arm64 Alpha **BUILD SUCCESSFUL in 2m 45s**; direct VPS → Shield in-place
+installation returned **Success**, exit 0. Saved Alpha accounts/settings and
+active incremental caches/key retained. Gradle daemon stopped, **58 GB free**.
+No optional tests/lint/review, app launch, remote navigation, screenshots or
+device visual checks. Owner design/timer verification remains pending. No stable
+release, backend deployment or Phase 5 work.

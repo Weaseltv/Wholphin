@@ -62,8 +62,9 @@ real ready/failed/4K payload substitutions were not proven by that Test.
   a new request becomes ready. A chip should appear with Watch now or Details;
   the ready count should also show on the collapsed Requests icon. Opening
   My Requests clears its unread count.
-- [ ] **Chip controls:** test its primary action, Dismiss, Back and about 15
-  seconds with no input. Dismiss/Back returns focus to the page. Holding OK as
+- [ ] **Chip controls:** test its primary action, Dismiss, Back and one minute
+  with no input. The countdown bar drains and resets when using the remote.
+  Dismiss/Back returns focus to the page. Holding OK as
   the chip appears must not accidentally activate it. Several updates should
   batch rather than stack separate popups.
 - [ ] **Safe timing:** while an update is expected, try playback, a dialog,
