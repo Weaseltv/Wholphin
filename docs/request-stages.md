@@ -19,7 +19,7 @@ and library ID. Never substitute the other quality. Evaluate in this order:
 | Downloading N% | At least one queued/downloading row with finite positive size and valid remaining bytes |
 | Checking | Queue exists but its state/bytes are unknown; TV requested-season set is unknown |
 | Not out yet | Movie has a known future release date (metadata only) |
-| Waiting for your library | Approved/completed request lacks availability and positive progress evidence |
+| Request accepted | Approved/completed request lacks availability and positive progress evidence; explain that download progress is not yet available |
 
 A partial TV row shows the stage for the remaining seasons as secondary text.
 Progress is bytes-weighted for valid active rows, not whole-request completion.

@@ -122,8 +122,9 @@ class RequestStatusRepository @Inject constructor(
                 val items = _state.value.items
                 val waitMillis = when {
                     failures > 0 -> listOf(60_000L, 120_000L, 300_000L, 600_000L)[failures - 1]
-                    myRequestsVisible || items.any { it.stage.kind in listOf(RequestStageKind.DOWNLOADING, RequestStageKind.ADDING) } -> 60_000L
-                    items.any { !it.stage.terminal } -> 300_000L
+                    // Keep waiting and partly-ready requests current while browsing any page.
+                    // Otherwise opening My Requests can discover readiness before the next poll.
+                    myRequestsVisible || items.any { !it.stage.terminal } -> 60_000L
                     else -> 1_800_000L
                 }
                 withTimeoutOrNull(waitMillis) { wake.receive() }

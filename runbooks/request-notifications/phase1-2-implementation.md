@@ -42,8 +42,8 @@ per media. Unchanged fresh fully-ready snapshots are reused. Missing persisted
 request IDs are checked individually, including after process restart; only a
 second 404 confirms removal.
 
-Poll intervals are 60 seconds while My Requests is visible or downloads/imports
-are active, five minutes while work remains, 30 minutes otherwise, with bounded
+Poll intervals are 60 seconds while My Requests is visible or any request is
+still pending/partly available, 30 minutes otherwise, with bounded
 1/2/5/10-minute failure backoff. Refresh, submit and cancellation wake the same
 single-flight coordinator. Background stops polling.
 
@@ -158,3 +158,33 @@ and **58 GB free** after the build. No stable release or backend deployment.
 The requested Phase 0–4 owner checklist is in `owner-checklist.md` and the
 existing Notion feature. Phone checks require the branch test build; backend
 integration remains gated, and phone system pushes require Phase 5.
+
+## Owner feedback: accepted status and notification delay — 2026-10-31
+
+The owner passed the basic startup, readable layout, movie/TV submission,
+Watch now/playback, notification setting and restart checks. Status clarity was
+not accepted: Waiting for your library did not explain what was happening.
+Notification actions and playback/typing suppression are untested; account
+switching was not reported. Phase 5 has not been approved.
+
+The owner stayed on Home for two minutes after a title finished, refreshed Home,
+and saw no notification until returning to Requests. The old five-minute
+waiting-request poll plus page-entry refresh explain that timing. Pending and
+partly available requests now poll every minute throughout foreground browsing,
+including Home. Idle polling and failure backoff are unchanged; Home Refresh
+continues to refresh Home content.
+
+Waiting for your library is now **Request accepted**, with the explanation
+**No download progress is available yet. We'll let you know when it's ready to
+watch.** Stage evidence, quality handling and portable event identities are
+unchanged. The plain-English status glossary and exact owner results are saved
+in `owner-checklist.md` and the existing Notion feature. Phone copy/cadence is
+unchanged by this TV iteration.
+
+The first build was interrupted to include the owner's copy feedback in the
+same replacement APK. The final arm64 Alpha **BUILD SUCCESSFUL in 3m** and direct
+VPS → Shield in-place installation returned **Success**, exit 0. Saved Alpha
+accounts/settings retained. No optional tests/lint/review or device app
+navigation/visual checks. Owner notification timing/copy retest remains pending.
+Gradle daemon stopped, active Alpha caches/key retained, **58 GB free**. No stable
+release, phone/backend deployment or Phase 5 implementation.

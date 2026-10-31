@@ -76,7 +76,11 @@ fun deriveRequestStage(request: MediaRequest, futureRelease: LocalDate? = null):
         }
         queue.isNotEmpty() -> RequestStage(RequestStageKind.CHECKING, "Checking")
         request.type == "movie" && futureRelease?.isAfter(LocalDate.now()) == true -> RequestStage(RequestStageKind.UNRELEASED, "Not out yet · Coming $futureRelease")
-        request.status == 2 || request.status == 5 -> RequestStage(RequestStageKind.WAITING_LIBRARY, "Waiting for your library")
+        request.status == 2 || request.status == 5 -> RequestStage(
+            RequestStageKind.WAITING_LIBRARY,
+            "Request accepted",
+            detail = "No download progress is available yet. We'll let you know when it's ready to watch.",
+        )
         else -> RequestStage(RequestStageKind.CHECKING, "Checking")
     }
     return if (partial) {

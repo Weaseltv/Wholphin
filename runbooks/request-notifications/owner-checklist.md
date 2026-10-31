@@ -49,7 +49,8 @@ real ready/failed/4K payload substitutions were not proven by that Test.
 - [ ] **Stages and refresh:** Refresh updates the timestamp/status. Watch a real
   request progress through the stages the server actually supplies: waiting,
   downloading, adding, ready. Approved requests with no queue data can correctly
-  remain Waiting for your library. A future movie may show Not out yet.
+  remain Request accepted, with an explanation that download progress is not
+  available yet. A future movie may show Not out yet.
 - [ ] **Watch now / quality:** a ready request opens the correct library title
   and it can play. If you use both HD and 4K, check both independently; the app
   must not substitute the other quality. Details is the fallback when no exact
@@ -80,8 +81,8 @@ real ready/failed/4K payload substitutions were not proven by that Test.
   declined request belongs in Needs attention and can generate an update. Do
   not deliberately break downloads or remove library titles just for this check.
 
-Updates are polled, not instant: My Requests / active download polling is about
-one minute; other pending work can take five minutes. Library indexing has its
+Updates are polled, not instant: while Alpha is open, pending/partly available
+requests are checked about once a minute on every page. Library indexing has its
 own delay. Old terminal cards are hidden after 30 days unless opened as a
 specific request. Existing completed requests should not flood the screen on
 initial setup.
@@ -138,3 +139,43 @@ is a separately approved phase 6 action.
 For a useful bug report, note the device, request title and quality, selected TV
 seasons, action, approximate time and actual result. Screenshots help with
 layout issues. Do not include passwords, tokens or webhook secrets.
+
+## TV status labels in plain English
+
+| Status | What makes the app show it |
+| --- | --- |
+| Waiting for approval | The request service says the request still needs approval. |
+| Request accepted | The request is accepted, but there is no confirmed download progress or watchable copy yet. Previously labelled Waiting for your library. |
+| Downloading …% | The server reports a queued/active download with enough information to calculate progress. This measures downloading, not the whole request. |
+| Adding to your library | The server reports the download finished, but the title is not yet available to watch. |
+| Ready to watch | The server confirms the movie, or every requested TV season, is available in the requested quality. |
+| Some episodes ready | The server confirms part of the requested TV seasons is available, but not all. |
+| Not out yet | The movie has a known release date in the future. |
+| Checking | The available information is insufficient to identify a more specific stage. It does not prove that an active search is running. |
+| Request declined | The request service says approval was refused. |
+| Couldn't be added | The request service reports the request failed. |
+| Not available | The server marks the title blocked or removed. |
+
+Last known status means a refresh failed and the app kept its previous result.
+These are status labels; Ready / In progress / Needs attention are the list's
+groups. Ready can include a partly available show, labelled Some episodes ready.
+
+## Owner's first basic-checklist results
+
+Reported 2026-10-31 against the installed heading-fix Alpha:
+
+- Passed: normal startup/account retention, readable headings/titles, movie
+  submission, TV-season submission, Watch now/playback, notification setting,
+  and closing/reopening without replay.
+- Not accepted: status clarity. Beyond the Gates (2019) showed Waiting for your
+  library; the owner could not tell what it meant. New TV copy is Request
+  accepted with the explanation: "No download progress is available yet. We'll
+  let you know when it's ready to watch."
+- Notification timing: the owner stayed on Home for two minutes after a title
+  finished, refreshed Home and saw no chip. Returning to Requests produced it.
+  The old five-minute waiting-request interval and page-entry refresh explain
+  that timing. The replacement Alpha checks pending requests every minute while
+  browsing any page. Owner retest remains required.
+- Not yet checked: notification actions/dismissal and suppression during
+  playback/typing. Account switching was not reported.
+- No approval to start Phase 5 has been given.
