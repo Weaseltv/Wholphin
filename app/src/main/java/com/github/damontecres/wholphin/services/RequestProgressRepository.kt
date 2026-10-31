@@ -5,6 +5,7 @@ import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.api.seerr.SeerrApiClient
 import com.github.damontecres.wholphin.data.ServerRepository
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -19,17 +20,19 @@ import okhttp3.Response
 import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
+import timber.log.Timber
 import java.io.IOException
 import java.time.Instant
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
-import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
 import kotlin.random.Random
+
+private const val PROGRESS_REFRESH_INTERVAL_MS = 1_000L
 
 @Serializable
 data class ProgressSeason(val n: Int, val availability: String)
@@ -48,8 +51,8 @@ data class RequestProgressRecord(
     val availability: String,
     val stage: String,
     val stageProgress: Double? = null,
-    val bytesLeft: Long? = null,
-    val etaSeconds: Long? = null,
+    val bytesLeft: Double? = null,
+    val etaSeconds: Double? = null,
     val detail: String? = null,
     val episodes: ProgressEpisodes? = null,
     val stale: Boolean = false,
@@ -57,7 +60,6 @@ data class RequestProgressRecord(
     val observedAt: String,
     val updatedAt: String,
 ) {
-    val fast: Boolean get() = stage in setOf("queued", "downloading", "checking", "unpacking", "importing")
     val fraction: Float? get() = stageProgress?.takeIf { it.isFinite() && it in 0.0..1.0 && stage in setOf("downloading", "unpacking") }?.toFloat()
     val label: String get() {
         val base = when (stage) {
@@ -84,8 +86,8 @@ data class RequestProgressRecord(
 
     fun valid(): Boolean = requestId > 0 && tmdbId > 0 && mediaType in setOf("movie", "tv") &&
         availability in setOf("none", "partial", "full") && seasons.all { it.n >= 0 && it.availability in setOf("none", "partial", "full") } &&
-        stageProgress?.let { it.isFinite() && it in 0.0..1.0 } != false && bytesLeft?.let { it >= 0 } != false &&
-        etaSeconds?.let { it >= 0 } != false && episodes?.let { e ->
+        stageProgress?.let { it.isFinite() && it in 0.0..1.0 } != false && bytesLeft?.let { it.isFinite() && it >= 0 } != false &&
+        etaSeconds?.let { it.isFinite() && it >= 0 } != false && episodes?.let { e ->
             listOfNotNull(e.total, e.imported, e.active).all { it >= 0 }
         } != false && runCatching { Instant.parse(observedAt); Instant.parse(updatedAt) }.isSuccess
 }
@@ -160,7 +162,11 @@ class RequestProgressRepository @Inject constructor(
         override fun hashCode(): Int = System.identityHashCode(current) * 31 + System.identityHashCode(client)
     }
     private data class Selection(val capture: Capture?, val restart: Long)
-    private data class Result(val code: Int = 0, val retry: Long = 0, val unsupported: Boolean = false)
+    private data class Result(val code: Int = 0, val retry: Long = 0, val unsupported: Boolean = false, val snapshotRecovered: Boolean = false)
+    private sealed interface StreamMessage {
+        data class Event(val type: String?, val data: String) : StreamMessage
+        data class End(val result: Result) : StreamMessage
+    }
     private class Cursor(var boot: String? = null, var rev: Long = -1, var snapshot: Boolean = false, var paused: Boolean = false)
 
     private fun capture(): Capture? {
@@ -261,35 +267,78 @@ class RequestProgressRepository @Inject constructor(
 
     private suspend fun stream(
         c: Capture, token: Long, onRecord: (RequestProgressRecord) -> Unit, onDeleted: (Int) -> Unit,
-    ): Result = suspendCancellableCoroutine { continuation ->
-        val done = AtomicBoolean(false)
-        val source = AtomicReference<EventSource?>()
+    ): Result = withContext(Dispatchers.Default) {
+        // Parse/apply both transports on this single actor. An audit snapshot can advance
+        // the shared cursor without an older queued stream event overwriting it.
+        val messages = Channel<StreamMessage>(64)
         val cursor = Cursor()
-        fun finish(result: Result) {
-            if (done.compareAndSet(false, true)) {
-                source.get()?.cancel()
-                continuation.resume(result)
-            }
+        fun offer(message: StreamMessage) {
+            if (!messages.trySend(message).isSuccess) messages.close()
         }
-        continuation.invokeOnCancellation { done.set(true); source.get()?.cancel() }
         val opened = EventSources.createFactory(c.client.progressStreamClient).newEventSource(request(c, "stream"), object : EventSourceListener() {
             override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
-                if (!current(c, token) || done.get()) return
-                try {
-                    if (type in setOf("snapshot", "update", "remove", "status", "auth_expired") &&
-                        apply(c, token, type!!, data, cursor, ProgressMode.LIVE, onRecord, onDeleted)) finish(Result(code = 401))
-                } catch (_: Exception) { finish(Result(unsupported = true)) }
+                if (!current(c, token)) return
+                if (data.length > 2_000_000) offer(StreamMessage.End(Result(unsupported = true)))
+                else offer(StreamMessage.Event(type, data))
             }
-            override fun onClosed(eventSource: EventSource) { finish(Result()) }
+            override fun onClosed(eventSource: EventSource) { offer(StreamMessage.End(Result())) }
             override fun onFailure(eventSource: EventSource, t: Throwable?, response: Response?) {
-                finish(Result(code = response?.code ?: 0, retry = retryAfter(response), unsupported = response?.code in setOf(200, 301, 302, 404, 405, 501)))
+                offer(StreamMessage.End(Result(code = response?.code ?: 0, retry = retryAfter(response), unsupported = response?.code in setOf(200, 301, 302, 404, 405, 501))))
             }
         })
-        source.set(opened)
-        if (done.get() || !continuation.isActive) opened.cancel()
+        try {
+            while (currentCoroutineContext().isActive && current(c, token)) {
+                val wait = if (!cursor.snapshot) 15_000L else PROGRESS_REFRESH_INTERVAL_MS
+                val incoming = withTimeoutOrNull(wait) { messages.receiveCatching() }
+                if (incoming == null) {
+                    if (!cursor.snapshot) return@withContext Result()
+                    // Heartbeats prove only that the socket is open. On a quiet stream,
+                    // check the service's shared JSON cache at a one-second cadence.
+                    val before = _state.value.records
+                    val auditCursor = Cursor()
+                    val result = snapshot(c, token, onRecord, onDeleted, auditCursor, ProgressMode.LIVE)
+                    if (result.code != 200) return@withContext result
+                    if (!auditCursor.snapshot) continue
+                    cursor.boot = auditCursor.boot
+                    cursor.rev = auditCursor.rev
+                    cursor.snapshot = true
+                    cursor.paused = false
+                    val after = _state.value.records
+                    val missedChange = before.keys != after.keys || after.any { (id, row) ->
+                        before[id]?.copy(observedAt = row.observedAt, updatedAt = row.updatedAt) != row
+                    }
+                    if (missedChange) {
+                        Timber.w("Request progress: quiet stream missed a cached change; using automatic snapshots")
+                        publish(c, token) { it.copy(mode = ProgressMode.POLLING) }
+                        return@withContext Result(code = 200, snapshotRecovered = true)
+                    }
+                    continue
+                }
+                val message = incoming.getOrNull() ?: return@withContext Result()
+                when (message) {
+                    is StreamMessage.End -> return@withContext message.result
+                    is StreamMessage.Event -> if (message.type in setOf("snapshot", "update", "remove", "status", "auth_expired")) {
+                        try {
+                            if (apply(c, token, message.type!!, message.data, cursor, ProgressMode.LIVE, onRecord, onDeleted)) return@withContext Result(code = 401)
+                        } catch (ex: Exception) {
+                            // Never log the body, cookie, account identity or parser exception text.
+                            Timber.w("Request progress: rejected %s event (%s)", message.type, ex.javaClass.simpleName)
+                            return@withContext Result(unsupported = true)
+                        }
+                    }
+                }
+            }
+            Result()
+        } finally {
+            opened.cancel()
+            messages.close()
+        }
     }
 
-    private suspend fun snapshot(c: Capture, token: Long, onRecord: (RequestProgressRecord) -> Unit, onDeleted: (Int) -> Unit): Result = suspendCancellableCoroutine { continuation ->
+    private suspend fun snapshot(
+        c: Capture, token: Long, onRecord: (RequestProgressRecord) -> Unit, onDeleted: (Int) -> Unit,
+        cursor: Cursor = Cursor(), mode: ProgressMode = ProgressMode.POLLING,
+    ): Result = suspendCancellableCoroutine { continuation ->
         val call = c.client.progressSnapshotClient.newCall(request(c, "snapshot"))
         val done = AtomicBoolean(false)
         fun finish(result: Result) {
@@ -308,7 +357,7 @@ class RequestProgressRepository @Inject constructor(
                         val source = response.body.source()
                         source.request(2_000_001)
                         if (source.buffer.size > 2_000_000) { finish(Result(unsupported = true)); return }
-                        if (continuation.isActive) apply(c, token, "snapshot", source.readUtf8(), Cursor(), ProgressMode.POLLING, onRecord, onDeleted)
+                        if (continuation.isActive) apply(c, token, "snapshot", source.readUtf8(), cursor, mode, onRecord, onDeleted)
                         finish(Result(code = 200))
                     } catch (_: IllegalArgumentException) { finish(Result(unsupported = true)) }
                     catch (_: Exception) { finish(Result()) }
@@ -356,7 +405,13 @@ class RequestProgressRepository @Inject constructor(
                 }
                 continue
             }
-            if (wasStream) {
+            if (wasStream && result.snapshotRecovered) {
+                // The cached snapshot has already repaired the display. Keep it fresh
+                // without repeatedly reopening a stream known to have missed changes.
+                nextStream = SystemClock.uptimeMillis() + 60_000
+                useStream = false
+                delay(PROGRESS_REFRESH_INTERVAL_MS)
+            } else if (wasStream) {
                 streamFailures = (streamFailures + 1).coerceAtMost(6)
                 nextStream = SystemClock.uptimeMillis() + maxOf(backoff(streamFailures), result.retry)
                 publish(c, token) { it.copy(mode = ProgressMode.RECONNECTING, transportStale = true) }
@@ -364,8 +419,7 @@ class RequestProgressRepository @Inject constructor(
                 delay(maxOf(2_000, result.retry))
             } else if (result.code == 200) {
                 snapshotFailures = 0
-                val wait = if (_state.value.records.values.any { it.fast }) 3_000L else 10_000L
-                delay(wait)
+                delay(PROGRESS_REFRESH_INTERVAL_MS)
                 useStream = true
             } else {
                 snapshotFailures = (snapshotFailures + 1).coerceAtMost(6)

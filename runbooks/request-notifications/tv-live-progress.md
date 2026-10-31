@@ -25,8 +25,13 @@ by the infrastructure agent. No production routing was changed from this thread.
   record identity, observation time, bounded payload and numeric values are
   checked. Updates replace full records; revisions may have gaps. Unexpected
   versions and malformed/unavailable routes back off instead of clearing history.
-- A healthy stream performs no snapshot polling. If streaming fails but JSON
-  works, poll at 3 seconds for active stages and 10 seconds otherwise, with
+- A stream delivering events needs no snapshot polling. If it goes quiet,
+  audit the service's shared JSON cache after 1 second, regardless of stage.
+  Heartbeats alone do not prove request updates arrive.
+  An audit that finds missed changes repairs the display and switches to JSON
+  polling for a minute before retrying the stream. These are cached progress
+  reads, not direct calls to Seerr or the downloaders. If streaming fails but JSON
+  works, poll the cached endpoint every second while My Requests is visible, with
   separate bounded stream retries. Failures use 2/4/8/.../60-second backoff,
   jitter and Retry-After. Unsupported routes are retried slowly so the same
   Alpha can discover a newly enabled route.
@@ -80,6 +85,35 @@ After the Alpha installation:
 The owner performs device checks. The app agent does not launch/navigate the
 Shield, capture screens/logs, extract session credentials or create real requests.
 Build/install success alone is not authenticated end-to-end verification.
+
+## Recovery after the first owner trial — 2026-10-31
+
+The owner reported that **Ernest Scared Stupid (1991)** downloaded/imported
+while My Requests showed **Live updates**, with no corresponding screen changes.
+That verifies an initial signed-in snapshot, not delivery of subsequent changes.
+The failing request's server event payloads have not been captured, so the exact
+cause of this trial remains unconfirmed.
+
+The recovery Alpha accepts finite nonnegative JSON numbers for bytes remaining
+and ETA, including fractions that the original Long fields rejected. ETA is
+rounded only for display. SSE events and quiet-stream snapshot audits apply
+through one serialized owner/cursor so older queued messages cannot undo a fresh
+snapshot. A changed audit switches to a one-second automatic fallback;
+there is no Refresh requirement. Logs identify rejected event types and recovery
+without recording payloads, parser exception text, cookies or account identities.
+
+The owner rejected reusing the spec's original 3s/10s fallback values for this
+recovery. Healthy cached fallback and quiet-stream audits now both use one second
+while the page is visible. Source collection remains shared on the service;
+failed HTTP requests still back off instead of retrying once a second through an
+outage. The first build with the old timings was stopped before installation.
+
+The one-second recovery Alpha built successfully in **4m 32s** and installed
+directly on the Shield from srv1160496: **ADB Success, exit 0**. No app launch,
+device navigation, session extraction or optional tests were performed. The
+operator's stage log and sanitized progress record for the reported title were
+requested through the owner to continue the incident diagnosis; this delivery
+does not claim that title's end-to-end failure has been reproduced or resolved.
 
 ## Delivery record — 2026-10-31
 

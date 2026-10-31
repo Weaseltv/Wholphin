@@ -152,7 +152,8 @@ fun SeerrRequestsPage(
                             if (live == null && row.stage.kind == RequestStageKind.ADDING) androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.width(350.dp))
                             if (live != null) {
                                 live.etaSeconds?.takeIf { it > 0 && live.stage == "downloading" && !liveStale }?.let {
-                                    Text(if (it < 60) "Estimated under a minute remaining" else "Estimated ${(it + 59) / 60} min remaining")
+                                    val seconds = kotlin.math.ceil(it).toLong()
+                                    Text(if (seconds < 60) "Estimated under a minute remaining" else "Estimated ${seconds / 60 + if (seconds % 60 > 0) 1 else 0} min remaining")
                                 }
                                 live.episodes?.let { episodes ->
                                     val total = episodes.total
