@@ -18,10 +18,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
@@ -144,6 +147,11 @@ fun DiscoverSearchPage(
     val seerrResults by viewModel.seerrResults.collectAsState()
     var query by rememberSaveable { mutableStateOf(viewModel.currentQuery) }
     var position by rememberInt(-1)
+    var isSearchActive by remember { mutableStateOf(false) }
+    var pendingFocusQuery by remember { mutableStateOf<String?>(null) }
+    var submittedResults by remember { mutableIntStateOf(0) }
+    val gridFocusRequester = remember { FocusRequester() }
+    val textFieldFocusRequester = remember { FocusRequester() }
 
     // Start with current preferences, but collect updates when view options change
     val prefs =
@@ -165,14 +173,36 @@ fun DiscoverSearchPage(
     }
 
     fun triggerImmediateSearch(searchQuery: String) {
+        isSearchActive = false
+        keyboardController?.hide()
+        focusManager.clearFocus(force = true)
+        pendingFocusQuery = searchQuery.trim().takeIf { it.isNotEmpty() }
+        submittedResults++
         viewModel.search(searchQuery, immediate = true)
     }
 
     LaunchedEffect(query) {
         viewModel.search(query)
     }
-    val gridFocusRequester = remember { FocusRequester() }
-    val textFieldFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(pendingFocusQuery, seerrResults) {
+        val submitted = pendingFocusQuery ?: return@LaunchedEffect
+        if (submitted != viewModel.currentQuery) return@LaunchedEffect
+        val results = seerrResults
+        if (results is SearchResult.SuccessSeerr && results.items.isNotEmpty()) {
+            repeat(3) {
+                withFrameNanos { }
+                if (gridFocusRequester.tryRequestFocus("submitted request results")) {
+                    pendingFocusQuery = null
+                    return@LaunchedEffect
+                }
+            }
+            // A temporarily unavailable grid must not leave the search field locked out.
+            pendingFocusQuery = null
+        } else if (results is SearchResult.Error || results is SearchResult.SuccessSeerr) {
+            pendingFocusQuery = null
+            textFieldFocusRequester.tryRequestFocus("empty request results")
+        }
+    }
     LaunchedEffect(Unit) {
         if (position >= 0) {
             gridFocusRequester.tryRequestFocus("grid")
@@ -189,7 +219,6 @@ fun DiscoverSearchPage(
             contentAlignment = Alignment.Center,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            var isSearchActive by remember { mutableStateOf(false) }
             var isTextFieldFocused by remember { mutableStateOf(false) }
 
             BackHandler(isTextFieldFocused) {
@@ -212,8 +241,7 @@ fun DiscoverSearchPage(
                     Modifier
                         .padding(start = 16.dp, end = if (isWeaselTv()) clockHeaderEndPadding() else 16.dp)
                         .focusGroup()
-                        .focusRestorer()
-                        .focusRequester(textFieldFocusRequester),
+                        .focusRestorer(),
             ) {
                 AnimatedVisibility(
                     visible = prefs.showVoiceSearchButton,
@@ -233,6 +261,7 @@ fun DiscoverSearchPage(
                 SearchEditTextBox(
                     value = query,
                     onValueChange = {
+                        pendingFocusQuery = null
                         isSearchActive = true
                         query = it
                     },
@@ -241,13 +270,14 @@ fun DiscoverSearchPage(
                     modifier =
                         Modifier
                             .weight(1f)
+                            .focusRequester(textFieldFocusRequester)
                             .onFocusChanged { state ->
                                 isTextFieldFocused = state.isFocused
                                 if (!state.isFocused) isSearchActive = false
                             }.onPreviewKeyEvent { event ->
                                 val isActivationKey =
                                     event.key in listOf(Key.DirectionCenter, Key.Enter)
-                                if (event.type == KeyEventType.KeyUp && isActivationKey && !isSearchActive) {
+                                if (event.type == KeyEventType.KeyUp && isActivationKey && !isSearchActive && pendingFocusQuery == null) {
                                     isSearchActive = true
                                     keyboardController?.show()
                                     true
@@ -266,6 +296,7 @@ fun DiscoverSearchPage(
                 Text(stringResource(R.string.retry))
             }
         }
+        key(submittedResults) {
         SearchCombinedResults(
             result = seerrResults,
             focusRequester = gridFocusRequester,
@@ -280,5 +311,6 @@ fun DiscoverSearchPage(
             },
             modifier = Modifier.fillMaxSize(),
         )
+        }
     }
 }

@@ -47,6 +47,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -175,7 +176,7 @@ fun EditTextBox(
         BasicSecureTextField(
             state = state,
             modifier =
-                modifier.trackRequestTextInput().defaultMinSize(
+                modifier.trackRequestTextInput(enabled && !readOnly).defaultMinSize(
                     minWidth = TextFieldDefaults.MinWidth,
                 ),
             enabled = enabled,
@@ -191,7 +192,7 @@ fun EditTextBox(
         BasicTextField(
             state = state,
             modifier =
-                modifier.trackRequestTextInput().defaultMinSize(
+                modifier.trackRequestTextInput(enabled && !readOnly).defaultMinSize(
                     minWidth = TextFieldDefaults.MinWidth,
                 ),
             enabled = enabled,
@@ -219,6 +220,7 @@ fun SearchEditTextBox(
     readOnly: Boolean = false,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) {
+    val keyboardController = LocalSoftwareKeyboardController.current
     val focused by interactionSource.collectIsFocusedAsState()
     EditTextBox(
         state = state,
@@ -229,6 +231,7 @@ fun SearchEditTextBox(
                 imeAction = ImeAction.Search,
             ),
         onKeyboardAction = {
+            keyboardController?.hide()
             onSearchClick.invoke()
         },
         leadingIcon = {
@@ -282,7 +285,7 @@ fun EditTextBox(
     CompositionLocalProvider(LocalTextSelectionColors provides colors.textSelectionColors) {
         BasicTextField(
             value = value,
-            modifier = modifier.trackRequestTextInput().defaultMinSize(minWidth = TextFieldDefaults.MinWidth, minHeight = height),
+            modifier = modifier.trackRequestTextInput(enabled && !readOnly).defaultMinSize(minWidth = TextFieldDefaults.MinWidth, minHeight = height),
             onValueChange = onValueChange,
             enabled = enabled,
             readOnly = readOnly,
@@ -366,6 +369,7 @@ fun SearchEditTextBox(
     height: Dp = if (isWeaselTv()) 56.dp else 40.dp,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) {
+    val keyboardController = LocalSoftwareKeyboardController.current
     val focused by interactionSource.collectIsFocusedAsState()
     EditTextBox(
         value,
@@ -379,8 +383,8 @@ fun SearchEditTextBox(
         keyboardActions =
             KeyboardActions(
                 onSearch = {
+                    keyboardController?.hide()
                     onSearchClick.invoke()
-                    this.defaultKeyboardAction(ImeAction.Search)
                 },
             ),
         leadingIcon = {

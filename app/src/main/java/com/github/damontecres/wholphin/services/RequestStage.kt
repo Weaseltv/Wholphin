@@ -17,6 +17,7 @@ data class RequestStage(
     val signature: String = "-",
     val detail: String? = null,
     val notify: Boolean = true,
+    val downloadObserved: Boolean = false,
 ) {
     val ready: Boolean get() = kind == RequestStageKind.READY || kind == RequestStageKind.PARTIAL
     val terminal: Boolean get() = kind == RequestStageKind.READY || kind == RequestStageKind.FAILED
@@ -37,7 +38,7 @@ fun com.github.damontecres.wholphin.api.seerr.model.MediaInfo.jellyfinId(is4k: B
     (if (is4k) jellyfinMediaId4k else jellyfinMediaId)?.toUUIDOrNull()
 
 /** Phase 0 contract: no search/failure inference from an empty or incomplete queue. */
-fun deriveRequestStage(request: MediaRequest, futureRelease: LocalDate? = null): RequestStage {
+fun deriveRequestStage(request: MediaRequest, futureRelease: LocalDate? = null, downloadObserved: Boolean = false): RequestStage {
     val media = request.media
     val is4k = request.is4k == true
     val status = if (is4k) media?.status4k else media?.status
@@ -68,14 +69,20 @@ fun deriveRequestStage(request: MediaRequest, futureRelease: LocalDate? = null):
     val activeLeft = active.sumOf { it.sizeLeft!! }
     val rest = when {
         request.status == 1 -> RequestStage(RequestStageKind.WAITING_APPROVAL, "Waiting for approval")
-        queue.isNotEmpty() && queue.all { it.status?.lowercase() == "completed" } -> RequestStage(RequestStageKind.ADDING, "Adding to your library")
+        queue.isNotEmpty() && queue.all { it.status?.lowercase() == "completed" } -> RequestStage(RequestStageKind.ADDING, "Adding to your library", downloadObserved = true)
         active.isNotEmpty() && activeSize.isFinite() && activeSize > 0 && activeLeft.isFinite() -> {
             val progress = (1.0 - activeLeft / activeSize).coerceIn(0.0, 1.0).toFloat()
             val eta = active.mapNotNull { runCatching { Instant.parse(it.estimatedCompletionTime) }.getOrNull() }.filter { it.isAfter(Instant.now()) }.maxOrNull()
-            RequestStage(RequestStageKind.DOWNLOADING, "Downloading ${(progress * 100).toInt()}%", progress, eta)
+            RequestStage(RequestStageKind.DOWNLOADING, "Downloading ${(progress * 100).toInt()}%", progress, eta, downloadObserved = true)
         }
         queue.isNotEmpty() -> RequestStage(RequestStageKind.CHECKING, "Checking")
         request.type == "movie" && futureRelease?.isAfter(LocalDate.now()) == true -> RequestStage(RequestStageKind.UNRELEASED, "Not out yet · Coming $futureRelease")
+        (request.status == 2 || request.status == 5) && downloadObserved -> RequestStage(
+            RequestStageKind.CHECKING,
+            "Checking your library",
+            detail = "Download progress is no longer reported. Waiting for the library to confirm it's ready to watch.",
+            downloadObserved = true,
+        )
         request.status == 2 || request.status == 5 -> RequestStage(
             RequestStageKind.WAITING_LIBRARY,
             "Request accepted",
@@ -85,7 +92,8 @@ fun deriveRequestStage(request: MediaRequest, futureRelease: LocalDate? = null):
     }
     return if (partial) {
         RequestStage(RequestStageKind.PARTIAL, "Some episodes ready", rest.progress, rest.eta,
-            seasons.sorted().mapNotNull { n -> when (availability[n]) { 5 -> "$n:A"; 4 -> "$n:P"; else -> null } }.joinToString(","), rest.label)
+            seasons.sorted().mapNotNull { n -> when (availability[n]) { 5 -> "$n:A"; 4 -> "$n:P"; else -> null } }.joinToString(","), rest.label,
+            downloadObserved = rest.downloadObserved)
     } else rest
 }
 

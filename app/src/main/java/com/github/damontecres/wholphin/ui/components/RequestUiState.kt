@@ -15,9 +15,13 @@ class RequestUiState {
 }
 val LocalRequestUiState = staticCompositionLocalOf { RequestUiState() }
 
-fun Modifier.trackRequestTextInput(): Modifier = composed {
+fun Modifier.trackRequestTextInput(editable: Boolean = true): Modifier = composed {
     val state = LocalRequestUiState.current
     val token = remember { Any() }
-    DisposableEffect(state, token) { onDispose { state.field(token, false) } }
-    this.onFocusChanged { state.field(token, it.hasFocus) }
+    var focused by remember { mutableStateOf(false) }
+    DisposableEffect(state, token, editable, focused) {
+        state.field(token, editable && focused)
+        onDispose { state.field(token, false) }
+    }
+    this.onFocusChanged { focused = it.hasFocus }
 }

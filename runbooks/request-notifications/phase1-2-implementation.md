@@ -42,10 +42,12 @@ per media. Unchanged fresh fully-ready snapshots are reused. Missing persisted
 request IDs are checked individually, including after process restart; only a
 second 404 confirms removal.
 
-Poll intervals are 60 seconds while My Requests is visible or any request is
-still pending/partly available, 30 minutes otherwise, with bounded
-1/2/5/10-minute failure backoff. Refresh, submit and cancellation wake the same
-single-flight coordinator. Background stops polling.
+While the activity is started, requests refresh every 60 seconds on every page,
+including when the known list is idle, with bounded 1/2/5/10-minute failure
+backoff. Refresh, submit, cancellation and connection changes wake the same
+single-flight coordinator. Background stops polling. Each cycle re-captures a
+superseded client/session rather than leaving the worker stopped until another
+connection-flow emission.
 
 A list 401, or a list 403 after that same sign-in previously listed successfully,
 permits one `/auth/me` probe per 15 minutes. A dead-session response permits one
@@ -214,3 +216,42 @@ active incremental caches/key retained. Gradle daemon stopped, **58 GB free**.
 No optional tests/lint/review, app launch, remote navigation, screenshots or
 device visual checks. Owner design/timer verification remains pending. No stable
 release, backend deployment or Phase 5 work.
+
+## Search submission, checker recovery and download history — 2026-10-31
+
+Owner follow-up: Search submitted from the keyboard left the keyboard open;
+notifications still appeared only when opening My Requests; a supplied sequence
+showed Trick 'r Treat (2007) Downloading 28% at 00:05, Request accepted at 00:07,
+then Ready/popup at 00:15 after returning manually. The interval change alone
+was insufficient. These are owner observations, not agent device verification.
+
+- Both shared Search input variants explicitly hide the IME on submission.
+  Requests Search exits editing, clears text focus, waits for the submitted
+  result set and focuses a freshly reset grid's first item. Typing alone does
+  not move focus; changed queries cancel pending handoffs; empty/error results
+  return to the usable read-only search field without reopening the keyboard.
+  Read-only/disabled text fields no longer count as active editing for chips.
+- The foreground worker owns a persistent loop rather than a per-connection
+  collector body that can end on a stale client and wait indefinitely for a
+  new StateFlow value. Every cycle revalidates/re-captures connection, client,
+  account and generation. Connection changes wake it; same-account reconnects
+  preserve journal/baseline state. It now checks every minute even with an idle
+  known list, to discover requests created elsewhere. Failure backoff and
+  throttled SSO probes/recovery are retained; background stops the worker.
+- The journal saves observed download evidence per owned request. A queue that
+  disappears after observed progress shows **Checking your library**, with no
+  stale percentage and no claim that it completed, failed or was not found.
+  Genuine availability/failure wins; ready/failed/gone/cancelled requests clear
+  the marker. Metadata refresh respects this history, which survives restart.
+  Partial TV stages keep their available-season signature; event keys do not
+  change. No Room schema change or new backend credentials are involved.
+- Sanitized sync diagnostics contain only row/update counts and exception class,
+  without titles, IDs, credentials or request/response bodies. No device logs,
+  network probes or real requests were collected/sent by the agent.
+
+Arm64 Alpha **BUILD SUCCESSFUL in 2m 56s** and direct VPS → Shield in-place install
+returned **Success**, exit 0. Owner must retest Search handoff and notification
+delivery from Home; neither is claimed verified by installation. No optional
+tests/lint/review, screenshots, app launch or remote navigation. Gradle daemon
+stopped, active Alpha caches/key retained, **58 GB free**. No stable release,
+phone/backend deployment or Phase 5 work.

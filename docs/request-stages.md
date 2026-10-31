@@ -18,14 +18,18 @@ and library ID. Never substitute the other quality. Evaluate in this order:
 | Adding to your library | Nonempty matching queue, every row completed |
 | Downloading N% | At least one queued/downloading row with finite positive size and valid remaining bytes |
 | Checking | Queue exists but its state/bytes are unknown; TV requested-season set is unknown |
+| Checking your library | A download was previously observed for this request, its progress has disappeared, and library availability is not yet confirmed |
 | Not out yet | Movie has a known future release date (metadata only) |
-| Request accepted | Approved/completed request lacks availability and positive progress evidence; explain that download progress is not yet available |
+| Request accepted | Approved/completed request lacks availability and positive progress evidence, with no remembered download; explain that progress is not yet available |
 
 A partial TV row shows the stage for the remaining seasons as secondary text.
 Progress is bytes-weighted for valid active rows, not whole-request completion.
 ETA is shown only if it parses to a future instant. Unknown queue states stay
 neutral. Empty queue, request age and a completed request are not proof of
-search failure or availability.
+search failure or availability. The account journal remembers observed downloads
+across refresh/restart. A disappearing queue after observed progress shows
+Checking your library, without retaining an obsolete percentage or inventing
+completion/failure. Ready/failed/confirmed removal/cancellation clear that marker.
 
 List responses omit media-season availability: refresh TV media seasons from
 owned request detail, at most four requests concurrently. A failed season

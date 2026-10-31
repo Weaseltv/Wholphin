@@ -34,6 +34,9 @@ real ready/failed/4K payload substitutions were not proven by that Test.
 
 ## Phases 1–2 — Shield Alpha
 
+- [ ] **Submit Search:** press Search on the on-screen keyboard. The keyboard
+  closes and the first result is selected when results arrive. An empty result
+  or error leaves Search usable; typing alone must not move focus away.
 - [ ] **Layout and navigation:** open My Requests; focus Watch now, Details and
   Refresh; move through Ready / In progress / Needs attention and back to the
   first card. Each focused card and its section heading should remain readable,
@@ -82,8 +85,8 @@ real ready/failed/4K payload substitutions were not proven by that Test.
   declined request belongs in Needs attention and can generate an update. Do
   not deliberately break downloads or remove library titles just for this check.
 
-Updates are polled, not instant: while Alpha is open, pending/partly available
-requests are checked about once a minute on every page. Library indexing has its
+Updates are polled, not instant: while Alpha is open, requests are checked about
+once a minute on every page, including when the known list is idle. Library indexing has its
 own delay. Old terminal cards are hidden after 30 days unless opened as a
 specific request. Existing completed requests should not flood the screen on
 initial setup.
@@ -153,6 +156,7 @@ layout issues. Do not include passwords, tokens or webhook secrets.
 | Some episodes ready | The server confirms part of the requested TV seasons is available, but not all. |
 | Not out yet | The movie has a known release date in the future. |
 | Checking | The available information is insufficient to identify a more specific stage. It does not prove that an active search is running. |
+| Checking your library | The app previously saw a download, but progress is no longer reported. It is waiting for library availability to be confirmed. |
 | Request declined | The request service says approval was refused. |
 | Couldn't be added | The request service reports the request failed. |
 | Not available | The server marks the title blocked or removed. |
@@ -180,3 +184,23 @@ Reported 2026-10-31 against the installed heading-fix Alpha:
 - Not yet checked: notification actions/dismissal and suppression during
   playback/typing. Account switching was not reported.
 - No approval to start Phase 5 has been given.
+
+## Follow-up reports after the popup redesign
+
+The owner reported that submitting Search left the keyboard open, notifications
+still appeared only after returning to My Requests, and Trick 'r Treat (2007)
+showed Downloading 28% at 00:05, Request accepted at 00:07, then Ready to watch
+and a popup at 00:15 after manually returning. Those supplied screenshots are
+the observations; no agent device inspection was performed. The earlier
+one-minute cadence change alone did not resolve notification delivery.
+
+Replacement Alpha changes Search submission to close the keyboard and select
+the first result when ready. Read-only fields stop blocking notifications.
+The foreground checker re-captures replaced clients/accounts every cycle and
+does not park permanently on a superseded session. It checks the idle list
+every minute too. Observed download evidence persists across refresh/restart;
+if progress disappears before availability is confirmed, the status becomes
+Checking your library without an obsolete percentage or a claim of completion.
+
+Retest these three behaviors on the replacement Alpha. Notification delivery
+away from Requests is still pending owner confirmation; Phase 5 remains on hold.

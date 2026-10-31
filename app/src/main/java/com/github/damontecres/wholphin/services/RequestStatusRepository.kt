@@ -35,6 +35,7 @@ data class RequestNotificationStore(
     val delivered: Set<String> = emptySet(),
     val pending: List<RequestEvent> = emptyList(),
     val unread: Set<Int> = emptySet(),
+    val downloadObserved: Set<Int> = emptySet(),
 )
 
 data class RequestsState(
@@ -78,13 +79,16 @@ class RequestStatusRepository @Inject constructor(
     init {
         scope.launch {
             connections.connection.collect { connection ->
-                if (connection is SeerrConnectionStatus.Success || connections.connection.value !== connection) return@collect
-                mutex.withLock {
-                    if (connections.connection.value !== connection) return@withLock
-                    generation++
-                    session = null
-                    _state.update { if (connection is SeerrConnectionStatus.NotConfigured) RequestsState() else it.copy(connected = false, loading = false) }
+                if (connections.connection.value !== connection) return@collect
+                if (connection !is SeerrConnectionStatus.Success) {
+                    mutex.withLock {
+                        if (connections.connection.value !== connection) return@withLock
+                        generation++
+                        session = null
+                        _state.update { if (connection is SeerrConnectionStatus.NotConfigured) RequestsState() else it.copy(connected = false, loading = false) }
+                    }
                 }
+                refresh()
             }
         }
     }
@@ -101,34 +105,52 @@ class RequestStatusRepository @Inject constructor(
     }
 
     suspend fun runForeground(): Unit = coroutineScope {
-        connections.connection.collectLatest { connection ->
-            if (connection !is SeerrConnectionStatus.Success || servers.currentUser?.rowId != connection.current.user.jellyfinUserRowId) return@collectLatest
+        var previous: Session? = null
+        var failures = 0
+        var resumed = true
+        while (currentCoroutineContext().isActive) {
             val s = mutex.withLock {
-                generation++
-                val c = connection.current
+                val c = (connections.connection.value as? SeerrConnectionStatus.Success)?.current
+                if (c == null || servers.currentUser?.rowId != c.user.jellyfinUserRowId) {
+                    if (session != null) { generation++; session = null }
+                    if (c != null) _state.value = RequestsState()
+                    return@withLock null
+                }
+                val client = service.api
+                val existing = session
+                if (!resumed && existing != null && current(existing)) return@withLock existing
                 val k = key(c)
                 val store = readStore(k)
-                val previous = _state.value
-                Session(c, service.api, k, generation).also {
+                // A reconnect/profile change can finish while the journal is being read.
+                if ((connections.connection.value as? SeerrConnectionStatus.Success)?.current !== c ||
+                    service.api !== client || servers.currentUser?.rowId != c.user.jellyfinUserRowId) return@withLock null
+                generation++
+                val oldState = _state.value
+                Session(c, client, k, generation).also {
                     session = it
-                    if (previous.scope != k) { missing.clear(); metadataInFlight.clear(); metadataCache.clear() }
-                    _state.value = if (previous.scope == k) previous.copy(connected = true, notifications = store, ownerRowId = c.user.jellyfinUserRowId) else RequestsState(scope = k, connected = true, notifications = store, ownerRowId = c.user.jellyfinUserRowId)
+                    if (oldState.scope != k) { missing.clear(); metadataInFlight.clear(); metadataCache.clear() }
+                    _state.value = if (oldState.scope == k) oldState.copy(connected = true, notifications = store, ownerRowId = c.user.jellyfinUserRowId) else RequestsState(scope = k, connected = true, notifications = store, ownerRowId = c.user.jellyfinUserRowId)
                 }
             }
-            var failures = 0
-            while (currentCoroutineContext().isActive && current(s)) {
+            resumed = false
+            val waitMillis = if (s == null) {
+                failures = 0
+                60_000L
+            } else {
+                if (s !== previous) failures = 0
+                previous = s
                 val ok = sync(s)
+                // Never leave the foreground worker parked on a superseded client/session.
+                // StateFlow may conflate a reconnect back to an equal account value.
+                if (!current(s)) continue
                 failures = if (ok) 0 else (failures + 1).coerceAtMost(4)
-                val items = _state.value.items
-                val waitMillis = when {
+                when {
                     failures > 0 -> listOf(60_000L, 120_000L, 300_000L, 600_000L)[failures - 1]
-                    // Keep waiting and partly-ready requests current while browsing any page.
-                    // Otherwise opening My Requests can discover readiness before the next poll.
-                    myRequestsVisible || items.any { !it.stage.terminal } -> 60_000L
-                    else -> 1_800_000L
+                    // Also discover requests created elsewhere while the known list is idle.
+                    else -> 60_000L
                 }
-                withTimeoutOrNull(waitMillis) { wake.receive() }
             }
+            withTimeoutOrNull(waitMillis) { wake.receive() }
         }
     }
 
@@ -185,7 +207,8 @@ class RequestStatusRepository @Inject constructor(
                     if (seasons == null) { detailFailures.add(row.id); row.copy(media = row.media?.copy(seasons = prior?.request?.media?.seasons)) } else row.copy(media = row.media?.copy(seasons = seasons))
                 } else row
                 val fresh = row.id !in detailFailures
-                RequestStatusItem(hydrated, if (fresh) deriveRequestStage(hydrated, prior?.availabilityDate) else prior?.stage ?: RequestStage(RequestStageKind.CHECKING, "Checking", detail = "Season status couldn't be refreshed"), prior?.item, fresh, prior?.availabilityDate)
+                val downloadSeen = row.id in _state.value.notifications.downloadObserved || prior?.stage?.downloadObserved == true
+                RequestStatusItem(hydrated, if (fresh) deriveRequestStage(hydrated, prior?.availabilityDate, downloadSeen) else prior?.stage ?: RequestStage(RequestStageKind.CHECKING, "Checking", detail = "Season status couldn't be refreshed"), prior?.item, fresh, prior?.availabilityDate)
             }.toMutableList()
             val confirmedGone = mutableSetOf<Int>()
             val trackedIds = old.keys + _state.value.notifications.baselined + _state.value.notifications.pending.map { it.requestId }
@@ -199,7 +222,7 @@ class RequestStatusRepository @Inject constructor(
                         val fresh = detail.type != "tv" || detail.media?.seasons != null
                         if (!fresh) detailFailures.add(id)
                         items.add(RequestStatusItem(detail,
-                            if (fresh) deriveRequestStage(detail, prior?.availabilityDate) else prior?.stage ?: RequestStage(RequestStageKind.CHECKING, "Checking"),
+                            if (fresh) deriveRequestStage(detail, prior?.availabilityDate, id in _state.value.notifications.downloadObserved || prior?.stage?.downloadObserved == true) else prior?.stage ?: RequestStage(RequestStageKind.CHECKING, "Checking"),
                             prior?.item, fresh, prior?.availabilityDate))
                         missing.remove(id)
                     }
@@ -216,10 +239,12 @@ class RequestStatusRepository @Inject constructor(
             if (store != _state.value.notifications) keyValue.save(s.key, store)
             if (!current(s)) return@withLock false
             _state.value = _state.value.copy(items = items.sortedByDescending { it.request.updatedAt ?: "" }, loading = false, lastUpdated = Instant.now(), syncComplete = complete && detailFailures.isEmpty(), error = when { !complete -> "Showing a limited request history. Refresh to try again."; detailFailures.isNotEmpty() -> "Some season statuses couldn't be refreshed."; else -> null }, notifications = store)
+            Timber.d("Request status sync: %d rows, %d pending updates", items.size, store.pending.size)
             true
         } catch (ex: CancellationException) { throw ex }
         catch (ex: Exception) {
             if (current(s)) {
+                Timber.w("Request status sync paused: %s", ex.javaClass.simpleName)
                 _state.update { it.copy(loading = false, error = "Requests unavailable. Showing the last update.", syncComplete = false) }
                 val code = (ex as? ClientException)?.statusCode
                 if (code == 401 || code == 403 && listedCurrent === s.current) probeSession(s)
@@ -249,8 +274,10 @@ class RequestStatusRepository @Inject constructor(
         val pending = store.pending.toMutableList()
         val unread = store.unread.toMutableSet()
         val seeded = store.seeded.toMutableSet()
+        val downloads = store.downloadObserved.toMutableSet()
         for (item in items.filter { it.fresh }) {
             val id = item.request.id
+            if (item.stage.terminal) downloads.remove(id) else if (item.stage.downloadObserved) downloads.add(id)
             val event = item.eventKey()
             if ((!store.initialized || id in store.awaitingBaseline) && id !in seeded) {
                 if (event != null) delivered.add(event)
@@ -264,15 +291,16 @@ class RequestStatusRepository @Inject constructor(
         }
         val byId = items.associateBy { it.request.id }
         pending.removeAll { event -> byId[event.requestId]?.let { it.fresh && it.eventKey() != event.key } == true || event.requestId in confirmedGone }
-        return store.copy(initialized = true, awaitingBaseline = (store.awaitingBaseline + if (!store.initialized) items.map { it.request.id } else emptyList()).filterNot { id -> items.any { it.request.id == id && it.fresh } }.toSet() - confirmedGone, baselined = baselined - confirmedGone, seeded = seeded - confirmedGone, delivered = delivered, pending = pending, unread = unread.filter { id -> id !in confirmedGone && byId[id]?.let { !it.fresh || it.stage.ready } != false }.toSet())
+        return store.copy(initialized = true, awaitingBaseline = (store.awaitingBaseline + if (!store.initialized) items.map { it.request.id } else emptyList()).filterNot { id -> items.any { it.request.id == id && it.fresh } }.toSet() - confirmedGone, baselined = baselined - confirmedGone, seeded = seeded - confirmedGone, delivered = delivered, pending = pending, unread = unread.filter { id -> id !in confirmedGone && byId[id]?.let { !it.fresh || it.stage.ready } != false }.toSet(), downloadObserved = downloads - confirmedGone)
     }
 
     suspend fun seed(request: MediaRequest, expectedScope: String?, metadata: com.github.damontecres.wholphin.data.model.DiscoverItem? = null) = mutex.withLock {
         val s = session ?: return@withLock
         if (!current(s) || s.key != expectedScope || request.requestedBy?.id != s.current.config.id) return@withLock
-        val store = _state.value.notifications.let { it.copy(seeded = it.seeded + request.id, baselined = it.baselined - request.id) }
+        val stage = deriveRequestStage(request)
+        val store = _state.value.notifications.let { it.copy(seeded = it.seeded + request.id, baselined = it.baselined - request.id, downloadObserved = if (stage.downloadObserved) it.downloadObserved + request.id else it.downloadObserved) }
         keyValue.save(s.key, store)
-        if (current(s)) _state.update { it.copy(items = listOf(RequestStatusItem(request, deriveRequestStage(request), metadata)) + it.items.filterNot { it.request.id == request.id }, notifications = store) }
+        if (current(s)) _state.update { it.copy(items = listOf(RequestStatusItem(request, stage, metadata)) + it.items.filterNot { it.request.id == request.id }, notifications = store) }
         refresh()
     }
 
@@ -299,7 +327,7 @@ class RequestStatusRepository @Inject constructor(
                 val (item, availabilityDate) = metadata
                 if (current(s)) metadataCache[cacheKey] = metadata
                 mutex.withLock {
-                    if (current(s)) _state.update { st -> st.copy(items = st.items.map { if (it.request.id == id) it.copy(item = item, availabilityDate = availabilityDate, stage = if (it.fresh) deriveRequestStage(it.request, availabilityDate) else it.stage) else it }) }
+                    if (current(s)) _state.update { st -> st.copy(items = st.items.map { if (it.request.id == id) it.copy(item = item, availabilityDate = availabilityDate, stage = if (it.fresh) deriveRequestStage(it.request, availabilityDate, it.stage.downloadObserved || id in st.notifications.downloadObserved) else it.stage) else it }) }
                 }
             } catch (ex: CancellationException) { throw ex }
             catch (_: Exception) { /* A missing title never hides a request or stops another row. */ }
@@ -336,6 +364,7 @@ class RequestStatusRepository @Inject constructor(
         val live = session?.takeIf { it.key == key && current(it) }
         val base = if (live != null) _state.value.notifications else readStore(key)
         val next = base.copy(baselined = base.baselined - id, seeded = base.seeded - id,
+            downloadObserved = base.downloadObserved - id,
             awaitingBaseline = base.awaitingBaseline - id, unread = base.unread - id,
             pending = base.pending.filterNot { it.requestId == id })
         keyValue.save(key, next)
