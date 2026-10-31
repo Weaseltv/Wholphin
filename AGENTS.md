@@ -17,6 +17,9 @@ not been read.
 
 - Do all of a thread's work on the machine the owner opened it on: editing,
   builds, tests, APK transfers and Shield installs. Run `hostname` if unsure.
+- Identify a machine by hostname, never by matching an IP address to
+  documentation: addresses get reused. 135.148.43.25 was the old production
+  server until 2026-10-27 and is now t3-ovh.
 - Never move a thread's work to another machine. That includes falling back
   when a build or ADB connection fails, the machine is busy, or an old procedure
   or Notion log names another machine. Stop and report instead. Move work only
