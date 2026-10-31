@@ -44,11 +44,10 @@ On 2026-10-12 the ThinkCentre's copy was four weeks old.
 - The script never discards changes or touches other threads' worktrees. Report
   anything it couldn't update, and say in your report if a machine
   could not be reached.
-- The VPS and ThinkCentre sign Alpha builds with the same non-production debug key
-  (`~/.android/debug.keystore`, synced 2026-10-12), so an Alpha from either
-  installs over the other's. t3-ovh does not have that key yet (checked
-  2026-10-31), so its Alphas won't install over theirs until the owner approves
-  copying it. Never commit it or copy the release key.
+- All three machines sign Alpha builds with the same non-production debug key
+  (`~/.android/debug.keystore`, mode 0600; synced 2026-10-12, copied to t3-ovh
+  2026-10-31 with the owner's approval), so an Alpha from any of them installs
+  over the others'. Never commit it or copy the release key.
 
 ### Sending files to the owner's Windows PC: Taildrop
 
