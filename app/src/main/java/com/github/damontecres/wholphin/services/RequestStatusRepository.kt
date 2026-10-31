@@ -74,6 +74,7 @@ class RequestStatusRepository @Inject constructor(
     private val mutex = Mutex()
     private val probeMutex = Mutex()
     private val liveHints = Channel<Unit>(Channel.CONFLATED)
+    private val liveRows = java.util.concurrent.ConcurrentHashMap<Int, Session>()
     @Volatile private var session: Session? = null
     @Volatile private var generation = 0L
     private var listedCurrent: CurrentSeerr? = null
@@ -116,11 +117,20 @@ class RequestStatusRepository @Inject constructor(
     }
 
     suspend fun runForeground(): Unit = coroutineScope {
-        launch { for (hint in liveHints) { refresh(); delay(2_000) } }
+        launch {
+            for (hint in liveHints) {
+                delay(100) // Coalesce a snapshot's changed requests without refreshing history.
+                val changed = liveRows.entries.mapNotNull { (id, owner) ->
+                    if (liveRows.remove(id, owner)) id to owner else null
+                }
+                for ((id, owner) in changed) refreshRequest(owner, id)
+                delay(2_000)
+            }
+        }
         launch {
             progress.runForeground(
                 onRecord = ::onLiveRecord,
-                onDeleted = { requestCanonicalRefresh() },
+                onDeleted = { requestCanonicalRefresh(it) },
                 onAuthIssue = { client ->
                     scope.launch {
                         session?.takeIf { it.client === client && current(it) }?.let { probeSession(it) }
@@ -189,11 +199,15 @@ class RequestStatusRepository @Inject constructor(
         if (visible) { refresh(); markOpened() }
     }
 
-    private fun requestCanonicalRefresh() { liveHints.trySend(Unit) }
+    private fun requestCanonicalRefresh(id: Int) {
+        val owner = session?.takeIf { current(it) } ?: return
+        liveRows[id] = owner
+        liveHints.trySend(Unit)
+    }
 
     private fun onLiveRecord(record: RequestProgressRecord) {
         val row = _state.value.items.firstOrNull { it.request.id == record.requestId }
-        if (row == null) { requestCanonicalRefresh(); return }
+        if (row == null) { requestCanonicalRefresh(record.requestId); return }
         if (!record.matches(row) || record.stale) return
         val availability = when (row.stage.kind) {
             RequestStageKind.READY -> "full"
@@ -206,7 +220,51 @@ class RequestStatusRepository @Inject constructor(
             val oldAvailability = when (oldStatus) { 5 -> "full"; 4 -> "partial"; else -> "none" }
             season.availability != oldAvailability
         }
-        if (!row.fresh || record.availability != availability || seasonsChanged || record.seerrStatus?.let { it != row.request.status } == true) requestCanonicalRefresh()
+        if (!row.fresh || record.availability != availability || seasonsChanged || record.seerrStatus?.let { it != row.request.status } == true) requestCanonicalRefresh(record.requestId)
+    }
+
+    /** Progress records omit library IDs and ownership: verify only the affected request. */
+    private suspend fun refreshRequest(s: Session, id: Int) = mutex.withLock {
+        if (!current(s)) return@withLock
+        val prior = _state.value.items.firstOrNull { it.request.id == id }
+        if (prior == null || !_state.value.notifications.initialized) {
+            refresh()
+            return@withLock
+        }
+        try {
+            val detail = s.client.requestApi.requestRequestIdGet(id.toString())
+            if (!current(s)) return@withLock
+            if (detail.id != id || detail.requestedBy?.id != s.current.config.id ||
+                detail.type != prior.request.type || detail.media?.tmdbId != prior.request.media?.tmdbId ||
+                (detail.is4k == true) != (prior.request.is4k == true)) {
+                refresh()
+                return@withLock
+            }
+            // Incomplete season evidence cannot replace a good row or produce a ready event.
+            if (detail.type == "tv" && detail.media?.seasons == null) return@withLock
+            val cached = metadataCache[detail.type to (detail.media?.tmdbId ?: return@withLock)]
+            val metadata = prior.item ?: cached?.first
+            val availabilityDate = prior.availabilityDate ?: cached?.second
+            val next = RequestStatusItem(detail,
+                deriveRequestStage(detail, availabilityDate, prior.stage.downloadObserved || id in _state.value.notifications.downloadObserved),
+                metadata, true, availabilityDate)
+            val items = _state.value.items.map { if (it.request.id == id) next else it }
+                .sortedByDescending { it.request.updatedAt ?: "" }
+            val store = trackEvents(_state.value.notifications, items, s.key, emptySet())
+            if (store != _state.value.notifications) keyValue.save(s.key, store)
+            if (!current(s)) return@withLock
+            missing.remove(id)
+            // Keep every other row, its metadata and images on screen throughout this read.
+            _state.update { it.copy(items = items, notifications = store, lastUpdated = Instant.now()) }
+        } catch (ex: CancellationException) {
+            throw ex
+        } catch (ex: Exception) {
+            if (!current(s)) return@withLock
+            Timber.w("Request detail refresh paused: %s", ex.javaClass.simpleName)
+            val code = (ex as? ClientException)?.statusCode
+            if (code == 404) refresh() // Existing full-sync confirmation owns deletion/history.
+            else if (code == 401 || code == 403 && listedCurrent === s.current) probeSession(s)
+        }
     }
 
     private suspend fun sync(s: Session): Boolean = mutex.withLock {

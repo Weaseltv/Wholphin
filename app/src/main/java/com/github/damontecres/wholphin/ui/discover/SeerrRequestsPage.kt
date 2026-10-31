@@ -11,8 +11,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -21,6 +23,9 @@ import androidx.tv.material3.Button
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
+import coil3.imageLoader
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import com.github.damontecres.wholphin.services.*
 import com.github.damontecres.wholphin.ui.components.keepTitledRowVisible
 import com.github.damontecres.wholphin.ui.components.rememberRequestFocusTarget
@@ -29,6 +34,9 @@ import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.KeepVisibleBringIntoViewSpec
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import org.jellyfin.sdk.model.api.BaseItemKind
 import java.time.Duration
 import java.time.Instant
@@ -66,6 +74,15 @@ private fun RequestStatusItem.section(): Int = when {
     else -> 1
 }
 
+private fun requestPosterKey(scope: String?, url: String, width: Int, height: Int) =
+    "request-poster|$scope|${width}x$height|$url"
+
+private fun requestPoster(context: android.content.Context, scope: String?, url: String, width: Int, height: Int): ImageRequest {
+    val key = requestPosterKey(scope, url, width, height)
+    return ImageRequest.Builder(context).data(url).size(width, height)
+        .memoryCacheKey(key).placeholderMemoryCacheKey(key).crossfade(false).build()
+}
+
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
 fun SeerrRequestsPage(
@@ -86,6 +103,44 @@ fun SeerrRequestsPage(
         row.request.id == focusRequestId || !row.stage.terminal || runCatching { Instant.parse(row.request.updatedAt).isAfter(cutoff) }.getOrDefault(true)
     }.sortedBy { it.section() }
     val list = rememberLazyListState()
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val posterScope = state.scope
+    val posterWidth = with(density) { 90.dp.roundToPx() }
+    val posterHeight = with(density) { 135.dp.roundToPx() }
+    // Keep successful painters outside lazy rows, including when a row leaves the viewport.
+    val loadedPosters = remember(posterScope) { mutableStateMapOf<String, Painter>() }
+    val visibleIds by remember(list) {
+        derivedStateOf { list.layoutInfo.visibleItemsInfo.mapNotNull { it.key as? Int } }
+    }
+    val warmRows = remember(items, visibleIds) {
+        val wanted = items.take(2).mapTo(linkedSetOf()) { it.request.id }
+        for (id in visibleIds) {
+            val index = items.indexOfFirst { it.request.id == id }
+            if (index >= 0) for (nearby in (index - 1).coerceAtLeast(0)..(index + 1).coerceAtMost(items.lastIndex)) {
+                wanted.add(items[nearby].request.id)
+            }
+        }
+        items.filter { it.request.id in wanted }.take(8)
+    }
+    LaunchedEffect(posterScope, warmRows.map { it.request.id to it.item?.posterUrl }, posterWidth, posterHeight) {
+        // Warm only the viewport neighbours and leading Ready rows, never all history.
+        warmRows.forEach { viewModel.requests.loadMetadata(it.request.id) }
+        val limit = Semaphore(2)
+        coroutineScope {
+            warmRows.mapNotNull { it.item?.posterUrl }.distinct().forEach { url ->
+                launch {
+                    limit.withPermit {
+                        try {
+                            context.imageLoader.execute(requestPoster(context, posterScope, url, posterWidth, posterHeight))
+                        } catch (ex: kotlinx.coroutines.CancellationException) {
+                            throw ex
+                        } catch (_: Exception) { /* Prefetch is optional; it cannot take down the page. */ }
+                    }
+                }
+            }
+        }
+    }
     val requesters = remember(state.scope) { mutableMapOf<Int, FocusRequester>() }
     items.forEach { requesters.getOrPut(it.request.id) { FocusRequester() } }
     var focusHandled by androidx.compose.runtime.saveable.rememberSaveable(state.scope, focusRequestId) { mutableStateOf(false) }
@@ -131,7 +186,7 @@ fun SeerrRequestsPage(
                 val shownDetail = when {
                     live != null && row.stage.kind == RequestStageKind.PARTIAL -> live.label
                     live?.stage == "waiting" && live.detail != "not_released_yet" -> "No download is active yet. Updates appear automatically."
-                    live?.stage == "confirming_availability" -> "Confirming it's ready to watch."
+                    live?.stage in setOf("confirming_availability", "ready") -> "Confirming it's ready to watch."
                     live?.detail == "download_failed_retrying" -> "The previous download had a problem. Waiting for its replacement."
                     live == null -> row.stage.detail
                     else -> null
@@ -144,7 +199,22 @@ fun SeerrRequestsPage(
                         Text(listOf("Ready", "In progress", "Needs attention")[row.section()], style = MaterialTheme.typography.headlineSmall)
                     }
                     Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant).padding(16.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                        AsyncImage(model = row.item?.posterUrl, contentDescription = null, modifier = Modifier.size(90.dp, 135.dp))
+                        val url = row.item?.posterUrl
+                        val posterKey = url?.let { requestPosterKey(posterScope, it, posterWidth, posterHeight) }
+                        val poster = remember(context, posterKey) {
+                            url?.let { requestPoster(context, posterScope, it, posterWidth, posterHeight) }
+                        }
+                        val previousPoster = posterKey?.let { loadedPosters[it] }
+                        AsyncImage(
+                            model = poster, placeholder = previousPoster, error = previousPoster,
+                            contentDescription = null, modifier = Modifier.size(90.dp, 135.dp),
+                            onSuccess = { success ->
+                                if (posterKey != null && loadedPosters[posterKey] !== success.painter) {
+                                    if (posterKey !in loadedPosters && loadedPosters.size >= 24) loadedPosters.keys.firstOrNull()?.let { loadedPosters.remove(it) }
+                                    loadedPosters[posterKey] = success.painter
+                                }
+                            },
+                        )
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(row.title + (row.item?.releaseDate?.year?.let { " ($it)" } ?: "") + if (row.request.is4k == true) " · 4K" else "", style = MaterialTheme.typography.titleLarge)
                             Text(shownLabel + if (!row.fresh || liveStale) " · Last known status" else "", color = if (row.stage.ready) Color(0xFF00F2D6) else MaterialTheme.colorScheme.onSurface)

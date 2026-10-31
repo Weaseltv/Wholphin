@@ -58,8 +58,11 @@ Partial availability remains separate from processing progress. Imported episode
 counts are labelled imported, not playable. Unknown progress is not invented;
 stale data retains its last value and is labelled Last known status.
 
-Source availability/status changes wake a coalesced canonical Seerr refresh.
-Only that verified canonical path feeds the existing ready/partial/failed chip
+Source availability/status changes coalesce into captured-session, per-request
+Seerr detail reads for known rows. They replace only that verified request while
+keeping all other rows and metadata. Unknown requests and confirmed-deletion
+checks still use the existing history sync, as do manual/periodic refreshes.
+Only the verified canonical path feeds the existing ready/partial/failed chip
 journal, library IDs and actions. A service Ready hint is shown as Finishing up
 until canonical confirmation. Home and other pages retain the existing
 foreground minute checker. Live progress does not enable phone background push
@@ -162,6 +165,34 @@ or production changes were performed. The owner verifies the next dismissal;
 build/install success is not a claim of device focus testing. Server-side stage
 correction and Jellyfin/Seerr timing optimizations remain the Unraid operator's
 separate work.
+
+## Stable presentation while a request becomes Ready — 2026-10-31
+
+The owner identified two cosmetic defects missed in the first Blair Witch
+recording review: the confirming explanation disappeared briefly before Ready,
+and Happy Death Day's poster appeared blank as the reordered list revealed it.
+Functional progress remained successful; the earlier review was not exhaustive
+visual acceptance.
+
+Cards were already keyed by request ID. They now use stable, fixed-size image
+requests and matching Coil memory-cache placeholders. A page/account-scoped cache
+retains up to 24 successful painters across lazy-row disposal/reordering. At most
+eight leading/viewport-neighbour rows are warmed, with image prefetch concurrency
+limited to two; this does not prefetch all request history or run each second.
+The confirming explanation remains for both confirming_availability and the
+live ready hint, until canonical Ready replaces it.
+
+For a known request, a live Ready/availability hint now fetches only that personal
+request's detail and publishes the row and notification journal together, without
+setting the list-wide loading state. The stream's complete progress record lacks
+the canonical ownership/library-link fields, so it does not replace that check.
+Row metadata, quality, session/account guards and TV season validation remain.
+Manual/periodic history reads still preserve the currently displayed rows.
+
+Arm64 Alpha built in **3m 53s** and installed directly from srv1160496 on the
+Shield: **ADB Success, exit 0**. No optional tests, device navigation, screenshots
+or server changes. The owner verifies the next Ready transition visually; build
+and installation do not establish that the one-frame/one-second flicker is gone.
 
 ## Delivery record — 2026-10-31
 
