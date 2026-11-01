@@ -161,7 +161,7 @@ class RequestProgressRepository @Inject constructor(
         override fun equals(other: Any?): Boolean = other is Capture && current === other.current && client === other.client && root == other.root
         override fun hashCode(): Int = System.identityHashCode(current) * 31 + System.identityHashCode(client)
     }
-    private data class Selection(val capture: Capture?, val restart: Long)
+    private data class Selection(val capture: Capture?, val active: Boolean, val restart: Long)
     private data class Result(val code: Int = 0, val retry: Long = 0, val unsupported: Boolean = false)
     private sealed interface StreamMessage {
         data class Event(val type: String?, val data: String) : StreamMessage
@@ -190,21 +190,31 @@ class RequestProgressRepository @Inject constructor(
                 delay(1_000)
             }
         }.distinctUntilChanged()
-        combine(visible, allowed, captures, restart) { shown, safe, account, kick -> Selection(account.takeIf { shown && safe }, kick) }
+        combine(visible, allowed, captures, restart) { shown, safe, account, kick -> Selection(account, shown && safe, kick) }
             .distinctUntilChanged().collectLatest { selection ->
                 val token = generation.incrementAndGet()
                 val c = selection.capture
-                _state.value = if (c == null) RequestProgressState() else RequestProgressState(
-                    client = c.client, ownerRowId = c.current.user.jellyfinUserRowId, seerrUserId = c.current.config.id, mode = ProgressMode.CONNECTING,
-                )
+                _state.update { it.forCapture(c, selection.active) }
                 try {
-                    if (c != null) runConnection(c, token, onRecord, onDeleted, onAuthIssue)
+                    if (c != null && selection.active) runConnection(c, token, onRecord, onDeleted, onAuthIssue)
                 } finally {
                     if (generation.compareAndSet(token, token + 1)) {
-                        _state.update { if (generation.get() == token + 1) RequestProgressState() else it }
+                        _state.update { if (generation.get() == token + 1) it.forCapture(capture(), false) else it }
                     }
                 }
             }
+    }
+
+    private fun RequestProgressState.forCapture(c: Capture?, active: Boolean): RequestProgressState {
+        if (c == null) return RequestProgressState()
+        val mode = if (active) ProgressMode.CONNECTING else ProgressMode.OFF
+        // A dialog, backgrounding or resync pauses transport, not the last observed progress.
+        // Reuse it only for this exact client/account; a fresh snapshot replaces the full map.
+        return if (client === c.client && ownerRowId == c.current.user.jellyfinUserRowId && seerrUserId == c.current.config.id) {
+            copy(mode = mode, transportStale = true)
+        } else RequestProgressState(
+            client = c.client, ownerRowId = c.current.user.jellyfinUserRowId, seerrUserId = c.current.config.id, mode = mode,
+        )
     }
 
     private fun current(c: Capture, token: Long): Boolean = generation.get() == token &&

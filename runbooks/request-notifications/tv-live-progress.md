@@ -14,6 +14,12 @@ by the infrastructure agent. No production routing was changed from this thread.
   dialogs and onboarding are inactive. Backgrounding or leaving the page cancels
   the connection and its HTTP work. Account/client changes invalidate all late
   callbacks. Overlapping Activity foreground jobs serialize through one owner.
+- Pausing for an overlay, backgrounding, page exit or explicit resync retains the
+  same client's account-scoped progress map as Last known status. Reconnecting
+  does not briefly replace an imported count with older canonical Downloading 0%
+  data. The next complete snapshot replaces the map; account/client changes or
+  loss of the authenticated account clear it. Transport remains stopped while
+  presentation is unsafe; retaining values does not add background requests.
 - Requests use `/progress/v1/stream` and `/progress/v1/snapshot` on the pinned
   HTTPS host and reuse that exact Seerr client's in-memory `connect.sid` cookie
   jar. API-key configurations and other Seerr servers keep the existing path;
