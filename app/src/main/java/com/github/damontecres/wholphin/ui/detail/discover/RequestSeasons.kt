@@ -81,6 +81,8 @@ fun RequestSeasons(
     data: SeerrRequestData,
     request4kEnabled: Boolean,
     onSubmit: (TvRequest) -> Unit,
+    submitting: Boolean = false,
+    errorMessage: String? = null,
     modifier: Modifier = Modifier,
 ) {
     var is4k by remember { mutableStateOf(request4kEnabled) }
@@ -141,6 +143,7 @@ fun RequestSeasons(
     val folders = remember(is4k, data) { if (is4k) data.rootFolders4k else data.rootFolders }
 
     fun submit() {
+        if (submitting) return
         onSubmit.invoke(
             TvRequest(
                 data = data,
@@ -163,6 +166,9 @@ fun RequestSeasons(
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier,
         )
+        errorMessage?.let {
+            Text(it, color = MaterialTheme.colorScheme.error)
+        }
         LazyColumn(
             // Room for the focus glow of the Submit button and the last season
             contentPadding = PaddingValues(top = 12.dp, bottom = DialogListEdge),
@@ -189,7 +195,7 @@ fun RequestSeasons(
                         enabled = selectedSeasons.isNotEmpty(),
                     ) {
                         Text(
-                            text = stringResource(R.string.submit),
+                            text = if (submitting) "Submitting…" else stringResource(R.string.submit),
                         )
                     }
                 }
@@ -271,7 +277,7 @@ fun RequestSeasons(
                             enabled = selectedSeasons.isNotEmpty(),
                         ) {
                             Text(
-                                text = stringResource(R.string.submit),
+                            text = if (submitting) "Submitting…" else stringResource(R.string.submit),
                             )
                         }
                     }
@@ -422,6 +428,8 @@ fun RequestSeasonsDialog(
     request4kEnabled: Boolean,
     onSubmit: (TvRequest) -> Unit,
     onDismissRequest: () -> Unit,
+    submitting: Boolean = false,
+    errorMessage: String? = null,
 ) {
     BasicDialog(
         onDismissRequest = onDismissRequest,
@@ -448,6 +456,8 @@ fun RequestSeasonsDialog(
                     seasons4k = seasons4k,
                     request4kEnabled = request4kEnabled,
                     onSubmit = onSubmit,
+                    submitting = submitting,
+                    errorMessage = errorMessage,
                     modifier =
                         Modifier
                             .padding(16.dp)

@@ -216,8 +216,8 @@ class DiscoverMovieViewModel
                 } catch (ex: CancellationException) {
                     throw ex
                 } catch (ex: Exception) {
-                    Timber.e(ex, "Error requesting %s", request.movieId)
-                    showToast(context, "An error occurred")
+                    Timber.w("Request submission failed (%s)", ex.javaClass.simpleName)
+                    showToast(context, requestSubmissionError(ex))
                 }
                 fetchAndSetItem().await()
                 updateCanCancel()

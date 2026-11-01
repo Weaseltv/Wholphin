@@ -123,6 +123,19 @@ page entry through the shared connection owner. Successful cancellation removes
 only the matching local progress entry before resynchronizing. Error paths do
 not report a successful submission or navigate as if it succeeded.
 
+TV submission keeps the season picker open until the server accepts the request.
+While it is in flight, Submit shows Submitting and ignores repeated presses. A
+failure leaves the selected seasons/profiles/folder in place and shows a persistent
+message identifying authorization, rejection, rate limiting or a server error,
+with its HTTP error code when available. Movie submission uses the same error
+wording in its existing toast. Server bodies and exception dumps are never shown.
+The known structured reason Media data not found is translated to a plain-English
+title-listing mismatch. Other server text is not displayed verbatim.
+A timeout or unreadable result is treated as unconfirmed: check My Requests before
+manually trying again. No failed POST is automatically replayed. Success alone
+closes the TV picker, seeds My Requests and navigates, under the captured account
+and API-client guard.
+
 ## Owner verification
 
 After the Alpha installation:
