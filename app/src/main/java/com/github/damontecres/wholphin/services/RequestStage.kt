@@ -72,7 +72,10 @@ fun deriveRequestStage(request: MediaRequest, futureRelease: LocalDate? = null, 
         queue.isNotEmpty() && queue.all { it.status?.lowercase() == "completed" } -> RequestStage(RequestStageKind.ADDING, "Adding to your library", downloadObserved = true)
         active.isNotEmpty() && activeSize.isFinite() && activeSize > 0 && activeLeft.isFinite() -> {
             val progress = (1.0 - activeLeft / activeSize).coerceIn(0.0, 1.0).toFloat()
-            val eta = active.mapNotNull { runCatching { Instant.parse(it.estimatedCompletionTime) }.getOrNull() }.filter { it.isAfter(Instant.now()) }.maxOrNull()
+            // TV requests intentionally have no ETA, including the canonical Seerr fallback.
+            val eta = if (request.type == "movie") {
+                active.mapNotNull { runCatching { Instant.parse(it.estimatedCompletionTime) }.getOrNull() }.filter { it.isAfter(Instant.now()) }.maxOrNull()
+            } else null
             RequestStage(RequestStageKind.DOWNLOADING, "Downloading ${(progress * 100).toInt()}%", progress, eta, downloadObserved = true)
         }
         queue.isNotEmpty() -> RequestStage(RequestStageKind.CHECKING, "Checking")

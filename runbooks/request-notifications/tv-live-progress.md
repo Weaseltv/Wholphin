@@ -70,14 +70,21 @@ The Unraid operator's 2026-10-31 TV correction retains the v1 fields and numeric
 types. For TV, stageProgress now measures episode-weighted download completion
 over the whole request, counting finished episodes as complete and active ones
 fractionally, rather than weighting only the current active download set. The
-service reports a nondecreasing percentage and calculates etaSeconds from work
-remaining and combined speed averaged over about ten seconds. Retry detail is
+service reports a nondecreasing percentage. As of the owner's 2026-11-01 policy,
+TV requests always send etaSeconds null and have no time estimate. The earlier
+TV ETA experiments are superseded. Retry detail is
 reported only when nothing else is coming for the request. These are operator-
 reported source changes (52/52 checks, including six failures against the old
 behavior), not checks independently run by the app agent. The existing Alpha
-displays the supplied values and replaces the entire record on update, so removed
-retry detail clears automatically. No new APK or client-side progress smoothing
-is needed. Download completion and imported counts still do not establish Seerr
+displays the supplied progress values and replaces the entire record on update,
+so null ETA and removed retry detail clear previous values. The TV client also
+ignores any older TV estimate still in a cached record and never derives a TV
+ETA from bytesLeft. Canonical Seerr fallback does not collect TV completion-time
+estimates, and the card explicitly permits estimate Text only for movies in both
+paths. No Text or fixed spacer is emitted for a TV estimate; the normal column
+spacing applies only to remaining children. Movie estimates retain their existing
+behavior. The bar, percentage and imported-episode counter remain independent of
+ETA. Download completion and imported counts still do not establish Seerr
 availability.
 
 Source availability/status changes coalesce into captured-session, per-request

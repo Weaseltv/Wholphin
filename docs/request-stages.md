@@ -26,10 +26,14 @@ A partial TV row shows the stage for the remaining seasons as secondary text.
 Canonical Seerr fallback progress is bytes-weighted for valid active rows, not
 whole-request completion. The live overlay uses the progress service's supplied
 percentage instead: since its 2026-10-31 TV correction, this is episode-weighted
-across the whole request, including finished episodes. Its ETA uses a smoothed
-combined download speed. The TV displays those values without recalculating or
-clamping them; neither reaching 100% nor an imported count proves availability.
-Fallback ETA is shown only if it parses to a future instant. Unknown queue states stay
+across the whole request, including finished episodes. Since the owner's
+2026-11-01 policy change, TV requests have no ETA: the service sends etaSeconds
+null, and the app suppresses both live/cached and canonical-fallback TV estimates.
+It never calculates an ETA from bytesLeft. Null updates replace prior live values;
+the UI omits the estimate Text entirely, so no estimate row or spacer remains.
+Movies retain their supplied live ETA and future-instant fallback ETA. The app
+displays progress without recalculating or clamping it; neither reaching 100%
+nor an imported count proves availability. Unknown queue states stay
 neutral. Empty queue, request age and a completed request are not proof of
 search failure or availability. The account journal remembers observed downloads
 across refresh/restart. A disappearing queue after observed progress shows

@@ -247,7 +247,8 @@ fun SeerrRequestsPage(
                             bar?.let { androidx.compose.material3.LinearProgressIndicator(progress = { it }, modifier = Modifier.width(350.dp), color = Color(0xFF00F2D6)) }
                             if (live == null && row.stage.kind == RequestStageKind.ADDING) androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.width(350.dp))
                             if (live != null) {
-                                live.etaSeconds?.takeIf { it > 0 && live.stage == "downloading" && !liveStale }?.let {
+                                // Hide even a pre-policy cached TV ETA; no Text means no layout slot.
+                                live.etaSeconds?.takeIf { row.request.type == "movie" && it > 0 && live.stage == "downloading" && !liveStale }?.let {
                                     val seconds = kotlin.math.ceil(it).toLong()
                                     Text(if (seconds < 60) "Estimated under a minute remaining" else "Estimated ${seconds / 60 + if (seconds % 60 > 0) 1 else 0} min remaining")
                                 }
@@ -256,7 +257,7 @@ fun SeerrRequestsPage(
                                     val imported = episodes.imported
                                     if (total != null && total > 0 && imported != null) Text("$imported of $total episodes imported")
                                 }
-                            } else row.stage.eta?.takeIf { it.isAfter(clock) }?.let { Text("Estimated ${Duration.between(clock, it).toMinutes().coerceAtLeast(1)} min remaining") }
+                            } else row.stage.eta?.takeIf { row.request.type == "movie" && it.isAfter(clock) }?.let { Text("Estimated ${Duration.between(clock, it).toMinutes().coerceAtLeast(1)} min remaining") }
                             Text("Requested ${row.request.createdAt?.take(10) ?: "recently"}", style = MaterialTheme.typography.bodySmall)
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Button(onClick = { positionCallback(1, index); viewModel.open(row.request.id, state.scope) }, modifier = Modifier.rememberRequestFocusTarget(requesters.getValue(row.request.id))) {
