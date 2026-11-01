@@ -115,7 +115,7 @@ fun ExpandableDiscoverButtons(
                     },
                 onClick = {
                     if (ownRequest != null) {
-                        if (ownRequest.stage.ready && ownRequest.jellyfinId != null) requestsVM.open(ownRequest)
+                        if (ownRequest.stage.ready && ownRequest.jellyfinId != null) requestsVM.open(ownRequest.request.id, requestState.scope)
                         else requestsVM.navigation.navigateToFromDrawer(com.github.damontecres.wholphin.ui.nav.Destination.Discover(1, ownRequest.request.id))
                     } else when (availability) {
                         SeerrAvailability.UNKNOWN -> {

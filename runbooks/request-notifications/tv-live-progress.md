@@ -58,6 +58,14 @@ Partial availability remains separate from processing progress. Imported episode
 counts are labelled imported, not playable. Unknown progress is not invented;
 stale data retains its last value and is labelled Last known status.
 
+Waiting-stage copy follows detail rather than hiding partial availability:
+no_release_found_yet on a partial show says The rest isn't available to download
+yet. It'll be added automatically when it is. Nonpartial requests use generic
+no-download wording. not_released_yet keeps Waiting for release for nonpartial
+titles; partial shows retain Some episodes ready with an explanation that the
+rest has not been released. No episode number or playable-episode count is
+inferred from episodes.imported: it stays labelled N of M episodes imported.
+
 The Unraid operator's 2026-10-31 TV correction retains the v1 fields and numeric
 types. For TV, stageProgress now measures episode-weighted download completion
 over the whole request, counting finished episodes as complete and active ones
@@ -77,8 +85,13 @@ Seerr detail reads for known rows. They replace only that verified request while
 keeping all other rows and metadata. Unknown requests and confirmed-deletion
 checks still use the existing history sync, as do manual/periodic refreshes.
 Only the verified canonical path feeds the existing ready/partial/failed chip
-journal, library IDs and actions. A service Ready hint is shown as Finishing up
-until canonical confirmation. Home and other pages retain the existing
+journal. A matching personal TV record with availability partial can show Some
+episodes ready and Watch now immediately, independently of its processing stage.
+It uses a matching-quality canonical library ID; if that link is missing, Watch
+now performs one captured-account Seerr title lookup, verifies its TMDB identity
+and quality-specific library ID, and checks the account again before navigation.
+It never substitutes the other quality or a title-name match. A service Ready
+hint is shown as Finishing up until canonical confirmation. Home and other pages retain the existing
 foreground minute checker. Live progress does not enable phone background push
 or change the held Phase 5/deployment gates.
 

@@ -50,10 +50,22 @@ class SeerrRequestsViewModel @Inject constructor(
     var actionError by mutableStateOf<String?>(null)
         private set
     fun cancel(id: Int) { viewModelScope.launch { try { requests.cancel(id) } catch (ex: kotlinx.coroutines.CancellationException) { throw ex } catch (_: Exception) { actionError = "Couldn't cancel this request. Please refresh and try again." } } }
-    fun open(item: RequestStatusItem) {
-        val id = item.jellyfinId
-        if (item.stage.ready && id != null) navigation.navigateTo(Destination.MediaItem(id, if (item.request.type == "tv") BaseItemKind.SERIES else BaseItemKind.MOVIE))
-        else {
+    fun open(requestId: Int, expectedScope: String?) {
+        val state = requests.state.value
+        if (state.scope != expectedScope) return
+        val item = state.items.firstOrNull { it.request.id == requestId } ?: return
+        val progress = requests.progress.state.value.takeIf { state.connected && requests.acceptsProgress(it) }
+        if (item.stage.ready || item.partlyWatchable(item.liveProgress(progress))) {
+            viewModelScope.launch {
+                try {
+                    val id = item.jellyfinId ?: requests.libraryItemId(requestId, expectedScope)
+                    if (requests.state.value.scope != expectedScope) return@launch
+                    if (id != null) navigation.navigateTo(Destination.MediaItem(id, if (item.request.type == "tv") BaseItemKind.SERIES else BaseItemKind.MOVIE))
+                    else actionError = "Couldn't open this title right now. Please try again."
+                } catch (ex: kotlinx.coroutines.CancellationException) { throw ex }
+                catch (_: Exception) { if (requests.state.value.scope == expectedScope) actionError = "Couldn't open this title right now. Please try again." }
+            }
+        } else {
             val metadata = item.item ?: item.request.media?.tmdbId?.let { tmdb ->
                 com.github.damontecres.wholphin.data.model.DiscoverItem(
                     id = tmdb, type = com.github.damontecres.wholphin.data.model.SeerrItemType.fromString(item.request.type),
@@ -68,8 +80,16 @@ class SeerrRequestsViewModel @Inject constructor(
     }
 }
 
-private fun RequestStatusItem.section(): Int = when {
-    stage.ready -> 0
+private fun RequestStatusItem.liveProgress(progress: RequestProgressState?): RequestProgressRecord? =
+    progress?.records?.get(request.id)?.takeIf {
+        !stage.terminal && request.requestedBy?.id == progress.seerrUserId && it.matches(this)
+    }
+
+private fun RequestStatusItem.partlyWatchable(live: RequestProgressRecord?): Boolean =
+    request.type == "tv" && (stage.kind == RequestStageKind.PARTIAL || live?.availability == "partial")
+
+private fun RequestStatusItem.section(live: RequestProgressRecord?): Int = when {
+    stage.ready || partlyWatchable(live) -> 0
     stage.kind == RequestStageKind.FAILED -> 2
     else -> 1
 }
@@ -101,7 +121,7 @@ fun SeerrRequestsPage(
     val cutoff = clock.minus(Duration.ofDays(30))
     val items = state.items.filter { row ->
         row.request.id == focusRequestId || !row.stage.terminal || runCatching { Instant.parse(row.request.updatedAt).isAfter(cutoff) }.getOrDefault(true)
-    }.sortedBy { it.section() }
+    }.sortedBy { it.section(it.liveProgress(progress)) }
     val list = rememberLazyListState()
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -173,21 +193,26 @@ fun SeerrRequestsPage(
                 } else if (state.lastUpdated == null && state.error == null) "Loading your requests…" else "Your requests couldn't be loaded right now."
             ) }
             itemsIndexed(items, key = { _, row -> row.request.id }) { index, row ->
-                // Progress never reorders or replaces canonical rows; Coil keeps the same poster URL.
-                val live = progress?.records?.get(row.request.id)?.takeIf {
-                    !row.stage.terminal && row.request.requestedBy?.id == progress.seerrUserId && it.matches(row)
-                }
+                // Availability can move a row into Ready; percentage updates never reorder it.
+                val live = row.liveProgress(progress)
                 val liveStale = live != null && (live.stale || progress?.transportStale == true)
+                val partial = row.partlyWatchable(live)
+                val watchable = row.stage.ready || partial
                 val shownLabel = when {
-                    row.stage.kind == RequestStageKind.PARTIAL -> row.stage.label
+                    partial -> "Some episodes ready"
                     live != null -> live.label
                     else -> row.stage.label
                 }
                 val shownDetail = when {
-                    live != null && row.stage.kind == RequestStageKind.PARTIAL -> live.label
+                    live?.stage == "waiting" && live.detail == "no_release_found_yet" ->
+                        if (partial) "The rest isn't available to download yet. It'll be added automatically when it is."
+                        else "No download is available yet. It'll be added automatically when it is."
+                    live?.stage == "waiting" && live.detail == "not_released_yet" ->
+                        if (partial) "The rest hasn't been released yet. It'll be added automatically when it is." else null
                     live?.stage == "waiting" && live.detail != "not_released_yet" -> "No download is active yet. Updates appear automatically."
                     live?.stage in setOf("confirming_availability", "ready") -> "Confirming it's ready to watch."
                     live?.detail == "download_failed_retrying" -> "The previous download had a problem. Waiting for its replacement."
+                    live != null && partial -> live.label
                     live == null -> row.stage.detail
                     else -> null
                 }
@@ -195,8 +220,8 @@ fun SeerrRequestsPage(
                 LaunchedEffect(row.request.id, state.lastUpdated) { viewModel.requests.loadMetadata(row.request.id) }
                 // Reveal the section heading and full card, rather than centering only its action button.
                 Column(modifier = Modifier.keepTitledRowVisible(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (index == 0 || items[index - 1].section() != row.section()) {
-                        Text(listOf("Ready", "In progress", "Needs attention")[row.section()], style = MaterialTheme.typography.headlineSmall)
+                    if (index == 0 || items[index - 1].let { it.section(it.liveProgress(progress)) } != row.section(live)) {
+                        Text(listOf("Ready", "In progress", "Needs attention")[row.section(live)], style = MaterialTheme.typography.headlineSmall)
                     }
                     Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant).padding(16.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                         val url = row.item?.posterUrl
@@ -217,7 +242,7 @@ fun SeerrRequestsPage(
                         )
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(row.title + (row.item?.releaseDate?.year?.let { " ($it)" } ?: "") + if (row.request.is4k == true) " · 4K" else "", style = MaterialTheme.typography.titleLarge)
-                            Text(shownLabel + if (!row.fresh || liveStale) " · Last known status" else "", color = if (row.stage.ready) Color(0xFF00F2D6) else MaterialTheme.colorScheme.onSurface)
+                            Text(shownLabel + if (!row.fresh || liveStale) " · Last known status" else "", color = if (watchable) Color(0xFF00F2D6) else MaterialTheme.colorScheme.onSurface)
                             shownDetail?.let { Text(it) }
                             bar?.let { androidx.compose.material3.LinearProgressIndicator(progress = { it }, modifier = Modifier.width(350.dp), color = Color(0xFF00F2D6)) }
                             if (live == null && row.stage.kind == RequestStageKind.ADDING) androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.width(350.dp))
@@ -234,12 +259,11 @@ fun SeerrRequestsPage(
                             } else row.stage.eta?.takeIf { it.isAfter(clock) }?.let { Text("Estimated ${Duration.between(clock, it).toMinutes().coerceAtLeast(1)} min remaining") }
                             Text("Requested ${row.request.createdAt?.take(10) ?: "recently"}", style = MaterialTheme.typography.bodySmall)
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Button(onClick = { positionCallback(1, index); viewModel.open(row) }, modifier = Modifier.rememberRequestFocusTarget(requesters.getValue(row.request.id))) {
-                                    Text(if (row.stage.ready && row.jellyfinId != null) "Watch now" else "Details")
+                                Button(onClick = { positionCallback(1, index); viewModel.open(row.request.id, state.scope) }, modifier = Modifier.rememberRequestFocusTarget(requesters.getValue(row.request.id))) {
+                                    Text(if (watchable) "Watch now" else "Details")
                                 }
                                 if (viewModel.requests.canCancel(row.request)) Button(onClick = { viewModel.cancel(row.request.id) }, modifier = Modifier.rememberRequestFocusTarget()) { Text("Cancel request") }
                             }
-                            if (row.stage.ready && row.jellyfinId == null) Text("Ready. Find it in your library.", style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }

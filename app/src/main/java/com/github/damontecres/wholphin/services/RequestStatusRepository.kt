@@ -453,6 +453,33 @@ class RequestStatusRepository @Inject constructor(
         _state.update { if (it.submission === submission) it.copy(submission = null) else it }
     }
 
+    /** Resolve a missing library link only on Watch now, retaining the captured account and quality. */
+    suspend fun libraryItemId(id: Int, expectedScope: String?): java.util.UUID? {
+        val (s, row) = mutex.withLock {
+            val s = session ?: return null
+            val row = _state.value.items.firstOrNull { it.request.id == id } ?: return null
+            if (!current(s) || s.key != expectedScope || row.request.requestedBy?.id != s.current.config.id) return null
+            s to row
+        }
+        row.jellyfinId?.let { return if (current(s)) it else null }
+        val tmdb = row.request.media?.tmdbId ?: return null
+        val media = if (row.request.type == "tv") {
+            val details = s.client.tvApi.tvTvIdGet(tmdb)
+            if (details.id != tmdb) return null
+            details.mediaInfo
+        } else {
+            val details = s.client.moviesApi.movieMovieIdGet(tmdb)
+            if (details.id != tmdb) return null
+            details.mediaInfo
+        }
+        if (!current(s)) return null
+        val latest = _state.value.items.firstOrNull { it.request.id == id } ?: return null
+        if (latest.request.requestedBy?.id != row.request.requestedBy?.id ||
+            latest.request.media?.tmdbId != tmdb || latest.request.type != row.request.type ||
+            (latest.request.is4k == true) != (row.request.is4k == true)) return null
+        return media?.jellyfinId(row.request.is4k == true)
+    }
+
     fun loadMetadata(id: Int) {
         scope.launch {
             val s = session ?: return@launch
