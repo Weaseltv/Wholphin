@@ -23,8 +23,13 @@ and library ID. Never substitute the other quality. Evaluate in this order:
 | Request accepted | Approved/completed request lacks availability and positive progress evidence, with no remembered download; explain that progress is not yet available |
 
 A partial TV row shows the stage for the remaining seasons as secondary text.
-Progress is bytes-weighted for valid active rows, not whole-request completion.
-ETA is shown only if it parses to a future instant. Unknown queue states stay
+Canonical Seerr fallback progress is bytes-weighted for valid active rows, not
+whole-request completion. The live overlay uses the progress service's supplied
+percentage instead: since its 2026-10-31 TV correction, this is episode-weighted
+across the whole request, including finished episodes. Its ETA uses a smoothed
+combined download speed. The TV displays those values without recalculating or
+clamping them; neither reaching 100% nor an imported count proves availability.
+Fallback ETA is shown only if it parses to a future instant. Unknown queue states stay
 neutral. Empty queue, request age and a completed request are not proof of
 search failure or availability. The account journal remembers observed downloads
 across refresh/restart. A disappearing queue after observed progress shows

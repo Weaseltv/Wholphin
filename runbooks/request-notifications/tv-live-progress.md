@@ -58,6 +58,20 @@ Partial availability remains separate from processing progress. Imported episode
 counts are labelled imported, not playable. Unknown progress is not invented;
 stale data retains its last value and is labelled Last known status.
 
+The Unraid operator's 2026-10-31 TV correction retains the v1 fields and numeric
+types. For TV, stageProgress now measures episode-weighted download completion
+over the whole request, counting finished episodes as complete and active ones
+fractionally, rather than weighting only the current active download set. The
+service reports a nondecreasing percentage and calculates etaSeconds from work
+remaining and combined speed averaged over about ten seconds. Retry detail is
+reported only when nothing else is coming for the request. These are operator-
+reported source changes (52/52 checks, including six failures against the old
+behavior), not checks independently run by the app agent. The existing Alpha
+displays the supplied values and replaces the entire record on update, so removed
+retry detail clears automatically. No new APK or client-side progress smoothing
+is needed. Download completion and imported counts still do not establish Seerr
+availability.
+
 Source availability/status changes coalesce into captured-session, per-request
 Seerr detail reads for known rows. They replace only that verified request while
 keeping all other rows and metadata. Unknown requests and confirmed-deletion
@@ -67,6 +81,16 @@ journal, library IDs and actions. A service Ready hint is shown as Finishing up
 until canonical confirmation. Home and other pages retain the existing
 foreground minute checker. Live progress does not enable phone background push
 or change the held Phase 5/deployment gates.
+
+The owner reported a repeated partial popup for Schitt's Creek, request 58. The
+operator correlated the first alert at 23:45:37 UTC and the second at 23:49:17 UTC
+with the helper-triggered Seerr check making seasons 5 and 6 available; overall
+availability remained partial. It was not the five-minute sweep. Alpha 7f10b6fa
+already groups all season signatures into one partial presentation per account,
+request and quality, honors legacy dismissed keys across restart/reconnect, and
+preserves the separate full-ready alert. Source records continue updating the
+card silently within partial availability. The outstanding S03E10 torrent lacked
+seeders and is handled by the Unraid cleanup/replacement path, not an app failure.
 
 Every successful submission/season edit forces a live resync, coalesced with
 page entry through the shared connection owner. Successful cancellation removes
