@@ -76,7 +76,7 @@ The nonmodal chip waits for a resumed, focused application window, browsing,
 no screensaver/dimming, no dialog and no focused editable field. It takes primary
 focus after saving the focused page/rail region and its child, suppresses OK keys pressed before
 its 700 ms guard, and restores focus on dismissal/Back/one minute without input.
-The top-center poster card is flat and square, with a one-pixel Requests-teal
+The bottom-right poster card is flat and square, with a one-pixel Requests-teal
 border and solid teal left stripe. Its uppercase title uses Audiowide; status,
 separate year/type line, copy and buttons use Exo 2. Only the selected Watch now
 button glows; the card, poster and Dismiss remain square without glow. The
@@ -97,7 +97,8 @@ region/row/item restorers.
 
 A successful locally submitted request seeds a separate, memory-only confirmation
 in the account state. Request sent / Request updated uses the same poster card
-at bottom center for six seconds, without actions or focus acquisition. The
+at bottom right for six seconds, without actions or focus acquisition. Both cards
+keep a 24 dp inset from the bottom and right edges. The
 ready-popup preference does not disable submission feedback. Normal presentation
 guards still apply; a ready popup takes precedence and expired confirmations do
 not replay. Submission does not acknowledge availability events or change badges.

@@ -157,7 +157,7 @@ fun BoxScope.RequestChipHost(
             onPrimary = {},
             onDismiss = {},
             confirmationLabel = if (submission.updated) "Request updated" else "Request sent",
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp, start = 24.dp, end = 24.dp).width(360.dp),
+            modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = 24.dp, start = 24.dp, end = 24.dp).width(360.dp),
         )
     }
     if (displayed && safe && events.isNotEmpty()) {
@@ -170,7 +170,7 @@ fun BoxScope.RequestChipHost(
             canWatch = canWatch,
             firstFocus = firstFocus,
             remaining = { remaining },
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = 18.dp, start = 24.dp, end = 24.dp).width(360.dp)
+            modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = 24.dp, start = 24.dp, end = 24.dp).width(360.dp)
                 .focusRequester(chipFocus).onFocusChanged { chipFocused = it.hasFocus }.focusGroup()
                 .onPreviewKeyEvent { event ->
                     lastInput = SystemClock.uptimeMillis()
