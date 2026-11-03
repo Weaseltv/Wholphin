@@ -221,32 +221,48 @@ private fun requestedAt(row: RequestStatusItem): Instant? =
 
 /**
  * A show part-way through its season with nothing missing: every aired episode is imported and the
- * rest haven't aired yet. The progress service (which reads Sonarr) supplies "nothing missing":
- * waiting / not released yet, with all reported episodes imported. The next air date and season
- * counts come from TMDB's title details. Any other partial show keeps "Some episodes ready".
+ * rest haven't aired yet. Everything here comes from the progress service, which reads Sonarr:
+ * "nothing missing" is waiting / not released yet with all reported episodes imported, and the next
+ * episode, its air time and the season counts come from its `schedule`. Without a schedule (or a
+ * next air time) the row keeps "Some episodes ready".
  */
 private fun airingRow(
     row: RequestStatusItem,
     live: RequestProgressRecord?,
     episodes: com.github.damontecres.wholphin.services.ProgressEpisodes?,
-    today: LocalDate,
+    clock: Instant,
+    formatTime: (Instant) -> String,
 ): Triple<String, String, ActivityProgress>? {
-    val airing = row.airing ?: return null
-    if (live == null || live.availability != "partial" || live.stage != "waiting" || live.detail != "not_released_yet") return null
-    if (episodes == null || episodes.imported != episodes.total) return null
-    if (airing.airDate.isBefore(today) || airing.season !in row.request.seasons.orEmpty().mapNotNull { it.seasonNumber }) return null
-    val date = airing.airDate.format(DateTimeFormatter.ofPattern(if (airing.airDate.year == today.year) "EEE, MMM d" else "EEE, MMM d, yyyy", Locale.getDefault()))
-    val aired = airing.episode?.minus(1)
-    val total = airing.seasonEpisodes
-    val progress = if (aired != null && total != null && total > 0 && aired in 0..total) {
-        ActivityProgress.Note("$aired of $total episodes out", emphasized = true)
+    val schedule = live?.schedule ?: return null
+    if (live.availability != "partial" || live.stage != "waiting" || live.detail != "not_released_yet") return null
+    val imported = episodes?.imported ?: return null
+    val total = episodes.total ?: return null
+    if (imported < total) return null
+    val nextAt = schedule.nextAiring?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: return null
+    // Once that time has passed the episode has aired; until it is imported it is missing, not "airing".
+    if (nextAt.isBefore(clock)) return null
+    val requested = row.request.seasons.orEmpty().mapNotNull { it.seasonNumber }
+    val season =
+        schedule.next?.season
+            ?: schedule.seasons.firstOrNull { s -> s.nextAiring?.let { runCatching { Instant.parse(it) }.getOrNull() } == nextAt }?.n
+            ?: return null
+    if (season !in requested) return null
+    val counts = schedule.seasons.firstOrNull { it.n == season }
+    val zone = ZoneId.systemDefault()
+    val local = nextAt.atZone(zone)
+    val sameYear = local.year == clock.atZone(zone).year
+    val day = local.format(DateTimeFormatter.ofPattern(if (sameYear) "EEE, MMM d" else "EEE, MMM d, yyyy", Locale.getDefault()))
+    val date = "$day · ${formatTime(nextAt)}"
+    val progress =
+        if (counts != null && counts.total > 0 && counts.aired in 0..counts.total) {
+            ActivityProgress.Note("${counts.aired} of ${counts.total} episodes out", emphasized = true)
+        } else {
+            ActivityProgress.Note("$imported / $total imported", emphasized = true)
+        }
+    return if (counts?.aired == 0) {
+        Triple("Season $season coming", "First episode $date", progress)
     } else {
-        ActivityProgress.Note("${episodes.imported} / ${episodes.total} imported", emphasized = true)
-    }
-    return if (aired == 0) {
-        Triple("Season ${airing.season} coming", "First episode $date", progress)
-    } else {
-        Triple("Season ${airing.season} airing", "Next episode $date", progress)
+        Triple("Season $season airing", "Next episode $date", progress)
     }
 }
 
@@ -255,6 +271,7 @@ private fun activityRow(
     live: RequestProgressRecord?,
     liveStale: Boolean,
     clock: Instant,
+    formatTime: (Instant) -> String,
 ): ActivityRow {
     val today = clock.atZone(ZoneId.systemDefault()).toLocalDate()
     val stale = !row.fresh || liveStale
@@ -273,7 +290,7 @@ private fun activityRow(
     }
 
     if (partial) {
-        airingRow(row, live, episodes, today)?.let { (status, detail, progress) ->
+        airingRow(row, live, episodes, clock, formatTime)?.let { (status, detail, progress) ->
             return ActivityRow(row, ActivitySection.WAITING, status, withStale(detail), progress, watchable = true)
         }
         val rest = when {
@@ -431,10 +448,13 @@ fun SeerrRequestsPage(
     DisposableEffect(Unit) { viewModel.requests.setVisible(true); onDispose { viewModel.requests.setVisible(false) } }
     val context = LocalContext.current
     val fonts = remember(context) { NeonFonts.families(context).let { (body, display) -> ActivityFonts(body, display) } }
+    // Air times follow the TV's 12/24-hour setting, like the on-screen clock.
+    val timeFormat = remember(context) { android.text.format.DateFormat.getTimeFormat(context) }
+    val formatAiringTime: (Instant) -> String = { timeFormat.format(java.util.Date.from(it)) }
 
     val rows = state.items.map { row ->
         val live = row.liveProgress(progress)
-        activityRow(row, live, live != null && (live.stale || progress?.transportStale == true), clock)
+        activityRow(row, live, live != null && (live.stale || progress?.transportStale == true), clock, formatAiringTime)
     }
     // Sections keep the request order; Ready lists the newest request first. A live
     // percentage never moves a row, only a change of section does.

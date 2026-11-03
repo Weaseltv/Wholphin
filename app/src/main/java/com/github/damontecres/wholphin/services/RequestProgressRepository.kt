@@ -40,6 +40,37 @@ data class ProgressSeason(val n: Int, val availability: String)
 @Serializable
 data class ProgressEpisodes(val total: Int? = null, val imported: Int? = null, val active: Int? = null)
 
+/** An episode in [ProgressSchedule]. */
+@Serializable
+data class ProgressScheduleEpisode(val season: Int, val episode: Int)
+
+/**
+ * One requested season, from Sonarr: [aired] episodes whose air time has passed, [total]
+ * every episode Sonarr lists (unaired ones included), [imported] those with a file, and the
+ * season's next episode time ([nextAiring], UTC ISO-8601) if any.
+ */
+@Serializable
+data class ProgressScheduleSeason(
+    val n: Int,
+    val aired: Int,
+    val total: Int,
+    val imported: Int,
+    val nextAiring: String? = null,
+)
+
+/**
+ * A TV request's air schedule from Sonarr, through the progress service. Null for movies and
+ * for shows Sonarr doesn't have. [nextAiring] is the earliest upcoming monitored episode in the
+ * requested seasons (UTC, exact time); [next] is that episode; [seasons] lists every requested
+ * season in ascending order.
+ */
+@Serializable
+data class ProgressSchedule(
+    val nextAiring: String? = null,
+    val next: ProgressScheduleEpisode? = null,
+    val seasons: List<ProgressScheduleSeason> = emptyList(),
+)
+
 @Serializable
 data class RequestProgressRecord(
     val requestId: Int,
@@ -55,6 +86,7 @@ data class RequestProgressRecord(
     val etaSeconds: Double? = null,
     val detail: String? = null,
     val episodes: ProgressEpisodes? = null,
+    val schedule: ProgressSchedule? = null,
     val stale: Boolean = false,
     val staleSince: String? = null,
     val observedAt: String,

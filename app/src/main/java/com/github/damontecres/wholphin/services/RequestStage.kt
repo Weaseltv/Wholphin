@@ -23,20 +23,12 @@ data class RequestStage(
     val terminal: Boolean get() = kind == RequestStageKind.READY || kind == RequestStageKind.FAILED
 }
 
-/**
- * A TV title's next scheduled episode, from the title details (TMDB data through Seerr) that the
- * Activity page already loads for posters. [airDate] is TMDB's date-only air date.
- * [seasonEpisodes] is TMDB's episode count for that season, including episodes not yet aired.
- */
-data class TvAiring(val season: Int, val episode: Int?, val airDate: LocalDate, val seasonEpisodes: Int?)
-
 data class RequestStatusItem(
     val request: MediaRequest,
     val stage: RequestStage,
     val item: DiscoverItem? = null,
     val fresh: Boolean = true,
     val availabilityDate: LocalDate? = item?.releaseDate,
-    val airing: TvAiring? = null,
 ) {
     val title: String get() = item?.title ?: "Requested ${if (request.type == "tv") "show" else "movie"}"
     val jellyfinId: UUID? get() = request.media?.jellyfinId(request.is4k == true)

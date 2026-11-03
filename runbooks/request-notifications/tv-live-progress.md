@@ -274,21 +274,28 @@ The owner reported airing shows (Heartland, Private Eyes West Coast, Paolo) show
 episode was downloaded. Seerr marks such a season partial because TMDB's season
 count includes episodes that haven't aired.
 
-On the Activity page, such a row now reads **Season N airing / Next episode Sun, Nov 8**,
-with **x of y episodes out** for that season in Progress. If TMDB gives no usable
-season count, Progress shows the overall imported count instead. When the next
-episode is the season's first, the row reads **Season N coming / First episode <date>**.
+On the Activity page such a row now reads **Season N airing / Next episode Sun, Nov 8 · 7:00 PM**,
+with **x of y episodes out** for that season in Progress. If the season counts are
+unusable, Progress shows the overall imported count instead. When the next
+episode's season has aired = 0, the row reads **Season N coming / First episode <date · time>**.
 The row stays in Waiting until Seerr marks the season available.
 
-- "Nothing missing" comes only from the progress service, which reads Sonarr:
-  availability partial, stage waiting, detail not_released_yet, and episodes
-  imported equal to episodes total. Without a live record, the row keeps
-  Some episodes ready.
-- The next air date, season number and season episode count come from TMDB's
-  nextEpisodeToAir and seasons[].episodeCount. They arrive in the Seerr title
-  details the page already loads for posters. Partly available shows recheck them
-  once the date has passed, at most every six hours.
-- The progress service contract has no Sonarr air dates or per-season counts.
-  Showing Sonarr's nextAiring (an exact time, shown in the viewer's local time)
-  and its counts would need these fields added to the Unraid progress service
-  records. Owner sign-off is required for that server change.
+Every value comes from Sonarr through the Unraid progress service (deployed by the
+operator on 2026-11-03). TMDB is used only for posters and years.
+
+- **Nothing missing:** availability partial, stage waiting, detail
+  not_released_yet, and episodes.imported >= episodes.total.
+- **The schedule:** the record's `schedule` gives `nextAiring`, the earliest
+  upcoming monitored episode in the requested seasons (UTC, exact time). `next`
+  is that episode's season and number. `seasons[]` gives `aired`, `total`
+  (unaired included), `imported` and `nextAiring` per requested season.
+- **Date and time:** shown in the TV's time zone, with the time following the
+  TV's 12/24-hour setting like the on-screen clock. Once that time has passed,
+  the episode counts as aired, so the row goes back to the existing wording
+  until it is imported.
+- **No schedule:** with `schedule` null (movies, or a show Sonarr doesn't have)
+  or no `nextAiring`, the row keeps Some episodes ready. There is no TMDB
+  fallback for dates or counts. Without a live record it also keeps the existing
+  wording.
+- The interim TMDB-based version (nextEpisodeToAir via Seerr title details) was
+  removed in favor of this single source.
