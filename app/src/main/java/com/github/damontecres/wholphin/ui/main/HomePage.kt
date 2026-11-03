@@ -74,6 +74,7 @@ import com.github.damontecres.wholphin.data.model.JustWatchHomeList
 import com.github.damontecres.wholphin.data.model.QuickDetailsData
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.StreamingCollections
+import com.github.damontecres.wholphin.services.WeaselHomeRows
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.cards.BannerCard
 import com.github.damontecres.wholphin.ui.cards.BannerCardWithTitle
@@ -134,6 +135,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import org.jellyfin.sdk.model.DateTime
 import org.jellyfin.sdk.model.api.BaseItemKind
+import org.jellyfin.sdk.model.api.CollectionType
 import timber.log.Timber
 import java.util.UUID
 import kotlin.time.Duration
@@ -489,14 +491,14 @@ fun HomePageContent(
             }
         }
     }
-    // The WeaselPlex tour starts on Movies, Top of the Charts, the same row for everyone: focus its first poster, so the
+    // The WeaselPlex tour starts on Trending Movies, the same row for everyone: focus its first poster, so the
     // details at the top match it too. Without that row, it starts on the focused row once the rows have loaded.
     val coachMarkTour = LocalCoachMarkTour.current
     if (coachMarkTour != null && coachMarkTour.pending && !coachMarkTour.homeRowReady) {
         val chartRow =
             homeRows.indexOfFirst {
                 hasContent(it) &&
-                    ((it as HomeRowLoadingState.Success).rowType as? HomeRowConfig.JustWatch)?.list == JustWatchHomeList.MOVIE_CHART
+                    ((it as HomeRowLoadingState.Success).rowType as? HomeRowConfig.JustWatch)?.list == JustWatchHomeList.TRENDING_MOVIES
             }
         val loaded = homeRows.isNotEmpty() && homeRows.all { it.completed }
         LaunchedEffect(chartRow, loaded, firstFocused) {
@@ -907,7 +909,7 @@ private fun homeRowHeading(
         }
 
         row is HomeRowConfig.RecentlyAddedCombined -> {
-            stringResource(R.string.home_movies_and_tv_shows) to stringResource(R.string.home_recently_added_kicker)
+            stringResource(WeaselHomeRows.recentlyAddedHeading(row)) to stringResource(R.string.home_recently_added_kicker)
         }
 
         row is HomeRowConfig.JustWatch -> {
@@ -929,10 +931,13 @@ internal fun homeRowAccent(
         return NeonSectionPalette.Collections.border
     }
     if (row is HomeRowConfig.JustWatch) {
-        return when (row.list) {
-            JustWatchHomeList.MOVIE_CHART, JustWatchHomeList.TOP_10_MOVIES -> NeonSectionPalette.Movies.border
-            JustWatchHomeList.SHOW_CHART, JustWatchHomeList.TOP_10_SHOWS -> NeonSectionPalette.TvShows.border
-            JustWatchHomeList.POPULAR, JustWatchHomeList.TRENDING -> LocalNeonAccent.current
+        return if (row.list.shows) NeonSectionPalette.TvShows.border else NeonSectionPalette.Movies.border
+    }
+    if (row is HomeRowConfig.RecentlyAddedCombined) {
+        when (row.collectionType) {
+            CollectionType.MOVIES -> return NeonSectionPalette.Movies.border
+            CollectionType.TVSHOWS -> return NeonSectionPalette.TvShows.border
+            else -> {}
         }
     }
     val parentId =
@@ -1228,9 +1233,9 @@ fun HomePageCardContent(
     }
 }
 
-/** Rows mixing movies and shows say which each card is. */
+/** Rows mixing movies and shows (only the older Recently Added row) say which each card is. */
 private val HomeRowConfig?.mixesMoviesAndShows: Boolean
-    get() = this is HomeRowConfig.RecentlyAddedCombined || (this is HomeRowConfig.JustWatch && list.mixed)
+    get() = this is HomeRowConfig.RecentlyAddedCombined && collectionType == null
 
 /** MOVIE or SHOW; an episode or season stands for its show. */
 @Composable

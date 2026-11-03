@@ -12,6 +12,7 @@ import io.mockk.mockk
 import kotlinx.serialization.json.Json
 import org.jellyfin.sdk.model.UUID
 import org.jellyfin.sdk.model.api.BaseItemKind
+import org.jellyfin.sdk.model.api.CollectionType
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
@@ -78,8 +79,8 @@ class TestHomeRowSamples {
                 HomeRowConfig.TvPrograms(),
                 HomeRowConfig.TvChannels(),
                 HomeRowConfig.Suggestions(parentId = UUID.randomUUID()),
-                HomeRowConfig.RecentlyAddedCombined(parentIds = listOf(UUID.randomUUID(), UUID.randomUUID())),
-                HomeRowConfig.JustWatch(list = JustWatchHomeList.TRENDING),
+                HomeRowConfig.RecentlyAddedCombined(parentIds = listOf(UUID.randomUUID()), collectionType = CollectionType.MOVIES),
+                HomeRowConfig.JustWatch(list = JustWatchHomeList.TRENDING_MOVIES),
             )
     }
 

@@ -1140,7 +1140,7 @@ class HomeSettingsService
                 }
 
                 is HomeRowConfig.RecentlyAddedCombined -> {
-                    HomeRowConfigDisplay(id, ResStringProvider(R.string.home_recently_added_full), config)
+                    HomeRowConfigDisplay(id, ResStringProvider(WeaselHomeRows.recentlyAddedTitle(config)), config)
                 }
 
                 is HomeRowConfig.JustWatch -> {
@@ -1517,7 +1517,7 @@ class HomeSettingsService
                             .take(limit)
                             .map { BaseItem(it, row.viewOptions.useSeries) }
                     Success(
-                        ResStringProvider(R.string.home_recently_added_full),
+                        ResStringProvider(WeaselHomeRows.recentlyAddedTitle(row)),
                         latest,
                         row.viewOptions,
                         rowType = row,
