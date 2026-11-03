@@ -124,7 +124,19 @@ class MediaToolbarLayoutTest {
         compose.setContent {
             WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
                 Box(Modifier.width(800.dp)) {
-                    ExpandableDiscoverButtons(true, true, SeerrAvailability.PARTIALLY_AVAILABLE, null, {}, {}, {}, {}, {}, {})
+                    ExpandableDiscoverButtons(
+                        true,
+                        true,
+                        SeerrAvailability.PARTIALLY_AVAILABLE,
+                        null,
+                        {},
+                        {},
+                        {},
+                        {},
+                        {},
+                        {},
+                        requestsVM = null,
+                    )
                 }
             }
         }

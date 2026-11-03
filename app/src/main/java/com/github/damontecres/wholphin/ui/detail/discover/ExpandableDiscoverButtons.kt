@@ -43,12 +43,19 @@ fun ExpandableDiscoverButtons(
     pendingOnClick: () -> Unit = {},
     requestTmdbId: Int? = null,
     requestMediaType: String? = null,
-) {
-    val requestsVM: com.github.damontecres.wholphin.ui.discover.SeerrRequestsViewModel =
+    // Null only in layout tests, which have no Hilt
+    requestsVM: com.github.damontecres.wholphin.ui.discover.SeerrRequestsViewModel? =
         androidx.hilt.lifecycle.viewmodel.compose
-            .hiltViewModel()
-    val requestState by requestsVM.requests.state.collectAsState()
-    val matchingRequests = requestState.items.filter { it.request.media?.tmdbId == requestTmdbId && it.request.type == requestMediaType }
+            .hiltViewModel(),
+) {
+    val requestState =
+        requestsVM
+            ?.requests
+            ?.state
+            ?.collectAsState()
+            ?.value
+    val matchingRequests =
+        requestState?.items.orEmpty().filter { it.request.media?.tmdbId == requestTmdbId && it.request.type == requestMediaType }
     val ownRequest =
         matchingRequests.firstOrNull { !it.stage.terminal && it.request.is4k != true }
             ?: matchingRequests.firstOrNull { !it.stage.terminal }
@@ -124,9 +131,9 @@ fun ExpandableDiscoverButtons(
                         if (ownRequest.stage.ready &&
                             ownRequest.jellyfinId != null
                         ) {
-                            requestsVM.open(ownRequest.request.id, requestState.scope)
+                            requestsVM?.open(ownRequest.request.id, requestState?.scope)
                         } else {
-                            requestsVM.navigation.navigateToFromDrawer(
+                            requestsVM?.navigation?.navigateToFromDrawer(
                                 com.github.damontecres.wholphin.ui.nav.Destination
                                     .Discover(1, ownRequest.request.id),
                             )
@@ -140,7 +147,7 @@ fun ExpandableDiscoverButtons(
                             SeerrAvailability.PENDING,
                             SeerrAvailability.PROCESSING,
                             -> {
-                                requestsVM.navigation.navigateToFromDrawer(
+                                requestsVM?.navigation?.navigateToFromDrawer(
                                     com.github.damontecres.wholphin.ui.nav.Destination
                                         .Discover(1, ownRequest?.request?.id),
                                 )
