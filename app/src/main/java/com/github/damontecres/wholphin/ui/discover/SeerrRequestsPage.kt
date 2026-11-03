@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -36,12 +38,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
@@ -61,6 +65,12 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -101,6 +111,8 @@ import com.github.damontecres.wholphin.ui.theme.RequestActivityPalette
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.KeepVisibleBringIntoViewSpec
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
@@ -307,13 +319,66 @@ private val BarWidth = 75.dp
 private val BarHeight = 6.dp
 private val FadeHeight = 40.dp
 
+/**
+ * Space kept above a focused row: the 6dp row gap plus 2dp of the row above, so its focus border
+ * never meets the list's top edge and the row above stays laid out for the next Up press.
+ */
+private val FocusTopClearance = RowGap + 2.dp
+
 private data class ActivityFonts(val body: FontFamily, val display: FontFamily)
 
-/** Keep the focused row above the bottom fade while there is more list below it. */
+/**
+ * Scroll only as far as needed, but keep [topPx] clear above the focused row and keep it above
+ * the bottom fade ([bottomPx]).
+ */
 @OptIn(ExperimentalFoundationApi::class)
-private class FadeClearanceBringIntoViewSpec(private val bottomPx: Float) : BringIntoViewSpec {
-    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float =
-        KeepVisibleBringIntoViewSpec.calculateScrollDistance(offset, size, (containerSize - bottomPx).coerceAtLeast(size))
+private class FocusClearanceBringIntoViewSpec(private val topPx: Float, private val bottomPx: Float) : BringIntoViewSpec {
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
+        val viewport = (containerSize - bottomPx).coerceAtLeast(size)
+        val top = topPx.coerceAtMost((viewport - size).coerceAtLeast(0f))
+        return KeepVisibleBringIntoViewSpec.calculateScrollDistance(offset - top, size + top, viewport)
+    }
+}
+
+/**
+ * Moves focus one row at a time on Up and Down. The default focus search only sees rows that are
+ * laid out, so with Up held, a row at the top edge found the search bar before the next row and
+ * focus left the queue part-way down. Here the next row is scrolled in first when needed, and Up
+ * leaves the queue only from its first row.
+ */
+private class RowNavigator(private val list: LazyListState, private val scope: CoroutineScope) {
+    var ids: List<Int> = emptyList()
+    var requesters: Map<Int, FocusRequester> = emptyMap()
+    var stepPx = 0f
+    private var job: Job? = null
+    private var target = -1
+
+    fun onKey(index: Int, event: KeyEvent): Boolean {
+        if (event.type != KeyEventType.KeyDown) return false
+        val delta = when (event.key) {
+            Key.DirectionUp -> -1
+            Key.DirectionDown -> 1
+            else -> return false
+        }
+        val moving = job?.isActive == true
+        val next = (if (moving) target else index) + delta
+        // Up from the first row goes on to the search bar; nothing else leaves the queue.
+        if (next !in ids.indices) return moving || delta > 0
+        job?.cancel()
+        target = next
+        val requester = requesters[ids[next]] ?: return true
+        if (placed(next) && requester.tryRequestFocus()) return true
+        job = scope.launch {
+            repeat(12) {
+                list.scrollBy(delta * stepPx)
+                withFrameNanos { }
+                if (placed(next) && requester.tryRequestFocus()) return@launch
+            }
+        }
+        return true
+    }
+
+    private fun placed(index: Int) = list.layoutInfo.visibleItemsInfo.any { it.index == index }
 }
 
 /** The ACTIVITY queue: Active, Waiting and Ready to watch, or the empty state. */
@@ -395,6 +460,7 @@ private fun ActivityTable(
     val posterWidth = with(density) { PosterWidth.roundToPx() }
     val posterHeight = with(density) { PosterHeight.roundToPx() }
     val fadePx = with(density) { FadeHeight.toPx() }
+    val topClearancePx = with(density) { FocusTopClearance.toPx() }
     // Keep successful painters outside lazy rows, including when a row leaves the viewport.
     val loadedPosters = remember(scope) { mutableStateMapOf<String, Painter>() }
     val visibleIds by remember(list) {
@@ -449,10 +515,18 @@ private fun ActivityTable(
         // first row down into another section and open part-way through the queue.)
         if (!listFocused) list.scrollToItem(0)
     }
+    val tableScope = rememberCoroutineScope()
+    val navigator = remember(list, tableScope) { RowNavigator(list, tableScope) }
+    val stepPx = with(density) { (RowHeight + RowGap).toPx() }
+    SideEffect {
+        navigator.ids = order
+        navigator.requesters = requesters
+        navigator.stepPx = stepPx
+    }
 
     Column(modifier) {
         ColumnHeadings(fonts, Modifier.padding(top = 18.dp, bottom = 4.dp))
-        CompositionLocalProvider(LocalBringIntoViewSpec provides remember(fadePx) { FadeClearanceBringIntoViewSpec(fadePx) }) {
+        CompositionLocalProvider(LocalBringIntoViewSpec provides remember(topClearancePx, fadePx) { FocusClearanceBringIntoViewSpec(topClearancePx, fadePx) }) {
             LazyColumn(
                 state = list,
                 contentPadding = PaddingValues(bottom = 8.dp),
@@ -480,7 +554,7 @@ private fun ActivityTable(
                 itemsIndexed(rows, key = { _, row -> row.row.request.id }) { index, entry ->
                     LaunchedEffect(entry.row.request.id, lastUpdated) { loadMetadata(entry.row.request.id) }
                     // A section's first row brings its heading into view with it.
-                    Column(Modifier.keepTitledRowVisible()) {
+                    Column(Modifier.keepTitledRowVisible().onPreviewKeyEvent { navigator.onKey(index, it) }) {
                         if (index == 0 || rows[index - 1].section != entry.section) {
                             SectionHeading(entry.section, counts[entry.section] ?: 0, fonts, first = index == 0)
                         }
