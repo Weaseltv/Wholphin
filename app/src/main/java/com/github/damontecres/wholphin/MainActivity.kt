@@ -57,6 +57,7 @@ import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.SetupNavigationManager
 import com.github.damontecres.wholphin.services.SuggestionsSchedulerService
 import com.github.damontecres.wholphin.services.UpdateChecker
+import com.github.damontecres.wholphin.services.WhatsNewService
 import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.UserSwitchListener
 import com.github.damontecres.wholphin.services.hilt.AuthOkHttpClient
@@ -131,6 +132,9 @@ class MainActivity : AppCompatActivity() {
     lateinit var coachMarkTour: CoachMarkTour
 
     @Inject
+    lateinit var whatsNewService: WhatsNewService
+
+    @Inject
     lateinit var playbackLifecycleObserver: PlaybackLifecycleObserver
 
     @Inject
@@ -190,6 +194,7 @@ class MainActivity : AppCompatActivity() {
         instance = this
         Timber.i("MainActivity.onCreate: savedInstanceState is null=${savedInstanceState == null}")
         lifecycle.addObserver(playbackLifecycleObserver)
+        whatsNewService.check()
 
         val backStackStr = savedInstanceState?.getString(KEY_BACK_STACK)
         val restoredBackStack =
@@ -327,6 +332,7 @@ class MainActivity : AppCompatActivity() {
                                             updateChecker = updateChecker,
                                             requestStatusRepository = requestStatusRepository,
                                             coachMarkTour = coachMarkTour,
+                                            whatsNewService = whatsNewService,
                                             modifier = Modifier.fillMaxSize(),
                                         )
                                     }

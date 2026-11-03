@@ -984,6 +984,9 @@
     <string name="recommended_title_unwatched">Unwatched</string>
     <string name="my_requests">My Requests</string>
     <string name="activity">Activity</string>
+    <string name="whats_new_title">What\'s new</string>
+    <string name="whats_new_version">Version %1$s</string>
+    <string name="whats_new_ok">OK</string>
     <string name="request_notifications">Request notifications</string>
     <string name="recommended_title_on_service">On %1$s</string>
     <!-- Kid profiles (runbooks/kid-profiles) -->

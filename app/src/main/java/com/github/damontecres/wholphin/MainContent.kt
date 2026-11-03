@@ -34,6 +34,9 @@ import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.ScreensaverService
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.UpdateChecker
+import com.github.damontecres.wholphin.services.WhatsNewService
+import com.github.damontecres.wholphin.kids.ProfileKind
+import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.ui.components.RequestChipHost
 import com.github.damontecres.wholphin.ui.coachmark.CoachMarkOverlay
 import com.github.damontecres.wholphin.ui.coachmark.CoachMarkTour
@@ -44,6 +47,7 @@ import com.github.damontecres.wholphin.ui.setup.PinnedServerContent
 import com.github.damontecres.wholphin.ui.setup.SwitchServerContent
 import com.github.damontecres.wholphin.ui.setup.SwitchUserContent
 import com.github.damontecres.wholphin.ui.setup.UpdatePrompt
+import com.github.damontecres.wholphin.ui.setup.WhatsNewPrompt
 import com.github.damontecres.wholphin.ui.setup.isServerPinned
 import com.github.damontecres.wholphin.ui.util.InterfaceCustomization
 import com.github.damontecres.wholphin.ui.util.LocalInterfaceCustomization
@@ -58,6 +62,7 @@ fun MainContent(
     updateChecker: UpdateChecker,
     requestStatusRepository: com.github.damontecres.wholphin.services.RequestStatusRepository,
     coachMarkTour: CoachMarkTour,
+    whatsNewService: WhatsNewService,
     modifier: Modifier = Modifier,
     // Kid profiles (plan 4.5): also hide the profile's screen on stop when the profile screen will show on return
     hideContentOnStop: () -> Boolean = { false },
@@ -148,6 +153,16 @@ fun MainContent(
                                             CoachMarkOverlay(coachMarkTour, navigationManager)
                                         }
                                         UpdatePrompt(updateChecker, navigationManager)
+                                        // After an update: once, over Home, never for a kid profile or on
+                                        // top of the tour.
+                                        WhatsNewPrompt(
+                                            service = whatsNewService,
+                                            navigationManager = navigationManager,
+                                            updateChecker = updateChecker,
+                                            blocked =
+                                                (BuildConfig.COACH_MARK_TOUR_ENABLED && coachMarkTour.active) ||
+                                                    current.user.profileKind == ProfileKind.KID,
+                                        )
                                         RequestChipHost(
                                             repository = requestStatusRepository,
                                             navigation = navigationManager,
