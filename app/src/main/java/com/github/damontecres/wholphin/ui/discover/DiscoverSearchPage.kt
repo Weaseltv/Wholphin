@@ -2,6 +2,7 @@ package com.github.damontecres.wholphin.ui.discover
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -143,7 +144,17 @@ fun DiscoverSearchPage(
     viewModel: DiscoverSearchViewModel = hiltViewModel(),
     /** Shown below the search bar while there is no search; results take its place. */
     idleContent: @Composable (Modifier) -> Unit = {},
+    /**
+     * True while the tab row sits above the search bar: the bar (and [idleContent]) can then run
+     * to the clock's right edge. Without the tab row the bar moves up beside the clock and stops
+     * short of it.
+     */
+    fullWidth: Boolean = false,
 ) {
+    // Page content already stops 8dp short of the screen edge and the clock sits 24dp in, so a
+    // 16dp end padding lines the bar up with the clock's right edge.
+    val clockClearance = if (isWeaselTv()) clockHeaderEndPadding() else 16.dp
+    val endPadding by animateDpAsState(if (fullWidth) 16.dp else clockClearance, label = "searchEndPadding")
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val seerrResults by viewModel.seerrResults.collectAsState()
@@ -243,7 +254,7 @@ fun DiscoverSearchPage(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier =
                     Modifier
-                        .padding(start = 16.dp, end = if (isWeaselTv()) clockHeaderEndPadding() else 16.dp)
+                        .padding(start = 16.dp, end = endPadding)
                         .focusGroup()
                         .focusRestorer(),
             ) {
@@ -304,7 +315,7 @@ fun DiscoverSearchPage(
             idleContent(
                 Modifier
                     .fillMaxSize()
-                    .padding(start = 16.dp, end = if (isWeaselTv()) clockHeaderEndPadding() else 16.dp),
+                    .padding(start = 16.dp, end = endPadding),
             )
         } else key(submittedResults) {
         SearchCombinedResults(

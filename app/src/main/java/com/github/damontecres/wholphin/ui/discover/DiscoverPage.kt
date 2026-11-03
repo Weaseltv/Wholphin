@@ -45,6 +45,8 @@ fun DiscoverPage(
                 Modifier
                     .fillMaxSize()
                     .focusRequester(tabDetails.contentFocusRequester),
+            // With the tab row shown, the search bar and the queue run the full content width.
+            fullWidth = showHeader,
             idleContent = { queueModifier ->
                 // Scrolling search results can hide the tab; the queue always shows it.
                 LaunchedEffect(Unit) { showHeader = true }

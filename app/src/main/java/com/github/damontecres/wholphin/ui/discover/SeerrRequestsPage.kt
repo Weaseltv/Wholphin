@@ -27,6 +27,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
@@ -49,6 +51,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
@@ -284,15 +287,22 @@ private fun activityRow(
     return ActivityRow(row, ActivitySection.ACTIVE, status, withStale(detail), fraction?.let { ActivityProgress.Bar(it) } ?: ActivityProgress.None, watchable = false)
 }
 
-// Column widths for the 1080p reference frame (owner mockup 2026-11-03); Title takes the rest.
+// Sizes for the 1080p reference frame (owner mockups 2026-11-03; mockup px / 2). The table
+// spans the content width, and its five columns share it in these proportions.
+private const val TitleWeight = 4.7f
+private const val TypeWeight = .85f
+private const val StatusWeight = 1.95f
+private const val ProgressWeight = 1.45f
+private const val ActionWeight = 1.35f
 private val PosterWidth = 28.dp
 private val PosterHeight = 42.dp
-private val PosterInset = 3.dp
 private val PosterGap = 11.dp
-private val TypeWidth = 48.dp
-private val StatusWidth = 150.dp
-private val ProgressWidth = 130.dp
-private val ActionWidth = 112.dp
+private val RowHeight = 49.dp
+private val RowGap = 6.dp
+private val RowBorder = 1.dp
+private val RowVerticalInset = 3.5.dp
+private val RowStartInset = 10.dp
+private val RowEndInset = 8.dp
 private val BarWidth = 75.dp
 private val BarHeight = 6.dp
 private val FadeHeight = 40.dp
@@ -422,23 +432,36 @@ private fun ActivityTable(
     rows.forEach { requesters.getOrPut(it.row.request.id) { FocusRequester() } }
     // Arriving from a new request (or a notification) focuses that request's row once.
     var focusHandled by rememberSaveable(scope, focusRequestId) { mutableStateOf(focusRequestId == null) }
-    LaunchedEffect(rows.map { it.row.request.id }, focusRequestId, scope) {
-        if (focusHandled) return@LaunchedEffect
-        val index = rows.indexOfFirst { it.row.request.id == focusRequestId }.takeIf { it >= 0 } ?: return@LaunchedEffect
-        list.scrollToItem(index)
-        withFrameNanos { }
-        focusHandled = requesters[rows[index].row.request.id]?.tryRequestFocus() == true
+    var listFocused by remember { mutableStateOf(false) }
+    val order = rows.map { it.row.request.id }
+    LaunchedEffect(order, focusRequestId, scope) {
+        if (!focusHandled) {
+            val index = order.indexOf(focusRequestId)
+            if (index >= 0) {
+                list.scrollToItem(index)
+                withFrameNanos { }
+                focusHandled = requesters[order[index]]?.tryRequestFocus() == true
+                return@LaunchedEffect
+            }
+        }
+        // Otherwise the queue starts at the top: on opening the page, on coming back to it, and
+        // whenever rows change section while focus is elsewhere. (A keyed list would follow its
+        // first row down into another section and open part-way through the queue.)
+        if (!listFocused) list.scrollToItem(0)
     }
 
     Column(modifier) {
-        ColumnHeadings(fonts, Modifier.padding(top = 18.dp, bottom = 6.dp))
+        ColumnHeadings(fonts, Modifier.padding(top = 18.dp, bottom = 4.dp))
         CompositionLocalProvider(LocalBringIntoViewSpec provides remember(fadePx) { FadeClearanceBringIntoViewSpec(fadePx) }) {
             LazyColumn(
                 state = list,
                 contentPadding = PaddingValues(bottom = 8.dp),
+                // Rows never touch: the focus border sits inside its own row, clear of its neighbors.
+                verticalArrangement = Arrangement.spacedBy(RowGap),
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
+                    .onFocusChanged { listFocused = it.hasFocus }
                     .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
                     .drawWithContent {
                         drawContent()
@@ -488,19 +511,19 @@ private fun ActivityTable(
 @Composable
 private fun ColumnHeadings(fonts: ActivityFonts, modifier: Modifier = Modifier) {
     val style = TextStyle(fontFamily = fonts.body, fontWeight = FontWeight.SemiBold, fontSize = 9.sp, letterSpacing = .2.em, color = RequestActivityPalette.Muted)
-    Row(modifier.fillMaxWidth().padding(horizontal = PosterInset), verticalAlignment = Alignment.CenterVertically) {
-        Text("TITLE", style = style, modifier = Modifier.padding(start = PosterWidth + PosterGap).weight(1f))
-        Text("TYPE", style = style, modifier = Modifier.width(TypeWidth))
-        Text("STATUS", style = style, modifier = Modifier.width(StatusWidth))
-        Text("PROGRESS", style = style, modifier = Modifier.width(ProgressWidth))
-        Spacer(Modifier.width(ActionWidth))
+    Row(modifier.fillMaxWidth().padding(start = RowStartInset, end = RowEndInset), verticalAlignment = Alignment.CenterVertically) {
+        Text("TITLE", style = style, modifier = Modifier.weight(TitleWeight).padding(start = PosterWidth + PosterGap))
+        Text("TYPE", style = style, modifier = Modifier.weight(TypeWeight))
+        Text("STATUS", style = style, modifier = Modifier.weight(StatusWeight))
+        Text("PROGRESS", style = style, modifier = Modifier.weight(ProgressWeight))
+        Spacer(Modifier.weight(ActionWeight))
     }
 }
 
 @Composable
 private fun SectionHeading(section: ActivitySection, count: Int, fonts: ActivityFonts, first: Boolean) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(top = if (first) 6.dp else 18.dp, bottom = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = if (first) 4.dp else 5.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(7.dp).clip(CircleShape).background(section.color))
@@ -531,7 +554,7 @@ private fun ActivityRowItem(
     val focused by interaction.collectIsFocusedAsState()
     val isTv = row.request.type == "tv"
     val typeColor = if (isTv) RequestActivityPalette.Series else RequestActivityPalette.Movie
-    val ring = Border(BorderStroke(1.dp, accent), shape = RectangleShape)
+    val ring = Border(BorderStroke(RowBorder, accent), shape = RectangleShape)
     // The whole row is the one focus stop: OK on it is the row's action (Watch now, or the
     // title's details page), so the D-pad moves straight up and down the table.
     Surface(
@@ -548,11 +571,15 @@ private fun ActivityRowItem(
         border = ClickableSurfaceDefaults.border(focusedBorder = ring, pressedBorder = ring),
         glow = ClickableSurfaceDefaults.glow(),
     ) {
-        Column {
-            Row(
-                modifier = Modifier.fillMaxWidth().heightIn(min = PosterHeight).padding(horizontal = PosterInset),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+        Row(
+            // The poster is centered in a 49dp row; the 1dp focus border is drawn inside these insets.
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = RowHeight)
+                .padding(start = RowStartInset, end = RowEndInset, top = RowVerticalInset, bottom = RowVerticalInset),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(Modifier.weight(TitleWeight), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(PosterWidth, PosterHeight).background(NeonBoard.Card2)) {
                     AsyncImage(
                         model = poster, placeholder = previousPoster, error = previousPoster,
@@ -561,42 +588,49 @@ private fun ActivityRowItem(
                         onSuccess = { onPosterLoaded(it.painter) },
                     )
                 }
-                Column(Modifier.weight(1f).padding(start = PosterGap, end = 10.dp, top = 3.dp, bottom = 3.dp)) {
-                    Text(
+                Column(Modifier.weight(1f).padding(start = PosterGap, end = 8.dp)) {
+                    // Always one line: a title too long for the column steps its size down instead
+                    // of wrapping or cutting off.
+                    BasicText(
                         row.title.uppercase(),
-                        style = TextStyle(fontFamily = fonts.display, fontSize = 11.sp, lineHeight = 14.sp, letterSpacing = .08.em, color = NeonBoard.Text),
-                        maxLines = 2, overflow = TextOverflow.Ellipsis,
+                        style = TextStyle(fontFamily = fonts.display, lineHeight = 14.sp, letterSpacing = .08.em, color = NeonBoard.Text),
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                        autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = 11.sp, stepSize = .25.sp),
                     )
                     val year = listOfNotNull(row.item?.releaseDate?.year?.toString(), "4K".takeIf { row.request.is4k == true }).joinToString(" · ")
                     if (year.isNotEmpty()) {
                         Text(year, style = TextStyle(fontFamily = fonts.body, fontSize = 10.sp, lineHeight = 13.sp, color = RequestActivityPalette.Muted))
                     }
                 }
+            }
+            Text(
+                if (isTv) "Series" else "Movie",
+                style = TextStyle(fontFamily = fonts.body, fontWeight = FontWeight.Bold, fontSize = 11.sp, color = typeColor),
+                modifier = Modifier.weight(TypeWeight),
+            )
+            Column(Modifier.weight(StatusWeight).padding(end = 8.dp)) {
+                val statusColor = if (entry.section == ActivitySection.ACTIVE) NeonBoard.Text else accent
                 Text(
-                    if (isTv) "Series" else "Movie",
-                    style = TextStyle(fontFamily = fonts.body, fontWeight = FontWeight.Bold, fontSize = 11.sp, color = typeColor),
-                    modifier = Modifier.width(TypeWidth),
+                    entry.status,
+                    style = TextStyle(fontFamily = fonts.body, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, lineHeight = 15.sp, color = statusColor),
+                    maxLines = 2, overflow = TextOverflow.Ellipsis,
                 )
-                Column(Modifier.width(StatusWidth).padding(end = 8.dp, top = 3.dp, bottom = 3.dp)) {
-                    val statusColor = if (entry.section == ActivitySection.ACTIVE) NeonBoard.Text else accent
-                    Text(
-                        entry.status,
-                        style = TextStyle(fontFamily = fonts.body, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, lineHeight = 15.sp, color = statusColor),
-                        maxLines = 2, overflow = TextOverflow.Ellipsis,
-                    )
-                    entry.detail?.let {
-                        Text(it, style = TextStyle(fontFamily = fonts.body, fontSize = 10.sp, lineHeight = 12.5.sp, color = RequestActivityPalette.Muted), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    }
-                }
-                Box(Modifier.width(ProgressWidth), contentAlignment = Alignment.CenterStart) {
-                    ProgressCell(entry.progress, typeColor, fonts)
-                }
-                Box(Modifier.width(ActionWidth), contentAlignment = Alignment.CenterEnd) {
-                    if (entry.watchable) WatchNowPill(filled = entry.section == ActivitySection.READY, focused = focused, accent = accent, fonts = fonts)
+                entry.detail?.let {
+                    Text(it, style = TextStyle(fontFamily = fonts.body, fontSize = 10.sp, lineHeight = 12.5.sp, color = RequestActivityPalette.Muted), maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
-            Box(Modifier.fillMaxWidth().height(Dp.Hairline).background(RequestActivityPalette.Divider))
+            Box(Modifier.weight(ProgressWeight), contentAlignment = Alignment.CenterStart) {
+                ProgressCell(entry.progress, typeColor, fonts)
+            }
+            // Watch now stays against the table's right edge.
+            Box(Modifier.weight(ActionWeight), contentAlignment = Alignment.CenterEnd) {
+                if (entry.watchable) WatchNowPill(filled = entry.section == ActivitySection.READY, focused = focused, accent = accent, fonts = fonts)
+            }
         }
+        // The row's divider runs along its bottom edge, under the focus border.
+        Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(Dp.Hairline).background(RequestActivityPalette.Divider))
     }
 }
 
@@ -623,7 +657,7 @@ private fun ProgressCell(progress: ActivityProgress, typeColor: Color, fonts: Ac
             ),
             maxLines = 1, overflow = TextOverflow.Ellipsis,
         )
-        ActivityProgress.None -> Box(Modifier.width(100.dp), contentAlignment = Alignment.Center) {
+        ActivityProgress.None -> Box(Modifier.width(BarWidth), contentAlignment = Alignment.Center) {
             Text("—", style = TextStyle(fontFamily = fonts.body, fontSize = 12.sp, color = RequestActivityPalette.Muted))
         }
     }
