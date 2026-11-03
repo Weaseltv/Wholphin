@@ -35,6 +35,15 @@ esac
 
 alpha_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd -- "$alpha_root"
+# Every new Alpha must retain the two accepted feature sets. Uncommitted tweaks
+# on top are allowed; this does not require a clean tree or a new commit.
+for alpha_baseline in 9b4b0cff2b7eeca90ea26e1bba2f6ccb16d4fe54 ca0081567be47207696f1e5eb9ec3ea14dbd3c3f; do
+    if ! git merge-base --is-ancestor "$alpha_baseline" HEAD 2>/dev/null; then
+        echo "This branch is missing the accepted combined Alpha baseline." >&2
+        echo "Fetch origin and merge origin/alpha/weaselplex-tv before building." >&2
+        exit 1
+    fi
+done
 if [[ -z "${ANDROID_HOME:-}" && -z "${ANDROID_SDK_ROOT:-}" && -d "$HOME/Android/Sdk" ]]; then
     export ANDROID_HOME="$HOME/Android/Sdk"
 fi
@@ -61,6 +70,8 @@ matches = [item for item in metadata['elements'] if any(
 )]
 if len(matches) != 1:
     raise SystemExit('Expected exactly one Alpha APK for the requested ABI')
+if matches[0]['versionCode'] < 2:
+    raise SystemExit('Refusing an Alpha older than the accepted combined baseline')
 print(metadata_path.parent / matches[0]['outputFile'])
 PY
 )
@@ -68,6 +79,7 @@ alpha_apk="$alpha_dir/WeaselPlex-alpha-$alpha_abi.apk"
 cp -- "$alpha_source" "$alpha_apk"
 {
     printf 'commit=%s\n' "$(git rev-parse HEAD)"
+    printf 'branch=%s\n' "$(git branch --show-current)"
     printf 'built_at=%s\n' "$(date -u +%FT%TZ)"
     printf 'abi=%s\n' "$alpha_abi"
     printf 'working_tree_status:\n'

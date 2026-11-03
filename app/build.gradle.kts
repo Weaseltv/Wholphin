@@ -410,9 +410,10 @@ androidComponents {
     }
     onVariants(selector().all()) { variant ->
         if (variant.buildType == "alpha") {
-            // Reinstalling the same versionCode is allowed. A constant avoids
-            // downgrades when testing another branch or an older commit.
-            variant.outputs.forEach { it.versionCode.set(1) }
+            // Epoch 2 contains the accepted requests + episode-range baseline.
+            // Android rejects older epoch-1 branches instead of silently dropping
+            // those features. Same-epoch Alpha tweaks still reinstall in place.
+            variant.outputs.forEach { it.versionCode.set(2) }
         }
         variant.outputs
             .map { it as com.android.build.api.variant.impl.VariantOutputImpl }

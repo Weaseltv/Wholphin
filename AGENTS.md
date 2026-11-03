@@ -67,6 +67,18 @@ for. Taildrop files *from* the PC arrive with `tailscale file get <dir>`.
 
 ## Android ship workflow
 
+### Shared Alpha baseline (owner recovery, 2026-11-03)
+
+- The current combined Alpha branch is `alpha/weaselplex-tv`. It includes accepted
+  request status/notifications (`9b4b0cff`) and episode-number ranges (`ca008156`).
+  Fresh task branches still start from `origin/weaselfin`, then merge
+  `origin/alpha/weaselplex-tv` before building an Alpha until the shared default
+  branch contains it. Never install an isolated feature branch over this baseline.
+- Alpha versionCode 2 rejects older versionCode-1 Alphas that omitted these
+  features. For `INSTALL_FAILED_VERSION_DOWNGRADE`, merge the combined baseline
+  and rebuild. Do not bypass it with `adb install -d`, uninstalling or clearing data.
+  Routine uncommitted tweaks on top of the combined baseline remain supported.
+
 ### Alpha testing and release cadence
 
 - Follow this workflow even when Notion is unavailable or has not been read.

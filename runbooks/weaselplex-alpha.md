@@ -5,6 +5,25 @@ next tweak. Customers receive an update only when the owner
 asks to publish a stable release. An Alpha build never creates a GitHub release or
 tag and never changes Latest or the Downloader link.
 
+## Combined Alpha source
+
+Use `origin/alpha/weaselplex-tv` as the accepted Alpha baseline. It combines the
+request/status/notification work through `9b4b0cff` with the episode-number-range
+work in `ca008156`. The November 2 episode-range Alpha was built from the older
+default branch and replaced the Shield's request-capable Alpha; neither source
+changeset was lost. New work must retain both feature sets.
+
+After fetching, merge the combined branch into a fresh task branch before building
+if the shared default branch does not already contain it. The build helper checks
+both accepted ancestors without requiring a clean tree or a commit for each tweak.
+The APK build record includes the source branch and commit.
+
+This combined Alpha uses versionCode 2. Legacy isolated branches produce code 1,
+so Android rejects them as downgrades. Resolve that error by merging the combined
+baseline and rebuilding, never by forcing a downgrade or deleting Alpha data.
+Build, transfer and install from the current thread's original machine as usual.
+This Alpha-only version change does not affect customer release numbering.
+
 ## Fast change → build → install → owner verification
 
 Routine Alpha iterations skip optional tests, lint, formatting/pre-commit suites,
