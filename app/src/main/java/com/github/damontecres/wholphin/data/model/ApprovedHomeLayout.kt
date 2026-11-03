@@ -5,14 +5,15 @@ import com.github.damontecres.wholphin.ui.AspectRatio
 
 /** Owner-approved presentation captured from all eight Alpha rows on 2026-10-09. */
 object ApprovedHomeLayout {
-    const val REVISION = 15
+    const val REVISION = 16
 
     /**
      * Revision 14 put saved Home rows in the 2026-10-14 order once. Revision 15 arranges them
-     * again to drop the retired Picks row and the always-empty Collections row; presentation is
-     * unchanged.
+     * again to drop the retired Picks row and the always-empty Collections row. Revision 16
+     * (owner 2026-11-03) arranges them once more: Recently Added split into Movies and TV Shows,
+     * and the server's new lists in place of the JustWatch rows. Presentation is unchanged.
      */
-    const val ARRANGED_ROWS_REVISION = 15
+    const val ARRANGED_ROWS_REVISION = 16
     const val CARD_SPACING_DP = 10
     const val CARD_HEIGHT_DP = 170
     const val VERTICAL_PADDING_DP = 4
