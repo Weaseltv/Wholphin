@@ -141,6 +141,8 @@ fun DiscoverSearchPage(
     positionCallback: (columns: Int, position: Int) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DiscoverSearchViewModel = hiltViewModel(),
+    /** Shown below the search bar while there is no search; results take its place. */
+    idleContent: @Composable (Modifier) -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -298,7 +300,13 @@ fun DiscoverSearchPage(
                 Text(stringResource(R.string.retry))
             }
         }
-        key(submittedResults) {
+        if (seerrResults == SearchResult.NoQuery) {
+            idleContent(
+                Modifier
+                    .fillMaxSize()
+                    .padding(start = 16.dp, end = if (isWeaselTv()) clockHeaderEndPadding() else 16.dp),
+            )
+        } else key(submittedResults) {
         SearchCombinedResults(
             result = seerrResults,
             focusRequester = gridFocusRequester,

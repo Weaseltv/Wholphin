@@ -61,8 +61,11 @@ data class RequestProgressRecord(
     val updatedAt: String,
 ) {
     val fraction: Float? get() = stageProgress?.takeIf { it.isFinite() && it in 0.0..1.0 && stage in setOf("downloading", "unpacking") }?.toFloat()
-    val label: String get() {
-        val base = when (stage) {
+    val label: String get() = stageLabel + (fraction?.let { " ${(it * 100).toInt()}%" } ?: "")
+
+    /** The stage name without the percentage, for layouts that show the number separately. */
+    val stageLabel: String get() =
+        when (stage) {
             "pending_approval" -> "Waiting for approval"
             "approved" -> "Request accepted"
             "waiting" -> if (detail == "not_released_yet") "Waiting for release" else "Waiting for a download"
@@ -77,8 +80,6 @@ data class RequestProgressRecord(
             "paused" -> "Download paused"
             else -> "Checking request status"
         }
-        return base + (fraction?.let { " ${(it * 100).toInt()}%" } ?: "")
-    }
 
     fun matches(item: RequestStatusItem): Boolean = requestId == item.request.id &&
         mediaType == item.request.type && tmdbId == item.request.media?.tmdbId && is4k == (item.request.is4k == true) &&

@@ -983,6 +983,7 @@
     <string name="recommended_title_added">Added</string>
     <string name="recommended_title_unwatched">Unwatched</string>
     <string name="my_requests">My Requests</string>
+    <string name="activity">Activity</string>
     <string name="request_notifications">Request notifications</string>
     <string name="recommended_title_on_service">On %1$s</string>
     <!-- Kid profiles (runbooks/kid-profiles) -->
