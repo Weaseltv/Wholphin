@@ -227,6 +227,7 @@ class KidHomeCache
                     seasonId = dto.seasonId,
                     parentId = dto.parentId,
                     indexNumber = dto.indexNumber,
+                    indexNumberEnd = dto.indexNumberEnd,
                     parentIndexNumber = dto.parentIndexNumber,
                     productionYear = dto.productionYear,
                     premiereDate = dto.premiereDate,

@@ -162,6 +162,7 @@ fun Program(
                     formatSeasonEpisode(
                         program.seasonEpisode?.season,
                         program.seasonEpisode?.episode,
+                        program.seasonEpisode?.episodeEnd,
                     )
                 val subtitle =
                     remember(program, seasonEpisodeLabel) {

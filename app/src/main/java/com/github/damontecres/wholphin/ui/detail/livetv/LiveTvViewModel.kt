@@ -287,6 +287,7 @@ class LiveTvViewModel
                                         SeasonEpisode(
                                             dto.parentIndexNumber!!,
                                             dto.indexNumber!!,
+                                            dto.indexNumberEnd,
                                         )
                                     } else {
                                         null
@@ -637,7 +638,7 @@ data class TvProgram(
                         .roundMinutes
                         .let { append(resources.getString(R.string.time_left, resources.formatDuration(it))) }
                 }
-                formatSeasonEpisode(seasonEpisode?.season, seasonEpisode?.episode)?.let {
+                formatSeasonEpisode(seasonEpisode?.season, seasonEpisode?.episode, seasonEpisode?.episodeEnd)?.let {
                     dot()
                     append(it)
                 }

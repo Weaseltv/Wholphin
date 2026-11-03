@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
+import com.github.damontecres.wholphin.ui.formatEpisodeNumber
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.ui.AppColors
@@ -86,13 +87,13 @@ fun ItemCardImage(
     val context = LocalContext.current
     // Neon Board: the type badge top-left (MOVIE / SHOW / S2 · E4, LIVE filled green).
     val typeBadge =
-        remember(item?.id) {
+        remember(item?.data) {
             if (item == null) {
                 null
             } else if (item.type == BaseItemKind.EPISODE) {
                 val season = item.data.parentIndexNumber
                 val ep = item.data.indexNumber
-                if (season != null && ep != null) "S$season · E$ep" else itemKindLabel(context, item.type)
+                if (season != null && ep != null) "S$season · E${formatEpisodeNumber(ep, item.data.indexNumberEnd)}" else itemKindLabel(context, item.type)
             } else {
                 itemKindLabel(context, item.type)
             }

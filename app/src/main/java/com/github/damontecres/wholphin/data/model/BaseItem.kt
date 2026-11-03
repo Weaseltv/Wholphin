@@ -16,6 +16,7 @@ import com.github.damontecres.wholphin.ui.dot
 import com.github.damontecres.wholphin.ui.formatDateTime
 import com.github.damontecres.wholphin.ui.formatDuration
 import com.github.damontecres.wholphin.ui.formatEpisodeNumber
+import com.github.damontecres.wholphin.ui.formatEpisodeNumberShort
 import com.github.damontecres.wholphin.ui.getDateFormatter
 import com.github.damontecres.wholphin.ui.joinNotBlank
 import com.github.damontecres.wholphin.ui.nav.Destination
@@ -112,9 +113,9 @@ data class BaseItem(
      */
     private fun episodeBadge(episode: Int): String =
         if (BuildConfig.FLAVOR == "weaselfin" && type == BaseItemKind.EPISODE && data.parentIndexNumber != null) {
-            "S${data.parentIndexNumber}E$episode"
+            "S${data.parentIndexNumber}E${formatEpisodeNumber(episode, data.indexNumberEnd)}"
         } else {
-            formatEpisodeNumber(episode)
+            formatEpisodeNumberShort(episode, data.indexNumberEnd)
         }
 
     /**
