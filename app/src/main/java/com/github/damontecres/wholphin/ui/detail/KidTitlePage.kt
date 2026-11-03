@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.ui.detail
 
+import com.github.damontecres.wholphin.ui.seasonEpisode
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.extensions.ticks
@@ -25,6 +26,7 @@ sealed interface KidPlayLabel {
     data class Episode(
         val season: Int,
         val episode: Int,
+        val episodeEnd: Int? = null,
     ) : KidPlayLabel
 }
 
@@ -155,7 +157,7 @@ object KidTitlePage {
         val number = episode.indexNumber
         return KidPlay(
             itemId = episode.id,
-            label = if (season != null && number != null) KidPlayLabel.Episode(season, number) else KidPlayLabel.Play,
+            label = if (season != null && number != null) KidPlayLabel.Episode(season, number, episode.indexNumberEnd) else KidPlayLabel.Play,
             positionMs = resumePosition(episode)?.inWholeMilliseconds ?: 0L,
             episodeTitle = episode.name?.takeIf { it.isNotBlank() },
         )
@@ -171,11 +173,7 @@ object KidTitlePage {
     ): T? = menu.takeUnless { kidPage }
 
     /** "S1 E9" for an episode's metadata line, or null without both numbers */
-    fun episodeCode(episode: BaseItemDto): String? {
-        val season = episode.parentIndexNumber ?: return null
-        val number = episode.indexNumber ?: return null
-        return "S$season E$number"
-    }
+    fun episodeCode(episode: BaseItemDto): String? = episode.seasonEpisode
 
     /** An episode's age rating: its own, else its series' */
     fun episodeRating(

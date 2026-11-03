@@ -19,6 +19,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.MainActivity
+import com.github.damontecres.wholphin.ui.formatEpisodeNumber
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
@@ -255,7 +256,7 @@ class TvProviderWorker
                     setDescription(dto.overview)
                     if (item.type == BaseItemKind.EPISODE) {
                         setEpisodeTitle(item.name)
-                        dto.indexNumber?.let(::setEpisodeNumber)
+                        dto.indexNumber?.let { setEpisodeNumber(formatEpisodeNumber(it, dto.indexNumberEnd), it) }
                         dto.parentIndexNumber?.let(::setSeasonNumber)
                     }
 
@@ -413,7 +414,7 @@ class TvProviderWorker
                     setDescription(dto.overview)
                     if (item.type == BaseItemKind.EPISODE) {
                         setEpisodeTitle(item.name)
-                        dto.indexNumber?.let(::setEpisodeNumber)
+                        dto.indexNumber?.let { setEpisodeNumber(formatEpisodeNumber(it, dto.indexNumberEnd), it) }
                         dto.parentIndexNumber?.let(::setSeasonNumber)
                     }
 

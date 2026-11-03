@@ -66,6 +66,7 @@ import com.github.damontecres.wholphin.ui.components.HeaderUtils
 import com.github.damontecres.wholphin.ui.components.OverviewText
 import com.github.damontecres.wholphin.ui.components.reportDetailActionHeight
 import com.github.damontecres.wholphin.ui.components.scaled
+import com.github.damontecres.wholphin.ui.formatEpisodeNumber
 import com.github.damontecres.wholphin.ui.formatDuration
 import com.github.damontecres.wholphin.ui.roundMinutes
 import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
@@ -138,7 +139,7 @@ fun KidEpisodeInfo(
         modifier = modifier,
     ) {
         val parts =
-            remember(episode.id, episode.parentIndexNumber, episode.indexNumber, episode.runTimeTicks) {
+            remember(episode.id, episode.parentIndexNumber, episode.indexNumber, episode.indexNumberEnd, episode.runTimeTicks) {
                 listOfNotNull(
                     KidTitlePage.episodeCode(episode),
                     episode.runTimeTicks
@@ -249,7 +250,7 @@ private fun KidPlayButton(
         when (val l = play.label) {
             KidPlayLabel.Play -> stringResource(R.string.play)
             KidPlayLabel.KeepWatching -> stringResource(R.string.kid_keep_watching)
-            is KidPlayLabel.Episode -> stringResource(R.string.kid_play_episode, l.season, l.episode)
+            is KidPlayLabel.Episode -> stringResource(R.string.kid_play_episode, l.season, formatEpisodeNumber(l.episode, l.episodeEnd))
         }
     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
         // Focused: a white ring 3dp outside the pill

@@ -650,13 +650,11 @@
     <string name="show_backdrop">Visa bakgrund</string>
     <string name="player_backend">Uppspelning backend</string>
     <string name="season_number">Säsong %1$d</string>
-    <string name="season_episode_number">S%1$d E%2$d</string>
-    <string name="season_episode_number_range">S%1$d E%2$d-E%3$d</string>
-    <string name="season_episode_number_padded">S%1$02dE%2$02d</string>
+    <string name="season_episode_number">S%1$d E%2$s</string>
+    <string name="season_episode_number_padded">S%1$02dE%2$s</string>
     <string name="duration_hours_seconds">%1$dt %2$ds</string>
     <string name="blur">Oskärpa</string>
-    <string name="season_episode_number_padded_range">S%1$02dE%2$02d-E%3$02d</string>
-    <string name="episode_number_short">E%1$d</string>
+    <string name="episode_number_short">E%1$s</string>
     <string name="show_more">Visa %1$s till</string>
     <string name="is_default">Standard</string>
     <string name="preferred_audio_language">Föredraget ljudspråk</string>
