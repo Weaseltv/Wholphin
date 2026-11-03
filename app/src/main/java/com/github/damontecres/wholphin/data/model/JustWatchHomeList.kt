@@ -4,33 +4,32 @@ import androidx.annotation.StringRes
 import com.github.damontecres.wholphin.R
 import kotlinx.serialization.Serializable
 
-/** The US JustWatch lists shown as Home rows, and how many of their titles each row shows. */
+/**
+ * The server-made lists shown as Home rows (owner 2026-11-03), and how many of their titles each row
+ * shows. `justwatch-home.sh` on the media server saves each one daily from the server's smart
+ * collection of the same name, under the entry's name in lower case (see JustWatchRowService).
+ *
+ * The rows before 2026-11-03 (the JustWatch charts, Popular, Trending and the two Top 10s) are no
+ * longer entries: a saved layout's row for one of them doesn't decode, so it's dropped.
+ */
 @Serializable
 enum class JustWatchHomeList(
     val size: Int,
     @param:StringRes val kicker: Int,
     @param:StringRes val title: Int,
     @param:StringRes val fullTitle: Int,
+    /** Whether its titles are TV shows (else movies), for the row's color */
+    val shows: Boolean = false,
 ) {
-    /** justwatch.com/us/streaming-charts?ct=daily */
-    MOVIE_CHART(25, R.string.home_movies_kicker, R.string.home_top_of_the_charts, R.string.home_movie_top_of_the_charts),
+    /** The "Trending Movies" collection: TMDB's daily trending movies */
+    TRENDING_MOVIES(25, R.string.quick_list_trending, R.string.home_movies_kicker, R.string.home_trending_movies_full),
 
-    /** justwatch.com/us/streaming-charts?ct=daily&t=shows */
-    SHOW_CHART(25, R.string.home_tv_shows_kicker, R.string.home_top_of_the_charts, R.string.home_show_top_of_the_charts),
+    /** The "Trending TV" collection: TMDB's daily trending shows */
+    TRENDING_SHOWS(25, R.string.quick_list_trending, R.string.home_tv_shows_kicker, R.string.home_trending_shows_full, shows = true),
 
-    /** justwatch.com/us */
-    POPULAR(50, R.string.quick_list_popular, R.string.home_movies_and_shows, R.string.home_popular_full),
+    /** The "Recently Released - 90 Days" collection: movies released in the last 90 days, newest first */
+    RECENTLY_RELEASED(25, R.string.home_90_days_kicker, R.string.recently_released, R.string.home_recently_released_full),
 
-    /** justwatch.com/us?sort_by=trending_7_day */
-    TRENDING(50, R.string.quick_list_trending, R.string.home_movies_and_shows, R.string.home_trending_full),
-
-    /** The "Top 10 movies this week" on justwatch.com: the 7-day trending movies */
-    TOP_10_MOVIES(10, R.string.quick_list_top_10, R.string.home_movies_this_week, R.string.home_top_10_movies_full),
-
-    /** The "Top 10 TV shows this week" on justwatch.com: the 7-day trending shows */
-    TOP_10_SHOWS(10, R.string.quick_list_top_10, R.string.home_shows_this_week, R.string.home_top_10_shows_full),
-    ;
-
-    /** Whether the row has both movies and shows, so its cards say which each one is. */
-    val mixed: Boolean get() = this == POPULAR || this == TRENDING
+    /** The "Movie Roulette" collection: random movies, picked again each day */
+    MOVIE_ROULETTE(25, R.string.home_movie_kicker, R.string.home_roulette, R.string.home_movie_roulette_full),
 }

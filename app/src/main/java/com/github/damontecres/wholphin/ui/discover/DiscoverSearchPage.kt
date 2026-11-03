@@ -2,6 +2,7 @@ package com.github.damontecres.wholphin.ui.discover
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -18,10 +19,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
@@ -138,12 +142,30 @@ fun DiscoverSearchPage(
     positionCallback: (columns: Int, position: Int) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DiscoverSearchViewModel = hiltViewModel(),
+    /** Shown below the search bar while there is no search; results take its place. */
+    idleContent: @Composable (Modifier) -> Unit = {},
+    /**
+     * True while the tab row sits above the search bar: the bar (and [idleContent]) can then run
+     * to the clock's right edge. Without the tab row the bar moves up beside the clock and stops
+     * short of it.
+     */
+    fullWidth: Boolean = false,
 ) {
+    // Page content already stops 8dp short of the screen edge and the clock sits 24dp in, so a
+    // 16dp end padding lines the bar up with the clock's right edge.
+    val clockClearance = if (isWeaselTv()) clockHeaderEndPadding() else 16.dp
+    val endPadding by animateDpAsState(if (fullWidth) 16.dp else clockClearance, label = "searchEndPadding")
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val seerrResults by viewModel.seerrResults.collectAsState()
     var query by rememberSaveable { mutableStateOf(viewModel.currentQuery) }
     var position by rememberInt(-1)
+    var isSearchActive by remember { mutableStateOf(false) }
+    var pendingFocusQuery by remember { mutableStateOf<String?>(null) }
+    var submittedResults by remember { mutableIntStateOf(0) }
+    val gridFocusRequester = remember { FocusRequester() }
+    val textFieldFocusRequester = remember { FocusRequester() }
+    val voiceFocusRequester = remember { FocusRequester() }
 
     // Start with current preferences, but collect updates when view options change
     val prefs =
@@ -165,18 +187,41 @@ fun DiscoverSearchPage(
     }
 
     fun triggerImmediateSearch(searchQuery: String) {
+        isSearchActive = false
+        keyboardController?.hide()
+        focusManager.clearFocus(force = true)
+        pendingFocusQuery = searchQuery.trim().takeIf { it.isNotEmpty() }
+        submittedResults++
         viewModel.search(searchQuery, immediate = true)
     }
 
     LaunchedEffect(query) {
         viewModel.search(query)
     }
-    val gridFocusRequester = remember { FocusRequester() }
-    val textFieldFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(pendingFocusQuery, seerrResults) {
+        val submitted = pendingFocusQuery ?: return@LaunchedEffect
+        if (submitted != viewModel.currentQuery) return@LaunchedEffect
+        val results = seerrResults
+        if (results is SearchResult.SuccessSeerr && results.items.isNotEmpty()) {
+            repeat(3) {
+                withFrameNanos { }
+                if (gridFocusRequester.tryRequestFocus("submitted request results")) {
+                    pendingFocusQuery = null
+                    return@LaunchedEffect
+                }
+            }
+            // A temporarily unavailable grid must not leave the search field locked out.
+            pendingFocusQuery = null
+        } else if (results is SearchResult.Error || results is SearchResult.SuccessSeerr) {
+            pendingFocusQuery = null
+            textFieldFocusRequester.tryRequestFocus("empty request results")
+        }
+    }
     LaunchedEffect(Unit) {
+        withFrameNanos { }
         if (position >= 0) {
             gridFocusRequester.tryRequestFocus("grid")
-        } else {
+        } else if (!prefs.showVoiceSearchButton || !voiceFocusRequester.tryRequestFocus("voice search")) {
             textFieldFocusRequester.tryRequestFocus("textField")
         }
     }
@@ -189,7 +234,6 @@ fun DiscoverSearchPage(
             contentAlignment = Alignment.Center,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            var isSearchActive by remember { mutableStateOf(false) }
             var isTextFieldFocused by remember { mutableStateOf(false) }
 
             BackHandler(isTextFieldFocused) {
@@ -210,10 +254,9 @@ fun DiscoverSearchPage(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier =
                     Modifier
-                        .padding(start = 16.dp, end = if (isWeaselTv()) clockHeaderEndPadding() else 16.dp)
+                        .padding(start = 16.dp, end = endPadding)
                         .focusGroup()
-                        .focusRestorer()
-                        .focusRequester(textFieldFocusRequester),
+                        .focusRestorer(),
             ) {
                 AnimatedVisibility(
                     visible = prefs.showVoiceSearchButton,
@@ -226,13 +269,14 @@ fun DiscoverSearchPage(
                             triggerImmediateSearch(spokenText)
                         },
                         voiceInputManager = viewModel.voiceInputManager,
-                        modifier = Modifier.padding(end = 12.dp),
+                        modifier = Modifier.padding(end = 12.dp).focusRequester(voiceFocusRequester),
                     )
                 }
 
                 SearchEditTextBox(
                     value = query,
                     onValueChange = {
+                        pendingFocusQuery = null
                         isSearchActive = true
                         query = it
                     },
@@ -241,13 +285,14 @@ fun DiscoverSearchPage(
                     modifier =
                         Modifier
                             .weight(1f)
+                            .focusRequester(textFieldFocusRequester)
                             .onFocusChanged { state ->
                                 isTextFieldFocused = state.isFocused
                                 if (!state.isFocused) isSearchActive = false
                             }.onPreviewKeyEvent { event ->
                                 val isActivationKey =
                                     event.key in listOf(Key.DirectionCenter, Key.Enter)
-                                if (event.type == KeyEventType.KeyUp && isActivationKey && !isSearchActive) {
+                                if (event.type == KeyEventType.KeyUp && isActivationKey && !isSearchActive && pendingFocusQuery == null) {
                                     isSearchActive = true
                                     keyboardController?.show()
                                     true
@@ -266,19 +311,29 @@ fun DiscoverSearchPage(
                 Text(stringResource(R.string.retry))
             }
         }
-        SearchCombinedResults(
-            result = seerrResults,
-            focusRequester = gridFocusRequester,
-            onClickItem = { _, _ -> },
-            onLongClickItem = { _, _ -> },
-            onPlayItem = { _, _ -> },
-            onClickPosition = { position = it.column },
-            onClickDiscover = onClickDiscover,
-            positionCallback = { columns, index ->
-                position = index
-                positionCallback.invoke(columns, index)
-            },
-            modifier = Modifier.fillMaxSize(),
-        )
+        if (seerrResults == SearchResult.NoQuery) {
+            idleContent(
+                Modifier
+                    .fillMaxSize()
+                    .padding(start = 16.dp, end = endPadding),
+            )
+        } else {
+            key(submittedResults) {
+                SearchCombinedResults(
+                    result = seerrResults,
+                    focusRequester = gridFocusRequester,
+                    onClickItem = { _, _ -> },
+                    onLongClickItem = { _, _ -> },
+                    onPlayItem = { _, _ -> },
+                    onClickPosition = { position = it.column },
+                    onClickDiscover = onClickDiscover,
+                    positionCallback = { columns, index ->
+                        position = index
+                        positionCallback.invoke(columns, index)
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
     }
 }

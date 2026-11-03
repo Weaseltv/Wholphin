@@ -82,9 +82,9 @@ fun Iterable<CharSequence?>.joinNotBlank(sep: String): String? = filter { it.isN
  */
 fun FocusRequester.tryRequestFocus(tag: String? = null): Boolean =
     try {
-        requestFocus()
+        val focused = requestFocus()
         tag?.let { Timber.v("Request focus tag=%s", tag) }
-        true
+        focused
     } catch (ex: IllegalStateException) {
         Timber.w(ex, "Failed to request focus, tag=%s", tag)
         false

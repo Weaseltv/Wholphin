@@ -20,12 +20,14 @@ import javax.inject.Singleton
 import kotlin.time.Duration.Companion.minutes
 
 /**
- * Home's JustWatch rows, the Movies and TV Shows Recommended tabs' Top 10 rows for each streaming
- * service, and the streaming service pages' POPULAR / TRENDING / TOP 10 lists: each ranking's titles
- * that are on the server, in ranked order.
+ * Home's server-made rows (Trending Movies, Trending TV Shows, 90 Days Recently Released, Movie
+ * Roulette: the server's smart collections of those names, [JustWatchHomeList]), the Movies and TV
+ * Shows Recommended tabs' Top 10 rows for each streaming service, and the streaming service pages'
+ * POPULAR / TRENDING / TOP 10 lists: each list's titles that are on the server, in ranked order.
  *
  * The server works the lists out: `justwatch-home.sh` on the media server fetches JustWatch's
- * rankings once a day, matches them to the library every 10 minutes, and saves each list's item IDs
+ * rankings once a day, matches them to the library every 10 minutes, reads Home's smart
+ * collections (refreshed daily) as often, and saves each list's item IDs
  * in every member's display preferences ([PREFS_ID], [PREFS_CLIENT]; one key per list, named after it
  * in lower case). The service pages' lists are kept apart in [STREAMING_PREFS_ID], so Home's read
  * stays small; Home's prefs also say which streaming collection has which lists ([SERVICE_CODES]).

@@ -25,6 +25,7 @@ import com.github.damontecres.wholphin.services.HomeSettingsService
 import com.github.damontecres.wholphin.services.NavDrawerService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
+import com.github.damontecres.wholphin.ui.components.rememberRequestFocus
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.theme.LocalHomeCardAppearance
 import com.github.damontecres.wholphin.ui.theme.LocalHomeMediaSettings
@@ -133,7 +134,7 @@ fun ApplicationContent(
                                         destination = key,
                                         preferences = preferences,
                                         onClearBackdrop = viewModel::clearBackdrop,
-                                        modifier = Modifier.fillMaxSize(),
+                                        modifier = Modifier.fillMaxSize().rememberRequestFocus(),
                                     )
                                 } else if (user != null && server != null) {
                                     NavDrawer(

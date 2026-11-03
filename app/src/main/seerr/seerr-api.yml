@@ -1240,6 +1240,60 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RelatedVideo'
+    SeasonRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+          nullable: true
+        seasonNumber:
+          type: integer
+          nullable: true
+        status:
+          type: integer
+          nullable: true
+    DownloadingItem:
+      type: object
+      properties:
+        mediaType:
+          type: string
+          nullable: true
+        externalId:
+          type: integer
+          nullable: true
+        size:
+          type: number
+          format: double
+          nullable: true
+        sizeLeft:
+          type: number
+          format: double
+          nullable: true
+        status:
+          type: string
+          nullable: true
+        timeLeft:
+          type: string
+          nullable: true
+        estimatedCompletionTime:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        downloadId:
+          type: string
+          nullable: true
+        episode:
+          type: object
+          nullable: true
+          properties:
+            seasonNumber:
+              type: integer
+              nullable: true
+            episodeNumber:
+              type: integer
+              nullable: true
     MediaRequest:
       type: object
       properties:
@@ -1283,7 +1337,7 @@ components:
         seasons:
           type: array
           items:
-            $ref: '#/components/schemas/Season'
+            $ref: '#/components/schemas/SeasonRequest'
       required:
         - id
         - status
@@ -1303,7 +1357,20 @@ components:
         status:
           type: integer
           example: 0
-          description: Availability of the media. 1 = `UNKNOWN`, 2 = `PENDING`, 3 = `PROCESSING`, 4 = `PARTIALLY_AVAILABLE`, 5 = `AVAILABLE`, 6 = `DELETED`
+          description: Availability of the media. 1 = `UNKNOWN`, 2 = `PENDING`, 3 = `PROCESSING`, 4 = `PARTIALLY_AVAILABLE`, 5 = `AVAILABLE`, 6 = `BLOCKLISTED`, 7 = `DELETED`
+        status4k:
+          type: integer
+          nullable: true
+        downloadStatus:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/DownloadingItem'
+        downloadStatus4k:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/DownloadingItem'
         seasons:
           type: array
           readOnly: true

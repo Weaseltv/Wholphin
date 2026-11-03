@@ -67,6 +67,20 @@ for. Taildrop files *from* the PC arrive with `tailscale file get <dir>`.
 
 ## Android ship workflow
 
+### Shared Alpha baseline (owner recovery, 2026-11-03)
+
+- The current combined Alpha branch is `alpha/weaselplex-tv`. It includes accepted
+  request status/notifications (`9b4b0cff`) and episode-number ranges (`ca008156`).
+  `weaselfin` contains it since v1.2.44 (2026-11-03), so fresh task branches from
+  `origin/weaselfin` already have it. Merge `origin/alpha/weaselplex-tv` before
+  building an Alpha only if it has commits `weaselfin` lacks
+  (`git log origin/weaselfin..origin/alpha/weaselplex-tv`). Never install an
+  isolated feature branch that predates this baseline.
+- Alpha versionCode 2 rejects older versionCode-1 Alphas that omitted these
+  features. For `INSTALL_FAILED_VERSION_DOWNGRADE`, merge the combined baseline
+  and rebuild. Do not bypass it with `adb install -d`, uninstalling or clearing data.
+  Routine uncommitted tweaks on top of the combined baseline remain supported.
+
 ### Alpha testing and release cadence
 
 - Follow this workflow even when Notion is unavailable or has not been read.
@@ -164,6 +178,7 @@ unzip -l <new-arm64-v8a>.apk | grep libffmpegJNI.so                  # native pl
   There is **no separate VPS APK copy** to refresh. Publishing the GitHub release (correct asset names + mark as Latest) updates both in-app updates and new Downloader installs.
 - After tagging on `weaselfin`: upload signed assets named exactly `WeaselFin-release.apk` / `WeaselFin-release-arm64-v8a.apk` (and other ABI splits if built). Release **title/name** must be exactly `vX.Y.Z` (no `— WeaselPlex` suffix) or the in-app updater reports no update available.
 - **Release notes are required.** The release body is what users read in the app: on the update page and beside "Install update" in Settings. Write it for them: a one-sentence summary, then one bullet per change, the way v1.2.5–v1.2.7 do. Never publish a release with an empty or placeholder body.
+- **What's New pop-up (since 2026-11-03).** After an update, the app shows the installed version's bullets once over Home. They are bundled in the app, in `WhatsNewNotes` in `services/WhatsNewService.kt`. Before tagging `vX.Y.Z`, add its entry: 3 to 5 short, plain-language bullets rewritten from that release's notes, in US English. A version without an entry shows no pop-up. Alpha builds show the entry for their base version, so an Alpha built since v1.2.44 shows the v1.2.44 bullets.
 - Ship is not done until all of these are true:
   1. GitHub release `vX.Y.Z` exists with those asset names and is the repo **Latest** release.
   2. `curl -sI https://theweasel.tv/fin` redirects to that release's `WeaselFin-release.apk` (via `.../releases/latest/download/...`).

@@ -12,6 +12,7 @@ import com.github.damontecres.wholphin.kids.FakeKidSessionGate
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.jellyfin.sdk.model.api.UserDto
 import org.jellyfin.sdk.model.api.UserPolicy
@@ -60,7 +61,15 @@ class SeerrSessionTagTest {
         val client = mockk<SeerrApiClient>()
         every { seerrApi.api } returns client
         every { client.settingsApi } returns settingsApi
-        repository = SeerrServerRepository(seerrApi, mockk(relaxed = true), serverRepository, mockk(relaxed = true), Provider { gate })
+        repository =
+            SeerrServerRepository(
+                TestScope(),
+                seerrApi,
+                mockk(relaxed = true),
+                serverRepository,
+                mockk(relaxed = true),
+                Provider { gate },
+            )
     }
 
     private fun switchToKid() {

@@ -298,7 +298,7 @@ fun navigationSectionAccent(
                     NeonSectionPalette.Watchlist.border
                 }
 
-                Destination.Discover -> {
+                is Destination.Discover -> {
                     NeonSectionPalette.Requests.border
                 }
 

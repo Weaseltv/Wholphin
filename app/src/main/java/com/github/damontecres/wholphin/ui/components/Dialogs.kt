@@ -470,31 +470,47 @@ fun BasicDialog(
     properties: DialogProperties = DialogProperties(),
     elevation: Dp = 1.dp,
     tallyColor: Color = LocalNeonAccent.current,
+    outline: Color? = null,
     content: @Composable () -> Unit,
 ) {
+    val requestUi = LocalRequestUiState.current
+    androidx.compose.runtime.DisposableEffect(requestUi) {
+        requestUi.dialogs++
+        onDispose { requestUi.dialogs-- }
+    }
     Dialog(
         onDismissRequest = onDismissRequest,
         properties = properties,
     ) {
-        BasicDialogPanel(elevation = elevation, tallyColor = tallyColor, content = content)
+        BasicDialogPanel(elevation = elevation, tallyColor = tallyColor, outline = outline, content = content)
     }
 }
 
 /**
- * The panel [BasicDialog] draws its content on, without the dialog window around it
+ * The panel [BasicDialog] draws its content on, without the dialog window around it.
+ * With [outline] (Neon theme), the panel has a 1.5dp border and soft glow in that color
+ * instead of the grey border and side tally, as in What's New.
  */
 @Composable
 fun BasicDialogPanel(
     modifier: Modifier = Modifier,
     elevation: Dp = 1.dp,
     tallyColor: Color = LocalNeonAccent.current,
+    outline: Color? = null,
     content: @Composable () -> Unit,
 ) {
     val neon = isWeaselTv()
     Box(
         modifier =
             modifier.then(
-                if (neon) {
+                if (neon && outline != null) {
+                    Modifier
+                        // The dialog window ends at its content, so leave room for the glow.
+                        .padding(OutlineGlow)
+                        .outlineGlow(outline)
+                        .background(NeonBoard.Card)
+                        .border(1.5.dp, outline)
+                } else if (neon) {
                     Modifier
                         .shadow(elevation = 20.dp, shape = RectangleShape)
                         .background(NeonBoard.Card)
@@ -809,3 +825,28 @@ fun chooseStream(
             },
     )
 }
+
+private val OutlineGlow = 8.dp
+
+/** A soft glow just outside the panel's edge, fading out over [OutlineGlow]. */
+private fun Modifier.outlineGlow(color: Color): Modifier =
+    drawBehind {
+        val reach = OutlineGlow.toPx()
+        val steps = 10
+        val step = reach / steps
+        for (i in 0 until steps) {
+            val spread = step * (i + .5f)
+            drawRect(
+                color = color.copy(alpha = .34f * (1f - i.toFloat() / steps)),
+                topLeft =
+                    androidx.compose.ui.geometry
+                        .Offset(-spread, -spread),
+                size =
+                    androidx.compose.ui.geometry
+                        .Size(size.width + 2 * spread, size.height + 2 * spread),
+                style =
+                    androidx.compose.ui.graphics.drawscope
+                        .Stroke(width = step),
+            )
+        }
+    }

@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
@@ -43,6 +44,8 @@ import kotlin.time.Duration.Companion.seconds
 class SeerrServerRepository
     @Inject
     constructor(
+        @param:com.github.damontecres.wholphin.services.hilt.DefaultCoroutineScope private val requestScope:
+            kotlinx.coroutines.CoroutineScope,
         private val seerrApi: SeerrApi,
         private val seerrServerDao: SeerrServerDao,
         private val serverRepository: ServerRepository,
@@ -54,18 +57,24 @@ class SeerrServerRepository
         val connection: StateFlow<SeerrConnectionStatus> = _connection
 
         val current: Flow<CurrentSeerr?> =
-            _connection.map { (it as? SeerrConnectionStatus.Success)?.current }
+            _connection.map {
+                when (it) {
+                    is SeerrConnectionStatus.Success -> it.current
+                    is SeerrConnectionStatus.Expired -> it.current
+                    else -> null
+                }
+            }
         val currentServer: Flow<SeerrServer?> =
-            connection.map { (it as? SeerrConnectionStatus.Success)?.current?.server }
+            current.map { it?.server }
         val currentUser: Flow<SeerrUser?> =
-            connection.map { (it as? SeerrConnectionStatus.Success)?.current?.user }
+            current.map { it?.user }
         val currentUserId: Flow<Int?> = current.map { it?.config?.id }
 
         /**
          * Whether Seerr integration is currently active of not
          */
         val active: Flow<Boolean> =
-            connection.map { it is SeerrConnectionStatus.Success && seerrApi.active }
+            connection.map { (it is SeerrConnectionStatus.Success || it is SeerrConnectionStatus.Expired) && seerrApi.active }
 
         fun clear() {
             _connection.update { SeerrConnectionStatus.NotConfigured }
@@ -127,6 +136,7 @@ class SeerrServerRepository
                 return
             }
             val publicSettings = seerrApi.api.settingsApi.settingsPublicGet()
+            if (serverRepository.currentUser?.rowId != user.jellyfinUserRowId) return
             // The session may have changed during that request
             if (!seerrAllowedFor(forUser)) {
                 dropStale()
@@ -301,6 +311,29 @@ class SeerrServerRepository
          * Requests until the app is killed and relaunched. Throttled by
          * [SeerrReconnectPolicy] through [connectForUser].
          */
+        fun expireAndReconnect(expected: CurrentSeerr) {
+            requestScope.launch {
+                val user = serverRepository.currentUser ?: return@launch
+                val expired =
+                    connectMutex.withLock {
+                        if ((connection.value as? SeerrConnectionStatus.Success)?.current !== expected ||
+                            user.rowId != expected.user.jellyfinUserRowId
+                        ) {
+                            return@withLock false
+                        }
+                        _connection.value = SeerrConnectionStatus.Expired(expected)
+                        // Expiry is a fresh failure; the probe has not consumed a connect attempt.
+                        lastAttemptAt = null
+                        true
+                    }
+                if (expired && expected.user.authMethod in listOf(SeerrAuthMethod.QUICK_CONNECT, SeerrAuthMethod.API_KEY) &&
+                    serverRepository.currentUser?.rowId == user.rowId
+                ) {
+                    connectForUser(user)
+                }
+            }
+        }
+
         suspend fun reconnectIfNeeded(): Boolean {
             if (BuildConfig.DEFAULT_SEERR_URL.isBlank() &&
                 connection.value is SeerrConnectionStatus.NotConfigured
@@ -309,6 +342,12 @@ class SeerrServerRepository
                 return false
             }
             if (connection.value is SeerrConnectionStatus.Success) return false
+            val expired = connection.value as? SeerrConnectionStatus.Expired
+            if (expired != null &&
+                expired.current.user.authMethod !in listOf(SeerrAuthMethod.QUICK_CONNECT, SeerrAuthMethod.API_KEY)
+            ) {
+                return false
+            }
             val user = serverRepository.currentUser ?: return false
             if (!seerrAllowedFor(user)) return false
             return connectForUser(user)
@@ -395,6 +434,7 @@ class SeerrServerRepository
                 when (val conn = connection.first()) {
                     SeerrConnectionStatus.NotConfigured -> return false
                     is SeerrConnectionStatus.Error -> conn.user
+                    is SeerrConnectionStatus.Expired -> conn.current.user
                     is SeerrConnectionStatus.Success -> conn.current.user
                 }
             val rows = seerrServerDao.deleteUser(user)
@@ -410,6 +450,10 @@ typealias SeerrUserConfig = User
 
 sealed interface SeerrConnectionStatus {
     data object NotConfigured : SeerrConnectionStatus
+
+    data class Expired(
+        val current: CurrentSeerr,
+    ) : SeerrConnectionStatus
 
     data class Error(
         val server: SeerrServer,

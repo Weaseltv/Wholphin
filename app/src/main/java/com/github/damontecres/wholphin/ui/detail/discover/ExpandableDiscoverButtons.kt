@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -39,7 +41,25 @@ fun ExpandableDiscoverButtons(
     buttonOnFocusChanged: (FocusState) -> Unit,
     modifier: Modifier = Modifier,
     pendingOnClick: () -> Unit = {},
+    requestTmdbId: Int? = null,
+    requestMediaType: String? = null,
+    // Null only in layout tests, which have no Hilt
+    requestsVM: com.github.damontecres.wholphin.ui.discover.SeerrRequestsViewModel? =
+        androidx.hilt.lifecycle.viewmodel.compose
+            .hiltViewModel(),
 ) {
+    val requestState =
+        requestsVM
+            ?.requests
+            ?.state
+            ?.collectAsState()
+            ?.value
+    val matchingRequests =
+        requestState?.items.orEmpty().filter { it.request.media?.tmdbId == requestTmdbId && it.request.type == requestMediaType }
+    val ownRequest =
+        matchingRequests.firstOrNull { !it.stage.terminal && it.request.is4k != true }
+            ?: matchingRequests.firstOrNull { !it.stage.terminal }
+            ?: matchingRequests.firstOrNull()
     val firstFocus = remember { FocusRequester() }
     FocusSafeLazyRow(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -89,43 +109,61 @@ fun ExpandableDiscoverButtons(
         item("first") {
             ExpandableFaButton(
                 title = text,
+                titleOverride = ownRequest?.stage?.label,
                 iconStringRes = icon,
                 enabled =
-                    when (availability) {
-                        SeerrAvailability.UNKNOWN -> canRequest
+                    ownRequest != null ||
+                        when (availability) {
+                            SeerrAvailability.UNKNOWN -> canRequest
 
-                        SeerrAvailability.PENDING,
-                        SeerrAvailability.PROCESSING,
-                        SeerrAvailability.PARTIALLY_AVAILABLE,
-                        SeerrAvailability.AVAILABLE,
-                        -> true
+                            SeerrAvailability.PENDING,
+                            SeerrAvailability.PROCESSING,
+                            SeerrAvailability.PARTIALLY_AVAILABLE,
+                            SeerrAvailability.AVAILABLE,
+                            -> true
 
-                        SeerrAvailability.BLOCKLISTED,
-                        SeerrAvailability.DELETED,
-                        -> false
-                    },
+                            SeerrAvailability.BLOCKLISTED,
+                            SeerrAvailability.DELETED,
+                            -> false
+                        },
                 onClick = {
-                    when (availability) {
-                        SeerrAvailability.UNKNOWN -> {
-                            requestOnClick.invoke()
+                    if (ownRequest != null) {
+                        if (ownRequest.stage.ready &&
+                            ownRequest.jellyfinId != null
+                        ) {
+                            requestsVM?.open(ownRequest.request.id, requestState?.scope)
+                        } else {
+                            requestsVM?.navigation?.navigateToFromDrawer(
+                                com.github.damontecres.wholphin.ui.nav.Destination
+                                    .Discover(1, ownRequest.request.id),
+                            )
                         }
+                    } else {
+                        when (availability) {
+                            SeerrAvailability.UNKNOWN -> {
+                                requestOnClick.invoke()
+                            }
 
-                        SeerrAvailability.PENDING,
-                        SeerrAvailability.PROCESSING,
-                        -> {
-                            pendingOnClick.invoke()
-                        }
+                            SeerrAvailability.PENDING,
+                            SeerrAvailability.PROCESSING,
+                            -> {
+                                requestsVM?.navigation?.navigateToFromDrawer(
+                                    com.github.damontecres.wholphin.ui.nav.Destination
+                                        .Discover(1, ownRequest?.request?.id),
+                                )
+                            }
 
-                        SeerrAvailability.PARTIALLY_AVAILABLE,
-                        SeerrAvailability.AVAILABLE,
-                        -> {
-                            goToOnClick.invoke()
-                        }
+                            SeerrAvailability.PARTIALLY_AVAILABLE,
+                            SeerrAvailability.AVAILABLE,
+                            -> {
+                                goToOnClick.invoke()
+                            }
 
-                        SeerrAvailability.DELETED,
-                        SeerrAvailability.BLOCKLISTED,
-                        -> {
-                            // TODO
+                            SeerrAvailability.DELETED,
+                            SeerrAvailability.BLOCKLISTED,
+                            -> {
+                                // TODO
+                            }
                         }
                     }
                 },
@@ -135,7 +173,15 @@ fun ExpandableDiscoverButtons(
                         .onFocusChanged(buttonOnFocusChanged),
             )
         }
-        if (availability == SeerrAvailability.PARTIALLY_AVAILABLE) {
+        if (availability == SeerrAvailability.PARTIALLY_AVAILABLE ||
+            (
+                requestMediaType == "tv" &&
+                    (
+                        availability == SeerrAvailability.PENDING || availability == SeerrAvailability.PROCESSING ||
+                            ownRequest?.stage?.terminal == false
+                    )
+            )
+        ) {
             item("request_partial") {
                 ExpandableFaButton(
                     title = R.string.request,
@@ -143,7 +189,7 @@ fun ExpandableDiscoverButtons(
                     onClick = {
                         requestOnClick.invoke()
                     },
-                    enabled = availability == SeerrAvailability.PARTIALLY_AVAILABLE,
+                    enabled = canRequest,
                     modifier =
                         Modifier
                             .onFocusChanged(buttonOnFocusChanged),

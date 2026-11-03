@@ -50,6 +50,7 @@ import kotlin.time.Duration
 data class SeasonEpisode(
     val season: Int,
     val episode: Int,
+    val episodeEnd: Int? = null,
 )
 
 @Serializable

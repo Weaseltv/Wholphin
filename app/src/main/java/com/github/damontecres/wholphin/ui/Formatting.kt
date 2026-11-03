@@ -106,21 +106,34 @@ fun formatSeasonEpisode(
     padded: Boolean = false,
 ): String? {
     if (season == null || episode == null) return null
-    return if (episodeEnd != null) {
-        if (padded) {
-            formatStringWithFallback(R.string.season_episode_number_padded_range, "S%1\$02dE%2\$02d-E%3\$02d", season, episode, episodeEnd)
-        } else {
-            formatStringWithFallback(R.string.season_episode_number_range, "S%1\$d E%2\$d-E%3\$d", season, episode, episodeEnd)
-        }
-    } else if (padded) {
-        formatStringWithFallback(R.string.season_episode_number_padded, "S%1\$02dE%2\$02d", season, episode)
+    val number = formatEpisodeNumber(episode, episodeEnd, padded)
+    return if (padded) {
+        formatStringWithFallback(R.string.season_episode_number_padded, "S%1\$02dE%2\$s", season, number)
     } else {
-        formatStringWithFallback(R.string.season_episode_number, "S%1\$d E%2\$d", season, episode)
+        formatStringWithFallback(R.string.season_episode_number, "S%1\$d E%2\$s", season, number)
     }
 }
 
-/** Compact episode-only label, e.g. `E3`. */
-fun formatEpisodeNumber(episode: Int): String = formatStringWithFallback(R.string.episode_number_short, "E%1\$d", episode)
+/** The inclusive episode number(s) in one file; invalid or equal ends stay a single number. */
+fun formatEpisodeNumber(
+    episode: Int,
+    episodeEnd: Int? = null,
+    padded: Boolean = false,
+): String {
+    val pattern = if (padded) "%02d" else "%d"
+    val start = String.format(Locale.getDefault(), pattern, episode)
+    return if (episodeEnd != null && episodeEnd > episode) {
+        "$start-${String.format(Locale.getDefault(), pattern, episodeEnd)}"
+    } else {
+        start
+    }
+}
+
+/** Compact episode-only label, e.g. `E3` or `E3-4`. */
+fun formatEpisodeNumberShort(
+    episode: Int,
+    episodeEnd: Int? = null,
+): String = formatStringWithFallback(R.string.episode_number_short, "E%1\$s", formatEpisodeNumber(episode, episodeEnd))
 
 /** Fallback season title when the library has no season name, e.g. `Season 2`. */
 fun formatSeasonNumber(season: Int): String = formatStringWithFallback(R.string.season_number, "Season %1\$d", season)

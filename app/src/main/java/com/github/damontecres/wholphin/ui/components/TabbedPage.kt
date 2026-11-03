@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -48,12 +49,14 @@ class TabViewModel
         private val backdropService: BackdropService,
         @param:Assisted private val itemId: String,
         @param:Assisted private val tabCount: Int,
+        @param:Assisted private val initialTab: Int?,
     ) : ViewModel() {
         @AssistedFactory
         interface Factory {
             fun create(
                 itemId: String,
                 tabCount: Int,
+                initialTab: Int?,
             ): TabViewModel
         }
 
@@ -66,19 +69,20 @@ class TabViewModel
         init {
             viewModelScope.launchIO {
                 val startingTab =
-                    if (shouldRememberTabs()) {
-                        Timber.v("Getting remembered tab for %s", itemId)
-                        try {
-                            rememberedTabService
-                                .getRememberedTab(itemId)
-                                ?.coerceIn(0..<tabCount)
-                        } catch (ex: Exception) {
-                            Timber.e(ex, "Error getting tab for %s", itemId)
-                            null
-                        } ?: 0
-                    } else {
-                        0
-                    }
+                    initialTab?.coerceIn(0..<tabCount)
+                        ?: if (shouldRememberTabs()) {
+                            Timber.v("Getting remembered tab for %s", itemId)
+                            try {
+                                rememberedTabService
+                                    .getRememberedTab(itemId)
+                                    ?.coerceIn(0..<tabCount)
+                            } catch (ex: Exception) {
+                                Timber.e(ex, "Error getting tab for %s", itemId)
+                                null
+                            } ?: 0
+                        } else {
+                            0
+                        }
                 _state.value = startingTab
             }
         }
@@ -123,6 +127,7 @@ fun TabbedPage(
     itemId: String,
     tabs: List<TabDetails>,
     modifier: Modifier = Modifier,
+    initialTab: Int? = null,
     showTabs: Boolean = true,
     tabTopPadding: Dp = 16.dp,
     tabContentTopPadding: Dp = 20.dp,
@@ -131,11 +136,12 @@ fun TabbedPage(
     viewModel: TabViewModel =
         hiltViewModel<TabViewModel, TabViewModel.Factory>(
             key = "$itemId-${tabs.size}",
-            creationCallback = { it.create(itemId, tabs.size) },
+            creationCallback = { it.create(itemId, tabs.size, initialTab) },
         ),
     tabContent: @Composable (Int, TabDetails) -> Unit,
 ) {
     val selectedTabIndex by viewModel.state.collectAsState()
+
     val isShowClock by viewModel.isShowClock.collectAsState(true)
     TabbedPage(
         selectedTabIndex = selectedTabIndex,

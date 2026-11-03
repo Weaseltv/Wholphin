@@ -9,6 +9,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
@@ -48,6 +50,7 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -103,6 +106,7 @@ import com.github.damontecres.wholphin.ui.coachmark.CoachMarkStep
 import com.github.damontecres.wholphin.ui.coachmark.LocalCoachMarkTour
 import com.github.damontecres.wholphin.ui.coachmark.coachMarkTarget
 import com.github.damontecres.wholphin.ui.components.TimeDisplay
+import com.github.damontecres.wholphin.ui.components.rememberRequestFocus
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.preferences.PreferenceScreenOption
@@ -177,7 +181,7 @@ class NavDrawerViewModel
                 NavDrawerItem.Discover -> {
                     setIndex(index)
                     navigationManager.navigateToFromDrawer(
-                        Destination.Discover,
+                        Destination.Discover(),
                     )
                 }
 
@@ -214,7 +218,7 @@ class NavDrawerViewModel
                         when (it) {
                             is ServerNavDrawerItem -> it.destination
                             is NavDrawerItem.Favorites -> Destination.Favorites
-                            is NavDrawerItem.Discover -> Destination.Discover
+                            is NavDrawerItem.Discover -> Destination.Discover()
                             else -> null
                         }
                     }
@@ -230,7 +234,10 @@ class NavDrawerViewModel
                         } else if (key is Destination.NowPlaying) {
                             NOW_PLAYING_INDEX
                         } else {
-                            val idx = asDestinations.indexOf(key)
+                            val idx =
+                                asDestinations.indexOfFirst {
+                                    it == key || (it is Destination.Discover && key is Destination.Discover)
+                                }
                             if (idx >= 0) {
                                 idx
                             } else {
@@ -513,6 +520,7 @@ fun NavDrawer(
                         pinFooter = !kidSession,
                         modifier =
                             Modifier
+                                .focusRestorer()
                                 .focusGroup()
                                 .focusProperties {
                                     onEnter = {
@@ -679,7 +687,7 @@ fun NavDrawer(
         },
     ) {
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().rememberRequestFocus(),
         ) {
             // Page labels and cards keep their gutters; section rules extend to the rail and screen edge.
             // The page takes the SECTION accent of the rail item it belongs to; details
@@ -901,6 +909,10 @@ fun NavigationDrawerScope.NavItem(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     containerColor: Color = Color.Unspecified,
 ) {
+    val requestsVM: com.github.damontecres.wholphin.ui.discover.SeerrRequestsViewModel =
+        androidx.hilt.lifecycle.viewmodel.compose
+            .hiltViewModel()
+    val requestState by requestsVM.requests.state.collectAsState()
     val context = LocalContext.current
     val useFont = library !is ServerNavDrawerItem || library.type != CollectionType.LIVETV
     val icon =
@@ -979,6 +991,27 @@ fun NavigationDrawerScope.NavItem(
                         tint = color,
                         modifier = Modifier.size(DrawerIconSize),
                     )
+                }
+                if (library is NavDrawerItem.Discover && requestState.badgeCount > 0) {
+                    // The badge sits above the glyph, within the row, on both the open menu and collapsed rail.
+                    Box(
+                        modifier =
+                            Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = 2.dp, y = (-12).dp)
+                                .height(12.dp)
+                                .widthIn(min = 12.dp)
+                                .background(Color(0xFF00F2D6), androidx.compose.foundation.shape.CircleShape)
+                                .padding(horizontal = 3.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = if (requestState.badgeCount > 9) "9+" else requestState.badgeCount.toString(),
+                            fontSize = 9.sp,
+                            lineHeight = 12.sp,
+                            color = Color.Black,
+                        )
+                    }
                 }
             }
         },

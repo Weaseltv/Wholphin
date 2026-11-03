@@ -12,6 +12,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 import org.jellyfin.sdk.model.api.BaseItemKind
+import org.jellyfin.sdk.model.api.CollectionType
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import org.jellyfin.sdk.model.serializer.UUIDSerializer
 import java.util.UUID
@@ -68,13 +69,16 @@ sealed interface HomeRowConfig {
     }
 
     /**
-     * Media recently added to several libraries in one row, newest first, e.g. Movies and TV Shows
+     * Media recently added to several libraries in one row, newest first. WeaselPlex has one for its
+     * movie libraries and one for its show libraries ([collectionType] MOVIES or TVSHOWS, owner
+     * 2026-11-03); a row without a [collectionType] is the older Movies and TV Shows row.
      */
     @Serializable
     @SerialName("RecentlyAddedCombined")
     data class RecentlyAddedCombined(
         val parentIds: List<UUID>,
         override val viewOptions: HomeRowViewOptions = HomeRowViewOptions(),
+        val collectionType: CollectionType? = null,
     ) : HomeRowConfig {
         override fun updateViewOptions(viewOptions: HomeRowViewOptions): RecentlyAddedCombined = this.copy(viewOptions = viewOptions)
     }

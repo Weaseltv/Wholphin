@@ -39,6 +39,38 @@ class SeerrApiClient(
                 )
             }.build()
 
+    // Live progress uses only the existing personal cookie, never API-key impersonation.
+    val hasProgressSession: Boolean
+        get() = apiKey.isNullOrBlank() && cookieJar.hasValidCredentials(baseUrl)
+
+    val progressStreamClient: OkHttpClient by lazy {
+        client
+            .newBuilder()
+            .callTimeout(0, TimeUnit.SECONDS)
+            .readTimeout(40, TimeUnit.SECONDS)
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(false)
+            .followRedirects(false)
+            .followSslRedirects(false)
+            .addInterceptor { chain ->
+                chain.proceed(
+                    chain
+                        .request()
+                        .newBuilder()
+                        .removeHeader("X-Api-Key")
+                        .removeHeader("X-API-User")
+                        .build(),
+                )
+            }.build()
+    }
+    val progressSnapshotClient: OkHttpClient by lazy {
+        progressStreamClient
+            .newBuilder()
+            .callTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .build()
+    }
+
     val hasValidCredentials: Boolean
         get() =
             apiKey.isNotNullOrBlank() ||
@@ -59,7 +91,18 @@ class SeerrApiClient(
     val overrideruleApi by create(::OverrideruleApi)
     val personApi by create(::PersonApi)
     val publicApi by create(::PublicApi)
-    val requestApi by create(::RequestApi)
+
+    // Polling and actions keep this session's credentials but are bounded and never retry a transport failure.
+    val requestApi: RequestApi by lazy {
+        RequestApi(
+            baseUrl,
+            client
+                .newBuilder()
+                .callTimeout(30, TimeUnit.SECONDS)
+                .retryOnConnectionFailure(false)
+                .build(),
+        )
+    }
     val searchApi by create(::SearchApi)
 
     // Request searches should fail promptly without changing discovery or sign-in timeouts.

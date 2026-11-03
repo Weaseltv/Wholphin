@@ -121,7 +121,7 @@ class CoachMarkTour
 
         val active get() = pending || state != null
 
-        /** Set by Home once the row the tour starts on (Movies, Top of the Charts) has focus, or it has no such row */
+        /** Set by Home once the row the tour starts on (Trending Movies) has focus, or it has no such row */
         var homeRowReady by mutableStateOf(false)
 
         /** When [start] was asked for; the overlay gives up if Home doesn't come up soon after */

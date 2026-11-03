@@ -405,10 +405,12 @@ fun DestinationContent(
             DebugPage(preferences, modifier)
         }
 
-        Destination.Discover -> {
+        is Destination.Discover -> {
             LaunchedEffect(Unit) { onClearBackdrop.invoke() }
             DiscoverPage(
                 preferences = preferences,
+                initialTab = destination.initialTab,
+                focusRequestId = destination.focusRequestId,
                 modifier = modifier,
             )
         }

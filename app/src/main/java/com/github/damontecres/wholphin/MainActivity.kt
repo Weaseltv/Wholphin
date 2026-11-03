@@ -59,6 +59,7 @@ import com.github.damontecres.wholphin.services.SuggestionsSchedulerService
 import com.github.damontecres.wholphin.services.UpdateChecker
 import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.UserSwitchListener
+import com.github.damontecres.wholphin.services.WhatsNewService
 import com.github.damontecres.wholphin.services.hilt.AuthOkHttpClient
 import com.github.damontecres.wholphin.services.tvprovider.TvProviderSchedulerService
 import com.github.damontecres.wholphin.ui.CoilConfig
@@ -67,6 +68,7 @@ import com.github.damontecres.wholphin.ui.coachmark.CoachMarkTour
 import com.github.damontecres.wholphin.ui.collectLatestIn
 import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.launchDefault
+import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.playback.PlayExternalViewModel
 import com.github.damontecres.wholphin.ui.showToast
@@ -130,6 +132,9 @@ class MainActivity : AppCompatActivity() {
     lateinit var coachMarkTour: CoachMarkTour
 
     @Inject
+    lateinit var whatsNewService: WhatsNewService
+
+    @Inject
     lateinit var playbackLifecycleObserver: PlaybackLifecycleObserver
 
     @Inject
@@ -164,6 +169,8 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var screensaverService: ScreensaverService
 
+    @Inject lateinit var requestStatusRepository: com.github.damontecres.wholphin.services.RequestStatusRepository
+    private var requestStatusJob: Job? = null
     private var updateCheckJob: Job? = null
 
     @Inject
@@ -187,6 +194,7 @@ class MainActivity : AppCompatActivity() {
         instance = this
         Timber.i("MainActivity.onCreate: savedInstanceState is null=${savedInstanceState == null}")
         lifecycle.addObserver(playbackLifecycleObserver)
+        whatsNewService.check()
 
         val backStackStr = savedInstanceState?.getString(KEY_BACK_STACK)
         val restoredBackStack =
@@ -322,7 +330,9 @@ class MainActivity : AppCompatActivity() {
                                             backdropService = backdropService,
                                             screensaverService = screensaverService,
                                             updateChecker = updateChecker,
+                                            requestStatusRepository = requestStatusRepository,
                                             coachMarkTour = coachMarkTour,
+                                            whatsNewService = whatsNewService,
                                             modifier = Modifier.fillMaxSize(),
                                         )
                                     }
@@ -420,6 +430,11 @@ class MainActivity : AppCompatActivity() {
         Timber.d("onStart")
         profileChooserLock.onActivityStarted()
         startPeriodicUpdateCheck()
+        requestStatusJob?.cancel()
+        requestStatusJob =
+            lifecycleScope.launchIO {
+                repeatOnLifecycle(Lifecycle.State.STARTED) { requestStatusRepository.runForeground() }
+            }
     }
 
     /**

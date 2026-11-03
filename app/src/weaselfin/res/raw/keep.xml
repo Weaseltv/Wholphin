@@ -10,6 +10,7 @@
      of the release APK - debug builds were fine because shrinking is off there.
 
      The Exo 2 and Audiowide fonts (@font/exo2*, @font/audiowide*) are resolved the same way by NeonFonts, so they
-     need the same rule or the release build silently falls back to the system font. -->
+     need the same rule or the release build silently falls back to the system font.
+     RequestNotificationCard also resolves its Orbitron popup font by name. -->
 <resources xmlns:tools="http://schemas.android.com/tools"
-    tools:keep="@raw/aboutlibraries,@drawable/ic_nav_*,@font/exo2*,@font/audiowide*,@drawable/weaselplex_*" />
+    tools:keep="@raw/aboutlibraries,@drawable/ic_nav_*,@font/exo2*,@font/audiowide*,@font/orbitron*,@drawable/weaselplex_*" />

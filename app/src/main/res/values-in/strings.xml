@@ -665,11 +665,9 @@
     <string name="brown">Cokelat</string>
     <string name="d_pad_seek_mode_title">Mode bilah geser D-Pad</string>
     <string name="duration_hours_seconds">%1$dj %2$dd</string>
-    <string name="season_episode_number">S%1$d E%2$d</string>
-    <string name="season_episode_number_range">S%1$d E%2$d-E%3$d</string>
-    <string name="season_episode_number_padded">S%1$02dE%2$02d</string>
-    <string name="season_episode_number_padded_range">S%1$02dE%2$02d-E%3$02d</string>
-    <string name="episode_number_short">E%1$d</string>
+    <string name="season_episode_number">S%1$d E%2$s</string>
+    <string name="season_episode_number_padded">S%1$02dE%2$s</string>
+    <string name="episode_number_short">E%1$s</string>
     <string name="season_number">Season %1$d</string>
     <string name="disable_audio_offload">Nonaktifkan offload audio hardware</string>
     <string name="disable_audio_offload_summary">Menonaktifkan dekode audio offload dapat mengatasi masalah pemutaran macet pada beberapa perangkat</string>

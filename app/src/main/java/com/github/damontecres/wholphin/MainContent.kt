@@ -28,21 +28,26 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
+import com.github.damontecres.wholphin.kids.ProfileKind
+import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.ScreensaverService
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.UpdateChecker
+import com.github.damontecres.wholphin.services.WhatsNewService
 import com.github.damontecres.wholphin.ui.coachmark.CoachMarkOverlay
 import com.github.damontecres.wholphin.ui.coachmark.CoachMarkTour
 import com.github.damontecres.wholphin.ui.coachmark.LocalCoachMarkTour
 import com.github.damontecres.wholphin.ui.components.AppScreensaver
+import com.github.damontecres.wholphin.ui.components.RequestChipHost
 import com.github.damontecres.wholphin.ui.nav.ApplicationContent
 import com.github.damontecres.wholphin.ui.setup.PinnedServerContent
 import com.github.damontecres.wholphin.ui.setup.SwitchServerContent
 import com.github.damontecres.wholphin.ui.setup.SwitchUserContent
 import com.github.damontecres.wholphin.ui.setup.UpdatePrompt
+import com.github.damontecres.wholphin.ui.setup.WhatsNewPrompt
 import com.github.damontecres.wholphin.ui.setup.isServerPinned
 import com.github.damontecres.wholphin.ui.util.InterfaceCustomization
 import com.github.damontecres.wholphin.ui.util.LocalInterfaceCustomization
@@ -55,7 +60,9 @@ fun MainContent(
     backdropService: BackdropService,
     screensaverService: ScreensaverService,
     updateChecker: UpdateChecker,
+    requestStatusRepository: com.github.damontecres.wholphin.services.RequestStatusRepository,
     coachMarkTour: CoachMarkTour,
+    whatsNewService: WhatsNewService,
     modifier: Modifier = Modifier,
     // Kid profiles (plan 4.5): also hide the profile's screen on stop when the profile screen will show on return
     hideContentOnStop: () -> Boolean = { false },
@@ -71,7 +78,15 @@ fun MainContent(
 //                            setupNavigationManager.backStack = backStack
         val interfaceCustomization =
             remember(userPreferences.appPreferences) { InterfaceCustomization(userPreferences.appPreferences) }
-        CompositionLocalProvider(LocalInterfaceCustomization provides interfaceCustomization) {
+        val requestUi =
+            remember {
+                com.github.damontecres.wholphin.ui.components
+                    .RequestUiState()
+            }
+        CompositionLocalProvider(
+            LocalInterfaceCustomization provides interfaceCustomization,
+            com.github.damontecres.wholphin.ui.components.LocalRequestUiState provides requestUi,
+        ) {
             NavDisplay(
                 backStack = backStack,
                 onBack = { backStack.removeLastOrNull() },
@@ -126,22 +141,42 @@ fun MainContent(
                                 }
 
                                 if (showContent) {
-                                    CompositionLocalProvider(
-                                        LocalCoachMarkTour provides coachMarkTour.takeIf { BuildConfig.COACH_MARK_TOUR_ENABLED },
-                                    ) {
-                                        ApplicationContent(
-                                            user = current.user,
-                                            server = current.server,
+                                    Box(Modifier.fillMaxSize()) {
+                                        Box(Modifier.fillMaxSize()) {
+                                            CompositionLocalProvider(
+                                                LocalCoachMarkTour provides coachMarkTour.takeIf { BuildConfig.COACH_MARK_TOUR_ENABLED },
+                                            ) {
+                                                ApplicationContent(
+                                                    user = current.user,
+                                                    server = current.server,
+                                                    navigationManager = navigationManager,
+                                                    preferences = preferences,
+                                                    modifier = Modifier.fillMaxSize(),
+                                                )
+                                            }
+                                        }
+                                        if (BuildConfig.COACH_MARK_TOUR_ENABLED) {
+                                            CoachMarkOverlay(coachMarkTour, navigationManager)
+                                        }
+                                        UpdatePrompt(updateChecker, navigationManager)
+                                        // After an update: once, over Home, never for a kid profile or on
+                                        // top of the tour.
+                                        WhatsNewPrompt(
+                                            service = whatsNewService,
                                             navigationManager = navigationManager,
-                                            preferences = preferences,
-                                            modifier = Modifier.fillMaxSize(),
+                                            updateChecker = updateChecker,
+                                            blocked =
+                                                (BuildConfig.COACH_MARK_TOUR_ENABLED && coachMarkTour.active) ||
+                                                    current.user.profileKind == ProfileKind.KID,
+                                        )
+                                        RequestChipHost(
+                                            repository = requestStatusRepository,
+                                            navigation = navigationManager,
+                                            screensaver = screensaverService,
+                                            ownerRowId = current.user.rowId,
+                                            presentationBlocked = BuildConfig.COACH_MARK_TOUR_ENABLED && coachMarkTour.active,
                                         )
                                     }
-                                    if (BuildConfig.COACH_MARK_TOUR_ENABLED) {
-                                        CoachMarkOverlay(coachMarkTour, navigationManager)
-                                    }
-                                    // Only once signed in, so it never interrupts sign-in.
-                                    UpdatePrompt(updateChecker, navigationManager)
                                 } else {
                                     Box(
                                         modifier = Modifier.size(200.dp),

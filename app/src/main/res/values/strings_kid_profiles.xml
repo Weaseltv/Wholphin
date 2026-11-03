@@ -111,7 +111,7 @@
     <string name="kid_start_over">Start over</string>
     <string name="kid_watchlist">Watchlist</string>
     <string name="kid_on_watchlist">On Watchlist</string>
-    <string name="kid_play_episode">Play S%1$d · E%2$d</string>
+    <string name="kid_play_episode">Play S%1$d · E%2$s</string>
     <string name="kid_next_up">Next up: \"%1$s\"</string>
     <plurals name="kid_seasons">
         <item quantity="one">%d season</item>

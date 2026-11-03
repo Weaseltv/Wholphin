@@ -1,0 +1,12 @@
+{
+  "v": 1,
+  "notificationType": "{{notification_type}}",
+  "event": "{{event}}",
+  "title": "{{subject}}",
+  "requestId": "{{request_id}}",
+  "recipientJellyfinUserId": "{{requestedBy_jellyfinUserId}}",
+  "tmdbId": "{{media_tmdbid}}",
+  "mediaType": "{{media_type}}",
+  "mediaStatus": "{{media_status}}",
+  "mediaStatus4k": "{{media_status4k}}"
+}

@@ -1,0 +1,12 @@
+{
+  "v": 1,
+  "notificationType": "TEST_NOTIFICATION",
+  "event": "",
+  "title": "Test Notification",
+  "requestId": "",
+  "recipientJellyfinUserId": "",
+  "tmdbId": "",
+  "mediaType": "",
+  "mediaStatus": "",
+  "mediaStatus4k": ""
+}

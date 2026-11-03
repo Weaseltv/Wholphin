@@ -14,6 +14,7 @@ import com.github.damontecres.wholphin.data.model.DiscoverItem
 import com.github.damontecres.wholphin.data.model.ItemPlayback
 import com.github.damontecres.wholphin.data.model.Person
 import com.github.damontecres.wholphin.data.model.Trailer
+import com.github.damontecres.wholphin.data.model.coversEpisodeNumber
 import com.github.damontecres.wholphin.data.model.mergeRepeated
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.services.BackdropService
@@ -811,9 +812,11 @@ enum class SeriesPageType {
 private fun checkNumberOrId(
     targetNum: Int?,
     targetId: UUID?,
-    indexNumber: Int?,
-    id: UUID?,
-): Boolean = equalsNotNull(targetId, id) || equalsNotNull(indexNumber, targetNum)
+    item: BaseItem?,
+): Boolean =
+    equalsNotNull(targetId, item?.id) ||
+        equalsNotNull(item?.indexNumber, targetNum) ||
+        (targetNum != null && item?.data?.coversEpisodeNumber(targetNum) == true)
 
 private fun checkParent(
     parentId: UUID?,
@@ -827,7 +830,7 @@ private fun checkParent(
 }
 
 /**
- * Find the index in the [list] where the item's `indexNumber`==[targetNum] or `id`==[targetId]
+ * Find the index in the [list] where the item covers [targetNum] or its `id`==[targetId]
  *
  * If the list is smaller than its page size, then the entire dataset is cached and
  * [BlockingList.indexOfBlocking] is used, otherwise this function calls [findIndexByNumberOrId]
@@ -842,7 +845,7 @@ suspend fun findIndexByNumberOrIdFast(
     if (list.size <= list.pageSize) {
         Timber.v("Using findIndexByNumberOrIdFast indexOfBlocking method")
         list.indexOfBlocking {
-            checkNumberOrId(targetNum, targetId, it?.indexNumber, it?.id) &&
+            checkNumberOrId(targetNum, targetId, it) &&
                 checkParent(parentId, parentIndex, it)
         }
     } else {
@@ -856,7 +859,7 @@ suspend fun findIndexByNumberOrIdFast(
     }
 
 /**
- * Find the index in the [list] where the item's `indexNumber`==[targetNum] or `id`==[targetId]
+ * Find the index in the [list] where the item covers [targetNum] or its `id`==[targetId]
  *
  * This is necessary in cases where items are missing. E.g. if looking for episode 4 but
  * episodes 2 & 3 is missing, then the index in the list for episode 4 will be `1`.
@@ -881,12 +884,18 @@ suspend fun findIndexByNumberOrId(
             // No hint info, so have to check everything
             list
                 .indexOfBlocking {
-                    checkNumberOrId(targetNum, targetId, it?.indexNumber, it?.id)
+                    checkNumberOrId(targetNum, targetId, it)
                 }.coerceAtLeast(0)
         } else if (listIndex != null && listIndex in list.indices) {
             searchList(listIndex, targetNum, targetId, list, parentId, parentIndex)
         } else {
-            0
+            // An episode number is not a list offset: paired files can put it past list.size.
+            list
+                .indexOfBlocking {
+                    targetNum != null && it?.data?.indexNumberEnd.gt(it?.indexNumber ?: Int.MAX_VALUE) &&
+                        it?.data?.coversEpisodeNumber(targetNum) == true &&
+                        checkParent(parentId, parentIndex, it)
+                }.coerceAtLeast(0)
         }
     return index
 }
@@ -926,11 +935,14 @@ private suspend fun searchList(
         // Search for the right episode starting from this new one
         item = list.getBlocking(index)
     }
+    if (checkNumberOrId(targetNum, targetId, item) && checkParent(parentId, parentIndex, item)) {
+        return index
+    }
     val num = item?.indexNumber
     if (num.lt(targetNum)) {
         for (i in listIndex + 1 until list.size) {
             val item = list.getBlocking(i)
-            if (checkNumberOrId(targetNum, targetId, item?.indexNumber, item?.id) &&
+            if (checkNumberOrId(targetNum, targetId, item) &&
                 checkParent(parentId, parentIndex, item)
             ) {
                 return i
@@ -940,21 +952,21 @@ private suspend fun searchList(
     } else if (num.gt(targetNum)) {
         for (i in listIndex - 1 downTo 0) {
             val item = list.getBlocking(i)
-            if (checkNumberOrId(targetNum, targetId, item?.indexNumber, item?.id) &&
+            if (checkNumberOrId(targetNum, targetId, item) &&
                 checkParent(parentId, parentIndex, item)
             ) {
                 return i
             }
         }
         return 0
-    } else if (checkNumberOrId(targetNum, targetId, item?.indexNumber, item?.id) &&
+    } else if (checkNumberOrId(targetNum, targetId, item) &&
         checkParent(parentId, parentIndex, item)
     ) {
         return index
     } else {
         return list
             .indexOfBlocking {
-                checkNumberOrId(targetNum, targetId, it?.indexNumber, it?.id) &&
+                checkNumberOrId(targetNum, targetId, it) &&
                     checkParent(parentId, parentIndex, item)
             }.coerceAtLeast(0)
     }

@@ -440,6 +440,7 @@ fun ExpandableFaButton(
     contentColor: Color = Color.Unspecified,
     /** Show only the icon until focused, with an uppercase label in the button font. */
     collapsed: Boolean = false,
+    titleOverride: String? = null,
     /** An uppercase label in the button font with the same padding as other text buttons. */
     allCaps: Boolean = isWeaselTv(),
 ) {
@@ -483,21 +484,21 @@ fun ExpandableFaButton(
         if (collapsed) {
             AnimatedVisibility(isFocused) {
                 Text(
-                    text = stringResource(title).uppercase(),
+                    text = (titleOverride ?: stringResource(title)).uppercase(),
                     color = contentColor,
                     modifier = Modifier.padding(start = 2.dp, end = 6.dp),
                 )
             }
         } else if (allCaps) {
             Text(
-                text = stringResource(title).uppercase(),
+                text = (titleOverride ?: stringResource(title)).uppercase(),
                 color = contentColor,
                 modifier = Modifier.padding(start = 2.dp, end = 8.dp),
             )
         } else {
             AnimatedVisibility(isWeaselTv() || isFocused) {
                 Text(
-                    text = stringResource(title),
+                    text = titleOverride ?: stringResource(title),
                     style = MaterialTheme.typography.titleSmall,
                     color = contentColor,
                     modifier = Modifier.padding(end = 4.dp),

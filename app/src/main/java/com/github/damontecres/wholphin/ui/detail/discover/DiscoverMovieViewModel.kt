@@ -59,6 +59,7 @@ class DiscoverMovieViewModel
         private val navigationManager: NavigationManager,
         private val backdropService: BackdropService,
         val serverRepository: ServerRepository,
+        val requestStatusRepository: com.github.damontecres.wholphin.services.RequestStatusRepository,
         val seerrService: SeerrService,
         private val seerrServerRepository: SeerrServerRepository,
         @Assisted val item: DiscoverItem,
@@ -191,27 +192,35 @@ class DiscoverMovieViewModel
                     return@launchIO
                 }
                 try {
-                    seerrService.api.requestApi.requestPost(
-                        RequestPostRequest(
-                            is4k = request.is4k,
-                            mediaId = request.movieId,
-                            mediaType = RequestPostRequest.MediaType.MOVIE,
-                            serverId =
-                                when {
-                                    request.profileId == null && request.folder == null -> null
-                                    request.is4k -> request.data.server4kId
-                                    else -> request.data.serverId
-                                },
-                            profileId = request.profileId,
-                            rootFolder = request.folder,
-                            tags = emptyList(),
-                        ),
-                    )
+                    val submittingScope = requestStatusRepository.state.value.scope
+                    val created =
+                        seerrService.api.requestApi.requestPost(
+                            RequestPostRequest(
+                                is4k = request.is4k,
+                                mediaId = request.movieId,
+                                mediaType = RequestPostRequest.MediaType.MOVIE,
+                                serverId =
+                                    when {
+                                        request.profileId == null && request.folder == null -> null
+                                        request.is4k -> request.data.server4kId
+                                        else -> request.data.serverId
+                                    },
+                                profileId = request.profileId,
+                                rootFolder = request.folder,
+                                tags = emptyList(),
+                            ),
+                        )
+                    requestStatusRepository.seed(created, submittingScope, item)
+                    if (requestStatusRepository.state.value.scope == submittingScope) {
+                        kotlinx.coroutines.withContext(
+                            WholphinDispatchers.Main,
+                        ) { navigationManager.navigateToFromDrawer(Destination.Discover(1, created.id)) }
+                    }
                 } catch (ex: CancellationException) {
                     throw ex
                 } catch (ex: Exception) {
-                    Timber.e(ex, "Error requesting %s", request.movieId)
-                    showToast(context, "An error occurred")
+                    Timber.w("Request submission failed (%s)", ex.javaClass.simpleName)
+                    showToast(context, requestSubmissionError(ex))
                 }
                 fetchAndSetItem().await()
                 updateCanCancel()
@@ -220,19 +229,27 @@ class DiscoverMovieViewModel
 
         fun cancelRequest(id: Int) {
             viewModelScope.launchIO {
-                state.value.movie.successValue?.mediaInfo?.requests?.firstOrNull()?.let {
-                    // TODO handle multiple requests? Or just delete self's request?
-                    try {
-                        seerrService.api.requestApi.requestRequestIdDelete(it.id.toString())
-                    } catch (ex: kotlinx.coroutines.CancellationException) {
-                        throw ex
-                    } catch (ex: Exception) {
-                        Timber.e(ex, "Error requesting %s", id)
-                        showToast(context, "An error occurred")
+                state.value.movie.successValue
+                    ?.mediaInfo
+                    ?.requests
+                    ?.firstOrNull {
+                        it.id == id
+                    }?.takeIf { canUserCancelRequest(userConfig.firstOrNull(), listOf(it)) }
+                    ?.let {
+                        // TODO handle multiple requests? Or just delete self's request?
+                        try {
+                            val deletingScope = requestStatusRepository.state.value.scope
+                            seerrService.api.requestApi.requestRequestIdDelete(it.id.toString())
+                            requestStatusRepository.forget(it.id, deletingScope)
+                        } catch (ex: kotlinx.coroutines.CancellationException) {
+                            throw ex
+                        } catch (ex: Exception) {
+                            Timber.e(ex, "Error requesting %s", id)
+                            showToast(context, "An error occurred")
+                        }
+                        fetchAndSetItem().await()
+                        updateCanCancel()
                     }
-                    fetchAndSetItem().await()
-                    updateCanCancel()
-                }
             }
         }
 
@@ -262,17 +279,11 @@ class DiscoverMovieViewModel
 fun canUserCancelRequest(
     user: SeerrUserConfig?,
     requests: List<MediaRequest>?,
-) = (user.hasPermission(SeerrPermission.MANAGE_REQUESTS) && requests?.isNotEmpty() == true) ||
-    (
-        // User requested this
-        user.hasPermission(SeerrPermission.REQUEST) &&
-            requests
-                .orEmpty()
-                .any {
-                    equalsNotNull(it.requestedBy?.id, user?.id) &&
-                        RequestStatus.from(it.status) < RequestStatus.APPROVED
-                }
-    )
+): Boolean =
+    (user.hasPermission(SeerrPermission.REQUEST) || user.hasPermission(SeerrPermission.MANAGE_REQUESTS)) &&
+        requests.orEmpty().any {
+            it.requestedBy?.id == user?.id && it.status == RequestStatus.PENDING.status
+        }
 
 data class DiscoverMovieState(
     val movie: DataLoadingState<MovieDetails> = DataLoadingState.Pending,

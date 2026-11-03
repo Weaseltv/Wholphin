@@ -1,0 +1,446 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "name": "empty_queue",
+      "request": {
+        "id": 1,
+        "status": 2,
+        "type": "movie",
+        "media": {
+          "status": 3,
+          "downloadStatus": []
+        }
+      },
+      "expectedKind": "WAITING_LIBRARY",
+      "expectedKey": null
+    },
+    {
+      "name": "completed_not_ready",
+      "request": {
+        "id": 2,
+        "status": 2,
+        "type": "movie",
+        "media": {
+          "status": 3,
+          "downloadStatus": [
+            {
+              "status": "completed",
+              "size": 100,
+              "sizeLeft": 0
+            }
+          ]
+        }
+      },
+      "expectedKind": "ADDING",
+      "expectedKey": null
+    },
+    {
+      "name": "movie_progress",
+      "request": {
+        "id": 3,
+        "status": 2,
+        "type": "movie",
+        "media": {
+          "status": 3,
+          "downloadStatus": [
+            {
+              "status": "downloading",
+              "size": 100,
+              "sizeLeft": 58
+            }
+          ]
+        }
+      },
+      "expectedKind": "DOWNLOADING",
+      "expectedKey": null
+    },
+    {
+      "name": "invalid_bytes",
+      "request": {
+        "id": 4,
+        "status": 2,
+        "type": "movie",
+        "media": {
+          "status": 3,
+          "downloadStatus": [
+            {
+              "status": "downloading",
+              "size": 0,
+              "sizeLeft": -1
+            }
+          ]
+        }
+      },
+      "expectedKind": "CHECKING",
+      "expectedKey": null
+    },
+    {
+      "name": "unknown_queue_status",
+      "request": {
+        "id": 5,
+        "status": 2,
+        "type": "movie",
+        "media": {
+          "status": 3,
+          "downloadStatus": [
+            {
+              "status": "new-status",
+              "size": 100,
+              "sizeLeft": 50
+            }
+          ]
+        }
+      },
+      "expectedKind": "CHECKING",
+      "expectedKey": null
+    },
+    {
+      "name": "empty_tv_seasons",
+      "request": {
+        "id": 6,
+        "status": 2,
+        "type": "tv",
+        "media": {
+          "status": 5
+        },
+        "seasons": []
+      },
+      "expectedKind": "CHECKING",
+      "expectedKey": null
+    },
+    {
+      "name": "pending_tv_unknown",
+      "request": {
+        "id": 7,
+        "status": 1,
+        "type": "tv",
+        "media": {},
+        "seasons": []
+      },
+      "expectedKind": "WAITING_APPROVAL",
+      "expectedKey": null
+    },
+    {
+      "name": "tv_partial",
+      "request": {
+        "id": 8,
+        "status": 2,
+        "type": "tv",
+        "seasons": [
+          {
+            "seasonNumber": 1
+          },
+          {
+            "seasonNumber": 2
+          }
+        ],
+        "media": {
+          "status": 4,
+          "seasons": [
+            {
+              "seasonNumber": 1,
+              "status": 5
+            },
+            {
+              "seasonNumber": 2,
+              "status": 4
+            }
+          ]
+        }
+      },
+      "expectedKind": "PARTIAL",
+      "expectedKey": "v1|8|hd|partial|1:A,2:P"
+    },
+    {
+      "name": "tv_4k_requires_4k",
+      "request": {
+        "id": 9,
+        "status": 2,
+        "type": "tv",
+        "is4k": true,
+        "seasons": [
+          {
+            "seasonNumber": 1
+          }
+        ],
+        "media": {
+          "status": 5,
+          "status4k": 3,
+          "seasons": [
+            {
+              "seasonNumber": 1,
+              "status": 5,
+              "status4k": 3
+            }
+          ]
+        }
+      },
+      "expectedKind": "WAITING_LIBRARY",
+      "expectedKey": null
+    },
+    {
+      "name": "movie_ready",
+      "request": {
+        "id": 10,
+        "status": 5,
+        "type": "movie",
+        "media": {
+          "status": 5
+        }
+      },
+      "expectedKind": "READY",
+      "expectedKey": "v1|10|hd|ready|-"
+    },
+    {
+      "name": "failed",
+      "request": {
+        "id": 11,
+        "status": 4,
+        "type": "movie",
+        "media": {
+          "status": 3
+        }
+      },
+      "expectedKind": "FAILED",
+      "expectedKey": "v1|11|hd|failed|-"
+    },
+    {
+      "name": "movie_4k_ready",
+      "request": {
+        "id": 12,
+        "type": "movie",
+        "status": 5,
+        "is4k": true,
+        "media": {
+          "status": 3,
+          "status4k": 5
+        }
+      },
+      "expectedKind": "READY",
+      "expectedKey": "v1|12|4k|ready|-"
+    },
+    {
+      "name": "blocklisted_approved",
+      "request": {
+        "id": 13,
+        "type": "movie",
+        "status": 2,
+        "media": {
+          "status": 6
+        }
+      },
+      "expectedKind": "FAILED",
+      "expectedKey": "v1|13|hd|failed|-"
+    },
+    {
+      "name": "deleted_approved_no_failure_push",
+      "request": {
+        "id": 14,
+        "type": "movie",
+        "status": 2,
+        "media": {
+          "status": 7
+        }
+      },
+      "expectedKind": "FAILED",
+      "expectedKey": null,
+      "notify": false
+    },
+    {
+      "name": "removed_after_completed",
+      "request": {
+        "id": 15,
+        "type": "movie",
+        "status": 5,
+        "media": {
+          "status": 6
+        }
+      },
+      "expectedKind": "FAILED",
+      "expectedKey": null,
+      "notify": false
+    },
+    {
+      "name": "unhydrated_tv_list",
+      "request": {
+        "id": 16,
+        "type": "tv",
+        "status": 2,
+        "seasons": [
+          {
+            "seasonNumber": 1
+          }
+        ],
+        "media": {
+          "status": 5
+        }
+      },
+      "expectedKind": "CHECKING",
+      "expectedKey": null,
+      "fresh": false
+    },
+    {
+      "name": "failed_request_retried",
+      "request": {
+        "id": 11,
+        "type": "movie",
+        "status": 2,
+        "media": {
+          "status": 3
+        }
+      },
+      "expectedKind": "WAITING_LIBRARY",
+      "expectedKey": null
+    },
+    {
+      "name": "retried_request_ready",
+      "request": {
+        "id": 11,
+        "type": "movie",
+        "status": 5,
+        "media": {
+          "status": 5
+        }
+      },
+      "expectedKind": "READY",
+      "expectedKey": "v1|11|hd|ready|-"
+    },
+    {
+      "name": "season_partial_p",
+      "request": {
+        "id": 8,
+        "type": "tv",
+        "status": 2,
+        "seasons": [
+          {
+            "seasonNumber": 1
+          },
+          {
+            "seasonNumber": 2
+          }
+        ],
+        "media": {
+          "seasons": [
+            {
+              "seasonNumber": 1,
+              "status": 4
+            },
+            {
+              "seasonNumber": 2,
+              "status": 3
+            }
+          ]
+        }
+      },
+      "expectedKind": "PARTIAL",
+      "expectedKey": "v1|8|hd|partial|1:P"
+    },
+    {
+      "name": "season_partial_a",
+      "request": {
+        "id": 8,
+        "type": "tv",
+        "status": 2,
+        "seasons": [
+          {
+            "seasonNumber": 1
+          },
+          {
+            "seasonNumber": 2
+          }
+        ],
+        "media": {
+          "seasons": [
+            {
+              "seasonNumber": 1,
+              "status": 5
+            },
+            {
+              "seasonNumber": 2,
+              "status": 3
+            }
+          ]
+        }
+      },
+      "expectedKind": "PARTIAL",
+      "expectedKey": "v1|8|hd|partial|1:A"
+    },
+    {
+      "name": "tv_full_after_partial",
+      "request": {
+        "id": 8,
+        "type": "tv",
+        "status": 5,
+        "seasons": [
+          {
+            "seasonNumber": 1
+          },
+          {
+            "seasonNumber": 2
+          }
+        ],
+        "media": {
+          "seasons": [
+            {
+              "seasonNumber": 1,
+              "status": 5
+            },
+            {
+              "seasonNumber": 2,
+              "status": 5
+            }
+          ]
+        }
+      },
+      "expectedKind": "READY",
+      "expectedKey": "v1|8|hd|ready|-"
+    }
+  ],
+  "eventExamples": [
+    {
+      "sequence": ["failed", "ready"],
+      "keys": ["v1|11|hd|failed|-", "v1|11|hd|ready|-"]
+    },
+    {
+      "sequence": ["partial", "partial", "ready"],
+      "keys": ["v1|8|hd|partial|1:P", "v1|8|hd|partial|1:A", "v1|8|hd|ready|-"]
+    }
+  ],
+  "phoneHandoff": [
+    "push-before-poll and poll-before-push must share one presentation key (phase 3+)"
+  ],
+  "transitionCases": [
+    {
+      "name": "failed_retried_ready",
+      "cases": ["failed", "failed_request_retried", "retried_request_ready"],
+      "expectedPending": ["v1|11|hd|ready|-"]
+    },
+    {
+      "name": "season_p_to_a_to_ready",
+      "cases": [
+        "season_partial_p",
+        "season_partial_a",
+        "tv_full_after_partial"
+      ],
+      "expectedPending": ["v1|8|hd|ready|-"]
+    }
+  ],
+  "presentationCases": [
+    {
+      "name": "seeded_before_baseline",
+      "case": "movie_ready",
+      "seeded": true
+    },
+    {
+      "name": "push_before_poll",
+      "case": "movie_ready",
+      "pushFirst": true
+    },
+    {
+      "name": "poll_before_push",
+      "case": "movie_ready",
+      "pushFirst": false
+    }
+  ]
+}

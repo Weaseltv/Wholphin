@@ -30,6 +30,7 @@ import com.github.damontecres.wholphin.services.IntentService
 import com.github.damontecres.wholphin.services.LatestNextUpService
 import com.github.damontecres.wholphin.services.WorkerSession
 import com.github.damontecres.wholphin.ui.SlimItemFields
+import com.github.damontecres.wholphin.ui.formatEpisodeNumber
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CoroutineDispatcher
@@ -255,7 +256,7 @@ class TvProviderWorker
                     setDescription(dto.overview)
                     if (item.type == BaseItemKind.EPISODE) {
                         setEpisodeTitle(item.name)
-                        dto.indexNumber?.let(::setEpisodeNumber)
+                        dto.indexNumber?.let { setEpisodeNumber(formatEpisodeNumber(it, dto.indexNumberEnd), it) }
                         dto.parentIndexNumber?.let(::setSeasonNumber)
                     }
 
@@ -413,7 +414,7 @@ class TvProviderWorker
                     setDescription(dto.overview)
                     if (item.type == BaseItemKind.EPISODE) {
                         setEpisodeTitle(item.name)
-                        dto.indexNumber?.let(::setEpisodeNumber)
+                        dto.indexNumber?.let { setEpisodeNumber(formatEpisodeNumber(it, dto.indexNumberEnd), it) }
                         dto.parentIndexNumber?.let(::setSeasonNumber)
                     }
 

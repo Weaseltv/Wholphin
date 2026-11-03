@@ -18,6 +18,7 @@ import com.github.damontecres.wholphin.data.model.SeerrItemType
 import com.github.damontecres.wholphin.data.model.Trailer
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.NavigationManager
+import com.github.damontecres.wholphin.services.SeerrConnectionStatus
 import com.github.damontecres.wholphin.services.SeerrServerRepository
 import com.github.damontecres.wholphin.services.SeerrService
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
@@ -59,6 +60,7 @@ class DiscoverSeriesViewModel
         private val navigationManager: NavigationManager,
         private val backdropService: BackdropService,
         val serverRepository: ServerRepository,
+        val requestStatusRepository: com.github.damontecres.wholphin.services.RequestStatusRepository,
         val seerrService: SeerrService,
         private val seerrServerRepository: SeerrServerRepository,
         @Assisted val item: DiscoverItem,
@@ -307,6 +309,7 @@ class DiscoverSeriesViewModel
         }
 
         fun requestOnClick() {
+            _state.update { it.copy(requestError = null) }
             viewModelScope.launchIO {
                 try {
                     val data = seerrService.getProfilesAndFolders(SeerrItemType.TV)
@@ -328,19 +331,43 @@ class DiscoverSeriesViewModel
             }
         }
 
-        fun request(request: TvRequest) {
+        fun request(
+            request: TvRequest,
+            onSuccess: () -> Unit = {},
+        ) {
+            if (state.value.requestSubmitting) return
+            val tv = state.value.tvSeries.successValue ?: return
+            val account = (seerrServerRepository.connection.value as? SeerrConnectionStatus.Success)?.current
+            if (account == null) {
+                _state.update { it.copy(requestError = "Requests are reconnecting. Please try again shortly.") }
+                return
+            }
+            val client = seerrService.api
+            val submittingScope = requestStatusRepository.state.value.scope
+
+            fun currentSubmission(): Boolean =
+                requestStatusRepository.state.value.scope == submittingScope &&
+                    serverRepository.currentUser?.rowId == account.user.jellyfinUserRowId &&
+                    (seerrServerRepository.connection.value as? SeerrConnectionStatus.Success)?.current === account &&
+                    seerrService.api === client
+
+            _state.update { it.copy(requestSubmitting = true, requestError = null) }
             viewModelScope.launchIO {
-                state.value.tvSeries.successValue?.let { tv ->
-                    val currentUserId = seerrServerRepository.currentUserId.first()
+                try {
+                    if (!currentSubmission()) {
+                        _state.update { it.copy(requestError = "Requests are reconnecting. Please try again shortly.") }
+                        return@launchIO
+                    }
                     val currentRequest =
                         tv.mediaInfo?.requests?.firstOrNull {
                             it.status == RequestStatus.PENDING.status &&
-                                it.requestedBy?.id == currentUserId
+                                it.is4k == request.is4k &&
+                                it.requestedBy?.id == account.config.id
                         }
-                    try {
+                    val created =
                         if (currentRequest != null) {
                             Timber.v("User has pending request, will update")
-                            seerrService.api.requestApi.requestRequestIdPut(
+                            client.requestApi.requestRequestIdPut(
                                 requestId = currentRequest.id.toString(),
                                 requestRequestIdPutRequest =
                                     RequestRequestIdPutRequest(
@@ -359,7 +386,7 @@ class DiscoverSeriesViewModel
                             )
                         } else {
                             Timber.v("New request for %s seasons", request.seasons.size)
-                            seerrService.api.requestApi.requestPost(
+                            client.requestApi.requestPost(
                                 RequestPostRequest(
                                     is4k = request.is4k,
                                     mediaId = request.tvId,
@@ -377,39 +404,58 @@ class DiscoverSeriesViewModel
                                 ),
                             )
                         }
-                    } catch (ex: CancellationException) {
-                        throw ex
-                    } catch (ex: Exception) {
-                        Timber.e(ex, "Error requesting %s", request.tvId)
-                        showToast(context, "An error occurred")
+                    if (!currentSubmission()) return@launchIO
+                    requestStatusRepository.seed(created, submittingScope, item, updated = currentRequest != null)
+                    kotlinx.coroutines.withContext(WholphinDispatchers.Main) {
+                        if (currentSubmission()) {
+                            onSuccess()
+                            navigationManager.navigateToFromDrawer(Destination.Discover(1, created.id))
+                        }
                     }
-
                     fetchAndSetItem().await()?.let {
                         updateSeasonStatus(it)
                         updateCanCancel()
                     }
+                } catch (ex: CancellationException) {
+                    throw ex
+                } catch (ex: Exception) {
+                    // A failed submission must not reset the remembered season choices.
+                    Timber.w("Request submission failed (%s)", ex.javaClass.simpleName)
+                    if (currentSubmission()) {
+                        _state.update { it.copy(requestError = requestSubmissionError(ex)) }
+                    }
+                } finally {
+                    _state.update { it.copy(requestSubmitting = false) }
                 }
             }
         }
 
         fun cancelRequest(id: Int) {
             viewModelScope.launchIO {
-                state.value.tvSeries.successValue?.mediaInfo?.requests?.firstOrNull()?.let {
-                    // TODO handle multiple requests? Or just delete self's request?
-                    try {
-                        seerrService.api.requestApi.requestRequestIdDelete(it.id.toString())
-                    } catch (ex: CancellationException) {
-                        throw ex
-                    } catch (ex: Exception) {
-                        Timber.e(ex, "Error requesting %s", id)
-                        showToast(context, "An error occurred")
-                    }
+                state.value.tvSeries.successValue
+                    ?.mediaInfo
+                    ?.requests
+                    ?.firstOrNull {
+                        it.id == id
+                    }?.takeIf { canUserCancelRequest(userConfig.firstOrNull(), listOf(it)) }
+                    ?.let {
+                        // TODO handle multiple requests? Or just delete self's request?
+                        try {
+                            val deletingScope = requestStatusRepository.state.value.scope
+                            seerrService.api.requestApi.requestRequestIdDelete(it.id.toString())
+                            requestStatusRepository.forget(it.id, deletingScope)
+                        } catch (ex: CancellationException) {
+                            throw ex
+                        } catch (ex: Exception) {
+                            Timber.e(ex, "Error requesting %s", id)
+                            showToast(context, "An error occurred")
+                        }
 
-                    fetchAndSetItem().await()?.let {
-                        updateSeasonStatus(it)
-                        updateCanCancel()
+                        fetchAndSetItem().await()?.let {
+                            updateSeasonStatus(it)
+                            updateCanCancel()
+                        }
                     }
-                }
             }
         }
     }
@@ -426,4 +472,6 @@ data class DiscoverSeriesState(
     val canCancelRequest: Boolean = false,
     val profileLoading: LoadingState = LoadingState.Pending,
     val requestData: SeerrRequestData = SeerrRequestData(),
+    val requestSubmitting: Boolean = false,
+    val requestError: String? = null,
 )
