@@ -92,6 +92,8 @@ class RequestStatusRepository @Inject constructor(
     private val missing = mutableMapOf<Int, Int>()
     private val metadataCache = java.util.concurrent.ConcurrentHashMap<Pair<String?, Int>, Pair<com.github.damontecres.wholphin.data.model.DiscoverItem, java.time.LocalDate?>>()
     private val metadataInFlight = java.util.Collections.synchronizedSet(mutableSetOf<Int>())
+    /** Next-episode details per TV title, with when they were fetched. */
+    private val airingCache = java.util.concurrent.ConcurrentHashMap<Pair<String?, Int>, Pair<TvAiring?, Instant>>()
     private val wake = Channel<Unit>(Channel.CONFLATED)
     private val _state = MutableStateFlow(RequestsState())
     val state: StateFlow<RequestsState> = _state.asStateFlow()
@@ -171,7 +173,7 @@ class RequestStatusRepository @Inject constructor(
                 val oldState = _state.value
                 Session(c, client, k, generation).also {
                     session = it
-                    if (oldState.scope != k) { missing.clear(); metadataInFlight.clear(); metadataCache.clear() }
+                    if (oldState.scope != k) { missing.clear(); metadataInFlight.clear(); metadataCache.clear(); airingCache.clear() }
                     _state.value = if (oldState.scope == k) oldState.copy(connected = true, notifications = store, ownerRowId = c.user.jellyfinUserRowId) else RequestsState(scope = k, connected = true, notifications = store, ownerRowId = c.user.jellyfinUserRowId)
                 }
             }
@@ -257,7 +259,7 @@ class RequestStatusRepository @Inject constructor(
             val availabilityDate = prior.availabilityDate ?: cached?.second
             val next = RequestStatusItem(detail,
                 deriveRequestStage(detail, availabilityDate, prior.stage.downloadObserved || id in _state.value.notifications.downloadObserved),
-                metadata, true, availabilityDate)
+                metadata, true, availabilityDate, prior.airing)
             val items = _state.value.items.map { if (it.request.id == id) next else it }
                 .sortedByDescending { it.request.updatedAt ?: "" }
             val store = trackEvents(_state.value.notifications, items, s.key, emptySet())
@@ -328,7 +330,7 @@ class RequestStatusRepository @Inject constructor(
                 } else row
                 val fresh = row.id !in detailFailures
                 val downloadSeen = row.id in _state.value.notifications.downloadObserved || prior?.stage?.downloadObserved == true
-                RequestStatusItem(hydrated, if (fresh) deriveRequestStage(hydrated, prior?.availabilityDate, downloadSeen) else prior?.stage ?: RequestStage(RequestStageKind.CHECKING, "Checking", detail = "Season status couldn't be refreshed"), prior?.item, fresh, prior?.availabilityDate)
+                RequestStatusItem(hydrated, if (fresh) deriveRequestStage(hydrated, prior?.availabilityDate, downloadSeen) else prior?.stage ?: RequestStage(RequestStageKind.CHECKING, "Checking", detail = "Season status couldn't be refreshed"), prior?.item, fresh, prior?.availabilityDate, prior?.airing)
             }.toMutableList()
             val confirmedGone = mutableSetOf<Int>()
             val trackedIds = old.keys + _state.value.notifications.baselined + _state.value.notifications.pending.map { it.requestId }
@@ -343,7 +345,7 @@ class RequestStatusRepository @Inject constructor(
                         if (!fresh) detailFailures.add(id)
                         items.add(RequestStatusItem(detail,
                             if (fresh) deriveRequestStage(detail, prior?.availabilityDate, id in _state.value.notifications.downloadObserved || prior?.stage?.downloadObserved == true) else prior?.stage ?: RequestStage(RequestStageKind.CHECKING, "Checking"),
-                            prior?.item, fresh, prior?.availabilityDate))
+                            prior?.item, fresh, prior?.availabilityDate, prior?.airing))
                         missing.remove(id)
                     }
                 } catch (ex: CancellationException) { throw ex }
@@ -485,11 +487,15 @@ class RequestStatusRepository @Inject constructor(
             val s = session ?: return@launch
             val row = _state.value.items.firstOrNull { it.request.id == id } ?: return@launch
             val tmdb = row.request.media?.tmdbId ?: return@launch
-            if (row.item != null && metadataCache.containsKey(row.request.type to tmdb) || !metadataInFlight.add(id)) return@launch
+            val cacheKey = row.request.type to tmdb
+            val airingDue = row.request.type == "tv" && row.stage.kind == RequestStageKind.PARTIAL && airingDue(airingCache[cacheKey])
+            if (row.item != null && metadataCache.containsKey(cacheKey) && !airingDue || !metadataInFlight.add(id)) return@launch
             try {
-                val cacheKey = row.request.type to tmdb
-                val metadata = metadataCache[cacheKey] ?: if (row.request.type == "tv") {
-                    service.createDiscoverItem(s.client.tvApi.tvTvIdGet(tmdb)) to null
+                var airing = airingCache[cacheKey]
+                val metadata = metadataCache[cacheKey]?.takeUnless { airingDue } ?: if (row.request.type == "tv") {
+                    val tv = s.client.tvApi.tvTvIdGet(tmdb)
+                    airing = tvAiring(tv) to Instant.now()
+                    service.createDiscoverItem(tv) to null
                 } else {
                     val movie = s.client.moviesApi.movieMovieIdGet(tmdb)
                     val regions = movie.releases?.results.orEmpty()
@@ -501,14 +507,35 @@ class RequestStatusRepository @Inject constructor(
                     item to (date ?: item.releaseDate)
                 }
                 val (item, availabilityDate) = metadata
-                if (current(s)) metadataCache[cacheKey] = metadata
+                if (current(s)) {
+                    metadataCache[cacheKey] = metadata
+                    airing?.let { airingCache[cacheKey] = it }
+                }
+                val nextAiring = airing?.first
                 mutex.withLock {
-                    if (current(s)) _state.update { st -> st.copy(items = st.items.map { if (it.request.id == id) it.copy(item = item, availabilityDate = availabilityDate, stage = if (it.fresh) deriveRequestStage(it.request, availabilityDate, it.stage.downloadObserved || id in st.notifications.downloadObserved) else it.stage) else it }) }
+                    if (current(s)) _state.update { st -> st.copy(items = st.items.map { if (it.request.id == id) it.copy(item = item, availabilityDate = availabilityDate, airing = nextAiring, stage = if (it.fresh) deriveRequestStage(it.request, availabilityDate, it.stage.downloadObserved || id in st.notifications.downloadObserved) else it.stage) else it }) }
                 }
             } catch (ex: CancellationException) { throw ex }
             catch (_: Exception) { /* A missing title never hides a request or stops another row. */ }
             finally { metadataInFlight.remove(id) }
         }
+    }
+
+    /**
+     * A partly available show's next-episode details are rechecked once that episode's date has
+     * passed (or none was scheduled), at most every six hours.
+     */
+    private fun airingDue(cached: Pair<TvAiring?, Instant>?): Boolean {
+        val (airing, fetchedAt) = cached ?: return true
+        if (fetchedAt.isAfter(Instant.now().minus(java.time.Duration.ofHours(6)))) return false
+        return airing == null || airing.airDate.isBefore(java.time.LocalDate.now())
+    }
+
+    private fun tvAiring(tv: com.github.damontecres.wholphin.api.seerr.model.TvDetails): TvAiring? {
+        val next = tv.nextEpisodeToAir ?: return null
+        val season = next.seasonNumber ?: return null
+        val date = next.airDate?.take(10)?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() } ?: return null
+        return TvAiring(season, next.episodeNumber, date, tv.seasons?.firstOrNull { it.seasonNumber == season }?.episodeCount)
     }
 
     fun markOpened(requestId: Int? = null) = changeStore { it.copy(unread = if (requestId == null) emptySet() else it.unread - requestId) }

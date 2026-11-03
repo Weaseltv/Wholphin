@@ -266,3 +266,29 @@ No clean/cache deletion was performed. Build daemons stopped; **57 GB free**.
 No optional tests/lint/reviews or agent device/authentication checks were run.
 The owner reported the public NC1 route live during the build; authenticated
 streaming and the real download timeline remain owner/operator verification.
+
+## Airing shows with nothing missing — 2026-11-03
+
+The owner reported airing shows (Heartland, Private Eyes West Coast, Paolo) showing
+"Some episodes ready" beside counts like 284 / 284 imported, although every aired
+episode was downloaded. Seerr marks such a season partial because TMDB's season
+count includes episodes that haven't aired.
+
+On the Activity page, such a row now reads **Season N airing / Next episode Sun, Nov 8**,
+with **x of y episodes out** for that season in Progress. If TMDB gives no usable
+season count, Progress shows the overall imported count instead. When the next
+episode is the season's first, the row reads **Season N coming / First episode <date>**.
+The row stays in Waiting until Seerr marks the season available.
+
+- "Nothing missing" comes only from the progress service, which reads Sonarr:
+  availability partial, stage waiting, detail not_released_yet, and episodes
+  imported equal to episodes total. Without a live record, the row keeps
+  Some episodes ready.
+- The next air date, season number and season episode count come from TMDB's
+  nextEpisodeToAir and seasons[].episodeCount. They arrive in the Seerr title
+  details the page already loads for posters. Partly available shows recheck them
+  once the date has passed, at most every six hours.
+- The progress service contract has no Sonarr air dates or per-season counts.
+  Showing Sonarr's nextAiring (an exact time, shown in the viewer's local time)
+  and its counts would need these fields added to the Unraid progress service
+  records. Owner sign-off is required for that server change.

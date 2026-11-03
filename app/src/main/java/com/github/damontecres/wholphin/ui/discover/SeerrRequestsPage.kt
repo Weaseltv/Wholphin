@@ -219,6 +219,37 @@ private fun shortDate(date: LocalDate, today: LocalDate): String =
 private fun requestedAt(row: RequestStatusItem): Instant? =
     row.request.createdAt?.let { runCatching { Instant.parse(it) }.getOrNull() }
 
+/**
+ * A show part-way through its season with nothing missing: every aired episode is imported and the
+ * rest haven't aired yet. The progress service (which reads Sonarr) supplies "nothing missing":
+ * waiting / not released yet, with all reported episodes imported. The next air date and season
+ * counts come from TMDB's title details. Any other partial show keeps "Some episodes ready".
+ */
+private fun airingRow(
+    row: RequestStatusItem,
+    live: RequestProgressRecord?,
+    episodes: com.github.damontecres.wholphin.services.ProgressEpisodes?,
+    today: LocalDate,
+): Triple<String, String, ActivityProgress>? {
+    val airing = row.airing ?: return null
+    if (live == null || live.availability != "partial" || live.stage != "waiting" || live.detail != "not_released_yet") return null
+    if (episodes == null || episodes.imported != episodes.total) return null
+    if (airing.airDate.isBefore(today) || airing.season !in row.request.seasons.orEmpty().mapNotNull { it.seasonNumber }) return null
+    val date = airing.airDate.format(DateTimeFormatter.ofPattern(if (airing.airDate.year == today.year) "EEE, MMM d" else "EEE, MMM d, yyyy", Locale.getDefault()))
+    val aired = airing.episode?.minus(1)
+    val total = airing.seasonEpisodes
+    val progress = if (aired != null && total != null && total > 0 && aired in 0..total) {
+        ActivityProgress.Note("$aired of $total episodes out", emphasized = true)
+    } else {
+        ActivityProgress.Note("${episodes.imported} / ${episodes.total} imported", emphasized = true)
+    }
+    return if (aired == 0) {
+        Triple("Season ${airing.season} coming", "First episode $date", progress)
+    } else {
+        Triple("Season ${airing.season} airing", "Next episode $date", progress)
+    }
+}
+
 private fun activityRow(
     row: RequestStatusItem,
     live: RequestProgressRecord?,
@@ -242,6 +273,9 @@ private fun activityRow(
     }
 
     if (partial) {
+        airingRow(row, live, episodes, today)?.let { (status, detail, progress) ->
+            return ActivityRow(row, ActivitySection.WAITING, status, withStale(detail), progress, watchable = true)
+        }
         val rest = when {
             live?.stage == "waiting" && live.detail == "not_released_yet" -> "The rest is not out yet. Added automatically."
             live?.stage == "waiting" -> "The rest isn't available yet. Added automatically."
