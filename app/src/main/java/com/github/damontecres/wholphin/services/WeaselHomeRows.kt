@@ -79,8 +79,9 @@ object WeaselHomeRows {
                     combined.firstOrNull { it.collectionType == type && it.parentIds == parentIds }
                         ?: HomeRowConfig.RecentlyAddedCombined(
                             parentIds = parentIds,
-                            viewOptions = (combined.firstOrNull { it.collectionType == type } ?: combined.firstOrNull())?.viewOptions
-                                ?: HomeRowViewOptions(),
+                            viewOptions =
+                                (combined.firstOrNull { it.collectionType == type } ?: combined.firstOrNull())?.viewOptions
+                                    ?: HomeRowViewOptions(),
                             collectionType = type,
                         )
                 }

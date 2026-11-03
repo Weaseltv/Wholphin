@@ -285,7 +285,11 @@ fun EditTextBox(
     CompositionLocalProvider(LocalTextSelectionColors provides colors.textSelectionColors) {
         BasicTextField(
             value = value,
-            modifier = modifier.trackRequestTextInput(enabled && !readOnly).defaultMinSize(minWidth = TextFieldDefaults.MinWidth, minHeight = height),
+            modifier =
+                modifier
+                    .trackRequestTextInput(
+                        enabled && !readOnly,
+                    ).defaultMinSize(minWidth = TextFieldDefaults.MinWidth, minHeight = height),
             onValueChange = onValueChange,
             enabled = enabled,
             readOnly = readOnly,

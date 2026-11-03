@@ -36,7 +36,6 @@ import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
-import com.github.damontecres.wholphin.ui.formatEpisodeNumber
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.ui.AppColors
@@ -44,6 +43,7 @@ import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.components.itemKindLabel
+import com.github.damontecres.wholphin.ui.formatEpisodeNumber
 import com.github.damontecres.wholphin.ui.gt
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.logCoilError
@@ -93,7 +93,13 @@ fun ItemCardImage(
             } else if (item.type == BaseItemKind.EPISODE) {
                 val season = item.data.parentIndexNumber
                 val ep = item.data.indexNumber
-                if (season != null && ep != null) "S$season · E${formatEpisodeNumber(ep, item.data.indexNumberEnd)}" else itemKindLabel(context, item.type)
+                if (season != null &&
+                    ep != null
+                ) {
+                    "S$season · E${formatEpisodeNumber(ep, item.data.indexNumberEnd)}"
+                } else {
+                    itemKindLabel(context, item.type)
+                }
             } else {
                 itemKindLabel(context, item.type)
             }

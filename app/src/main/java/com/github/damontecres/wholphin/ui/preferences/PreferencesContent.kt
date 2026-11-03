@@ -640,7 +640,10 @@ fun PreferencesContent(
                                                         SeerrDialogMode.Add
                                                     }
 
-                                                    is SeerrConnectionStatus.Expired -> SeerrDialogMode.Remove(conn.current.server.url)
+                                                    is SeerrConnectionStatus.Expired -> {
+                                                        SeerrDialogMode.Remove(conn.current.server.url)
+                                                    }
+
                                                     is SeerrConnectionStatus.Success -> {
                                                         SeerrDialogMode.Remove(
                                                             conn.current.server.url,
@@ -661,7 +664,10 @@ fun PreferencesContent(
                                                     )
                                                 }
 
-                                                is SeerrConnectionStatus.Expired -> stringResource(R.string.pending)
+                                                is SeerrConnectionStatus.Expired -> {
+                                                    stringResource(R.string.pending)
+                                                }
+
                                                 is SeerrConnectionStatus.Success -> {
                                                     stringResource(R.string.enabled)
                                                 }

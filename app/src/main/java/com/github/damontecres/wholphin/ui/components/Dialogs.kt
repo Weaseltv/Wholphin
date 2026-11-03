@@ -838,9 +838,15 @@ private fun Modifier.outlineGlow(color: Color): Modifier =
             val spread = step * (i + .5f)
             drawRect(
                 color = color.copy(alpha = .34f * (1f - i.toFloat() / steps)),
-                topLeft = androidx.compose.ui.geometry.Offset(-spread, -spread),
-                size = androidx.compose.ui.geometry.Size(size.width + 2 * spread, size.height + 2 * spread),
-                style = androidx.compose.ui.graphics.drawscope.Stroke(width = step),
+                topLeft =
+                    androidx.compose.ui.geometry
+                        .Offset(-spread, -spread),
+                size =
+                    androidx.compose.ui.geometry
+                        .Size(size.width + 2 * spread, size.height + 2 * spread),
+                style =
+                    androidx.compose.ui.graphics.drawscope
+                        .Stroke(width = step),
             )
         }
     }

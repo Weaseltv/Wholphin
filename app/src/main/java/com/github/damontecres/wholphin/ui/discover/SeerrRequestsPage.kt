@@ -128,42 +128,85 @@ import javax.inject.Inject
 import kotlin.math.ceil
 
 @HiltViewModel
-class SeerrRequestsViewModel @Inject constructor(
-    val requests: RequestStatusRepository,
-    val navigation: NavigationManager,
-) : ViewModel() {
-    var actionError by mutableStateOf<String?>(null)
-        private set
+class SeerrRequestsViewModel
+    @Inject
+    constructor(
+        val requests: RequestStatusRepository,
+        val navigation: NavigationManager,
+    ) : ViewModel() {
+        var actionError by mutableStateOf<String?>(null)
+            private set
 
-    fun open(requestId: Int, expectedScope: String?) {
-        val state = requests.state.value
-        if (state.scope != expectedScope) return
-        val item = state.items.firstOrNull { it.request.id == requestId } ?: return
-        val progress = requests.progress.state.value.takeIf { state.connected && requests.acceptsProgress(it) }
-        if (item.stage.ready || item.partlyWatchable(item.liveProgress(progress))) {
-            viewModelScope.launch {
-                try {
-                    val id = item.jellyfinId ?: requests.libraryItemId(requestId, expectedScope)
-                    if (requests.state.value.scope != expectedScope) return@launch
-                    if (id != null) navigation.navigateTo(Destination.MediaItem(id, if (item.request.type == "tv") BaseItemKind.SERIES else BaseItemKind.MOVIE))
-                    else actionError = "Couldn't open this title right now. Please try again."
-                } catch (ex: kotlinx.coroutines.CancellationException) { throw ex }
-                catch (_: Exception) { if (requests.state.value.scope == expectedScope) actionError = "Couldn't open this title right now. Please try again." }
+        fun open(
+            requestId: Int,
+            expectedScope: String?,
+        ) {
+            val state = requests.state.value
+            if (state.scope != expectedScope) return
+            val item = state.items.firstOrNull { it.request.id == requestId } ?: return
+            val progress =
+                requests.progress.state.value
+                    .takeIf { state.connected && requests.acceptsProgress(it) }
+            if (item.stage.ready || item.partlyWatchable(item.liveProgress(progress))) {
+                viewModelScope.launch {
+                    try {
+                        val id = item.jellyfinId ?: requests.libraryItemId(requestId, expectedScope)
+                        if (requests.state.value.scope != expectedScope) return@launch
+                        if (id !=
+                            null
+                        ) {
+                            navigation.navigateTo(
+                                Destination.MediaItem(
+                                    id,
+                                    if (item.request.type ==
+                                        "tv"
+                                    ) {
+                                        BaseItemKind.SERIES
+                                    } else {
+                                        BaseItemKind.MOVIE
+                                    },
+                                ),
+                            )
+                        } else {
+                            actionError = "Couldn't open this title right now. Please try again."
+                        }
+                    } catch (ex: kotlinx.coroutines.CancellationException) {
+                        throw ex
+                    } catch (_: Exception) {
+                        if (requests.state.value.scope ==
+                            expectedScope
+                        ) {
+                            actionError = "Couldn't open this title right now. Please try again."
+                        }
+                    }
+                }
+            } else {
+                val metadata =
+                    item.item ?: item.request.media?.tmdbId?.let { tmdb ->
+                        com.github.damontecres.wholphin.data.model.DiscoverItem(
+                            id = tmdb,
+                            type =
+                                com.github.damontecres.wholphin.data.model.SeerrItemType
+                                    .fromString(item.request.type),
+                            title = item.title,
+                            subtitle = null,
+                            overview = null,
+                            availability = com.github.damontecres.wholphin.data.model.SeerrAvailability.UNKNOWN,
+                            releaseDate = null,
+                            posterUrl = null,
+                            backDropUrl = null,
+                            logoUrl = null,
+                            jellyfinItemId = null,
+                        )
+                    }
+                if (metadata != null) {
+                    navigation.navigateTo(Destination.DiscoveredItem(metadata))
+                } else {
+                    actionError = "Title details are unavailable. Please try again."
+                }
             }
-        } else {
-            val metadata = item.item ?: item.request.media?.tmdbId?.let { tmdb ->
-                com.github.damontecres.wholphin.data.model.DiscoverItem(
-                    id = tmdb, type = com.github.damontecres.wholphin.data.model.SeerrItemType.fromString(item.request.type),
-                    title = item.title, subtitle = null, overview = null,
-                    availability = com.github.damontecres.wholphin.data.model.SeerrAvailability.UNKNOWN,
-                    releaseDate = null, posterUrl = null, backDropUrl = null, logoUrl = null, jellyfinItemId = null,
-                )
-            }
-            if (metadata != null) navigation.navigateTo(Destination.DiscoveredItem(metadata))
-            else actionError = "Title details are unavailable. Please try again."
         }
     }
-}
 
 private fun RequestStatusItem.liveProgress(progress: RequestProgressState?): RequestProgressRecord? =
     progress?.records?.get(request.id)?.takeIf {
@@ -173,17 +216,36 @@ private fun RequestStatusItem.liveProgress(progress: RequestProgressState?): Req
 private fun RequestStatusItem.partlyWatchable(live: RequestProgressRecord?): Boolean =
     request.type == "tv" && (stage.kind == RequestStageKind.PARTIAL || live?.availability == "partial")
 
-private fun requestPosterKey(scope: String?, url: String, width: Int, height: Int) =
-    "request-poster|$scope|${width}x$height|$url"
+private fun requestPosterKey(
+    scope: String?,
+    url: String,
+    width: Int,
+    height: Int,
+) = "request-poster|$scope|${width}x$height|$url"
 
-private fun requestPoster(context: android.content.Context, scope: String?, url: String, width: Int, height: Int): ImageRequest {
+private fun requestPoster(
+    context: android.content.Context,
+    scope: String?,
+    url: String,
+    width: Int,
+    height: Int,
+): ImageRequest {
     val key = requestPosterKey(scope, url, width, height)
-    return ImageRequest.Builder(context).data(url).size(width, height)
-        .memoryCacheKey(key).placeholderMemoryCacheKey(key).crossfade(false).build()
+    return ImageRequest
+        .Builder(context)
+        .data(url)
+        .size(width, height)
+        .memoryCacheKey(key)
+        .placeholderMemoryCacheKey(key)
+        .crossfade(false)
+        .build()
 }
 
 /** The three ACTIVITY sections, in page order. */
-private enum class ActivitySection(val title: String, val color: Color) {
+private enum class ActivitySection(
+    val title: String,
+    val color: Color,
+) {
     ACTIVE("Active", RequestActivityPalette.Active),
     WAITING("Waiting", RequestActivityPalette.Waiting),
     READY("Ready to watch", RequestActivityPalette.Ready),
@@ -191,10 +253,15 @@ private enum class ActivitySection(val title: String, val color: Color) {
 
 private sealed interface ActivityProgress {
     /** Bar plus percentage, in the title's type color. */
-    data class Bar(val fraction: Float) : ActivityProgress
+    data class Bar(
+        val fraction: Float,
+    ) : ActivityProgress
 
     /** Plain text, such as "6 / 6 imported" or "Requested Nov 3". */
-    data class Note(val text: String, val emphasized: Boolean) : ActivityProgress
+    data class Note(
+        val text: String,
+        val emphasized: Boolean,
+    ) : ActivityProgress
 
     /** Nothing to report yet: a centered dash. */
     data object None : ActivityProgress
@@ -213,11 +280,12 @@ private data class ActivityRow(
 private fun etaText(seconds: Long): String =
     if (seconds < 60) "Under a minute remaining" else "${seconds / 60 + if (seconds % 60 > 0) 1 else 0} min remaining"
 
-private fun shortDate(date: LocalDate, today: LocalDate): String =
-    date.format(DateTimeFormatter.ofPattern(if (date.year == today.year) "MMM d" else "MMM d, yyyy", Locale.getDefault()))
+private fun shortDate(
+    date: LocalDate,
+    today: LocalDate,
+): String = date.format(DateTimeFormatter.ofPattern(if (date.year == today.year) "MMM d" else "MMM d, yyyy", Locale.getDefault()))
 
-private fun requestedAt(row: RequestStatusItem): Instant? =
-    row.request.createdAt?.let { runCatching { Instant.parse(it) }.getOrNull() }
+private fun requestedAt(row: RequestStatusItem): Instant? = row.request.createdAt?.let { runCatching { Instant.parse(it) }.getOrNull() }
 
 /**
  * A show part-way through its season with nothing missing: every aired episode is imported and the
@@ -241,7 +309,10 @@ private fun airingRow(
     val nextAt = schedule.nextAiring?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: return null
     // Once that time has passed the episode has aired; until it is imported it is missing, not "airing".
     if (nextAt.isBefore(clock)) return null
-    val requested = row.request.seasons.orEmpty().mapNotNull { it.seasonNumber }
+    val requested =
+        row.request.seasons
+            .orEmpty()
+            .mapNotNull { it.seasonNumber }
     val season =
         schedule.next?.season
             ?: schedule.seasons.firstOrNull { s -> s.nextAiring?.let { runCatching { Instant.parse(it) }.getOrNull() } == nextAt }?.n
@@ -275,88 +346,125 @@ private fun activityRow(
 ): ActivityRow {
     val today = clock.atZone(ZoneId.systemDefault()).toLocalDate()
     val stale = !row.fresh || liveStale
-    fun withStale(text: String?): String? = when {
-        !stale -> text
-        text == null -> "Last known status"
-        else -> "$text · Last known status"
-    }
+
+    fun withStale(text: String?): String? =
+        when {
+            !stale -> text
+            text == null -> "Last known status"
+            else -> "$text · Last known status"
+        }
     val isTv = row.request.type == "tv"
     val partial = row.partlyWatchable(live)
     val episodes = live?.episodes?.takeIf { (it.total ?: 0) > 0 && it.imported != null }
 
     if (row.stage.kind == RequestStageKind.READY) {
-        val requested = requestedAt(row)?.let { "Requested ${shortDate(it.atZone(ZoneId.systemDefault()).toLocalDate(), today)}" } ?: "Requested recently"
-        return ActivityRow(row, ActivitySection.READY, "Ready to watch", withStale(null), ActivityProgress.Note(requested, emphasized = false), watchable = true)
+        val requested =
+            requestedAt(row)?.let { "Requested ${shortDate(it.atZone(ZoneId.systemDefault()).toLocalDate(), today)}" }
+                ?: "Requested recently"
+        return ActivityRow(
+            row,
+            ActivitySection.READY,
+            "Ready to watch",
+            withStale(null),
+            ActivityProgress.Note(requested, emphasized = false),
+            watchable = true,
+        )
     }
 
     if (partial) {
         airingRow(row, live, episodes, clock, formatTime)?.let { (status, detail, progress) ->
             return ActivityRow(row, ActivitySection.WAITING, status, withStale(detail), progress, watchable = true)
         }
-        val rest = when {
-            live?.stage == "waiting" && live.detail == "not_released_yet" -> "The rest is not out yet. Added automatically."
-            live?.stage == "waiting" -> "The rest isn't available yet. Added automatically."
-            live?.stage == "downloading" -> "The rest is downloading."
-            else -> "The rest will be added automatically."
-        }
-        val progress = episodes?.let { ActivityProgress.Note("${it.imported} / ${it.total} imported", emphasized = true) } ?: ActivityProgress.None
+        val rest =
+            when {
+                live?.stage == "waiting" && live.detail == "not_released_yet" -> "The rest is not out yet. Added automatically."
+                live?.stage == "waiting" -> "The rest isn't available yet. Added automatically."
+                live?.stage == "downloading" -> "The rest is downloading."
+                else -> "The rest will be added automatically."
+            }
+        val progress =
+            episodes?.let { ActivityProgress.Note("${it.imported} / ${it.total} imported", emphasized = true) } ?: ActivityProgress.None
         return ActivityRow(row, ActivitySection.WAITING, "Some episodes ready", withStale(rest), progress, watchable = true)
     }
 
     if (row.stage.kind == RequestStageKind.FAILED) {
-        val why = when (row.stage.label) {
-            "Request declined" -> "This request wasn't approved."
-            "Not available" -> "This title can't be added right now."
-            else -> "Something went wrong adding it."
-        }
+        val why =
+            when (row.stage.label) {
+                "Request declined" -> "This request wasn't approved."
+                "Not available" -> "This title can't be added right now."
+                else -> "Something went wrong adding it."
+            }
         return ActivityRow(row, ActivitySection.WAITING, row.stage.label, withStale(why), ActivityProgress.None, watchable = false)
     }
 
     if (live?.stage == "waiting") {
-        val (status, why) = when (live.detail) {
-            "not_released_yet" -> "Waiting for release" to "Not released yet. Starts when it is."
-            "no_release_found_yet" -> "Waiting for release" to "No release found yet. Starts when one appears."
-            else -> "Waiting for a download" to "No download is active yet. Updates appear automatically."
-        }
+        val (status, why) =
+            when (live.detail) {
+                "not_released_yet" -> "Waiting for release" to "Not released yet. Starts when it is."
+                "no_release_found_yet" -> "Waiting for release" to "No release found yet. Starts when one appears."
+                else -> "Waiting for a download" to "No download is active yet. Updates appear automatically."
+            }
         return ActivityRow(row, ActivitySection.WAITING, status, withStale(why), ActivityProgress.None, watchable = false)
     }
 
     if (live == null && row.stage.kind == RequestStageKind.UNRELEASED) {
-        val why = row.availabilityDate?.let { "Coming ${shortDate(it, today)}. Starts when it's released." } ?: "Not released yet. Starts when it is."
+        val why =
+            row.availabilityDate?.let { "Coming ${shortDate(it, today)}. Starts when it's released." }
+                ?: "Not released yet. Starts when it is."
         return ActivityRow(row, ActivitySection.WAITING, "Waiting for release", withStale(why), ActivityProgress.None, watchable = false)
     }
 
     // Everything still moving through the pipeline: accepted, searching, queued, downloading, importing…
-    val status = when {
-        live != null -> live.stageLabel
-        row.stage.kind == RequestStageKind.DOWNLOADING -> "Downloading"
-        else -> row.stage.label
-    }
+    val status =
+        when {
+            live != null -> live.stageLabel
+            row.stage.kind == RequestStageKind.DOWNLOADING -> "Downloading"
+            else -> row.stage.label
+        }
     // TV requests intentionally show no ETA (owner policy); movies show one while downloading.
-    val eta = when {
-        isTv -> null
-        live != null -> live.etaSeconds?.takeIf { it > 0 && live.stage == "downloading" && !liveStale }?.let { etaText(ceil(it).toLong()) }
-        else -> row.stage.eta?.takeIf { it.isAfter(clock) }?.let { etaText(Duration.between(clock, it).seconds) }
-    }
-    val detail = when {
-        isTv && episodes != null -> "${episodes.imported} of ${episodes.total} episodes imported"
-        eta != null -> eta
-        live?.stage in setOf("confirming_availability", "ready") -> "Confirming it's ready to watch."
-        live?.detail == "download_failed_retrying" -> "The previous download had a problem. Waiting for its replacement."
-        live == null -> row.stage.detail
-        else -> null
-    }
+    val eta =
+        when {
+            isTv -> {
+                null
+            }
+
+            live != null -> {
+                live.etaSeconds?.takeIf { it > 0 && live.stage == "downloading" && !liveStale }?.let { etaText(ceil(it).toLong()) }
+            }
+
+            else -> {
+                row.stage.eta
+                    ?.takeIf { it.isAfter(clock) }
+                    ?.let { etaText(Duration.between(clock, it).seconds) }
+            }
+        }
+    val detail =
+        when {
+            isTv && episodes != null -> "${episodes.imported} of ${episodes.total} episodes imported"
+            eta != null -> eta
+            live?.stage in setOf("confirming_availability", "ready") -> "Confirming it's ready to watch."
+            live?.detail == "download_failed_retrying" -> "The previous download had a problem. Waiting for its replacement."
+            live == null -> row.stage.detail
+            else -> null
+        }
     val fraction = if (live != null) live.fraction else row.stage.progress
-    return ActivityRow(row, ActivitySection.ACTIVE, status, withStale(detail), fraction?.let { ActivityProgress.Bar(it) } ?: ActivityProgress.None, watchable = false)
+    return ActivityRow(
+        row,
+        ActivitySection.ACTIVE,
+        status,
+        withStale(detail),
+        fraction?.let { ActivityProgress.Bar(it) } ?: ActivityProgress.None,
+        watchable = false,
+    )
 }
 
 // Sizes for the 1080p reference frame (owner mockups 2026-11-03; mockup px / 2). The table
 // spans the content width, and its five columns share it in these proportions.
-private const val TitleWeight = 4.7f
-private const val TypeWeight = .85f
-private const val StatusWeight = 1.95f
-private const val ProgressWeight = 1.45f
-private const val ActionWeight = 1.35f
+private const val TITLE_WEIGHT = 4.7f
+private const val TYPE_WEIGHT = .85f
+private const val STATUS_WEIGHT = 1.95f
+private const val PROGRESS_WEIGHT = 1.45f
+private const val ACTION_WEIGHT = 1.35f
 private val PosterWidth = 28.dp
 private val PosterHeight = 42.dp
 private val PosterGap = 11.dp
@@ -376,15 +484,25 @@ private val FadeHeight = 40.dp
  */
 private val FocusTopClearance = RowGap + 2.dp
 
-private data class ActivityFonts(val body: FontFamily, val display: FontFamily)
+private data class ActivityFonts(
+    val body: FontFamily,
+    val display: FontFamily,
+)
 
 /**
  * Scroll only as far as needed, but keep [topPx] clear above the focused row and keep it above
  * the bottom fade ([bottomPx]).
  */
 @OptIn(ExperimentalFoundationApi::class)
-private class FocusClearanceBringIntoViewSpec(private val topPx: Float, private val bottomPx: Float) : BringIntoViewSpec {
-    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
+private class FocusClearanceBringIntoViewSpec(
+    private val topPx: Float,
+    private val bottomPx: Float,
+) : BringIntoViewSpec {
+    override fun calculateScrollDistance(
+        offset: Float,
+        size: Float,
+        containerSize: Float,
+    ): Float {
         val viewport = (containerSize - bottomPx).coerceAtLeast(size)
         val top = topPx.coerceAtMost((viewport - size).coerceAtLeast(0f))
         return KeepVisibleBringIntoViewSpec.calculateScrollDistance(offset - top, size + top, viewport)
@@ -397,20 +515,27 @@ private class FocusClearanceBringIntoViewSpec(private val topPx: Float, private 
  * focus left the queue part-way down. Here the next row is scrolled in first when needed, and Up
  * leaves the queue only from its first row.
  */
-private class RowNavigator(private val list: LazyListState, private val scope: CoroutineScope) {
+private class RowNavigator(
+    private val list: LazyListState,
+    private val scope: CoroutineScope,
+) {
     var ids: List<Int> = emptyList()
     var requesters: Map<Int, FocusRequester> = emptyMap()
     var stepPx = 0f
     private var job: Job? = null
     private var target = -1
 
-    fun onKey(index: Int, event: KeyEvent): Boolean {
+    fun onKey(
+        index: Int,
+        event: KeyEvent,
+    ): Boolean {
         if (event.type != KeyEventType.KeyDown) return false
-        val delta = when (event.key) {
-            Key.DirectionUp -> -1
-            Key.DirectionDown -> 1
-            else -> return false
-        }
+        val delta =
+            when (event.key) {
+                Key.DirectionUp -> -1
+                Key.DirectionDown -> 1
+                else -> return false
+            }
         val moving = job?.isActive == true
         val next = (if (moving) target else index) + delta
         // Up from the first row goes on to the search bar; nothing else leaves the queue.
@@ -419,13 +544,14 @@ private class RowNavigator(private val list: LazyListState, private val scope: C
         target = next
         val requester = requesters[ids[next]] ?: return true
         if (placed(next) && requester.tryRequestFocus()) return true
-        job = scope.launch {
-            repeat(12) {
-                list.scrollBy(delta * stepPx)
-                withFrameNanos { }
-                if (placed(next) && requester.tryRequestFocus()) return@launch
+        job =
+            scope.launch {
+                repeat(12) {
+                    list.scrollBy(delta * stepPx)
+                    withFrameNanos { }
+                    if (placed(next) && requester.tryRequestFocus()) return@launch
+                }
             }
-        }
         return true
     }
 
@@ -441,27 +567,42 @@ fun SeerrRequestsPage(
     viewModel: SeerrRequestsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.requests.state.collectAsState()
-    val progressState by viewModel.requests.progress.state.collectAsState()
+    val progressState by viewModel.requests.progress.state
+        .collectAsState()
     val progress = progressState.takeIf { state.connected && viewModel.requests.acceptsProgress(it) }
     var clock by remember { mutableStateOf(Instant.now()) }
-    LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(60_000); clock = Instant.now() } }
-    DisposableEffect(Unit) { viewModel.requests.setVisible(true); onDispose { viewModel.requests.setVisible(false) } }
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(60_000)
+            clock = Instant.now()
+        }
+    }
+    DisposableEffect(Unit) {
+        viewModel.requests.setVisible(true)
+        onDispose { viewModel.requests.setVisible(false) }
+    }
     val context = LocalContext.current
     val fonts = remember(context) { NeonFonts.families(context).let { (body, display) -> ActivityFonts(body, display) } }
     // Air times follow the TV's 12/24-hour setting, like the on-screen clock.
-    val timeFormat = remember(context) { android.text.format.DateFormat.getTimeFormat(context) }
+    val timeFormat =
+        remember(context) {
+            android.text.format.DateFormat
+                .getTimeFormat(context)
+        }
     val formatAiringTime: (Instant) -> String = { timeFormat.format(java.util.Date.from(it)) }
 
-    val rows = state.items.map { row ->
-        val live = row.liveProgress(progress)
-        activityRow(row, live, live != null && (live.stale || progress?.transportStale == true), clock, formatAiringTime)
-    }
+    val rows =
+        state.items.map { row ->
+            val live = row.liveProgress(progress)
+            activityRow(row, live, live != null && (live.stale || progress?.transportStale == true), clock, formatAiringTime)
+        }
     // Sections keep the request order; Ready lists the newest request first. A live
     // percentage never moves a row, only a change of section does.
-    val ordered = ActivitySection.entries.flatMap { section ->
-        val inSection = rows.filter { it.section == section }
-        if (section == ActivitySection.READY) inSection.sortedByDescending { requestedAt(it.row) ?: Instant.EPOCH } else inSection
-    }
+    val ordered =
+        ActivitySection.entries.flatMap { section ->
+            val inSection = rows.filter { it.section == section }
+            if (section == ActivitySection.READY) inSection.sortedByDescending { requestedAt(it.row) ?: Instant.EPOCH } else inSection
+        }
     val counts = ordered.groupingBy { it.section }.eachCount()
 
     Column(modifier) {
@@ -469,28 +610,46 @@ fun SeerrRequestsPage(
             Text(it, color = MaterialTheme.colorScheme.error, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))
         }
         if (!state.connected) {
-            Text("Requests are reconnecting. Your last update is kept here.", color = RequestActivityPalette.Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))
+            Text(
+                "Requests are reconnecting. Your last update is kept here.",
+                color = RequestActivityPalette.Muted,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(top = 8.dp),
+            )
         }
         when {
-            ordered.isNotEmpty() -> ActivityTable(
-                rows = ordered,
-                counts = counts,
-                scope = state.scope,
-                focusRequestId = focusRequestId,
-                fonts = fonts,
-                loadMetadata = viewModel.requests::loadMetadata,
-                lastUpdated = state.lastUpdated,
-                onOpen = { id -> viewModel.open(id, state.scope) },
-                modifier = Modifier.fillMaxWidth().weight(1f),
-            )
-            state.lastUpdated != null && state.syncComplete && state.error == null && state.connected ->
+            ordered.isNotEmpty() -> {
+                ActivityTable(
+                    rows = ordered,
+                    counts = counts,
+                    scope = state.scope,
+                    focusRequestId = focusRequestId,
+                    fonts = fonts,
+                    loadMetadata = viewModel.requests::loadMetadata,
+                    lastUpdated = state.lastUpdated,
+                    onOpen = { id -> viewModel.open(id, state.scope) },
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                )
+            }
+
+            state.lastUpdated != null && state.syncComplete && state.error == null && state.connected -> {
                 ActivityEmptyState(fonts, Modifier.fillMaxWidth().weight(1f))
-            else -> Text(
-                if (state.lastUpdated == null && state.error == null) "Loading your requests…" else "Your requests couldn't be loaded right now.",
-                color = RequestActivityPalette.Muted,
-                fontSize = 13.sp,
-                modifier = Modifier.padding(top = 24.dp),
-            )
+            }
+
+            else -> {
+                Text(
+                    if (state.lastUpdated == null &&
+                        state.error == null
+                    ) {
+                        "Loading your requests…"
+                    } else {
+                        "Your requests couldn't be loaded right now."
+                    },
+                    color = RequestActivityPalette.Muted,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(top = 24.dp),
+                )
+            }
         }
     }
 }
@@ -520,16 +679,19 @@ private fun ActivityTable(
     val visibleIds by remember(list) {
         derivedStateOf { list.layoutInfo.visibleItemsInfo.mapNotNull { it.key as? Int } }
     }
-    val warmRows = remember(rows, visibleIds) {
-        val wanted = rows.take(2).mapTo(linkedSetOf()) { it.row.request.id }
-        for (id in visibleIds) {
-            val index = rows.indexOfFirst { it.row.request.id == id }
-            if (index >= 0) for (nearby in (index - 1).coerceAtLeast(0)..(index + 1).coerceAtMost(rows.lastIndex)) {
-                wanted.add(rows[nearby].row.request.id)
+    val warmRows =
+        remember(rows, visibleIds) {
+            val wanted = rows.take(2).mapTo(linkedSetOf()) { it.row.request.id }
+            for (id in visibleIds) {
+                val index = rows.indexOfFirst { it.row.request.id == id }
+                if (index >= 0) {
+                    for (nearby in (index - 1).coerceAtLeast(0)..(index + 1).coerceAtMost(rows.lastIndex)) {
+                        wanted.add(rows[nearby].row.request.id)
+                    }
+                }
             }
+            rows.filter { it.row.request.id in wanted }.take(8)
         }
-        rows.filter { it.row.request.id in wanted }.take(8)
-    }
     LaunchedEffect(scope, warmRows.map { it.row.request.id to it.row.item?.posterUrl }, posterWidth, posterHeight) {
         // Warm only the viewport neighbours and leading rows, never all history.
         warmRows.forEach { loadMetadata(it.row.request.id) }
@@ -542,7 +704,9 @@ private fun ActivityTable(
                             context.imageLoader.execute(requestPoster(context, scope, url, posterWidth, posterHeight))
                         } catch (ex: kotlinx.coroutines.CancellationException) {
                             throw ex
-                        } catch (_: Exception) { /* Prefetch is optional; it cannot take down the page. */ }
+                        } catch (_: Exception) {
+                            // Prefetch is optional; it cannot take down the page.
+                        }
                     }
                 }
             }
@@ -580,30 +744,41 @@ private fun ActivityTable(
 
     Column(modifier) {
         ColumnHeadings(fonts, Modifier.padding(top = 18.dp, bottom = 4.dp))
-        CompositionLocalProvider(LocalBringIntoViewSpec provides remember(topClearancePx, fadePx) { FocusClearanceBringIntoViewSpec(topClearancePx, fadePx) }) {
+        CompositionLocalProvider(
+            LocalBringIntoViewSpec provides
+                remember(topClearancePx, fadePx) {
+                    FocusClearanceBringIntoViewSpec(topClearancePx, fadePx)
+                },
+        ) {
             LazyColumn(
                 state = list,
                 contentPadding = PaddingValues(bottom = 8.dp),
                 // Rows never touch: the focus border sits inside its own row, clear of its neighbors.
                 verticalArrangement = Arrangement.spacedBy(RowGap),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .onFocusChanged { listFocused = it.hasFocus }
-                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                    .drawWithContent {
-                        drawContent()
-                        // Soft fade where the list continues below the screen edge.
-                        if (list.canScrollForward) {
-                            val top = size.height - fadePx
-                            drawRect(
-                                brush = Brush.verticalGradient(listOf(Color.Black, Color.Transparent), startY = top, endY = size.height),
-                                topLeft = Offset(0f, top),
-                                size = Size(size.width, fadePx),
-                                blendMode = BlendMode.DstIn,
-                            )
-                        }
-                    },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .onFocusChanged { listFocused = it.hasFocus }
+                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                        .drawWithContent {
+                            drawContent()
+                            // Soft fade where the list continues below the screen edge.
+                            if (list.canScrollForward) {
+                                val top = size.height - fadePx
+                                drawRect(
+                                    brush =
+                                        Brush.verticalGradient(
+                                            listOf(Color.Black, Color.Transparent),
+                                            startY = top,
+                                            endY = size.height,
+                                        ),
+                                    topLeft = Offset(0f, top),
+                                    size = Size(size.width, fadePx),
+                                    blendMode = BlendMode.DstIn,
+                                )
+                            }
+                        },
             ) {
                 itemsIndexed(rows, key = { _, row -> row.row.request.id }) { index, entry ->
                     LaunchedEffect(entry.row.request.id, lastUpdated) { loadMetadata(entry.row.request.id) }
@@ -614,7 +789,8 @@ private fun ActivityTable(
                         }
                         val url = entry.row.item?.posterUrl
                         val posterKey = url?.let { requestPosterKey(scope, it, posterWidth, posterHeight) }
-                        val poster = remember(context, posterKey) { url?.let { requestPoster(context, scope, it, posterWidth, posterHeight) } }
+                        val poster =
+                            remember(context, posterKey) { url?.let { requestPoster(context, scope, it, posterWidth, posterHeight) } }
                         ActivityRowItem(
                             entry = entry,
                             fonts = fonts,
@@ -622,7 +798,11 @@ private fun ActivityTable(
                             previousPoster = posterKey?.let { loadedPosters[it] },
                             onPosterLoaded = { painter ->
                                 if (posterKey != null && loadedPosters[posterKey] !== painter) {
-                                    if (posterKey !in loadedPosters && loadedPosters.size >= 24) loadedPosters.keys.firstOrNull()?.let { loadedPosters.remove(it) }
+                                    if (posterKey !in loadedPosters &&
+                                        loadedPosters.size >= 24
+                                    ) {
+                                        loadedPosters.keys.firstOrNull()?.let { loadedPosters.remove(it) }
+                                    }
                                     loadedPosters[posterKey] = painter
                                 }
                             },
@@ -637,19 +817,34 @@ private fun ActivityTable(
 }
 
 @Composable
-private fun ColumnHeadings(fonts: ActivityFonts, modifier: Modifier = Modifier) {
-    val style = TextStyle(fontFamily = fonts.body, fontWeight = FontWeight.SemiBold, fontSize = 9.sp, letterSpacing = .2.em, color = RequestActivityPalette.Muted)
+private fun ColumnHeadings(
+    fonts: ActivityFonts,
+    modifier: Modifier = Modifier,
+) {
+    val style =
+        TextStyle(
+            fontFamily = fonts.body,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 9.sp,
+            letterSpacing = .2.em,
+            color = RequestActivityPalette.Muted,
+        )
     Row(modifier.fillMaxWidth().padding(start = RowStartInset, end = RowEndInset), verticalAlignment = Alignment.CenterVertically) {
-        Text("TITLE", style = style, modifier = Modifier.weight(TitleWeight).padding(start = PosterWidth + PosterGap))
-        Text("TYPE", style = style, modifier = Modifier.weight(TypeWeight))
-        Text("STATUS", style = style, modifier = Modifier.weight(StatusWeight))
-        Text("PROGRESS", style = style, modifier = Modifier.weight(ProgressWeight))
-        Spacer(Modifier.weight(ActionWeight))
+        Text("TITLE", style = style, modifier = Modifier.weight(TITLE_WEIGHT).padding(start = PosterWidth + PosterGap))
+        Text("TYPE", style = style, modifier = Modifier.weight(TYPE_WEIGHT))
+        Text("STATUS", style = style, modifier = Modifier.weight(STATUS_WEIGHT))
+        Text("PROGRESS", style = style, modifier = Modifier.weight(PROGRESS_WEIGHT))
+        Spacer(Modifier.weight(ACTION_WEIGHT))
     }
 }
 
 @Composable
-private fun SectionHeading(section: ActivitySection, count: Int, fonts: ActivityFonts, first: Boolean) {
+private fun SectionHeading(
+    section: ActivitySection,
+    count: Int,
+    fonts: ActivityFonts,
+    first: Boolean,
+) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = if (first) 4.dp else 5.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -691,27 +886,35 @@ private fun ActivityRowItem(
         modifier = Modifier.fillMaxWidth().rememberRequestFocusTarget(focusRequester),
         shape = ClickableSurfaceDefaults.shape(RectangleShape),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f, pressedScale = 1f),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.Transparent, contentColor = NeonBoard.Text,
-            focusedContainerColor = NeonBoard.chipOn(accent), focusedContentColor = NeonBoard.Text,
-            pressedContainerColor = NeonBoard.chipOn(accent), pressedContentColor = NeonBoard.Text,
-        ),
+        colors =
+            ClickableSurfaceDefaults.colors(
+                containerColor = Color.Transparent,
+                contentColor = NeonBoard.Text,
+                focusedContainerColor = NeonBoard.chipOn(accent),
+                focusedContentColor = NeonBoard.Text,
+                pressedContainerColor = NeonBoard.chipOn(accent),
+                pressedContentColor = NeonBoard.Text,
+            ),
         border = ClickableSurfaceDefaults.border(focusedBorder = ring, pressedBorder = ring),
         glow = ClickableSurfaceDefaults.glow(),
     ) {
         Row(
             // The poster is centered in a 49dp row; the 1dp focus border is drawn inside these insets.
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = RowHeight)
-                .padding(start = RowStartInset, end = RowEndInset, top = RowVerticalInset, bottom = RowVerticalInset),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = RowHeight)
+                    .padding(start = RowStartInset, end = RowEndInset, top = RowVerticalInset, bottom = RowVerticalInset),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(Modifier.weight(TitleWeight), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.weight(TITLE_WEIGHT), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(PosterWidth, PosterHeight).background(NeonBoard.Card2)) {
                     AsyncImage(
-                        model = poster, placeholder = previousPoster, error = previousPoster,
-                        contentDescription = null, contentScale = ContentScale.Crop,
+                        model = poster,
+                        placeholder = previousPoster,
+                        error = previousPoster,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier.matchParentSize(),
                         onSuccess = { onPosterLoaded(it.painter) },
                     )
@@ -727,96 +930,185 @@ private fun ActivityRowItem(
                         overflow = TextOverflow.Ellipsis,
                         autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = 11.sp, stepSize = .25.sp),
                     )
-                    val year = listOfNotNull(row.item?.releaseDate?.year?.toString(), "4K".takeIf { row.request.is4k == true }).joinToString(" · ")
+                    val year =
+                        listOfNotNull(
+                            row.item
+                                ?.releaseDate
+                                ?.year
+                                ?.toString(),
+                            "4K".takeIf { row.request.is4k == true },
+                        ).joinToString(" · ")
                     if (year.isNotEmpty()) {
-                        Text(year, style = TextStyle(fontFamily = fonts.body, fontSize = 10.sp, lineHeight = 13.sp, color = RequestActivityPalette.Muted))
+                        Text(
+                            year,
+                            style =
+                                TextStyle(
+                                    fontFamily = fonts.body,
+                                    fontSize = 10.sp,
+                                    lineHeight = 13.sp,
+                                    color = RequestActivityPalette.Muted,
+                                ),
+                        )
                     }
                 }
             }
             Text(
                 if (isTv) "Series" else "Movie",
                 style = TextStyle(fontFamily = fonts.body, fontWeight = FontWeight.Bold, fontSize = 11.sp, color = typeColor),
-                modifier = Modifier.weight(TypeWeight),
+                modifier = Modifier.weight(TYPE_WEIGHT),
             )
-            Column(Modifier.weight(StatusWeight).padding(end = 8.dp)) {
+            Column(Modifier.weight(STATUS_WEIGHT).padding(end = 8.dp)) {
                 val statusColor = if (entry.section == ActivitySection.ACTIVE) NeonBoard.Text else accent
                 Text(
                     entry.status,
-                    style = TextStyle(fontFamily = fonts.body, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, lineHeight = 15.sp, color = statusColor),
-                    maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    style =
+                        TextStyle(
+                            fontFamily = fonts.body,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.sp,
+                            lineHeight = 15.sp,
+                            color = statusColor,
+                        ),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 entry.detail?.let {
-                    Text(it, style = TextStyle(fontFamily = fonts.body, fontSize = 10.sp, lineHeight = 12.5.sp, color = RequestActivityPalette.Muted), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        it,
+                        style =
+                            TextStyle(
+                                fontFamily = fonts.body,
+                                fontSize = 10.sp,
+                                lineHeight = 12.5.sp,
+                                color = RequestActivityPalette.Muted,
+                            ),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
-            Box(Modifier.weight(ProgressWeight), contentAlignment = Alignment.CenterStart) {
+            Box(Modifier.weight(PROGRESS_WEIGHT), contentAlignment = Alignment.CenterStart) {
                 ProgressCell(entry.progress, typeColor, fonts)
             }
             // Watch now stays against the table's right edge.
-            Box(Modifier.weight(ActionWeight), contentAlignment = Alignment.CenterEnd) {
-                if (entry.watchable) WatchNowPill(filled = entry.section == ActivitySection.READY, focused = focused, accent = accent, fonts = fonts)
+            Box(Modifier.weight(ACTION_WEIGHT), contentAlignment = Alignment.CenterEnd) {
+                if (entry.watchable) {
+                    WatchNowPill(
+                        filled = entry.section == ActivitySection.READY,
+                        focused = focused,
+                        accent = accent,
+                        fonts = fonts,
+                    )
+                }
             }
         }
         // The row's divider runs along its bottom edge, under the focus border.
-        Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(Dp.Hairline).background(RequestActivityPalette.Divider))
+        Box(
+            Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .height(Dp.Hairline)
+                .background(RequestActivityPalette.Divider),
+        )
     }
 }
 
 @Composable
-private fun ProgressCell(progress: ActivityProgress, typeColor: Color, fonts: ActivityFonts) {
+private fun ProgressCell(
+    progress: ActivityProgress,
+    typeColor: Color,
+    fonts: ActivityFonts,
+) {
     when (progress) {
-        is ActivityProgress.Bar -> Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.width(BarWidth).height(BarHeight).clip(RoundedCornerShape(50)).background(RequestActivityPalette.Track)) {
-                Box(Modifier.fillMaxWidth(progress.fraction.coerceIn(0f, 1f)).fillMaxHeight().clip(RoundedCornerShape(50)).background(typeColor))
+        is ActivityProgress.Bar -> {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier
+                        .width(BarWidth)
+                        .height(BarHeight)
+                        .clip(RoundedCornerShape(50))
+                        .background(RequestActivityPalette.Track),
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth(
+                                progress.fraction.coerceIn(0f, 1f),
+                            ).fillMaxHeight()
+                            .clip(RoundedCornerShape(50))
+                            .background(typeColor),
+                    )
+                }
+                Text(
+                    "${(progress.fraction.coerceIn(0f, 1f) * 100).toInt()}%",
+                    style = TextStyle(fontFamily = fonts.body, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = typeColor),
+                    modifier = Modifier.padding(start = 8.dp),
+                )
             }
+        }
+
+        is ActivityProgress.Note -> {
             Text(
-                "${(progress.fraction.coerceIn(0f, 1f) * 100).toInt()}%",
-                style = TextStyle(fontFamily = fonts.body, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = typeColor),
-                modifier = Modifier.padding(start = 8.dp),
+                progress.text,
+                style =
+                    TextStyle(
+                        fontFamily = fonts.body,
+                        fontWeight = if (progress.emphasized) FontWeight.SemiBold else FontWeight.Normal,
+                        fontSize = if (progress.emphasized) 12.sp else 11.sp,
+                        color = if (progress.emphasized) NeonBoard.Text else RequestActivityPalette.Muted,
+                    ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
-        is ActivityProgress.Note -> Text(
-            progress.text,
-            style = TextStyle(
-                fontFamily = fonts.body,
-                fontWeight = if (progress.emphasized) FontWeight.SemiBold else FontWeight.Normal,
-                fontSize = if (progress.emphasized) 12.sp else 11.sp,
-                color = if (progress.emphasized) NeonBoard.Text else RequestActivityPalette.Muted,
-            ),
-            maxLines = 1, overflow = TextOverflow.Ellipsis,
-        )
-        ActivityProgress.None -> Box(Modifier.width(BarWidth), contentAlignment = Alignment.Center) {
-            Text("—", style = TextStyle(fontFamily = fonts.body, fontSize = 12.sp, color = RequestActivityPalette.Muted))
+
+        ActivityProgress.None -> {
+            Box(Modifier.width(BarWidth), contentAlignment = Alignment.Center) {
+                Text("—", style = TextStyle(fontFamily = fonts.body, fontSize = 12.sp, color = RequestActivityPalette.Muted))
+            }
         }
     }
 }
 
 /** Drawn inside the row (not its own focus stop): white filled for Ready, outlined for Waiting. */
 @Composable
-private fun WatchNowPill(filled: Boolean, focused: Boolean, accent: Color, fonts: ActivityFonts) {
+private fun WatchNowPill(
+    filled: Boolean,
+    focused: Boolean,
+    accent: Color,
+    fonts: ActivityFonts,
+) {
     val shape = RoundedCornerShape(50)
     val solid = filled || focused
     val content = if (solid) NeonBoard.OnAccent else NeonBoard.Text
-    val border = when {
-        focused -> BorderStroke(2.dp, accent)
-        filled -> null
-        else -> BorderStroke(1.dp, NeonBoard.Low)
-    }
+    val border =
+        when {
+            focused -> BorderStroke(2.dp, accent)
+            filled -> null
+            else -> BorderStroke(1.dp, NeonBoard.Low)
+        }
     Row(
-        modifier = Modifier
-            .widthIn(min = 108.dp)
-            .height(24.dp)
-            .then(if (border != null) Modifier.border(border, shape) else Modifier)
-            .clip(shape)
-            .background(if (solid) NeonBoard.Text else Color.Transparent)
-            .padding(horizontal = 14.dp),
+        modifier =
+            Modifier
+                .widthIn(min = 108.dp)
+                .height(24.dp)
+                .then(if (border != null) Modifier.border(border, shape) else Modifier)
+                .clip(shape)
+                .background(if (solid) NeonBoard.Text else Color.Transparent)
+                .padding(horizontal = 14.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = content, modifier = Modifier.size(13.dp))
         Text(
             "Watch now",
-            style = TextStyle(fontFamily = fonts.body, fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = .02.em, color = content),
+            style =
+                TextStyle(
+                    fontFamily = fonts.body,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    letterSpacing = .02.em,
+                    color = content,
+                ),
             maxLines = 1,
             modifier = Modifier.padding(start = 6.dp),
         )
@@ -824,27 +1116,31 @@ private fun WatchNowPill(filled: Boolean, focused: Boolean, accent: Color, fonts
 }
 
 @Composable
-private fun ActivityEmptyState(fonts: ActivityFonts, modifier: Modifier = Modifier) {
+private fun ActivityEmptyState(
+    fonts: ActivityFonts,
+    modifier: Modifier = Modifier,
+) {
     val glow = RequestActivityPalette.EmptyGlow
     Column(modifier.padding(top = 32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
-            modifier = Modifier
-                .size(95.dp)
-                .drawBehind {
-                    // Soft teal glow around the circle.
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            0.55f to glow.copy(alpha = .28f),
-                            1f to Color.Transparent,
-                            center = center,
+            modifier =
+                Modifier
+                    .size(95.dp)
+                    .drawBehind {
+                        // Soft teal glow around the circle.
+                        drawCircle(
+                            brush =
+                                Brush.radialGradient(
+                                    0.55f to glow.copy(alpha = .28f),
+                                    1f to Color.Transparent,
+                                    center = center,
+                                    radius = size.minDimension * .8f,
+                                ),
                             radius = size.minDimension * .8f,
-                        ),
-                        radius = size.minDimension * .8f,
-                    )
-                }
-                .clip(CircleShape)
-                .background(NeonBoard.chipOn(RequestActivityPalette.EmptyBorder))
-                .border(1.5.dp, RequestActivityPalette.EmptyBorder, CircleShape),
+                        )
+                    }.clip(CircleShape)
+                    .background(NeonBoard.chipOn(RequestActivityPalette.EmptyBorder))
+                    .border(1.5.dp, RequestActivityPalette.EmptyBorder, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Icon(Icons.Filled.Search, contentDescription = null, tint = glow, modifier = Modifier.size(46.dp))
@@ -855,7 +1151,14 @@ private fun ActivityEmptyState(fonts: ActivityFonts, modifier: Modifier = Modifi
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 26.dp),
         )
-        val body = TextStyle(fontFamily = fonts.body, fontSize = 15.sp, lineHeight = 22.sp, color = NeonBoard.Text.copy(alpha = .78f), textAlign = TextAlign.Center)
+        val body =
+            TextStyle(
+                fontFamily = fonts.body,
+                fontSize = 15.sp,
+                lineHeight = 22.sp,
+                color = NeonBoard.Text.copy(alpha = .78f),
+                textAlign = TextAlign.Center,
+            )
         Text("Search for a movie or show above, or press the mic and say its name.", style = body, modifier = Modifier.padding(top = 16.dp))
         Text("Once you request something, you can follow it here.", style = body, modifier = Modifier.padding(top = 2.dp))
         Row(
@@ -871,7 +1174,11 @@ private fun ActivityEmptyState(fonts: ActivityFonts, modifier: Modifier = Modifi
 }
 
 @Composable
-private fun LegendItem(section: ActivitySection, note: String, fonts: ActivityFonts) {
+private fun LegendItem(
+    section: ActivitySection,
+    note: String,
+    fonts: ActivityFonts,
+) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(6.dp).clip(CircleShape).background(section.color))
         Text(

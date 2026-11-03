@@ -28,6 +28,8 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
+import com.github.damontecres.wholphin.kids.ProfileKind
+import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.NavigationManager
@@ -35,13 +37,11 @@ import com.github.damontecres.wholphin.services.ScreensaverService
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.UpdateChecker
 import com.github.damontecres.wholphin.services.WhatsNewService
-import com.github.damontecres.wholphin.kids.ProfileKind
-import com.github.damontecres.wholphin.kids.profileKind
-import com.github.damontecres.wholphin.ui.components.RequestChipHost
 import com.github.damontecres.wholphin.ui.coachmark.CoachMarkOverlay
 import com.github.damontecres.wholphin.ui.coachmark.CoachMarkTour
 import com.github.damontecres.wholphin.ui.coachmark.LocalCoachMarkTour
 import com.github.damontecres.wholphin.ui.components.AppScreensaver
+import com.github.damontecres.wholphin.ui.components.RequestChipHost
 import com.github.damontecres.wholphin.ui.nav.ApplicationContent
 import com.github.damontecres.wholphin.ui.setup.PinnedServerContent
 import com.github.damontecres.wholphin.ui.setup.SwitchServerContent
@@ -78,9 +78,15 @@ fun MainContent(
 //                            setupNavigationManager.backStack = backStack
         val interfaceCustomization =
             remember(userPreferences.appPreferences) { InterfaceCustomization(userPreferences.appPreferences) }
-        val requestUi = remember { com.github.damontecres.wholphin.ui.components.RequestUiState() }
-        CompositionLocalProvider(LocalInterfaceCustomization provides interfaceCustomization,
-            com.github.damontecres.wholphin.ui.components.LocalRequestUiState provides requestUi) {
+        val requestUi =
+            remember {
+                com.github.damontecres.wholphin.ui.components
+                    .RequestUiState()
+            }
+        CompositionLocalProvider(
+            LocalInterfaceCustomization provides interfaceCustomization,
+            com.github.damontecres.wholphin.ui.components.LocalRequestUiState provides requestUi,
+        ) {
             NavDisplay(
                 backStack = backStack,
                 onBack = { backStack.removeLastOrNull() },

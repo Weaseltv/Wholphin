@@ -130,8 +130,10 @@ fun formatEpisodeNumber(
 }
 
 /** Compact episode-only label, e.g. `E3` or `E3-4`. */
-fun formatEpisodeNumberShort(episode: Int, episodeEnd: Int? = null): String =
-    formatStringWithFallback(R.string.episode_number_short, "E%1\$s", formatEpisodeNumber(episode, episodeEnd))
+fun formatEpisodeNumberShort(
+    episode: Int,
+    episodeEnd: Int? = null,
+): String = formatStringWithFallback(R.string.episode_number_short, "E%1\$s", formatEpisodeNumber(episode, episodeEnd))
 
 /** Fallback season title when the library has no season name, e.g. `Season 2`. */
 fun formatSeasonNumber(season: Int): String = formatStringWithFallback(R.string.season_number, "Season %1\$d", season)

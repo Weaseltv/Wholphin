@@ -8,8 +8,8 @@ import androidx.compose.animation.core.animateIntOffsetAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -84,7 +84,6 @@ import androidx.tv.material3.NavigationDrawerScope
 import androidx.tv.material3.ProvideTextStyle
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
-import com.github.damontecres.wholphin.ui.components.rememberRequestFocus
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
@@ -107,6 +106,7 @@ import com.github.damontecres.wholphin.ui.coachmark.CoachMarkStep
 import com.github.damontecres.wholphin.ui.coachmark.LocalCoachMarkTour
 import com.github.damontecres.wholphin.ui.coachmark.coachMarkTarget
 import com.github.damontecres.wholphin.ui.components.TimeDisplay
+import com.github.damontecres.wholphin.ui.components.rememberRequestFocus
 import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.preferences.PreferenceScreenOption
@@ -234,7 +234,10 @@ class NavDrawerViewModel
                         } else if (key is Destination.NowPlaying) {
                             NOW_PLAYING_INDEX
                         } else {
-                            val idx = asDestinations.indexOfFirst { it == key || it is Destination.Discover && key is Destination.Discover }
+                            val idx =
+                                asDestinations.indexOfFirst {
+                                    it == key || (it is Destination.Discover && key is Destination.Discover)
+                                }
                             if (idx >= 0) {
                                 idx
                             } else {
@@ -906,7 +909,9 @@ fun NavigationDrawerScope.NavItem(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     containerColor: Color = Color.Unspecified,
 ) {
-    val requestsVM: com.github.damontecres.wholphin.ui.discover.SeerrRequestsViewModel = androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel()
+    val requestsVM: com.github.damontecres.wholphin.ui.discover.SeerrRequestsViewModel =
+        androidx.hilt.lifecycle.viewmodel.compose
+            .hiltViewModel()
     val requestState by requestsVM.requests.state.collectAsState()
     val context = LocalContext.current
     val useFont = library !is ServerNavDrawerItem || library.type != CollectionType.LIVETV
@@ -990,16 +995,20 @@ fun NavigationDrawerScope.NavItem(
                 if (library is NavDrawerItem.Discover && requestState.badgeCount > 0) {
                     // The badge sits above the glyph, within the row, on both the open menu and collapsed rail.
                     Box(
-                        modifier = Modifier.align(Alignment.TopEnd)
-                            .offset(x = 2.dp, y = (-12).dp)
-                            .height(12.dp).widthIn(min = 12.dp)
-                            .background(Color(0xFF00F2D6), androidx.compose.foundation.shape.CircleShape)
-                            .padding(horizontal = 3.dp),
+                        modifier =
+                            Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = 2.dp, y = (-12).dp)
+                                .height(12.dp)
+                                .widthIn(min = 12.dp)
+                                .background(Color(0xFF00F2D6), androidx.compose.foundation.shape.CircleShape)
+                                .padding(horizontal = 3.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             text = if (requestState.badgeCount > 9) "9+" else requestState.badgeCount.toString(),
-                            fontSize = 9.sp, lineHeight = 12.sp,
+                            fontSize = 9.sp,
+                            lineHeight = 12.sp,
                             color = Color.Black,
                         )
                     }

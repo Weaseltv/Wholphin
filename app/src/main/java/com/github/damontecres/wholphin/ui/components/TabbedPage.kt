@@ -12,8 +12,8 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -68,20 +68,21 @@ class TabViewModel
 
         init {
             viewModelScope.launchIO {
-                val startingTab = initialTab?.coerceIn(0..<tabCount) ?: 
-                    if (shouldRememberTabs()) {
-                        Timber.v("Getting remembered tab for %s", itemId)
-                        try {
-                            rememberedTabService
-                                .getRememberedTab(itemId)
-                                ?.coerceIn(0..<tabCount)
-                        } catch (ex: Exception) {
-                            Timber.e(ex, "Error getting tab for %s", itemId)
-                            null
-                        } ?: 0
-                    } else {
-                        0
-                    }
+                val startingTab =
+                    initialTab?.coerceIn(0..<tabCount)
+                        ?: if (shouldRememberTabs()) {
+                            Timber.v("Getting remembered tab for %s", itemId)
+                            try {
+                                rememberedTabService
+                                    .getRememberedTab(itemId)
+                                    ?.coerceIn(0..<tabCount)
+                            } catch (ex: Exception) {
+                                Timber.e(ex, "Error getting tab for %s", itemId)
+                                null
+                            } ?: 0
+                        } else {
+                            0
+                        }
                 _state.value = startingTab
             }
         }

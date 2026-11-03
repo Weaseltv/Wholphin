@@ -19,13 +19,13 @@ import com.github.damontecres.wholphin.kids.KidSessionGate
 import com.github.damontecres.wholphin.services.hilt.StandardOkHttpClient
 import com.github.damontecres.wholphin.ui.setup.seerr.createSeerrApiUrl
 import com.github.damontecres.wholphin.util.LoadingState
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
@@ -44,7 +44,8 @@ import kotlin.time.Duration.Companion.seconds
 class SeerrServerRepository
     @Inject
     constructor(
-        @param:com.github.damontecres.wholphin.services.hilt.DefaultCoroutineScope private val requestScope: kotlinx.coroutines.CoroutineScope,
+        @param:com.github.damontecres.wholphin.services.hilt.DefaultCoroutineScope private val requestScope:
+            kotlinx.coroutines.CoroutineScope,
         private val seerrApi: SeerrApi,
         private val seerrServerDao: SeerrServerDao,
         private val serverRepository: ServerRepository,
@@ -56,7 +57,13 @@ class SeerrServerRepository
         val connection: StateFlow<SeerrConnectionStatus> = _connection
 
         val current: Flow<CurrentSeerr?> =
-            _connection.map { when (it) { is SeerrConnectionStatus.Success -> it.current; is SeerrConnectionStatus.Expired -> it.current; else -> null } }
+            _connection.map {
+                when (it) {
+                    is SeerrConnectionStatus.Success -> it.current
+                    is SeerrConnectionStatus.Expired -> it.current
+                    else -> null
+                }
+            }
         val currentServer: Flow<SeerrServer?> =
             current.map { it?.server }
         val currentUser: Flow<SeerrUser?> =
@@ -307,16 +314,23 @@ class SeerrServerRepository
         fun expireAndReconnect(expected: CurrentSeerr) {
             requestScope.launch {
                 val user = serverRepository.currentUser ?: return@launch
-                val expired = connectMutex.withLock {
-                    if ((connection.value as? SeerrConnectionStatus.Success)?.current !== expected ||
-                        user.rowId != expected.user.jellyfinUserRowId) return@withLock false
-                    _connection.value = SeerrConnectionStatus.Expired(expected)
-                    // Expiry is a fresh failure; the probe has not consumed a connect attempt.
-                    lastAttemptAt = null
-                    true
-                }
+                val expired =
+                    connectMutex.withLock {
+                        if ((connection.value as? SeerrConnectionStatus.Success)?.current !== expected ||
+                            user.rowId != expected.user.jellyfinUserRowId
+                        ) {
+                            return@withLock false
+                        }
+                        _connection.value = SeerrConnectionStatus.Expired(expected)
+                        // Expiry is a fresh failure; the probe has not consumed a connect attempt.
+                        lastAttemptAt = null
+                        true
+                    }
                 if (expired && expected.user.authMethod in listOf(SeerrAuthMethod.QUICK_CONNECT, SeerrAuthMethod.API_KEY) &&
-                    serverRepository.currentUser?.rowId == user.rowId) connectForUser(user)
+                    serverRepository.currentUser?.rowId == user.rowId
+                ) {
+                    connectForUser(user)
+                }
             }
         }
 
@@ -329,7 +343,11 @@ class SeerrServerRepository
             }
             if (connection.value is SeerrConnectionStatus.Success) return false
             val expired = connection.value as? SeerrConnectionStatus.Expired
-            if (expired != null && expired.current.user.authMethod !in listOf(SeerrAuthMethod.QUICK_CONNECT, SeerrAuthMethod.API_KEY)) return false
+            if (expired != null &&
+                expired.current.user.authMethod !in listOf(SeerrAuthMethod.QUICK_CONNECT, SeerrAuthMethod.API_KEY)
+            ) {
+                return false
+            }
             val user = serverRepository.currentUser ?: return false
             if (!seerrAllowedFor(user)) return false
             return connectForUser(user)
@@ -433,7 +451,9 @@ typealias SeerrUserConfig = User
 sealed interface SeerrConnectionStatus {
     data object NotConfigured : SeerrConnectionStatus
 
-    data class Expired(val current: CurrentSeerr) : SeerrConnectionStatus
+    data class Expired(
+        val current: CurrentSeerr,
+    ) : SeerrConnectionStatus
 
     data class Error(
         val server: SeerrServer,

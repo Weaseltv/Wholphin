@@ -25,7 +25,6 @@ import com.github.damontecres.wholphin.ui.cards.BannerCard
 import com.github.damontecres.wholphin.ui.cards.ItemCardImage
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import io.mockk.mockk
-import java.util.UUID
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.junit.Assert.assertEquals
@@ -37,6 +36,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.util.UUID
 
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, sdk = [34], qualifiers = "w960dp-h540dp-land-mdpi")
@@ -47,18 +47,26 @@ class EpisodeRangeCardLayoutTest {
     @Test
     fun `paired episode badges fit the portrait and season cards at TV and enlarged font sizes`() {
         val imageUrls = mockk<ImageUrlService>(relaxed = true)
-        val pair4 = BaseItem(
-            BaseItemDto(
-                id = UUID.randomUUID(), type = BaseItemKind.EPISODE,
-                parentIndexNumber = 4, indexNumber = 1, indexNumberEnd = 2,
-            ),
-        )
-        val pair3 = BaseItem(
-            BaseItemDto(
-                id = UUID.randomUUID(), type = BaseItemKind.EPISODE,
-                parentIndexNumber = 3, indexNumber = 6, indexNumberEnd = 7,
-            ),
-        )
+        val pair4 =
+            BaseItem(
+                BaseItemDto(
+                    id = UUID.randomUUID(),
+                    type = BaseItemKind.EPISODE,
+                    parentIndexNumber = 4,
+                    indexNumber = 1,
+                    indexNumberEnd = 2,
+                ),
+            )
+        val pair3 =
+            BaseItem(
+                BaseItemDto(
+                    id = UUID.randomUUID(),
+                    type = BaseItemKind.EPISODE,
+                    parentIndexNumber = 3,
+                    indexNumber = 6,
+                    indexNumberEnd = 7,
+                ),
+            )
         compose.setContent {
             CompositionLocalProvider(LocalImageUrlService provides imageUrls) {
                 WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
@@ -72,8 +80,13 @@ class EpisodeRangeCardLayoutTest {
                                 ItemCardImage(pair3, null, true, false, true, 0, null, 0)
                             }
                             BannerCard(
-                                name = "Exit 9B / Starter Pack", item = null, onClick = {}, onLongClick = {},
-                                cornerText = pair4.ui.episodeCornerText, played = true, cardHeight = 120.dp,
+                                name = "Exit 9B / Starter Pack",
+                                item = null,
+                                onClick = {},
+                                onLongClick = {},
+                                cornerText = pair4.ui.episodeCornerText,
+                                played = true,
+                                cardHeight = 120.dp,
                             )
                         }
                     }
@@ -82,7 +95,8 @@ class EpisodeRangeCardLayoutTest {
         }
         for (label in listOf("S4 · E1-2", "S3 · E6-7", "S4E1-2")) {
             val layouts = mutableListOf<TextLayoutResult>()
-            compose.onNodeWithText(label, useUnmergedTree = true)
+            compose
+                .onNodeWithText(label, useUnmergedTree = true)
                 .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
             val layout = layouts.single()
             assertEquals(label, 1, layout.lineCount)

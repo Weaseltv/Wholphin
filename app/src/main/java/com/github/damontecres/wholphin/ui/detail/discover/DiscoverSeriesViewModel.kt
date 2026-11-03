@@ -331,7 +331,10 @@ class DiscoverSeriesViewModel
             }
         }
 
-        fun request(request: TvRequest, onSuccess: () -> Unit = {}) {
+        fun request(
+            request: TvRequest,
+            onSuccess: () -> Unit = {},
+        ) {
             if (state.value.requestSubmitting) return
             val tv = state.value.tvSeries.successValue ?: return
             val account = (seerrServerRepository.connection.value as? SeerrConnectionStatus.Success)?.current
@@ -341,6 +344,7 @@ class DiscoverSeriesViewModel
             }
             val client = seerrService.api
             val submittingScope = requestStatusRepository.state.value.scope
+
             fun currentSubmission(): Boolean =
                 requestStatusRepository.state.value.scope == submittingScope &&
                     serverRepository.currentUser?.rowId == account.user.jellyfinUserRowId &&
@@ -360,14 +364,33 @@ class DiscoverSeriesViewModel
                                 it.is4k == request.is4k &&
                                 it.requestedBy?.id == account.config.id
                         }
-                    val created = if (currentRequest != null) {
-                        Timber.v("User has pending request, will update")
-                        client.requestApi.requestRequestIdPut(
-                            requestId = currentRequest.id.toString(),
-                            requestRequestIdPutRequest =
-                                RequestRequestIdPutRequest(
+                    val created =
+                        if (currentRequest != null) {
+                            Timber.v("User has pending request, will update")
+                            client.requestApi.requestRequestIdPut(
+                                requestId = currentRequest.id.toString(),
+                                requestRequestIdPutRequest =
+                                    RequestRequestIdPutRequest(
+                                        is4k = request.is4k,
+                                        mediaType = RequestRequestIdPutRequest.MediaType.TV,
+                                        seasons = request.seasons,
+                                        serverId =
+                                            when {
+                                                request.profileId == null && request.folder == null -> null
+                                                request.is4k -> request.data.server4kId
+                                                else -> request.data.serverId
+                                            },
+                                        profileId = request.profileId,
+                                        rootFolder = request.folder,
+                                    ),
+                            )
+                        } else {
+                            Timber.v("New request for %s seasons", request.seasons.size)
+                            client.requestApi.requestPost(
+                                RequestPostRequest(
                                     is4k = request.is4k,
-                                    mediaType = RequestRequestIdPutRequest.MediaType.TV,
+                                    mediaId = request.tvId,
+                                    mediaType = RequestPostRequest.MediaType.TV,
                                     seasons = request.seasons,
                                     serverId =
                                         when {
@@ -377,28 +400,10 @@ class DiscoverSeriesViewModel
                                         },
                                     profileId = request.profileId,
                                     rootFolder = request.folder,
+                                    tags = emptyList(),
                                 ),
-                        )
-                    } else {
-                        Timber.v("New request for %s seasons", request.seasons.size)
-                        client.requestApi.requestPost(
-                            RequestPostRequest(
-                                is4k = request.is4k,
-                                mediaId = request.tvId,
-                                mediaType = RequestPostRequest.MediaType.TV,
-                                seasons = request.seasons,
-                                serverId =
-                                    when {
-                                        request.profileId == null && request.folder == null -> null
-                                        request.is4k -> request.data.server4kId
-                                        else -> request.data.serverId
-                                    },
-                                profileId = request.profileId,
-                                rootFolder = request.folder,
-                                tags = emptyList(),
-                            ),
-                        )
-                    }
+                            )
+                        }
                     if (!currentSubmission()) return@launchIO
                     requestStatusRepository.seed(created, submittingScope, item, updated = currentRequest != null)
                     kotlinx.coroutines.withContext(WholphinDispatchers.Main) {
@@ -427,24 +432,30 @@ class DiscoverSeriesViewModel
 
         fun cancelRequest(id: Int) {
             viewModelScope.launchIO {
-                state.value.tvSeries.successValue?.mediaInfo?.requests?.firstOrNull { it.id == id }?.takeIf { canUserCancelRequest(userConfig.firstOrNull(), listOf(it)) }?.let {
-                    // TODO handle multiple requests? Or just delete self's request?
-                    try {
-                        val deletingScope = requestStatusRepository.state.value.scope
-                        seerrService.api.requestApi.requestRequestIdDelete(it.id.toString())
-                        requestStatusRepository.forget(it.id, deletingScope)
-                    } catch (ex: CancellationException) {
-                        throw ex
-                    } catch (ex: Exception) {
-                        Timber.e(ex, "Error requesting %s", id)
-                        showToast(context, "An error occurred")
-                    }
+                state.value.tvSeries.successValue
+                    ?.mediaInfo
+                    ?.requests
+                    ?.firstOrNull {
+                        it.id == id
+                    }?.takeIf { canUserCancelRequest(userConfig.firstOrNull(), listOf(it)) }
+                    ?.let {
+                        // TODO handle multiple requests? Or just delete self's request?
+                        try {
+                            val deletingScope = requestStatusRepository.state.value.scope
+                            seerrService.api.requestApi.requestRequestIdDelete(it.id.toString())
+                            requestStatusRepository.forget(it.id, deletingScope)
+                        } catch (ex: CancellationException) {
+                            throw ex
+                        } catch (ex: Exception) {
+                            Timber.e(ex, "Error requesting %s", id)
+                            showToast(context, "An error occurred")
+                        }
 
-                    fetchAndSetItem().await()?.let {
-                        updateSeasonStatus(it)
-                        updateCanCancel()
+                        fetchAndSetItem().await()?.let {
+                            updateSeasonStatus(it)
+                            updateCanCancel()
+                        }
                     }
-                }
             }
         }
     }

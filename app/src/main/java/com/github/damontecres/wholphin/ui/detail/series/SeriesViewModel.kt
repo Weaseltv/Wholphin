@@ -10,11 +10,11 @@ import com.github.damontecres.wholphin.data.ExtrasItem
 import com.github.damontecres.wholphin.data.ItemPlaybackRepository
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
-import com.github.damontecres.wholphin.data.model.coversEpisodeNumber
 import com.github.damontecres.wholphin.data.model.DiscoverItem
 import com.github.damontecres.wholphin.data.model.ItemPlayback
 import com.github.damontecres.wholphin.data.model.Person
 import com.github.damontecres.wholphin.data.model.Trailer
+import com.github.damontecres.wholphin.data.model.coversEpisodeNumber
 import com.github.damontecres.wholphin.data.model.mergeRepeated
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.services.BackdropService
@@ -890,11 +890,12 @@ suspend fun findIndexByNumberOrId(
             searchList(listIndex, targetNum, targetId, list, parentId, parentIndex)
         } else {
             // An episode number is not a list offset: paired files can put it past list.size.
-            list.indexOfBlocking {
-                targetNum != null && it?.data?.indexNumberEnd.gt(it?.indexNumber ?: Int.MAX_VALUE) &&
-                    it?.data?.coversEpisodeNumber(targetNum) == true &&
-                    checkParent(parentId, parentIndex, it)
-            }.coerceAtLeast(0)
+            list
+                .indexOfBlocking {
+                    targetNum != null && it?.data?.indexNumberEnd.gt(it?.indexNumber ?: Int.MAX_VALUE) &&
+                        it?.data?.coversEpisodeNumber(targetNum) == true &&
+                        checkParent(parentId, parentIndex, it)
+                }.coerceAtLeast(0)
         }
     return index
 }

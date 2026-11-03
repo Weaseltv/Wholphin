@@ -157,7 +157,14 @@ object KidTitlePage {
         val number = episode.indexNumber
         return KidPlay(
             itemId = episode.id,
-            label = if (season != null && number != null) KidPlayLabel.Episode(season, number, episode.indexNumberEnd) else KidPlayLabel.Play,
+            label =
+                if (season != null &&
+                    number != null
+                ) {
+                    KidPlayLabel.Episode(season, number, episode.indexNumberEnd)
+                } else {
+                    KidPlayLabel.Play
+                },
             positionMs = resumePosition(episode)?.inWholeMilliseconds ?: 0L,
             episodeTitle = episode.name?.takeIf { it.isNotBlank() },
         )

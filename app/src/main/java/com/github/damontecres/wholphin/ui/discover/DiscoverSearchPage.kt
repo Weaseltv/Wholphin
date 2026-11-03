@@ -317,21 +317,23 @@ fun DiscoverSearchPage(
                     .fillMaxSize()
                     .padding(start = 16.dp, end = endPadding),
             )
-        } else key(submittedResults) {
-        SearchCombinedResults(
-            result = seerrResults,
-            focusRequester = gridFocusRequester,
-            onClickItem = { _, _ -> },
-            onLongClickItem = { _, _ -> },
-            onPlayItem = { _, _ -> },
-            onClickPosition = { position = it.column },
-            onClickDiscover = onClickDiscover,
-            positionCallback = { columns, index ->
-                position = index
-                positionCallback.invoke(columns, index)
-            },
-            modifier = Modifier.fillMaxSize(),
-        )
+        } else {
+            key(submittedResults) {
+                SearchCombinedResults(
+                    result = seerrResults,
+                    focusRequester = gridFocusRequester,
+                    onClickItem = { _, _ -> },
+                    onLongClickItem = { _, _ -> },
+                    onPlayItem = { _, _ -> },
+                    onClickPosition = { position = it.column },
+                    onClickDiscover = onClickDiscover,
+                    positionCallback = { columns, index ->
+                        position = index
+                        positionCallback.invoke(columns, index)
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
         }
     }
 }

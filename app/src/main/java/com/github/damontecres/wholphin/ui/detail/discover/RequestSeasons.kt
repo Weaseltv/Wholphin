@@ -277,7 +277,7 @@ fun RequestSeasons(
                             enabled = selectedSeasons.isNotEmpty(),
                         ) {
                             Text(
-                            text = if (submitting) "Submitting…" else stringResource(R.string.submit),
+                                text = if (submitting) "Submitting…" else stringResource(R.string.submit),
                             )
                         }
                     }

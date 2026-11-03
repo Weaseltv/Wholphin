@@ -57,9 +57,9 @@ import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.SetupNavigationManager
 import com.github.damontecres.wholphin.services.SuggestionsSchedulerService
 import com.github.damontecres.wholphin.services.UpdateChecker
-import com.github.damontecres.wholphin.services.WhatsNewService
 import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.UserSwitchListener
+import com.github.damontecres.wholphin.services.WhatsNewService
 import com.github.damontecres.wholphin.services.hilt.AuthOkHttpClient
 import com.github.damontecres.wholphin.services.tvprovider.TvProviderSchedulerService
 import com.github.damontecres.wholphin.ui.CoilConfig
@@ -67,8 +67,8 @@ import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.coachmark.CoachMarkTour
 import com.github.damontecres.wholphin.ui.collectLatestIn
 import com.github.damontecres.wholphin.ui.components.LoadingPage
-import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.launchDefault
+import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.playback.PlayExternalViewModel
 import com.github.damontecres.wholphin.ui.showToast
@@ -431,9 +431,10 @@ class MainActivity : AppCompatActivity() {
         profileChooserLock.onActivityStarted()
         startPeriodicUpdateCheck()
         requestStatusJob?.cancel()
-        requestStatusJob = lifecycleScope.launchIO {
-            repeatOnLifecycle(Lifecycle.State.STARTED) { requestStatusRepository.runForeground() }
-        }
+        requestStatusJob =
+            lifecycleScope.launchIO {
+                repeatOnLifecycle(Lifecycle.State.STARTED) { requestStatusRepository.runForeground() }
+            }
     }
 
     /**

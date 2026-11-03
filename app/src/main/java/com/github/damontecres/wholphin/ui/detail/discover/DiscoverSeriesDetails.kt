@@ -148,7 +148,16 @@ fun DiscoverSeriesDetails(
                     showRequestSeasonDialog = true
                 },
                 cancelOnClick = {
-                    item.mediaInfo?.requests?.filter { it.requestedBy?.id == userConfig?.id && it.status == 1 }?.let { own -> own.firstOrNull { it.is4k != true } ?: own.firstOrNull() }?.let { viewModel.cancelRequest(it.id) }
+                    item.mediaInfo
+                        ?.requests
+                        ?.filter { it.requestedBy?.id == userConfig?.id && it.status == 1 }
+                        ?.let { own ->
+                            own.firstOrNull {
+                                it.is4k !=
+                                    true
+                            }
+                                ?: own.firstOrNull()
+                        }?.let { viewModel.cancelRequest(it.id) }
                 },
                 moreOnClick = {
                 },
