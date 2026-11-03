@@ -33,6 +33,7 @@ import okhttp3.Callback
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
@@ -42,6 +43,7 @@ import java.io.IOException
 import java.time.Instant
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
@@ -188,6 +190,18 @@ private data class ProgressEnvelope(
     val auth: String? = null,
 )
 
+/** What the progress service did with a cancel */
+enum class CancelResult {
+    CANCELLED,
+
+    /** Already removed, or not this member's */
+    GONE,
+
+    /** Ready to watch (or declined): nothing left to cancel */
+    FINISHED,
+    FAILED,
+}
+
 enum class ProgressMode { OFF, CONNECTING, LIVE, POLLING, RECONNECTING, REVALIDATING, UNAVAILABLE, AUTH_REQUIRED }
 
 data class RequestProgressState(
@@ -263,6 +277,63 @@ class RequestProgressRepository
 
         fun forget(id: Int) {
             _state.update { it.copy(records = it.records - id) }
+        }
+
+        /**
+         * Cancels the member's own request through the progress service (owner 2026-11-03). Members'
+         * requests are approved automatically and Seerr only lets them delete pending ones, so the
+         * service checks ownership with this session's cookie, stops the downloads and removes the
+         * request. Returns null when this server has no progress service.
+         */
+        suspend fun cancel(requestId: Int): CancelResult? {
+            val c = capture() ?: return null
+            val request =
+                Request
+                    .Builder()
+                    .url(
+                        c.root
+                            .newBuilder()
+                            .encodedPath("/progress/v1/requests/$requestId/cancel")
+                            .build(),
+                    ).header("X-WeaselPlex-Client", "tv")
+                    .post(ByteArray(0).toRequestBody(null))
+                    .build()
+            val call =
+                c.client.progressSnapshotClient
+                    .newBuilder()
+                    .callTimeout(45, TimeUnit.SECONDS)
+                    .readTimeout(45, TimeUnit.SECONDS)
+                    .build()
+                    .newCall(request)
+            return suspendCancellableCoroutine { continuation ->
+                continuation.invokeOnCancellation { call.cancel() }
+                call.enqueue(
+                    object : Callback {
+                        override fun onFailure(
+                            call: Call,
+                            e: IOException,
+                        ) {
+                            if (continuation.isActive) continuation.resume(CancelResult.FAILED)
+                        }
+
+                        override fun onResponse(
+                            call: Call,
+                            response: Response,
+                        ) {
+                            val result =
+                                response.use {
+                                    when (it.code) {
+                                        200 -> CancelResult.CANCELLED
+                                        404 -> CancelResult.GONE
+                                        409 -> CancelResult.FINISHED
+                                        else -> CancelResult.FAILED
+                                    }
+                                }
+                            if (continuation.isActive) continuation.resume(result)
+                        }
+                    },
+                )
+            }
         }
 
         private class Capture(

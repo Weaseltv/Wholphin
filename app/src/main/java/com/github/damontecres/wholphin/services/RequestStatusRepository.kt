@@ -988,19 +988,49 @@ class RequestStatusRepository
             refresh()
         }
 
-        suspend fun cancel(id: Int) =
+        /**
+         * Cancels the member's own unfinished request (owner 2026-11-03: long-press on the Activity
+         * queue). The progress service does it, since members' requests are approved automatically
+         * and Seerr won't let them delete those; it also stops the downloads. Without the progress
+         * service only a request still waiting for approval can be cancelled, through Seerr. The
+         * network call runs outside the lock so refreshes carry on meanwhile.
+         */
+        suspend fun cancel(id: Int): CancelResult {
+            val (s, item) =
+                mutex.withLock {
+                    val s = session ?: return CancelResult.FAILED
+                    val item = _state.value.items.firstOrNull { it.request.id == id } ?: return CancelResult.GONE
+                    if (!current(s)) return CancelResult.FAILED
+                    if (!canCancel(item)) return if (item.stage.ready) CancelResult.FINISHED else CancelResult.FAILED
+                    s to item
+                }
+            val result =
+                progress.cancel(id) ?: if (item.request.status == 1) {
+                    try {
+                        s.client.requestApi.requestRequestIdDelete(id.toString())
+                        CancelResult.CANCELLED
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (_: Exception) {
+                        CancelResult.FAILED
+                    }
+                } else {
+                    CancelResult.FAILED
+                }
             mutex.withLock {
-                val s = session ?: return@withLock
-                val item = _state.value.items.firstOrNull { it.request.id == id } ?: return@withLock
-                if (!current(s) || !canCancel(item.request)) return@withLock
-                s.client.requestApi.requestRequestIdDelete(id.toString())
-                forgetLocked(id, s.key)
+                if (result == CancelResult.CANCELLED || result == CancelResult.GONE) {
+                    if (current(s)) forgetLocked(id, s.key)
+                }
                 refresh()
             }
+            return result
+        }
 
-        fun canCancel(request: MediaRequest): Boolean {
+        /** The member's own request that isn't ready to watch yet (pending, approved or failed) */
+        fun canCancel(item: RequestStatusItem): Boolean {
             val user = session?.current?.config ?: return false
-            return request.requestedBy?.id == user.id && request.status == 1 &&
+            val request = item.request
+            return request.requestedBy?.id == user.id && !item.stage.ready && request.status in setOf(1, 2, 4) &&
                 (user.hasPermission(SeerrPermission.REQUEST) || user.hasPermission(SeerrPermission.MANAGE_REQUESTS))
         }
     }

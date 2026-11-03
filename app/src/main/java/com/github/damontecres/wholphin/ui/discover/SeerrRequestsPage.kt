@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
@@ -74,6 +75,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -96,12 +98,16 @@ import coil3.compose.AsyncImage
 import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import com.github.damontecres.wholphin.R
+import com.github.damontecres.wholphin.services.CancelResult
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.RequestProgressRecord
 import com.github.damontecres.wholphin.services.RequestProgressState
 import com.github.damontecres.wholphin.services.RequestStageKind
 import com.github.damontecres.wholphin.services.RequestStatusItem
 import com.github.damontecres.wholphin.services.RequestStatusRepository
+import com.github.damontecres.wholphin.ui.components.DialogItem
+import com.github.damontecres.wholphin.ui.components.DialogPopup
 import com.github.damontecres.wholphin.ui.components.keepTitledRowVisible
 import com.github.damontecres.wholphin.ui.components.rememberRequestFocusTarget
 import com.github.damontecres.wholphin.ui.nav.Destination
@@ -136,6 +142,19 @@ class SeerrRequestsViewModel
     ) : ViewModel() {
         var actionError by mutableStateOf<String?>(null)
             private set
+
+        /** Long-press → Cancel request on an Active or Waiting row (owner 2026-11-03) */
+        fun cancel(requestId: Int) {
+            viewModelScope.launch {
+                actionError = null
+                actionError =
+                    when (requests.cancel(requestId)) {
+                        CancelResult.CANCELLED, CancelResult.GONE -> null
+                        CancelResult.FINISHED -> "This title is already ready to watch."
+                        CancelResult.FAILED -> "Couldn't cancel this request. Please try again."
+                    }
+            }
+        }
 
         fun open(
             requestId: Int,
@@ -628,6 +647,8 @@ fun SeerrRequestsPage(
                     loadMetadata = viewModel.requests::loadMetadata,
                     lastUpdated = state.lastUpdated,
                     onOpen = { id -> viewModel.open(id, state.scope) },
+                    canCancel = viewModel.requests::canCancel,
+                    onCancel = viewModel::cancel,
                     modifier = Modifier.fillMaxWidth().weight(1f),
                 )
             }
@@ -665,6 +686,8 @@ private fun ActivityTable(
     loadMetadata: (Int) -> Unit,
     lastUpdated: Instant?,
     onOpen: (Int) -> Unit,
+    canCancel: (RequestStatusItem) -> Boolean,
+    onCancel: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val list = rememberLazyListState()
@@ -718,7 +741,22 @@ private fun ActivityTable(
     var focusHandled by rememberSaveable(scope, focusRequestId) { mutableStateOf(focusRequestId == null) }
     var listFocused by remember { mutableStateOf(false) }
     val order = rows.map { it.row.request.id }
+    // Long-press menu: the row it's for, and where it sat, so focus can move to its neighbor once
+    // a cancelled row leaves the queue.
+    var menu by remember(scope) { mutableStateOf<Pair<ActivityRow, Int>?>(null) }
+    var cancelled by remember(scope) { mutableStateOf<Pair<Int, Int>?>(null) }
     LaunchedEffect(order, focusRequestId, scope) {
+        cancelled?.let { (id, index) ->
+            if (id !in order) {
+                cancelled = null
+                val next = order.getOrNull(index.coerceAtMost(order.lastIndex))
+                if (next != null) {
+                    withFrameNanos { }
+                    requesters[next]?.tryRequestFocus()
+                }
+                return@LaunchedEffect
+            }
+        }
         if (!focusHandled) {
             val index = order.indexOf(focusRequestId)
             if (index >= 0) {
@@ -742,6 +780,24 @@ private fun ActivityTable(
         navigator.stepPx = stepPx
     }
 
+    menu?.let { (entry, index) ->
+        DialogPopup(
+            showDialog = true,
+            title = entry.row.title,
+            dialogItems =
+                listOf(
+                    DialogItem(
+                        stringResource(R.string.cancel_request),
+                        Icons.Filled.Close,
+                        Color.Red.copy(alpha = .8f),
+                    ) {
+                        cancelled = entry.row.request.id to index
+                        onCancel(entry.row.request.id)
+                    },
+                ),
+            onDismissRequest = { menu = null },
+        )
+    }
     Column(modifier) {
         ColumnHeadings(fonts, Modifier.padding(top = 18.dp, bottom = 4.dp))
         CompositionLocalProvider(
@@ -808,6 +864,12 @@ private fun ActivityTable(
                             },
                             focusRequester = requesters.getValue(entry.row.request.id),
                             onClick = { onOpen(entry.row.request.id) },
+                            onLongClick =
+                                if (entry.section != ActivitySection.READY && canCancel(entry.row)) {
+                                    { menu = entry to index }
+                                } else {
+                                    null
+                                },
                         )
                     }
                 }
@@ -870,6 +932,7 @@ private fun ActivityRowItem(
     onPosterLoaded: (Painter) -> Unit,
     focusRequester: FocusRequester,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
 ) {
     val row = entry.row
     val accent = entry.section.color
@@ -882,6 +945,7 @@ private fun ActivityRowItem(
     // title's details page), so the D-pad moves straight up and down the table.
     Surface(
         onClick = onClick,
+        onLongClick = onLongClick,
         interactionSource = interaction,
         modifier = Modifier.fillMaxWidth().rememberRequestFocusTarget(focusRequester),
         shape = ClickableSurfaceDefaults.shape(RectangleShape),

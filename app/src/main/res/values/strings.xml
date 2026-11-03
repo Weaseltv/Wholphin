@@ -14,6 +14,7 @@
     <string name="cancel_recording">Cancel Recording</string>
     <string name="cancel_series_recording">Cancel Series Recording</string>
     <string name="cancel">Cancel</string>
+    <string name="cancel_request">Cancel request</string>
     <string name="chapters">Chapters</string>
     <string name="choose_stream">Choose %1$s</string>
     <string name="clear_image_cache">Clear image cache</string>
