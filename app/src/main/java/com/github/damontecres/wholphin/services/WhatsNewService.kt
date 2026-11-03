@@ -24,6 +24,14 @@ data class WhatsNewEntry(
  */
 internal val WhatsNewNotes: Map<String, List<String>> =
     mapOf(
+        "1.2.44" to
+            listOf(
+                "New Home rows: Trending Movies, Trending TV Shows, 90 Days - Recently Released and Movie Roulette.",
+                "Recently Added is now two rows, one for movies and one for TV shows.",
+                "Requests has one Activity page: see download progress live, what's waiting and what's ready to watch.",
+                "A pop-up lets you know when something you requested is ready to watch.",
+                "Shows that are still airing tell you when the next episode comes out.",
+            ),
         "1.2.43" to
             listOf(
                 "New: a one-minute tour that shows you around Home, the side menu, your Watchlist, Requests and Settings.",
