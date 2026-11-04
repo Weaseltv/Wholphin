@@ -299,3 +299,52 @@ operator on 2026-11-03). TMDB is used only for posters and years.
   wording.
 - The interim TMDB-based version (nextEpisodeToAir via Seerr title details) was
   removed in favor of this single source.
+
+## Cancel from the Activity page (owner 2026-11-03, Alpha)
+
+Long-press an Active or Waiting row → the standard menu → **Cancel request**. Ready to watch
+rows have no menu. Once the row leaves the queue, focus moves to its neighbor.
+
+- **Why the progress service does it:** members are REQUEST + AUTO_APPROVE, and Seerr's
+  `DELETE /request/{id}` refuses anyone without MANAGE_REQUESTS unless the request is still
+  pending. So the TV calls `POST /progress/v1/requests/{id}/cancel` on the pinned requests host
+  with the member's own `connect.sid` and the header `X-WeaselPlex-Client: tv` (a custom header a
+  browser can't send cross-site without a preflight, which the service never allows). Without
+  the progress service, the app falls back to Seerr's delete, which works only for pending requests.
+- **What the service does** (`cancelRequest` in `req-progress/progress.js` on Unraid):
+  1. Re-checks the session with Seerr (`/auth/me`, never cached), then reads the request with the
+     API key. A request that isn't this member's answers 404, the same as a missing one.
+  2. Refuses (409) a declined request or one already ready to watch.
+  3. Removes the request's downloads from the Radarr/Sonarr queue and the download client (no blocklist).
+  4. Movie: deletes it from Radarr if it has no file (files kept, no import exclusion); with a file it
+     is only unmonitored. Show: deletes the series from Sonarr if it has no files and no other open
+     request; otherwise unmonitors the requested seasons' missing episodes and those seasons, leaving
+     seasons other open requests need.
+  5. Deletes the Seerr request last, so a failure part-way leaves a request the member can retry.
+     Seerr's own remove hook resets the media (and its seasons) so the title can be requested again.
+  6. Logs `cancel <id> user <id> <type> <steps>` in `docker logs req-progress`.
+- **Answers:** 200 cancelled, 404 gone (or not yours), 409 finished, 401 signed out, 403 missing
+  header, 502 failed part-way, 503 Seerr unreachable. The TV shows "Couldn't cancel this request.
+  Please try again." for anything but 200/404, or "This title is already ready to watch." for 409.
+- **NC1:** `location /progress/` on requests.theweasel.tv already proxies every method, so no NC1
+  change was needed.
+- **Deploying `progress.js`:** the container bind-mounts the single file read-only, so overwrite it in
+  place (`cat new > progress.js`), not with `mv` or an editor that replaces the file, then
+  `docker restart req-progress`. Backup from before this change: `progress.js.bak-20261104-cancel`.
+
+## Shows Seerr never marks available (2026-11-04)
+
+Seerr marks a season available only when Jellyfin's episode count *equals* TMDB's. Sonarr numbers some double
+episodes as two (Parks and Recreation S06E01-02, S06E21-22, S07E12-13), so Jellyfin counts 22 and 13 where TMDB has
+20 and 12, and Seerr leaves the show "partially available" for good. The TV showed "Some episodes ready" next to
+125 / 125 imported.
+
+- `progress.js` (`buildRecord`): with no recent import (15 min, three Seerr scans), every requested aired episode
+  imported, nothing monitored still to air, and Jellyfin holding at least that many requested episodes (double
+  episodes counted by `IndexNumberEnd`), the record is `stage: "ready"`, `detail: "library_complete"`.
+  `availability` stays Seerr's value, so the app does not keep re-reading the request. These records are kept past
+  the 24-h cut-off, and Jellyfin is re-checked once a minute for them. Cancel answers 409 `already_finished`.
+- App (`SeerrRequestsPage.activityRow`): a live `ready` record puts the row in Ready to watch.
+- The ready pop-up still comes from Seerr only, so these shows get the "some episodes" pop-up but no "ready" one.
+- Deployed 2026-11-04 (backup `progress.js.bak-20261104-librarycomplete`); request 88 went
+  `confirming_availability -> ready library_complete` at once.

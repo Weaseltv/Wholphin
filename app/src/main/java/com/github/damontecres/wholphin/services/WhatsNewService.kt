@@ -22,16 +22,20 @@ data class WhatsNewEntry(
  * viewers: 3 to 5 short lines in US English. Add the new version's entry before tagging a
  * release. A version without an entry shows no pop-up.
  */
+private val notes1244 =
+    listOf(
+        "New Home rows: Trending Movies, Trending TV Shows, 90 Days - Recently Released and Movie Roulette.",
+        "Recently Added is now two rows, one for movies and one for TV shows.",
+        "Requests has one Activity page: see download progress live, what's waiting and what's ready to watch.",
+        "A pop-up lets you know when something you requested is ready to watch.",
+        "Shows that are still airing tell you when the next episode comes out.",
+    )
+
 internal val WhatsNewNotes: Map<String, List<String>> =
     mapOf(
-        "1.2.44" to
-            listOf(
-                "New Home rows: Trending Movies, Trending TV Shows, 90 Days - Recently Released and Movie Roulette.",
-                "Recently Added is now two rows, one for movies and one for TV shows.",
-                "Requests has one Activity page: see download progress live, what's waiting and what's ready to watch.",
-                "A pop-up lets you know when something you requested is ready to watch.",
-                "Shows that are still airing tell you when the next episode comes out.",
-            ),
+        // Owner 2026-11-04: v1.2.45 keeps v1.2.44's notes, since most viewers had not updated to v1.2.44 yet.
+        "1.2.45" to notes1244,
+        "1.2.44" to notes1244,
         "1.2.43" to
             listOf(
                 "New: a one-minute tour that shows you around Home, the side menu, your Watchlist, Requests and Settings.",
