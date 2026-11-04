@@ -376,7 +376,10 @@ private fun activityRow(
     val partial = row.partlyWatchable(live)
     val episodes = live?.episodes?.takeIf { (it.total ?: 0) > 0 && it.imported != null }
 
-    if (row.stage.kind == RequestStageKind.READY) {
+    // The progress service says "ready" when every requested episode is in the library even though Seerr still calls
+    // the show partial: Seerr wants its episode count to equal TMDB's, and double episodes numbered as two by Sonarr
+    // (Parks and Recreation, 125 / 125) never match.
+    if (row.stage.kind == RequestStageKind.READY || live?.stage == "ready") {
         val requested =
             requestedAt(row)?.let { "Requested ${shortDate(it.atZone(ZoneId.systemDefault()).toLocalDate(), today)}" }
                 ?: "Requested recently"

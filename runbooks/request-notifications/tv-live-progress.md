@@ -331,3 +331,20 @@ rows have no menu. Once the row leaves the queue, focus moves to its neighbor.
 - **Deploying `progress.js`:** the container bind-mounts the single file read-only, so overwrite it in
   place (`cat new > progress.js`), not with `mv` or an editor that replaces the file, then
   `docker restart req-progress`. Backup from before this change: `progress.js.bak-20261104-cancel`.
+
+## Shows Seerr never marks available (2026-11-04)
+
+Seerr marks a season available only when Jellyfin's episode count *equals* TMDB's. Sonarr numbers some double
+episodes as two (Parks and Recreation S06E01-02, S06E21-22, S07E12-13), so Jellyfin counts 22 and 13 where TMDB has
+20 and 12, and Seerr leaves the show "partially available" for good. The TV showed "Some episodes ready" next to
+125 / 125 imported.
+
+- `progress.js` (`buildRecord`): with no recent import (15 min, three Seerr scans), every requested aired episode
+  imported, nothing monitored still to air, and Jellyfin holding at least that many requested episodes (double
+  episodes counted by `IndexNumberEnd`), the record is `stage: "ready"`, `detail: "library_complete"`.
+  `availability` stays Seerr's value, so the app does not keep re-reading the request. These records are kept past
+  the 24-h cut-off, and Jellyfin is re-checked once a minute for them. Cancel answers 409 `already_finished`.
+- App (`SeerrRequestsPage.activityRow`): a live `ready` record puts the row in Ready to watch.
+- The ready pop-up still comes from Seerr only, so these shows get the "some episodes" pop-up but no "ready" one.
+- Deployed 2026-11-04 (backup `progress.js.bak-20261104-librarycomplete`); request 88 went
+  `confirming_availability -> ready library_complete` at once.
