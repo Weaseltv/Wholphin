@@ -90,6 +90,8 @@ message PlaybackPreferences {
   DpadSeekMode dpad_seek_mode = 26;
   // Whether other devices may start & control playback on this one ("Play On")
   bool remote_control_enabled = 27;
+  // Optional preserves the default-on choice for existing installations.
+  optional bool preload_video = 28;
 }
 
 enum DpadSeekMode {

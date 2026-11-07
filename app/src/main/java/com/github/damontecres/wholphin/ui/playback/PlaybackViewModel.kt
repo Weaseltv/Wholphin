@@ -152,6 +152,7 @@ class PlaybackViewModel
         internal val serverRepository: ServerRepository,
         internal val itemPlaybackRepository: ItemPlaybackRepository,
         private val playerFactory: PlayerFactory,
+        private val preloadManager: com.github.damontecres.wholphin.services.preload.PreloadManager,
         private val datePlayedService: DatePlayedService,
         private val deviceInfo: DeviceInfo,
         private val deviceProfileService: DeviceProfileService,
@@ -178,6 +179,7 @@ class PlaybackViewModel
         internal lateinit var player: Player
 
         private var mediaSession: MediaSession? = null
+        private val preloadOwner = Any()
 
         // Mutex & Job for changing playlist index
         private val playlistMutex = Mutex()
@@ -249,6 +251,7 @@ class PlaybackViewModel
         }
 
         private fun disconnectPlayer() {
+            preloadManager.stop("player-left", preloadOwner)
             activePlaybackRegistry.unregister(remoteHandler)
             if (this@PlaybackViewModel::player.isInitialized) {
                 player.removeListener(this@PlaybackViewModel)
@@ -522,6 +525,10 @@ class PlaybackViewModel
                         is PlaylistItem.Media -> playlistItem.item
                     }
 
+                withContext(WholphinDispatchers.Main) {
+                    if (this@PlaybackViewModel::player.isInitialized) player.stop()
+                    preloadManager.begin(preloadOwner)
+                }
                 Timber.i("Playing ${item.id}")
 
                 // New item, so we can clear the media segment tracker & subtitle cues
@@ -895,7 +902,14 @@ class PlaybackViewModel
                     // change, quality change or retry, gets its own fresh permit, checked right before it is installed
                     val streamPermit = kidContentGuard.playbackPermit(api, item.id)
                     withContext(WholphinDispatchers.Main) {
+                        player.stop()
+                        preloadManager.stop("stream-replaced", preloadOwner)
+                    }
+                    if (!kidContentGuard.isCurrent(streamPermit)) return@withContext
+                    preloadManager.prepare(playback, mediaUrl, preferences.appPreferences, positionMs, preloadOwner)
+                    withContext(WholphinDispatchers.Main) {
                         if (!kidContentGuard.isCurrent(streamPermit)) {
+                            preloadManager.stop("content-permit-expired", preloadOwner)
                             // Nothing stays installed for a later prepare to replay
                             player.stop()
                             player.clearMediaItems()
@@ -915,6 +929,7 @@ class PlaybackViewModel
                                 player = player,
                                 getState = { playbackItemState },
                                 getVolume = { volumeService.state() },
+                                reportFromStart = preloadManager.enabledFor(preloadOwner),
                             )
                         player.addListener(activityListener)
                         this@PlaybackViewModel.activityListener = activityListener
@@ -927,6 +942,7 @@ class PlaybackViewModel
                         }
                         // Kid content rules: still under the session the stream was allowed in
                         if (!kidContentGuard.isCurrent(streamPermit)) {
+                            preloadManager.stop("content-permit-expired", preloadOwner)
                             // Nothing stays installed for a later prepare to replay
                             player.stop()
                             player.clearMediaItems()
@@ -937,6 +953,8 @@ class PlaybackViewModel
                             mediaItem,
                             positionMs,
                         )
+                        preloadManager.attach(player, preloadOwner)
+                        if (preloadManager.enabledFor(preloadOwner)) activityListener.init()
                         val onFailure: () -> Unit = {
                             if (player is MpvPlayer && externalSubtitle != null) {
                                 // MpvPlayer may change tracks more than once to add external subtitles

@@ -73,6 +73,7 @@ class WholphinApplication :
 //            )
         }
         OkHttp.initialize(this)
+        preloadManager.initialize()
         // Product name for the user-visible crash dialog, read from app_name so EVERY
         // flavor is correct automatically: upstream flavors keep their own name, the
         // rebranded flavor gets its own. This was hardcoded to "Wholphin", which meant a
@@ -115,6 +116,9 @@ class WholphinApplication :
         }
         ACRA.errorReporter.putCustomData("SDK_INT", Build.VERSION.SDK_INT.toString())
     }
+
+    @Inject
+    lateinit var preloadManager: com.github.damontecres.wholphin.services.preload.PreloadManager
 
     @Inject
     lateinit var workerFactory: HiltWorkerFactory

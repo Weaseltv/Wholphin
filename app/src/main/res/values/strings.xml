@@ -1007,4 +1007,5 @@
     <string name="kid_protection_turned_off">Kid protection is off on this TV</string>
     <string name="kid_protection_not_turned_off">Kid protection is still on</string>
     <string name="kid_protection_needs_pin">Set a PIN for this profile first</string>
+    <string name="preload_video">Pre-load video when the server has spare bandwidth</string>
 </resources>

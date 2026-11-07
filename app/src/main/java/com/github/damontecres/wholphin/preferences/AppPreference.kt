@@ -902,6 +902,14 @@ sealed interface AppPreference<Pref, T> {
                 summaryOff = R.string.disabled,
             )
 
+        val PreloadVideo =
+            AppSwitchPreference<AppPreferences>(
+                title = R.string.preload_video,
+                defaultValue = true,
+                getter = { !it.playbackPreferences.hasPreloadVideo() || it.playbackPreferences.preloadVideo },
+                setter = { prefs, value -> prefs.updatePlaybackPreferences { preloadVideo = value } },
+            )
+
         val PlayerBackendPref =
             AppChoicePreference<AppPreferences, PlayerBackend>(
                 title = R.string.player_backend,
@@ -1303,6 +1311,7 @@ val advancedPreferences =
                         AppPreference.SkipSegments,
                         AppPreference.DpadSeekModePref,
                         AppPreference.MaxBitrate,
+                        AppPreference.PreloadVideo,
                         AppPreference.RefreshRateSwitching,
                         AppPreference.ResolutionSwitching,
                         AppPreference.PlaybackDebugInfo,

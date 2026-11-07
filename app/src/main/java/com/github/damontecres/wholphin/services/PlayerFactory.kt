@@ -56,6 +56,7 @@ class PlayerFactory
     constructor(
         @param:ApplicationContext private val context: Context,
         @param:AuthOkHttpClient private val authOkHttpClient: OkHttpClient,
+        private val preloadManager: com.github.damontecres.wholphin.services.preload.PreloadManager,
     ) {
         @Volatile
         var currentPlayer: Player? = null
@@ -102,7 +103,7 @@ class PlayerFactory
                                 MediaExtensionStatus.MES_DISABLED -> DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF
                                 else -> DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
                             }
-                        val dataSourceFactory = DefaultDataSource.Factory(context)
+                        val dataSourceFactory = preloadManager.dataSources()
                         val extractorsFactory = createExtractorsFactory()
                         var renderersFactory: RenderersFactory =
                             WholphinRenderersFactory(context, decodeAv1)
@@ -122,17 +123,18 @@ class PlayerFactory
                                 renderersFactory = AssRenderersFactory(assHandler, renderersFactory)
                                 DefaultMediaSourceFactory(
                                     dataSourceFactory,
-                                    extractorsFactory.withAssMkvSupport(
+                                    preloadManager.extractors(extractorsFactory.withAssMkvSupport(
                                         assSubtitleParserFactory,
                                         assHandler,
-                                    ),
+                                    )),
                                 ).setSubtitleParserFactory(assSubtitleParserFactory)
                             } else {
                                 DefaultMediaSourceFactory(
                                     dataSourceFactory,
-                                    extractorsFactory,
+                                    preloadManager.extractors(extractorsFactory),
                                 )
                             }
+                        mediaSourceFactory.setLoadErrorHandlingPolicy(preloadManager.errorPolicy)
                         val disableAudioOffload =
                             appPreferences.experimentalPreferences.get { disableAudioOffload } ?: false
                         val tunneling =
