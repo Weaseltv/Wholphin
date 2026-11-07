@@ -31,13 +31,16 @@ import java.util.concurrent.atomic.AtomicInteger
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, sdk = [28])
 class PreloadSessionTest {
+    private val diagnosticMessages = Collections.synchronizedList(mutableListOf<String>())
     private val diagnostics = object : timber.log.Timber.Tree() {
         override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
+            diagnosticMessages.add(message)
             println("$tag: $message")
         }
     }
     @org.junit.Before fun startDiagnostics() { timber.log.Timber.plant(diagnostics) }
     @org.junit.After fun stopDiagnostics() { timber.log.Timber.uproot(diagnostics) }
+    private fun logged(text: String): Boolean = synchronized(diagnosticMessages) { diagnosticMessages.any { it.contains(text) } }
     private data class Video(val path: String, val range: String?, val headers: Map<String, String>)
     private class FakePacer : AutoCloseable {
         val requests = Collections.synchronizedList(mutableListOf<Video>())
@@ -83,8 +86,8 @@ class PreloadSessionTest {
                 Thread.sleep(10)
             }
         }
-        private fun read(source: DataSource, url: String, position: Long = 0): ByteArray {
-            source.open(DataSpec.Builder().setUri(Uri.parse(url)).setPosition(position).build())
+        private fun read(source: DataSource, url: String, position: Long = 0, length: Long = C.LENGTH_UNSET.toLong()): ByteArray {
+            source.open(DataSpec.Builder().setUri(Uri.parse(url)).setPosition(position).setLength(length).build())
             try {
                 val out = ByteArrayOutputStream()
                 val block = ByteArray(64 * 1024)
@@ -242,6 +245,70 @@ class PreloadSessionTest {
                 assertTrue(tail.all { it == 42.toByte() })
                 assertTrue(store.bytes <= store.limit)
             } finally { session.stop("new-playback"); session.join() }
+            assertFalse(store.directory.exists())
+        }
+    }
+
+    @Test(timeout = 30_000) fun `metadata headroom below the payload budget pauses pre-load and retains playable cached ranges`() {
+        FakePacer().use { fake ->
+            val size = 24L * 1024 * 1024
+            fake.serve = { exchange ->
+                val range = exchange.requestHeaders.getFirst("Range").removePrefix("bytes=").split('-')
+                val start = range[0].toLong(); val end = range[1].toLong()
+                exchange.responseHeaders.add("Content-Range", "bytes $start-$end/$size")
+                respond(exchange, ByteArray((end - start + 1).toInt()) { 17 }, 206)
+            }
+            val store = PreloadStore(directory(), 100_000_000)
+            val reserve = 3_000_000_000L
+            // Model a TV whose usable space runs out before the advertised payload cap,
+            // including bytes consumed by metadata outside the payload cache counter.
+            val physicalAllowance = 12L * 1024 * 1024
+            val session = PreloadSession(PreloadMedia(fake.base + "/video", "session", "item", "source", false, size, 1200.0,
+                PreloadPolicy.averageBitrate(size, 1200.0)), fake.client(), store,
+                { reserve + physicalAllowance - store.bytes - 128 * 1024 }, { 30_000_000_000 }, retryDelayMs = 20)
+            session.start()
+            try {
+                await { logged("background pre-load stopped") }
+                val retained = store.bytes
+                val requests = fake.requests.size
+                assertTrue(retained > 1024 * 1024)
+                assertTrue(retained < store.limit)
+                assertTrue(store.directory.exists())
+                assertFalse(session.storageFallback)
+                assertArrayEquals(ByteArray(1024 * 1024) { 17 }, read(session.factory().createDataSource(), fake.base + "/video", length = 1024L * 1024))
+                Thread.sleep(150)
+                assertEquals(retained, store.bytes)
+                assertEquals(requests, fake.requests.size)
+                assertFalse(logged("delete reason=low-storage-reserve"))
+            } finally { session.stop("player-left"); session.join() }
+            assertFalse(store.directory.exists())
+        }
+    }
+
+    @Test(timeout = 30_000) fun `physical capacity evicts data over five minutes behind before pausing without deleting the item`() {
+        FakePacer().use { fake ->
+            val size = 24L * 1024 * 1024
+            fake.serve = { exchange ->
+                val range = exchange.requestHeaders.getFirst("Range").removePrefix("bytes=").split('-')
+                val start = range[0].toLong(); val end = range[1].toLong()
+                exchange.responseHeaders.add("Content-Range", "bytes $start-$end/$size")
+                respond(exchange, ByteArray((end - start + 1).toInt()) { 9 }, 206)
+            }
+            val store = PreloadStore(directory(), 100_000_000)
+            store.write(fake.base + "/video", 0, ByteArray(1024 * 1024), 1024 * 1024)
+            val session = PreloadSession(PreloadMedia(fake.base + "/video", "session", "item", "source", false, size, 1200.0,
+                PreloadPolicy.averageBitrate(size, 1200.0)), fake.client(), store,
+                { 3_000_000_000L + 2L * 1024 * 1024 - store.bytes }, { 30_000_000_000 }, retryDelayMs = 20)
+            session.update(900.0, true)
+            session.start()
+            try {
+                await { logged("background pre-load stopped") }
+                assertTrue(logged("delete reason=more-than-five-minutes-behind"))
+                assertEquals(0L, store.available(fake.base + "/video", 0))
+                assertTrue(store.available(fake.base + "/video", 18L * 1024 * 1024) > 0)
+                assertTrue(store.directory.exists())
+                assertFalse(session.storageFallback)
+            } finally { session.stop("player-left"); session.join() }
             assertFalse(store.directory.exists())
         }
     }

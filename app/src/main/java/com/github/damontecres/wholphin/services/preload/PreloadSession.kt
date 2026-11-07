@@ -439,21 +439,34 @@ internal class PreloadSession(
 
     private fun ensureRoom(count: Int, task: Task) {
         val reserve = maxOf(1_500_000_000L, totalBytes() / 10)
-        if (freeBytes() < reserve + count) {
-            reason = "low-storage-reserve"
-            closed = true
-            throw IOException("Low storage")
+        fun fits(): Boolean {
+            val free = freeBytes()
+            if (free < reserve) {
+                // Actual reserve loss (for example, another app consuming space) still
+                // releases the item. Merely lacking room for our next write is capacity.
+                reason = "low-storage-reserve"
+                closed = true
+                throw IOException("Low storage")
+            }
+            return store.bytes + count <= store.limit &&
+                free - reserve >= count + PreloadPolicy.WRITE_OVERHEAD_HEADROOM
         }
-        if (store.bytes + count <= store.limit) return
+        if (fits()) return
         val cutoff = position - 300
         for (span in store.spans()) {
             val end = if (!media.hls) (span.position + span.length) * media.durationSec / media.size else
                 playlists.values.flatMap { it.segments }.firstOrNull { key(it.task.url) == span.key }?.end ?: Double.MAX_VALUE
             if (end < cutoff) store.remove(span, "more-than-five-minutes-behind")
         }
-        if (store.bytes + count <= store.limit) return
+        // Recheck physical headroom after each eviction phase, not just payload bytes.
+        if (fits()) return
+        if (!backgroundStopped) {
+            Timber.tag("Preload").i(
+                "storage limit reached; background pre-load stopped storedBytes=%d limitBytes=%d freeBytes=%d reserveBytes=%d",
+                store.bytes, store.limit, freeBytes(), reserve,
+            )
+        }
         backgroundStopped = true
-        Timber.tag("Preload").i("storage limit reached; background pre-load stopped storedBytes=%d", store.bytes)
         if (!activeDemand) throw CapacityReached()
         // Only player demand may replace retained data once full. Keep the normal in-memory
         // player buffer; no further speculative fetches. Prefer data farthest from playback.
@@ -461,7 +474,7 @@ internal class PreloadSession(
         for (span in store.spans().sortedByDescending { if (it.key == protectedKey) -1.0 else kotlin.math.abs(it.position.toDouble() - bytePosition()) }) {
             if (span.key == protectedKey && task.position < span.position + span.length && span.position < task.position + max(1, task.length)) continue
             store.remove(span, "capacity-player-demand")
-            if (store.bytes + count <= store.limit) return
+            if (fits()) return
         }
         throw CapacityReached()
     }

@@ -68,6 +68,9 @@ Look for:
   `playback-ended`, `android-low-storage`, and `hls-uncached-seek`.
 - `delete reason=more-than-five-minutes-behind` or `capacity-player-demand`: bounded
   individual-range eviction, with remaining size.
+- `storage limit reached; background pre-load stopped storedBytes=… limitBytes=…
+  freeBytes=… reserveBytes=…`: capacity reached. Stored video stays available;
+  the physical-space check includes 1 MiB of cache/filesystem bookkeeping headroom.
 
 The startup cleanup also removes force-stop/crash leftovers before another player
 can open a cache. Before a new item gets a store, the old worker closes and deletion
@@ -133,7 +136,7 @@ Measured results:
   and the directory was absent within **1,227 ms**. Both are inside the five-second
   acceptance window. Stop reports were acknowledged with HTTP 200.
 
-### Open C6 defect: reserve handling purges the cache near capacity
+### C6 defect found in the first test (resolved below)
 
 The longer first run calculated a **430,670,080-byte** payload budget. At
 **429,798,546 bytes**, **02:59:36.337 EST**, it logged:
@@ -145,14 +148,52 @@ delete reason=low-storage-reserve bytes=429798546 storedBytes=0
 That deletion happened before the requested stop test, so it was not counted as a
 successful normal-stop deletion. The later shorter runs above isolated that case.
 
-`PreloadSession.ensureRoom()` checks `freeBytes < reserve + incomingFragment`
+The original `PreloadSession.ensureRoom()` checked `freeBytes < reserve + incomingFragment`
 **before** capacity eviction/pause logic. Cache/index/filesystem overhead or other
 storage use can therefore reach this check before the payload budget. It treats
 an incoming write that would breach the reserve as a reason to delete the entire
 item and fall back to normal playback. **This differs from C6's normal capacity
 behavior: evict over-five-minute-old data, then retain the item and pause speculative
-pre-loading if still full.** The behavior remains unfixed in this test-only change.
-It should be corrected and exercised on the Shield before expanding the beta.
+pre-loading if still full.** This was left open by the initial test-only change;
+the correction and Shield retest follow.
+
+### C6 capacity correction and Shield retest — 2026-11-07
+
+`ensureRoom()` now distinguishes an already-breached reserve from insufficient
+room for the next write. The latter uses the normal capacity path: evict data over
+five minutes behind, recheck both payload and physical headroom, then stop background
+pre-loading while retaining the item. A 1 MiB write allowance accounts for cache/index
+and filesystem metadata without increasing the payload budget. Urgent player writes
+also recheck physical headroom after eviction. Actual free space below the reserve,
+and Android low-storage notifications, still close and delete the store.
+
+All **15 focused checks passed**: four fallback checks followed by eleven enabled
+checks. Two new regressions exercise physical capacity below the payload budget,
+retained cached reads, and eviction of data over five minutes behind before pausing.
+The manager fixture warms its fake server connection before the three-second hello
+check, matching the app's preceding Jellyfin metadata traffic. The arm64 Alpha built
+successfully in **1m 22s** and installed in place on the owner's Shield (`Success`).
+
+Real-pacer retest: **Justin M / SHIELD / ExoPlayer / DirectPlay**, same episode.
+Hello returned HTTP 200 and the app logged `capability=v1; backend=ExoPlayer`.
+
+- At **04:09:40.960 EST**, background pre-loading stopped with **512,898,194 bytes**
+  stored, a **514,736,384-byte** payload limit, and **1,501,167,616 bytes** free
+  against the **1,500,000,000-byte** reserve. No low-storage purge occurred.
+- The cache stayed at **512,898,194 bytes** during the following 15-second hold,
+  with about **2,908 seconds** reported ahead, and remained present after the seek.
+- A 120-second forward seek from approximately 204.45 s to 324.45 s was beyond
+  the 258.27 s in-memory buffer endpoint and inside the stored range. Seek logged
+  **04:09:58.204 EST**, READY **04:09:58.431 EST**: **227 ms**.
+- Normal stop logged **04:10:01.699 EST**:
+  `delete reason=player-left bytes=512898194 storedBytes=0`. The cache directory
+  disappeared within **1,382 ms** of the stop command. The stopped report was
+  acknowledged with HTTP 200.
+- There were 45 successful report acknowledgements. Most periodic dispatches were
+  approximately five seconds apart; one pair of successful acknowledgements had a
+  ten-second dispatch gap. Only successful responses are logged, so this does not
+  prove every scheduled report was delivered. Reporting remains advisory with the
+  existing three-second control timeout; this capacity fix does not change it.
 
 Live HLS/transcode ordering, two-TV scheduler priority and a five-minute network
 outage were not exercised in this direct-play test. Earlier fake-pacer coverage is

@@ -67,6 +67,9 @@ internal object PreloadPolicy {
     const val CHUNK = 8L * 1024 * 1024
     const val FRAGMENT = 256 * 1024
     const val MINIMUM = 300L * 1000 * 1000
+    // A committed fragment also allocates cache/index/filesystem metadata. Keep this
+    // write allowance above the specified reserve; it is not extra payload capacity.
+    const val WRITE_OVERHEAD_HEADROOM = 1024L * 1024
     fun budget(free: Long, total: Long): Long =
         minOf(4_000_000_000L, (free - maxOf(1_500_000_000L, total / 10)).coerceAtLeast(0))
 

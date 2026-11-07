@@ -39,6 +39,11 @@ import java.util.concurrent.atomic.AtomicInteger
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, sdk = [28])
 class PreloadManagerEnabledTest {
+    private val diagnostics = object : timber.log.Timber.Tree() {
+        override fun log(priority: Int, tag: String?, message: String, t: Throwable?) { println("$tag: $message") }
+    }
+    @org.junit.Before fun startDiagnostics() { timber.log.Timber.plant(diagnostics) }
+    @org.junit.After fun stopDiagnostics() { timber.log.Timber.uproot(diagnostics) }
     @Test(timeout = 30_000) fun `enabled factory owns one item and low-storage deletion resumes an open reader on the original network path`() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Application>()
         Shadows.shadowOf(context).grantPermissions(context.packageName + ".DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION")
@@ -48,6 +53,7 @@ class PreloadManagerEnabledTest {
         val tagged = AtomicInteger()
         val normal = AtomicInteger()
         val data = ByteArray(1024) { (it % 127).toByte() }
+        server.createContext("/ready") { e -> e.sendResponseHeaders(200, -1); e.close() }
         server.createContext("/weaselplex/pacer/v1/hello") { e ->
             hello.incrementAndGet()
             val body = """{"version":1,"reportIntervalSec":5}""".toByteArray()
@@ -72,7 +78,11 @@ class PreloadManagerEnabledTest {
         val api = mockk<ApiClient>(relaxed = true)
         every { api.baseUrl } returns base
         every { api.accessToken } returns "fake-token"
-        val manager = PreloadManager(context, OkHttpClient(), api,
+        val client = OkHttpClient()
+        // Real playback has already used this client for Jellyfin metadata before hello.
+        // Warm network class loading outside the deliberately strict three-second probe.
+        client.newCall(okhttp3.Request.Builder().url("$base/ready").build()).execute().close()
+        val manager = PreloadManager(context, client, api,
             mockk<ClientInfo> { every { name } returns "test"; every { version } returns "1" },
             mockk<DeviceInfo> { every { id } returns "id"; every { name } returns "device" })
         val source = manager.dataSources().createDataSource()
