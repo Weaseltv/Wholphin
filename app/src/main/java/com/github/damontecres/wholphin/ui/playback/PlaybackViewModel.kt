@@ -154,6 +154,7 @@ class PlaybackViewModel
         private val playerFactory: PlayerFactory,
         private val preloadManager: com.github.damontecres.wholphin.services.preload.PreloadManager,
         private val datePlayedService: DatePlayedService,
+        private val latestNextUpService: com.github.damontecres.wholphin.services.LatestNextUpService,
         private val deviceInfo: DeviceInfo,
         private val deviceProfileService: DeviceProfileService,
         private val refreshRateService: RefreshRateService,
@@ -538,6 +539,7 @@ class PlaybackViewModel
                 viewModelScope.launchIO {
                     // Starting playback, so want to invalidate the last played timestamp for this item
                     datePlayedService.invalidate(item)
+
                 }
 
                 if (item.type !in supportItemKinds) {
@@ -697,6 +699,22 @@ class PlaybackViewModel
                     )
                     player.prepare()
                     player.play()
+                }
+                val playbackOwner = serverRepository.current.value
+                viewModelScope.launchIO {
+                    if (playbackOwner != null && item.type == BaseItemKind.EPISODE) {
+                        item.data.seriesId?.let { seriesId ->
+                            try {
+                                latestNextUpService.reengageSeries(playbackOwner.user.id, seriesId) {
+                                    serverRepository.current.value == playbackOwner && kidContentGuard.isCurrent(permit)
+                                }
+                            } catch (ex: kotlinx.coroutines.CancellationException) {
+                                throw ex
+                            } catch (ex: Exception) {
+                                Timber.w(ex, "Could not restore shared Next Up dismissal after playback started")
+                            }
+                        }
+                    }
                 }
                 listenForSegments(item.id)
                 return@withContext true

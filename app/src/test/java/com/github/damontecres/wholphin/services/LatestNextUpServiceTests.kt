@@ -48,10 +48,9 @@ class LatestNextUpServiceTests {
     private val mockTvShowsApi = mockk<TvShowsApi>()
     private val mockDatePlayedService = mockk<DatePlayedService>()
     private val mockDisplayPreferencesService = mockk<DisplayPreferencesService>()
-    private val mockFavoriteWatchManager = mockk<FavoriteWatchManager>(relaxed = true)
 
     private val latestNextUpService =
-        LatestNextUpService(mockApi, mockDatePlayedService, mockDisplayPreferencesService, mockFavoriteWatchManager)
+        LatestNextUpService(mockApi, mockDatePlayedService, mockDisplayPreferencesService)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Before
@@ -82,7 +81,7 @@ class LatestNextUpServiceTests {
     fun `Test seriesId1 is filtered out`() =
         runTest {
             coEvery { mockTvShowsApi.getNextUp(any() as GetNextUpRequest) } returns mockResponse
-            coEvery { mockDisplayPreferencesService.getDisplayPreferences(any()) } returns
+            coEvery { mockDisplayPreferencesService.getDisplayPreferences(any(), any(), any()) } returns
                 buildRemoved(seriesId1 to LocalDateTime.now().minusDays(1))
             val result = latestNextUpService.getNextUp(userId, 20, false, false, 0)
             Assert.assertEquals(2, result.size)
@@ -95,7 +94,7 @@ class LatestNextUpServiceTests {
     fun `Test seriesId2 is filtered out`() =
         runTest {
             coEvery { mockTvShowsApi.getNextUp(any() as GetNextUpRequest) } returns mockResponse
-            coEvery { mockDisplayPreferencesService.getDisplayPreferences(any()) } returns
+            coEvery { mockDisplayPreferencesService.getDisplayPreferences(any(), any(), any()) } returns
                 buildRemoved(seriesId2 to LocalDateTime.now().minusDays(1))
             val result = latestNextUpService.getNextUp(userId, 20, false, false, 0)
             Assert.assertEquals(2, result.size)
@@ -108,7 +107,7 @@ class LatestNextUpServiceTests {
     fun `Test seriesId1 and seriesId2 are filtered out`() =
         runTest {
             coEvery { mockTvShowsApi.getNextUp(any() as GetNextUpRequest) } returns mockResponse
-            coEvery { mockDisplayPreferencesService.getDisplayPreferences(any()) } returns
+            coEvery { mockDisplayPreferencesService.getDisplayPreferences(any(), any(), any()) } returns
                 buildRemoved(
                     seriesId1 to LocalDateTime.now().minusDays(1),
                     seriesId2 to LocalDateTime.now().minusDays(1),
@@ -124,7 +123,7 @@ class LatestNextUpServiceTests {
     fun buildRemoved(vararg values: Pair<UUID, LocalDateTime>): DisplayPreferencesDto =
         testDisplayPreferencesDto.copy(
             customPrefs =
-                mutableMapOf<String, String?>().apply {
+                mutableMapOf<String, String?>(LatestNextUpService.SHARED_MIGRATION_KEY to "1").apply {
                     val str = Json.encodeToString(RemovedSeriesIds(values.toMap()))
                     put(LatestNextUpService.REMOVED_KEY, str)
                 },

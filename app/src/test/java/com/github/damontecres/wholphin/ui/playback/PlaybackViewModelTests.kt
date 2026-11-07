@@ -129,6 +129,7 @@ class PlaybackViewModelTests {
             playerFactory = mockPlayerFactory,
             preloadManager = mockk(relaxed = true),
             datePlayedService = mockDatePlayedService,
+            latestNextUpService = mockk(relaxed = true),
             deviceInfo = mockDeviceInfo,
             deviceProfileService = mockDeviceProfileService,
             refreshRateService = mockRefreshRateService,
