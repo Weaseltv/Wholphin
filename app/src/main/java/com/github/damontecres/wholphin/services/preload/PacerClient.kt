@@ -1,5 +1,7 @@
 package com.github.damontecres.wholphin.services.preload
 
+import com.github.damontecres.wholphin.BuildConfig
+import timber.log.Timber
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -42,9 +44,15 @@ internal class PacerClient(
     }
 
     fun report(body: String) {
+        val dispatchedNs = System.nanoTime()
         try {
             control.newCall(request("report")
-                .post(body.toRequestBody("application/json".toMediaType())).build()).execute().close()
+                .post(body.toRequestBody("application/json".toMediaType())).build()).execute().use { response ->
+                if (BuildConfig.DEBUG && response.isSuccessful) {
+                    // Diagnostic evidence for Alpha real-pacer testing. No auth or URLs.
+                    Timber.tag("PreloadReport").i("ack HTTP=%d dispatchElapsedMs=%d responseMs=%d %s", response.code, dispatchedNs / 1_000_000, (System.nanoTime() - dispatchedNs) / 1_000_000, body)
+                }
+            }
         } catch (_: IOException) {
             // Reports are advisory. No toast, log noise, or playback failure.
         }

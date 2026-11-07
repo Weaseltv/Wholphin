@@ -95,3 +95,65 @@ Real pacer behavior, two-TV priority, network-disconnect playback and actual ser
 transcode cleanup await the server's test-mode signal. Two remote beta users and
 one week of stall/storage observation precede any stable release; stable publication
 requires explicit owner authorization.
+
+## Real-pacer Shield test — 2026-11-07
+
+Owner explicitly authorized device playback/control for this test. All work stayed
+on ThinkCentre. The live pacer supports Justin M only; no server/Jellyfin/nginx
+configuration was changed. The installed test Alpha includes DEBUG-only successful
+report acknowledgements (dispatch/response timing) and player state/seek logging.
+Headers, endpoints, JSON fields and failure handling are unchanged.
+
+Tested **Justin M → SHIELD → WeaselPlex Alpha → ExoPlayer → DirectPlay**, using
+The Boys / King of Hell. Current saved user and the normal Jellyfin playback session
+both confirmed Justin M. Capability logged `capability=v1; backend=ExoPlayer`.
+The public `/status` endpoint returned 404 from this worker; acknowledgement logs
+were used instead of claiming access to the server's LAN-only scheduler view.
+
+Measured results:
+
+- Successful `/report` HTTP 200 responses. In a separate uninterrupted sample,
+  six periodic client-dispatch intervals were **5.000, 5.001, 4.999, 5.026, 5.285,
+  4.688 seconds** (startup's immediate reports excluded). All ten reports in that
+  sample, including startup and stop, were acknowledged. Response latency was
+  **228–362 ms**. Network acknowledgement timestamps alone had appeared irregular
+  in the preceding run, which is why dispatch timestamps were added.
+- Controlled seek/stop run: `bytesStored` reached **132,854,706 bytes**, with
+  **629 seconds** reported continuously ahead. While paused, position held near
+  235.66 s and stored bytes advanced from 80,688,050 to 91,960,242.
+- A **120-second forward seek**, beyond the roughly 52-second in-memory buffer
+  and inside the stored range, logged seek at **03:09:00.719 EST** and READY at
+  **03:09:01.167 EST**: **448 ms**. A brief BUFFERING state occurred; this is a
+  measured sub-second seek, not a claim of a literally zero-delay transition.
+  Reported rebuffer-event count remained zero in this controlled run.
+- Stop: **03:09:10.416 EST** logged
+  `delete reason=player-left bytes=132854706 storedBytes=0`. The `preload/`
+  directory was absent within **2,231 ms** of sending the stop command, including
+  remote-command latency and polling. A second normal stop deleted 76,232,968 bytes
+  and the directory was absent within **1,227 ms**. Both are inside the five-second
+  acceptance window. Stop reports were acknowledged with HTTP 200.
+
+### Open C6 defect: reserve handling purges the cache near capacity
+
+The longer first run calculated a **430,670,080-byte** payload budget. At
+**429,798,546 bytes**, **02:59:36.337 EST**, it logged:
+
+```text
+delete reason=low-storage-reserve bytes=429798546 storedBytes=0
+```
+
+That deletion happened before the requested stop test, so it was not counted as a
+successful normal-stop deletion. The later shorter runs above isolated that case.
+
+`PreloadSession.ensureRoom()` checks `freeBytes < reserve + incomingFragment`
+**before** capacity eviction/pause logic. Cache/index/filesystem overhead or other
+storage use can therefore reach this check before the payload budget. It treats
+an incoming write that would breach the reserve as a reason to delete the entire
+item and fall back to normal playback. **This differs from C6's normal capacity
+behavior: evict over-five-minute-old data, then retain the item and pause speculative
+pre-loading if still full.** The behavior remains unfixed in this test-only change.
+It should be corrected and exercised on the Shield before expanding the beta.
+
+Live HLS/transcode ordering, two-TV scheduler priority and a five-minute network
+outage were not exercised in this direct-play test. Earlier fake-pacer coverage is
+separate evidence, not a substitute for those live acceptance cases.

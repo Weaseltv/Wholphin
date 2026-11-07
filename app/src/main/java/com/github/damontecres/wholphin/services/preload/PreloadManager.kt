@@ -254,6 +254,9 @@ class PreloadManager @Inject constructor(
     }
     private val listener = object : Player.Listener {
         override fun onPlaybackStateChanged(playbackState: Int) {
+            if (com.github.damontecres.wholphin.BuildConfig.DEBUG && session != null) {
+                Timber.tag("PreloadPlayer").i("state=%d positionMs=%d", playbackState, attached?.currentPosition ?: -1)
+            }
             if (playbackState == Player.STATE_READY) { seenReady = true; seeking = false }
             if (playbackState == Player.STATE_BUFFERING && seenReady && !seeking && attached?.playWhenReady == true) session?.rebuffer()
             if (playbackState == Player.STATE_ENDED) stop("playback-ended")
@@ -264,6 +267,9 @@ class PreloadManager @Inject constructor(
         }
         override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
             if (reason == Player.DISCONTINUITY_REASON_SEEK || reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT) {
+                if (com.github.damontecres.wholphin.BuildConfig.DEBUG && session != null) {
+                    Timber.tag("PreloadPlayer").i("seek positionMs=%d", newPosition.positionMs)
+                }
                 seeking = true
                 session?.seek(newPosition.positionMs / 1000.0)
             }
