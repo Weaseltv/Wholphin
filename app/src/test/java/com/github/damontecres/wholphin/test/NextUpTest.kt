@@ -6,7 +6,6 @@ import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.updateHomePagePreferences
 import com.github.damontecres.wholphin.services.DatePlayedService
 import com.github.damontecres.wholphin.services.DisplayPreferencesService
-import com.github.damontecres.wholphin.services.FavoriteWatchManager
 import com.github.damontecres.wholphin.services.LatestNextUpService
 import com.github.damontecres.wholphin.services.mockQueryResult
 import com.github.damontecres.wholphin.services.testDisplayPreferencesDto
@@ -37,14 +36,12 @@ class NextUpTest {
     private val mockApi = mockk<ApiClient>(relaxed = true)
     private val mockDatePlayedService = mockk<DatePlayedService>()
     private val mockDisplayPreferencesService = mockk<DisplayPreferencesService>()
-    private val mockFavoriteWatchManager = mockk<FavoriteWatchManager>(relaxed = true)
 
     private val latestNextUpService =
         LatestNextUpService(
             mockApi,
             mockDatePlayedService,
             mockDisplayPreferencesService,
-            mockFavoriteWatchManager,
         )
 
     @Before
@@ -56,7 +53,7 @@ class NextUpTest {
                 any(),
                 any(),
             )
-        } returns testDisplayPreferencesDto
+        } returns testDisplayPreferencesDto.copy(customPrefs = mapOf(LatestNextUpService.SHARED_MIGRATION_KEY to "1"))
     }
 
     @Test

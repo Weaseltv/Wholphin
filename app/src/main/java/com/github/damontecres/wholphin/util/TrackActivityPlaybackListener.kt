@@ -34,6 +34,8 @@ class TrackActivityPlaybackListener(
     private val player: Player,
     private val getState: () -> PlaybackItemState?,
     private val getVolume: suspend () -> VolumeState? = { null },
+    // Pre-loading may start/continue while paused at position zero. Keep that transcode alive.
+    private val reportFromStart: Boolean = false,
 ) : Player.Listener {
     private val coroutineScope = CoroutineScope(WholphinDispatchers.Main)
     private val task: TimerTask =
@@ -49,8 +51,10 @@ class TrackActivityPlaybackListener(
 
     @Volatile
     private var initialized = false
+    private val preloadStart = java.util.concurrent.atomic.AtomicBoolean(false)
 
     fun init() {
+        if (reportFromStart && !preloadStart.compareAndSet(false, true)) return
         launch("reportPlaybackStart") {
             getState.invoke()?.let { state ->
                 Timber.v("reportPlaybackStart for ${state.itemId}")
@@ -126,7 +130,7 @@ class TrackActivityPlaybackListener(
                     withContext(WholphinDispatchers.Main) {
                         (if (position >= 0) position else player.currentPosition)
                     }
-                if (calcPosition > 0) {
+                if (calcPosition > 0 || (reportFromStart && calcPosition == 0L)) {
                     val isPaused = withContext(WholphinDispatchers.Main) { !player.isPlaying }
                     val volume = volumeOrNull()
                     Timber.v("saveActivity: itemId=${state.itemId}, pos=$calcPosition")

@@ -11,7 +11,9 @@ import com.github.damontecres.wholphin.util.LocalDateTimeSerializer
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -29,6 +31,7 @@ import org.jellyfin.sdk.model.api.request.GetResumeItemsRequest
 import org.jellyfin.sdk.model.serializer.UUIDSerializer
 import timber.log.Timber
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -44,8 +47,10 @@ class LatestNextUpService
         private val api: ApiClient,
         private val datePlayedService: DatePlayedService,
         private val displayPreferencesService: DisplayPreferencesService,
-        private val favoriteWatchManager: FavoriteWatchManager,
     ) {
+        private val migrationMutex = Mutex()
+        private val migratedAccounts = mutableSetOf<String>()
+
         /**
          * Get resume (continue watching) items for a user
          */
@@ -70,7 +75,11 @@ class LatestNextUpService
                     .content
                     .items
                     .map { BaseItem(it, useSeriesForPrimary) }
-            return items
+            val removed = getRemovedFromNextUp(userId)
+            return items.filter { item ->
+                val removedAt = item.data.seriesId?.let(removed::get)
+                removedAt == null || item.data.userData?.lastPlayedDate?.let { it > removedAt } == true
+            }
         }
 
         /**
@@ -171,16 +180,17 @@ class LatestNextUpService
             userId: UUID,
             episode: BaseItem,
         ) {
-            favoriteWatchManager.setWatched(episode.id, false)
+            // A dismissal changes the rail, not the member's watch history/resume point.
             episode.data.seriesId?.let { seriesId ->
-                displayPreferencesService.updateDisplayPreferences(userId) {
+                migrateAlphaRemovals(userId)
+                displayPreferencesService.updateDisplayPreferences(userId, client = SHARED_CLIENT) {
                     val removedIds =
                         get(REMOVED_KEY)
                             ?.let {
                                 Json.decodeFromString<RemovedSeriesIds>(it).value
                             }.orEmpty()
                             .toMutableMap()
-                    removedIds[seriesId] = LocalDateTime.now()
+                    removedIds[seriesId] = LocalDateTime.now(ZoneOffset.UTC)
                     put(
                         REMOVED_KEY,
                         Json.encodeToString(RemovedSeriesIds(removedIds)),
@@ -192,19 +202,52 @@ class LatestNextUpService
         /**
          * Get when series were removed from next up
          */
-        suspend fun getRemovedFromNextUp(userId: UUID): Map<UUID, LocalDateTime> =
-            displayPreferencesService
-                .getDisplayPreferences(userId)
+        suspend fun getRemovedFromNextUp(userId: UUID): Map<UUID, LocalDateTime> {
+            migrateAlphaRemovals(userId)
+            return displayPreferencesService
+                .getDisplayPreferences(userId, client = SHARED_CLIENT)
                 .customPrefs[REMOVED_KEY]
                 ?.let {
                     Json.decodeFromString<RemovedSeriesIds>(it).value
                 }.orEmpty()
+        }
+
+        /** Import the old Alpha namespace once; never merge it back after a restore. */
+        private suspend fun migrateAlphaRemovals(userId: UUID) {
+            if (DisplayPreferencesService.DEFAULT_CLIENT == SHARED_CLIENT) return
+            migrationMutex.withLock {
+                val account = "${api.baseUrl}|$userId"
+                if (account in migratedAccounts) return
+                val legacy = displayPreferencesService.getDisplayPreferences(userId)
+                if (legacy.customPrefs[SHARED_MIGRATION_KEY] != "1") {
+                    val old = legacy.customPrefs[REMOVED_KEY]?.let {
+                        Json.decodeFromString<RemovedSeriesIds>(it).value
+                    }.orEmpty()
+                    if (old.isNotEmpty()) {
+                        displayPreferencesService.updateDisplayPreferences(userId, client = SHARED_CLIENT) {
+                            val merged = get(REMOVED_KEY)?.let {
+                                Json.decodeFromString<RemovedSeriesIds>(it).value
+                            }.orEmpty().toMutableMap()
+                            old.forEach { (id, date) ->
+                                if (merged[id]?.let { it >= date } != true) merged[id] = date
+                            }
+                            put(REMOVED_KEY, Json.encodeToString(RemovedSeriesIds(merged)))
+                        }
+                    }
+                    displayPreferencesService.updateDisplayPreferences(userId) {
+                        put(SHARED_MIGRATION_KEY, "1")
+                    }
+                }
+                migratedAccounts.add(account)
+            }
+        }
 
         suspend fun allowSeriesRemovedFromNextUp(
             userId: UUID,
             seriesId: UUID,
         ) {
-            displayPreferencesService.updateDisplayPreferences(userId) {
+            migrateAlphaRemovals(userId)
+            displayPreferencesService.updateDisplayPreferences(userId, client = SHARED_CLIENT) {
                 val ids =
                     get(REMOVED_KEY)
                         ?.let {
@@ -216,6 +259,17 @@ class LatestNextUpService
                     REMOVED_KEY,
                     Json.encodeToString(RemovedSeriesIds(ids)),
                 )
+            }
+        }
+
+        suspend fun reengageSeries(
+            userId: UUID,
+            seriesId: UUID,
+            stillValid: () -> Boolean = { true },
+        ) {
+            if (!stillValid()) return
+            if (seriesId in getRemovedFromNextUp(userId) && stillValid()) {
+                allowSeriesRemovedFromNextUp(userId, seriesId)
             }
         }
 
@@ -259,10 +313,18 @@ class LatestNextUpService
                 }
             }
             if (changed && stillValid()) {
-                displayPreferencesService.updateDisplayPreferences(userId) {
+                displayPreferencesService.updateDisplayPreferences(userId, client = SHARED_CLIENT) {
+                    // The scan may have overlapped a new dismissal on another device.
+                    // Remove only entries whose timestamp still matches the scanned one.
+                    val current = get(REMOVED_KEY)?.let {
+                        Json.decodeFromString<RemovedSeriesIds>(it).value
+                    }.orEmpty().toMutableMap()
+                    removed.filterKeys { it !in newRemoved }.forEach { (id, timestamp) ->
+                        if (current[id] == timestamp) current.remove(id)
+                    }
                     put(
                         REMOVED_KEY,
-                        Json.encodeToString(RemovedSeriesIds(newRemoved)),
+                        Json.encodeToString(RemovedSeriesIds(current)),
                     )
                 }
             }
@@ -270,6 +332,9 @@ class LatestNextUpService
 
         companion object {
             const val REMOVED_KEY = "removeNextUp"
+            // Existing customer TV storage, also used by WeaselPlex iOS/Android phone.
+            const val SHARED_CLIENT = "Wholphin"
+            const val SHARED_MIGRATION_KEY = "removeNextUpSharedMigration"
         }
     }
 

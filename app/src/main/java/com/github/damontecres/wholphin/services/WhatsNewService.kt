@@ -33,6 +33,13 @@ private val notes1244 =
 
 internal val WhatsNewNotes: Map<String, List<String>> =
     mapOf(
+        "1.2.46" to
+            listOf(
+                "On supported servers, your TV downloads video ahead to help avoid buffering when your connection gets busy.",
+                "Seek within pre-loaded video without downloading that part again.",
+                "Stored video stays available when the pre-load limit is reached, then clears when you finish or leave the player.",
+                "Continue Watching removals now share your account's list across TV, Alpha and updated phone apps.",
+            ),
         // Owner 2026-11-04: v1.2.45 keeps v1.2.44's notes, since most viewers had not updated to v1.2.44 yet.
         "1.2.45" to notes1244,
         "1.2.44" to notes1244,
