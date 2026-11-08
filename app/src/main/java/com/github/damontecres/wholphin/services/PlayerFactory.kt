@@ -123,10 +123,12 @@ class PlayerFactory
                                 renderersFactory = AssRenderersFactory(assHandler, renderersFactory)
                                 DefaultMediaSourceFactory(
                                     dataSourceFactory,
-                                    preloadManager.extractors(extractorsFactory.withAssMkvSupport(
-                                        assSubtitleParserFactory,
-                                        assHandler,
-                                    )),
+                                    preloadManager.extractors(
+                                        extractorsFactory.withAssMkvSupport(
+                                            assSubtitleParserFactory,
+                                            assHandler,
+                                        ),
+                                    ),
                                 ).setSubtitleParserFactory(assSubtitleParserFactory)
                             } else {
                                 DefaultMediaSourceFactory(
@@ -150,6 +152,7 @@ class PlayerFactory
                             .setMediaSourceFactory(mediaSourceFactory)
                             .setRenderersFactory(renderersFactory)
                             .setTrackSelector(trackSelector)
+                            .setLoadControl(videoLoadControl())
                             .build()
                             .apply {
                                 assHandler?.init(this)
@@ -217,6 +220,21 @@ class PlayerFactory
                     )
                 }
         }
+
+        /**
+         * Media3 defaults, except that after a mid-playback stall the player waits for 10 s of
+         * buffer instead of 2 s. Resuming on 2 s on a link slower than the video gives a
+         * "load 1 s, play 2 s" loop. Start-up and seeks still begin after 1 s.
+         */
+        private fun videoLoadControl() =
+            androidx.media3.exoplayer.DefaultLoadControl
+                .Builder()
+                .setBufferDurationsMs(
+                    androidx.media3.exoplayer.DefaultLoadControl.DEFAULT_MIN_BUFFER_MS,
+                    androidx.media3.exoplayer.DefaultLoadControl.DEFAULT_MAX_BUFFER_MS,
+                    androidx.media3.exoplayer.DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS,
+                    10_000,
+                ).build()
 
         private fun createExtractorsFactory() =
             DefaultExtractorsFactory()

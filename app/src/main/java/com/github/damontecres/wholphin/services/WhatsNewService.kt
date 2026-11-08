@@ -33,6 +33,13 @@ private val notes1244 =
 
 internal val WhatsNewNotes: Map<String, List<String>> =
     mapOf(
+        "1.2.47" to
+            listOf(
+                "Fixed playback that kept stopping to load on some TVs while video was downloading ahead.",
+                "Your TV keeps downloading ahead for the whole show, even after its storage space fills up.",
+                "After a pause to load, playback now waits until there's enough video to keep going.",
+                "If downloading ahead isn't keeping up, your TV switches to normal streaming automatically.",
+            ),
         "1.2.46" to
             listOf(
                 "On supported servers, your TV downloads video ahead to help avoid buffering when your connection gets busy.",
