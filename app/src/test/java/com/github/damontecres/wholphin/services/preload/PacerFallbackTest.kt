@@ -1,9 +1,11 @@
 package com.github.damontecres.wholphin.services.preload
 
 import com.sun.net.httpserver.HttpServer
-import okhttp3.OkHttpClient
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import org.junit.Assert.*
+import okhttp3.OkHttpClient
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.net.InetSocketAddress
 import java.util.concurrent.atomic.AtomicInteger
@@ -24,7 +26,9 @@ class PacerFallbackTest {
                 val client = PacerClient(OkHttpClient(), "http://127.0.0.1:${server.address.port}".toHttpUrl(), "MediaBrowser test-token")
                 assertFalse(client.hello())
                 assertEquals(1, count.get())
-            } finally { server.stop(0) }
+            } finally {
+                server.stop(0)
+            }
         }
     }
 
@@ -45,6 +49,9 @@ class PacerFallbackTest {
             val elapsed = (System.nanoTime() - start) / 1e9
             assertTrue("deadline elapsed=$elapsed seconds", elapsed < 5.0)
             assertEquals(1, count.get())
-        } finally { release.countDown(); server.stop(0) }
+        } finally {
+            release.countDown()
+            server.stop(0)
+        }
     }
 }

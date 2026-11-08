@@ -539,7 +539,6 @@ class PlaybackViewModel
                 viewModelScope.launchIO {
                     // Starting playback, so want to invalidate the last played timestamp for this item
                     datePlayedService.invalidate(item)
-
                 }
 
                 if (item.type !in supportItemKinds) {

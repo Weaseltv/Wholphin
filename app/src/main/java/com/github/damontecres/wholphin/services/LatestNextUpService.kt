@@ -78,7 +78,9 @@ class LatestNextUpService
             val removed = getRemovedFromNextUp(userId)
             return items.filter { item ->
                 val removedAt = item.data.seriesId?.let(removed::get)
-                removedAt == null || item.data.userData?.lastPlayedDate?.let { it > removedAt } == true
+                removedAt == null || item.data.userData
+                    ?.lastPlayedDate
+                    ?.let { it > removedAt } == true
             }
         }
 
@@ -220,14 +222,19 @@ class LatestNextUpService
                 if (account in migratedAccounts) return
                 val legacy = displayPreferencesService.getDisplayPreferences(userId)
                 if (legacy.customPrefs[SHARED_MIGRATION_KEY] != "1") {
-                    val old = legacy.customPrefs[REMOVED_KEY]?.let {
-                        Json.decodeFromString<RemovedSeriesIds>(it).value
-                    }.orEmpty()
+                    val old =
+                        legacy.customPrefs[REMOVED_KEY]
+                            ?.let {
+                                Json.decodeFromString<RemovedSeriesIds>(it).value
+                            }.orEmpty()
                     if (old.isNotEmpty()) {
                         displayPreferencesService.updateDisplayPreferences(userId, client = SHARED_CLIENT) {
-                            val merged = get(REMOVED_KEY)?.let {
-                                Json.decodeFromString<RemovedSeriesIds>(it).value
-                            }.orEmpty().toMutableMap()
+                            val merged =
+                                get(REMOVED_KEY)
+                                    ?.let {
+                                        Json.decodeFromString<RemovedSeriesIds>(it).value
+                                    }.orEmpty()
+                                    .toMutableMap()
                             old.forEach { (id, date) ->
                                 if (merged[id]?.let { it >= date } != true) merged[id] = date
                             }
@@ -316,9 +323,12 @@ class LatestNextUpService
                 displayPreferencesService.updateDisplayPreferences(userId, client = SHARED_CLIENT) {
                     // The scan may have overlapped a new dismissal on another device.
                     // Remove only entries whose timestamp still matches the scanned one.
-                    val current = get(REMOVED_KEY)?.let {
-                        Json.decodeFromString<RemovedSeriesIds>(it).value
-                    }.orEmpty().toMutableMap()
+                    val current =
+                        get(REMOVED_KEY)
+                            ?.let {
+                                Json.decodeFromString<RemovedSeriesIds>(it).value
+                            }.orEmpty()
+                            .toMutableMap()
                     removed.filterKeys { it !in newRemoved }.forEach { (id, timestamp) ->
                         if (current[id] == timestamp) current.remove(id)
                     }
@@ -332,6 +342,7 @@ class LatestNextUpService
 
         companion object {
             const val REMOVED_KEY = "removeNextUp"
+
             // Existing customer TV storage, also used by WeaselPlex iOS/Android phone.
             const val SHARED_CLIENT = "Wholphin"
             const val SHARED_MIGRATION_KEY = "removeNextUpSharedMigration"
