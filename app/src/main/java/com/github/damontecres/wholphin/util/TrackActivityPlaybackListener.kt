@@ -51,7 +51,9 @@ class TrackActivityPlaybackListener(
 
     @Volatile
     private var initialized = false
-    private val preloadStart = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val preloadStart =
+        java.util.concurrent.atomic
+            .AtomicBoolean(false)
 
     fun init() {
         if (reportFromStart && !preloadStart.compareAndSet(false, true)) return

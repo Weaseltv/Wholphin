@@ -71,6 +71,18 @@ Look for:
 - `storage limit reached; background pre-load stopped storedBytes=… limitBytes=…
   freeBytes=… reserveBytes=…`: capacity reached. Stored video stays available;
   the physical-space check includes 1 MiB of cache/filesystem bookkeeping headroom.
+- `background pre-load resumed …`: watched data made room again; read-ahead continues.
+- `session item=… budgetBytes=… freeBytes=… totalBytes=… device=…`: one line per item
+  with the storage budget and the TV model.
+- `fetch chunk|segment|playlist kind=… range=start+length demand=… bufferedHdr=…
+  firstByteMs=… bytes=… ms=… result=ok|canceled|capacity|abandoned|error:…`: one line
+  per video request, i.e. what the pacer saw from this TV.
+- The five-second status line also has `positionSec`, `background=on|paused-capacity`,
+  `receivedMbps`, and `writes/writeAvgMs/writeMaxMs` (time to store each fragment).
+- `rebuffer positionSec=… bufferedAheadSec=… storedBytes=… background=… recentStalls=…`.
+- `falling back to normal streaming: <reason>`: pre-load ended for this item and the
+  player continued over plain streaming. Reasons: `repeated-stalls`, `preload-failed`
+  (a direct chunk failed twice), `worker-error`, `low-storage-reserve`.
 
 The startup cleanup also removes force-stop/crash leftovers before another player
 can open a cache. Before a new item gets a store, the old worker closes and deletion
@@ -198,3 +210,48 @@ Hello returned HTTP 200 and the app logged `capability=v1; backend=ExoPlayer`.
 Live HLS/transcode ordering, two-TV scheduler priority and a five-minute network
 outage were not exercised in this direct-play test. Earlier fake-pacer coverage is
 separate evidence, not a substitute for those live acceptance cases.
+
+## Remote stall report ("Garage TV") and fixes — 2026-11-07
+
+Report: Phil M / Garage TV / 1.2.46, Earnhardt S01E01 (HEVC Main 10, E-AC3 5.1, ASS),
+4:41–4:48 PM: a "load 1 s, play 2 s" loop, 3–4.5 Mbit/s received of a 20 Mbit/s pacer
+limit, stored video under 30 s. No log from his TV was available.
+
+Reproduced his sequence on the Shield (Justin M, Alpha with the 1.2.46 pre-load code):
+
+- **Ruled out: earlier items' stored video.** Every item switch logged
+  `delete reason=player-left … storedBytes=0`, and each new item got the same limit.
+  Only one item is ever stored.
+- **Worker crash (fixed).** In 2 of 4 plays the worker logged `worker stopped:
+  IllegalStateException at PreloadStore.write`. The player's read-only
+  CacheDataSource briefly takes the cache hole lock when it opens a read at the write
+  frontier; the worker treated that as a second writer and died. Playback then drained
+  its in-memory buffer, failed with `Pre-load reader ended`, and fell back to an HLS
+  transcode. The writer now waits out the brief lock; any worker failure now continues
+  over normal streaming instead of failing playback.
+- **Slow cache writes (fixed).** Storing one 256 KB fragment averaged 25–90 ms with
+  peaks of 1.4–3.3 s on the Shield, because the cache index was an on-disk SQLite
+  database committed after every fragment, while the session lock was held. The index
+  is now in memory (the store is deleted on every start anyway) and disk writes happen
+  outside the session lock: about 3 ms average after the change.
+- **Capacity was permanent (fixed).** After `storage limit reached`, read-ahead never
+  restarted for that item, and a twice-failed direct chunk stopped read-ahead for the
+  rest of the item. Now watched data gives way (over five minutes behind; over 30 s
+  behind when less than five minutes is stored ahead) and pre-load resumes; a failed
+  chunk falls back to normal streaming.
+- **Stall loop (mitigated).** ExoPlayer resumed after 2 s of buffer following a stall.
+  Video playback now waits for 10 s after a mid-playback stall (start-up and seeks
+  unchanged). Three stalls within two minutes with under 30 s stored end pre-load for
+  the item and continue over normal streaming.
+
+Regression tests: `a reader briefly holding the cache hole lock never stops the writer`
+(fails on the old code), `at capacity watched data gives way and background pre-load
+resumes for the playing item`, `repeated stalls with little stored fall back to normal
+streaming and delete the item`.
+
+Server-side check of the one slow request seen on the fixed build (8 MiB in 16 s,
+20:51 EST): the pacer limit was 45–49 Mbit/s but the home upload itself was full
+(54 Mbit/s out, including unpaced Plex streams). The Shield is on dacrib's LAN, so its
+WeaselPlex traffic leaves over the home upload to NC1 and returns; every Shield test
+competes with real remote viewers for that upload. Treat Shield throughput as a worst
+case, not a pacer measurement. Pacer at that time: floor 45 Mbit/s, ceiling 55, hello=all.

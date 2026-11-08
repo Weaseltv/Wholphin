@@ -219,6 +219,8 @@ class PlaybackViewModelTests {
 
         coEvery { mockServerRepository.currentUser } returns user
         coEvery { mockServerRepository.currentUserDto } returns userDto
+        // A relaxed mock returns a bare Object for the generic StateFlow (v1.2.46 Next Up re-engage reads it)
+        every { mockServerRepository.current } returns kotlinx.coroutines.flow.MutableStateFlow(null)
 
         coEvery { mockItemPlaybackDao.getItem(user, any()) } returns null
         coEvery { mockStreamChoiceService.chooseSource(any(), any()) } returns mediaSource

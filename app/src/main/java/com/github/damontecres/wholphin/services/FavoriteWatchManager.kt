@@ -1,13 +1,13 @@
 package com.github.damontecres.wholphin.services
 
-import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.data.model.BaseItem
 import kotlinx.coroutines.CancellationException
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.playStateApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
-import org.jellyfin.sdk.model.api.UserItemDataDto
 import org.jellyfin.sdk.model.api.BaseItemKind
+import org.jellyfin.sdk.model.api.UserItemDataDto
 import timber.log.Timber
 import java.util.UUID
 import javax.inject.Inject
@@ -31,11 +31,12 @@ class FavoriteWatchManager
         ): UserItemDataDto {
             val owner = serverRepository.current.value
             datePlayedService.invalidate(itemId)
-            val result = if (played) {
-                api.playStateApi.markPlayedItem(itemId).content
-            } else {
-                api.playStateApi.markUnplayedItem(itemId).content
-            }
+            val result =
+                if (played) {
+                    api.playStateApi.markPlayedItem(itemId).content
+                } else {
+                    api.playStateApi.markUnplayedItem(itemId).content
+                }
             if (played && owner != null && serverRepository.current.value == owner) {
                 try {
                     val item = api.userLibraryApi.getItem(itemId = itemId).content

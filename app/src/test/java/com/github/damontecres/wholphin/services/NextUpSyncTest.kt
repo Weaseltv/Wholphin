@@ -16,7 +16,10 @@ import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.DisplayPreferencesDto
 import org.jellyfin.sdk.model.api.UserItemDataDto
 import org.jellyfin.sdk.model.api.request.GetResumeItemsRequest
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -53,96 +56,151 @@ class NextUpSyncTest {
     }
 
     private fun service() = LatestNextUpService(api, mockk(relaxed = true), prefs)
-    private fun document(id: UUID, client: String) =
-        documents[Triple(server, id, client)] ?: testDisplayPreferencesDto
-    private fun seed(client: String, vararg values: Pair<UUID, LocalDateTime>, id: UUID = user) {
-        documents[Triple(server, id, client)] = testDisplayPreferencesDto.copy(customPrefs = mapOf(
-            LatestNextUpService.REMOVED_KEY to Json.encodeToString(RemovedSeriesIds(values.toMap())),
-            "homeSettings" to "keep this layout",
-        ))
-    }
-    private fun episode(lastPlayed: LocalDateTime? = null) = BaseItem(BaseItemDto(
-        id = UUID.randomUUID(), type = BaseItemKind.EPISODE, seriesId = series,
-        userData = UserItemDataDto(playbackPositionTicks = 123000000, playCount = 0, isFavorite = false,
-            played = false, key = "episode", lastPlayedDate = lastPlayed, itemId = UUID.randomUUID()),
-    ))
 
-    @Test fun `Alpha reads customer TV removals and imports its old removals once`() = runTest {
-        seed("Wholphin", series to removedAt)
-        seed("Wholphin (Debug)", otherSeries to removedAt)
-        val manager = service()
-        assertEquals(setOf(series, otherSeries), manager.getRemovedFromNextUp(user).keys)
-        assertEquals("keep this layout", document(user, "Wholphin").customPrefs["homeSettings"])
-        assertEquals("keep this layout", document(user, "Wholphin (Debug)").customPrefs["homeSettings"])
-        manager.allowSeriesRemovedFromNextUp(user, otherSeries)
-        // Even another process must not reimport a restored legacy removal.
-        assertEquals(setOf(series), service().getRemovedFromNextUp(user).keys)
-        assertEquals(1, writes.count { it == "Wholphin (Debug)" })
+    private fun document(
+        id: UUID,
+        client: String,
+    ) = documents[Triple(server, id, client)] ?: testDisplayPreferencesDto
+
+    private fun seed(
+        client: String,
+        vararg values: Pair<UUID, LocalDateTime>,
+        id: UUID = user,
+    ) {
+        documents[Triple(server, id, client)] =
+            testDisplayPreferencesDto.copy(
+                customPrefs =
+                    mapOf(
+                        LatestNextUpService.REMOVED_KEY to Json.encodeToString(RemovedSeriesIds(values.toMap())),
+                        "homeSettings" to "keep this layout",
+                    ),
+            )
     }
 
-    @Test fun `new dismissal uses shared storage and UTC rather than an Alpha namespace`() = runTest {
-        val before = LocalDateTime.now(ZoneOffset.UTC)
-        val manager = service()
-        manager.removeFromNextUp(user, episode())
-        val actual = manager.getRemovedFromNextUp(user).getValue(series)
-        assertFalse(actual.isBefore(before))
-        assertFalse(actual.isAfter(LocalDateTime.now(ZoneOffset.UTC)))
-        assertTrue(document(user, "Wholphin").customPrefs.getValue(LatestNextUpService.REMOVED_KEY)!!.contains(series.toString()))
-        assertNull(document(user, "Wholphin (Debug)").customPrefs[LatestNextUpService.REMOVED_KEY])
-    }
-
-    @Test fun `phone wire format hides resume while a later play restores visibility`() = runTest {
-        seed("Wholphin", series to removedAt)
-        val item = episode(removedAt.minusDays(1))
-        coEvery { itemsApi.getResumeItems(any<GetResumeItemsRequest>()) } returns Response(
-            content = BaseItemDtoQueryResult(totalRecordCount = 1, startIndex = 0, items = listOf(item.data)), status = 200, headers = emptyMap(),
+    private fun episode(lastPlayed: LocalDateTime? = null) =
+        BaseItem(
+            BaseItemDto(
+                id = UUID.randomUUID(),
+                type = BaseItemKind.EPISODE,
+                seriesId = series,
+                userData =
+                    UserItemDataDto(
+                        playbackPositionTicks = 123000000,
+                        playCount = 0,
+                        isFavorite = false,
+                        played = false,
+                        key = "episode",
+                        lastPlayedDate = lastPlayed,
+                        itemId = UUID.randomUUID(),
+                    ),
+            ),
         )
-        val manager = service()
-        assertTrue(manager.getResume(user, 20, true).isEmpty())
-        // Dismissal did not erase this episode's watch progress.
-        assertEquals(123000000L, item.data.userData!!.playbackPositionTicks)
-        coEvery { itemsApi.getResumeItems(any<GetResumeItemsRequest>()) } returns Response(
-            content = BaseItemDtoQueryResult(totalRecordCount = 1, startIndex = 0, items = listOf(item.data.copy(userData = item.data.userData!!.copy(lastPlayedDate = removedAt.plusDays(1))))),
-            status = 200, headers = emptyMap(),
-        )
-        assertEquals(1, manager.getResume(user, 20, true).size)
-    }
 
-    @Test fun `playing or marking played restores the shared series and respects account changes`() = runTest {
-        seed("Wholphin", series to removedAt, otherSeries to removedAt)
-        val manager = service()
-        manager.reengageSeries(user, series) { false }
-        assertTrue(series in manager.getRemovedFromNextUp(user))
-        manager.reengageSeries(user, series)
-        assertEquals(setOf(otherSeries), manager.getRemovedFromNextUp(user).keys)
-    }
-
-    @Test fun `migration and removals are isolated by server and user`() = runTest {
-        seed("Wholphin (Debug)", series to removedAt)
-        val manager = service()
-        assertEquals(setOf(series), manager.getRemovedFromNextUp(user).keys)
-        assertTrue(manager.getRemovedFromNextUp(otherUser).isEmpty())
-        server = "https://second.example"
-        seed("Wholphin (Debug)", otherSeries to removedAt)
-        assertEquals(setOf(otherSeries), manager.getRemovedFromNextUp(user).keys)
-        assertTrue(manager.getRemovedFromNextUp(otherUser).isEmpty())
-    }
-
-    @Test fun `background cleanup preserves a newer dismissal saved during its scan`() = runTest {
-        seed("Wholphin", series to removedAt)
-        val newer = removedAt.plusDays(4)
-        coEvery { itemsApi.getItems(
-            userId = user, parentId = series, recursive = true,
-            includeItemTypes = listOf(BaseItemKind.EPISODE),
-            sortBy = listOf(org.jellyfin.sdk.model.api.ItemSortBy.DATE_PLAYED),
-            sortOrder = listOf(org.jellyfin.sdk.model.api.SortOrder.DESCENDING), limit = 1,
-        ) } answers {
-            seed("Wholphin", series to newer, otherSeries to newer)
-            Response(content = BaseItemDtoQueryResult(totalRecordCount = 1, startIndex = 0, items = listOf(episode(removedAt.plusDays(1)).data)),
-                status = 200, headers = emptyMap())
+    @Test fun `Alpha reads customer TV removals and imports its old removals once`() =
+        runTest {
+            seed("Wholphin", series to removedAt)
+            seed("Wholphin (Debug)", otherSeries to removedAt)
+            val manager = service()
+            assertEquals(setOf(series, otherSeries), manager.getRemovedFromNextUp(user).keys)
+            assertEquals("keep this layout", document(user, "Wholphin").customPrefs["homeSettings"])
+            assertEquals("keep this layout", document(user, "Wholphin (Debug)").customPrefs["homeSettings"])
+            manager.allowSeriesRemovedFromNextUp(user, otherSeries)
+            // Even another process must not reimport a restored legacy removal.
+            assertEquals(setOf(series), service().getRemovedFromNextUp(user).keys)
+            assertEquals(1, writes.count { it == "Wholphin (Debug)" })
         }
-        val manager = service()
-        manager.updateRemovedFromNextUp(user)
-        assertEquals(mapOf(series to newer, otherSeries to newer), manager.getRemovedFromNextUp(user))
-    }
+
+    @Test fun `new dismissal uses shared storage and UTC rather than an Alpha namespace`() =
+        runTest {
+            val before = LocalDateTime.now(ZoneOffset.UTC)
+            val manager = service()
+            manager.removeFromNextUp(user, episode())
+            val actual = manager.getRemovedFromNextUp(user).getValue(series)
+            assertFalse(actual.isBefore(before))
+            assertFalse(actual.isAfter(LocalDateTime.now(ZoneOffset.UTC)))
+            assertTrue(document(user, "Wholphin").customPrefs.getValue(LatestNextUpService.REMOVED_KEY)!!.contains(series.toString()))
+            assertNull(document(user, "Wholphin (Debug)").customPrefs[LatestNextUpService.REMOVED_KEY])
+        }
+
+    @Test fun `phone wire format hides resume while a later play restores visibility`() =
+        runTest {
+            seed("Wholphin", series to removedAt)
+            val item = episode(removedAt.minusDays(1))
+            coEvery { itemsApi.getResumeItems(any<GetResumeItemsRequest>()) } returns
+                Response(
+                    content = BaseItemDtoQueryResult(totalRecordCount = 1, startIndex = 0, items = listOf(item.data)),
+                    status = 200,
+                    headers = emptyMap(),
+                )
+            val manager = service()
+            assertTrue(manager.getResume(user, 20, true).isEmpty())
+            // Dismissal did not erase this episode's watch progress.
+            assertEquals(123000000L, item.data.userData!!.playbackPositionTicks)
+            coEvery { itemsApi.getResumeItems(any<GetResumeItemsRequest>()) } returns
+                Response(
+                    content =
+                        BaseItemDtoQueryResult(
+                            totalRecordCount = 1,
+                            startIndex = 0,
+                            items = listOf(item.data.copy(userData = item.data.userData!!.copy(lastPlayedDate = removedAt.plusDays(1)))),
+                        ),
+                    status = 200,
+                    headers = emptyMap(),
+                )
+            assertEquals(1, manager.getResume(user, 20, true).size)
+        }
+
+    @Test fun `playing or marking played restores the shared series and respects account changes`() =
+        runTest {
+            seed("Wholphin", series to removedAt, otherSeries to removedAt)
+            val manager = service()
+            manager.reengageSeries(user, series) { false }
+            assertTrue(series in manager.getRemovedFromNextUp(user))
+            manager.reengageSeries(user, series)
+            assertEquals(setOf(otherSeries), manager.getRemovedFromNextUp(user).keys)
+        }
+
+    @Test fun `migration and removals are isolated by server and user`() =
+        runTest {
+            seed("Wholphin (Debug)", series to removedAt)
+            val manager = service()
+            assertEquals(setOf(series), manager.getRemovedFromNextUp(user).keys)
+            assertTrue(manager.getRemovedFromNextUp(otherUser).isEmpty())
+            server = "https://second.example"
+            seed("Wholphin (Debug)", otherSeries to removedAt)
+            assertEquals(setOf(otherSeries), manager.getRemovedFromNextUp(user).keys)
+            assertTrue(manager.getRemovedFromNextUp(otherUser).isEmpty())
+        }
+
+    @Test fun `background cleanup preserves a newer dismissal saved during its scan`() =
+        runTest {
+            seed("Wholphin", series to removedAt)
+            val newer = removedAt.plusDays(4)
+            coEvery {
+                itemsApi.getItems(
+                    userId = user,
+                    parentId = series,
+                    recursive = true,
+                    includeItemTypes = listOf(BaseItemKind.EPISODE),
+                    sortBy = listOf(org.jellyfin.sdk.model.api.ItemSortBy.DATE_PLAYED),
+                    sortOrder = listOf(org.jellyfin.sdk.model.api.SortOrder.DESCENDING),
+                    limit = 1,
+                )
+            } answers {
+                seed("Wholphin", series to newer, otherSeries to newer)
+                Response(
+                    content =
+                        BaseItemDtoQueryResult(
+                            totalRecordCount = 1,
+                            startIndex = 0,
+                            items = listOf(episode(removedAt.plusDays(1)).data),
+                        ),
+                    status = 200,
+                    headers = emptyMap(),
+                )
+            }
+            val manager = service()
+            manager.updateRemovedFromNextUp(user)
+            assertEquals(mapOf(series to newer, otherSeries to newer), manager.getRemovedFromNextUp(user))
+        }
 }
