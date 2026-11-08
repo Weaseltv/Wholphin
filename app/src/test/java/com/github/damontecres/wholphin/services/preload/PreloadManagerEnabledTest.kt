@@ -120,14 +120,16 @@ class PreloadManagerEnabledTest {
                 PreloadManager(
                     context,
                     client,
-                    api,
+                    { api },
                     mockk<ClientInfo> {
                         every { name } returns "test"
                         every { version } returns "1"
                     },
-                    mockk<DeviceInfo> {
-                        every { id } returns "id"
-                        every { name } returns "device"
+                    {
+                        mockk<DeviceInfo> {
+                            every { id } returns "id"
+                            every { name } returns "device"
+                        }
                     },
                 )
             val source = manager.dataSources().createDataSource()

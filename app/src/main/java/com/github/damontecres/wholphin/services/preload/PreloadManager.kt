@@ -9,7 +9,6 @@ import android.content.IntentFilter
 import android.os.Handler
 import android.os.Looper
 import android.os.StatFs
-import androidx.core.content.ContextCompat
 import androidx.media3.common.Player
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
@@ -42,10 +41,15 @@ class PreloadManager
     constructor(
         @param:ApplicationContext private val context: Context,
         @param:StandardOkHttpClient private val client: OkHttpClient,
-        private val api: ApiClient,
+        // Lazy: the Application injects this manager for start-up cleanup, which needs neither.
+        // Resolving DeviceInfo at app start broke every Robolectric test that boots the app.
+        private val apiProvider: dagger.Lazy<ApiClient>,
         private val clientInfo: ClientInfo,
-        private val deviceInfo: DeviceInfo,
+        private val deviceInfoProvider: dagger.Lazy<DeviceInfo>,
     ) {
+        private val api: ApiClient get() = apiProvider.get()
+        private val deviceInfo: DeviceInfo get() = deviceInfoProvider.get()
+
         private val directory = File(context.filesDir, "preload")
         private val mutex = Mutex()
         private val main = Handler(Looper.getMainLooper())
@@ -77,8 +81,7 @@ class PreloadManager
                 lowStorage = true
                 Timber.tag("Preload").w("Cannot remove crash leftovers; pre-load disabled")
             }
-            ContextCompat.registerReceiver(
-                context,
+            val receiver =
                 object : BroadcastReceiver() {
                     override fun onReceive(
                         context: Context,
@@ -95,13 +98,20 @@ class PreloadManager
                             }
                         }
                     }
-                },
+                }
+            val filter =
                 IntentFilter().apply {
                     addAction(Intent.ACTION_DEVICE_STORAGE_LOW)
                     addAction(Intent.ACTION_DEVICE_STORAGE_OK)
-                },
-                ContextCompat.RECEIVER_NOT_EXPORTED,
-            )
+                }
+            // Low/OK storage are protected system broadcasts: no other app can send them. Register
+            // directly instead of ContextCompat, whose pre-Android 13 path needs a manifest-merged
+            // permission that Robolectric lacks; it broke every test that boots the app.
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                context.registerReceiver(receiver, filter)
+            }
         }
 
         fun enabledFor(owner: Any): Boolean = session != null && playbackOwner === owner

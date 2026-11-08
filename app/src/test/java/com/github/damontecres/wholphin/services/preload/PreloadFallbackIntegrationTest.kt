@@ -87,7 +87,7 @@ class PreloadFallbackIntegrationTest {
                     every { id } returns "id"
                     every { name } returns "device"
                 }
-            val manager = PreloadManager(context, OkHttpClient(), api, clientInfo, deviceInfo)
+            val manager = PreloadManager(context, OkHttpClient(), { api }, clientInfo, { deviceInfo })
             val playback =
                 CurrentPlayback(
                     BaseItem(BaseItemDto(id = UUID.randomUUID(), type = org.jellyfin.sdk.model.api.BaseItemKind.MOVIE)),
