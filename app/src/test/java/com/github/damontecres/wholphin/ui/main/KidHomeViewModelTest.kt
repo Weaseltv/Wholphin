@@ -276,6 +276,7 @@ class KidHomeViewModelTest {
             streamingOrderService = mockk(relaxed = true),
             quickListService = mockk(relaxed = true),
             networkAvailability = onlineNetwork(),
+            savedHome = mockk(relaxed = true),
         )
     }
 

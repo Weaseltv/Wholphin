@@ -17,6 +17,7 @@ import com.github.damontecres.wholphin.kids.profileCeiling
 import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.services.KidHomeCache
+import com.github.damontecres.wholphin.services.SavedHome
 import com.github.damontecres.wholphin.services.hilt.IoDispatcher
 import com.github.damontecres.wholphin.services.tvprovider.LauncherRows
 import com.github.damontecres.wholphin.ui.toServerString
@@ -752,6 +753,15 @@ class ServerRepository
             }
         }
 
+        /** The saved Homes of a profile removed from this TV, the kid's and the adult's */
+        private fun purgeSavedHomes(
+            serverId: UUID,
+            userId: UUID,
+        ) {
+            KidHomeCache.purgeUser(context, serverId, userId)
+            SavedHome.purgeUser(context, serverId, userId)
+        }
+
         /**
          * Removes [user] from this TV, ending the session if it is theirs. [authorize] runs first in the coordinator's
          * main-thread step and may throw to refuse the removal (kid profiles: the chooser flow that asked was left).
@@ -771,7 +781,7 @@ class ServerRepository
             }
             withContext(ioDispatcher) {
                 serverDao.deleteUser(user.serverId, user.id)
-                KidHomeCache.purgeUser(context, user.serverId, user.id)
+                purgeSavedHomes(user.serverId, user.id)
             }
         }
 
@@ -789,7 +799,7 @@ class ServerRepository
                 if (inUse) return@withLock false
                 withContext(ioDispatcher) {
                     (serverDao.deleteKidWithToken(kid.rowId, token) > 0).also { removed ->
-                        if (removed) KidHomeCache.purgeUser(context, kid.serverId, kid.id)
+                        if (removed) purgeSavedHomes(kid.serverId, kid.id)
                     }
                 }
             }
@@ -818,7 +828,7 @@ class ServerRepository
                 val policyState = if (adultOnly) PolicyState.ADULT.dbValue else null
                 withContext(ioDispatcher) {
                     (serverDao.deletePinlessUser(user.rowId, policyState) > 0).also { removed ->
-                        if (removed) KidHomeCache.purgeUser(context, user.serverId, user.id)
+                        if (removed) purgeSavedHomes(user.serverId, user.id)
                     }
                 }
             }
@@ -846,6 +856,7 @@ class ServerRepository
             withContext(ioDispatcher) {
                 serverDao.deleteServer(server.id)
                 KidHomeCache.purgeServer(context, server.id)
+                SavedHome.purgeServer(context, server.id)
             }
         }
 
