@@ -160,6 +160,8 @@ class HomeViewModel
             val shown = state.value
             return shown.loadingState == LoadingState.Success &&
                 shown.refreshState == LoadingState.Success &&
+                // A row that failed is asked for again on every return, as before
+                shown.homeRows.none { it is HomeRowLoadingState.Error } &&
                 shown.generation == generation &&
                 last.generation == generation &&
                 shown.settings == settings &&
