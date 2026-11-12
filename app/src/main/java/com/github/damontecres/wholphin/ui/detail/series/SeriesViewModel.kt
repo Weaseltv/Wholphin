@@ -88,6 +88,9 @@ import org.jellyfin.sdk.model.api.request.GetSimilarItemsRequest
 import timber.log.Timber
 import java.util.UUID
 
+/** How long focus rests on an episode before its cast is asked for, in milliseconds */
+private const val EPISODE_CAST_WAIT = 200L
+
 @HiltViewModel(assistedFactory = SeriesViewModel.Factory::class)
 class SeriesViewModel
     @AssistedInject
@@ -676,28 +679,36 @@ class SeriesViewModel
                 .maximumSize(25)
                 .build<UUID, Deferred<PeopleInItem>>()
 
+        /**
+         * The cast of the focused episode, for the row under the episodes.
+         *
+         * Speed plan step 9 (2026-11): the request used to go out the moment an episode took focus, so moving along a
+         * season fetched every episode passed. Now it goes out only once focus has rested for [EPISODE_CAST_WAIT]; an
+         * episode looked up before shows after the same wait without asking again.
+         */
         suspend fun lookupPeopleInEpisode(item: BaseItem) {
             peopleInEpisodeJob?.cancel()
             if (state.value.peopleInEpisode.itemId != item.id) {
                 _state.update { it.copy(peopleInEpisode = PeopleInItem()) }
-                val result =
-                    peopleInEpisodeCache
-                        .get(item.id) {
-                            viewModelScope.async(WholphinDispatchers.IO) {
-                                val list =
-                                    api.userLibraryApi
-                                        .getItem(item.id)
-                                        .content.people
-                                        ?.map { Person.fromDto(context, it, api) }
-                                        .orEmpty()
-                                        .mergeRepeated()
-
-                                PeopleInItem(item.id, list)
-                            }
-                        }
                 peopleInEpisodeJob =
                     viewModelScope.launch(ExceptionHandler()) {
-                        delay(250)
+                        delay(EPISODE_CAST_WAIT)
+                        val result =
+                            peopleInEpisodeCache
+                                .get(item.id) {
+                                    // In the page's scope, not this job's: moving on doesn't throw the answer away
+                                    viewModelScope.async(WholphinDispatchers.IO) {
+                                        val list =
+                                            api.userLibraryApi
+                                                .getItem(item.id)
+                                                .content.people
+                                                ?.map { Person.fromDto(context, it, api) }
+                                                .orEmpty()
+                                                .mergeRepeated()
+
+                                        PeopleInItem(item.id, list)
+                                    }
+                                }
                         val peopleInEpisode = result.await()
                         _state.update { it.copy(peopleInEpisode = peopleInEpisode) }
                     }
