@@ -24,6 +24,7 @@ import coil3.util.DebugLogger
 import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.services.NavTiming
+import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import timber.log.Timber
 import kotlin.time.ExperimentalTime
@@ -61,9 +62,13 @@ fun CoilConfig(
 ) {
     val client =
         remember(okHttpClient, debugLogging) {
+            // Speed plan step 10 (2026-11): pictures get a request queue of their own. They shared one with page data,
+            // the player and theme songs, five requests per server at a time, so a screen of posters could hold up the
+            // page's own data and the other way round. The shared limit is not raised: page data keeps its five, and
+            // pictures get five of their own, over the same connections
+            val images = okHttpClient.newBuilder().dispatcher(Dispatcher())
             if (debugLogging) {
-                okHttpClient
-                    .newBuilder()
+                images
                     .addInterceptor {
                         val start = System.currentTimeMillis()
                         val req = it.request()
@@ -73,7 +78,7 @@ fun CoilConfig(
                         res
                     }.build()
             } else {
-                okHttpClient
+                images.build()
             }
         }
     setSingletonImageLoaderFactory { ctx ->
