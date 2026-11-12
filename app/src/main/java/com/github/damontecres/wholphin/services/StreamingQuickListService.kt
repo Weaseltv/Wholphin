@@ -13,7 +13,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,9 +23,7 @@ import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.jellyfin.sdk.api.client.ApiClient
@@ -328,8 +325,11 @@ class StreamingQuickListService
             }
 
         /**
-         * Fetch the members newest first: a small first page (shown straight away when
-         * [progress] is set), then the rest in larger pages, two at a time.
+         * Fetch the members newest first, all in one request.
+         *
+         * Until 2026-11 this was a first page of 60 and then pages of 300, two at a time. The server works through the
+         * whole collection for every request whatever its limit (about 1 ms per title, measured on a copy of the
+         * server, 2026-11-12), so each page cost as much as the whole list: nine full passes for a list of 2,181.
          */
         private suspend fun fetchAndSave(
             key: Key,
@@ -348,12 +348,11 @@ class StreamingQuickListService
                 if (session != null && kidContentGuard.sessionOf(api) != session) throw StaleSessionException()
             }
 
-            suspend fun response(
-                startIndex: Int,
-                limit: Int,
-                count: Boolean,
-            ) = GetItemsRequestHandler
-                .execute(
+            // Let a collection being opened go first
+            if (background) foregroundLoads.first { it == 0 }
+            // No startIndex or limit: the whole list in one answer. A kid session's answer comes back already filtered
+            val response =
+                GetItemsRequestHandler.execute(
                     api,
                     GetItemsRequest(
                         userId = key.userId,
@@ -363,59 +362,11 @@ class StreamingQuickListService
                         sortBy = listOf(ItemSortBy.PREMIERE_DATE, ItemSortBy.SORT_NAME),
                         sortOrder = listOf(SortOrder.DESCENDING, SortOrder.ASCENDING),
                         fields = SlimItemFields + ItemFields.PROVIDER_IDS,
-                        startIndex = startIndex,
-                        limit = limit,
-                        enableTotalRecordCount = count,
+                        enableTotalRecordCount = false,
                     ),
-                ).also {
-                    if (session != null && !session.made(kidContentGuard.sessionOf(it.headers))) throw StaleSessionException()
-                }
-
-            suspend fun page(
-                startIndex: Int,
-                limit: Int,
-                count: Boolean,
-            ) = response(startIndex, limit, count).content
-
-            val firstResponse = response(0, FIRST_PAGE, count = true)
-            val first = firstResponse.content
-            // Kid content rules: pages are the server's, so count what the filter removed from the first one too
-            val removed = KidContentGuard.removedBy(firstResponse.headers)
-            val serverTotal = first.totalRecordCount + (removed ?: 0)
-            val dtos = first.items.toMutableList()
-            stillCurrent()
-            progress?.value =
-                Progress(
-                    dtos.map { BaseItem(it, true) },
-                    if (removed ==
-                        null
-                    ) {
-                        dtos.size >= first.totalRecordCount
-                    } else {
-                        serverTotal <= FIRST_PAGE
-                    },
                 )
-            val pageStarts = (FIRST_PAGE until serverTotal step PAGE).toList()
-            val permits = Semaphore(PARALLEL_PAGES)
-            coroutineScope {
-                val pages =
-                    pageStarts.map { start ->
-                        async {
-                            permits.withPermit {
-                                // Let a collection being opened go first
-                                if (background) foregroundLoads.first { it == 0 }
-                                page(start, PAGE, count = false).items
-                            }
-                        }
-                    }
-                // Add pages in order as they arrive
-                pages.forEachIndexed { index, page ->
-                    dtos += page.await()
-                    stillCurrent()
-                    progress?.value = Progress(dtos.map { BaseItem(it, true) }, index == pages.lastIndex)
-                }
-            }
-            val items = dtos.distinctBy { it.id }
+            if (session != null && !session.made(kidContentGuard.sessionOf(response.headers))) throw StaleSessionException()
+            val items = response.content.items.distinctBy { it.id }
             Timber.d("Snapshot for %s: %s items in %s ms", key.collectionId, items.size, System.currentTimeMillis() - started)
             val now = System.currentTimeMillis()
             stillCurrent()
@@ -448,11 +399,6 @@ class StreamingQuickListService
 
         companion object {
             private const val MEMORY_SNAPSHOTS = 3
-
-            /** The first page: about what the page showed before, so it arrives as quickly. */
-            private const val FIRST_PAGE = 60
-            private const val PAGE = 300
-            private const val PARALLEL_PAGES = 2
             private val REFRESH_AFTER = 30.minutes
             private val MAX_AGE = 24.hours
 
