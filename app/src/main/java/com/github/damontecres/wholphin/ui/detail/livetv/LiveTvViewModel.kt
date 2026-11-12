@@ -97,13 +97,16 @@ class LiveTvViewModel
 
         init {
             viewModelScope.launchDefault {
+                // Speed plan 18d (2026-11): the half-second wait is for settling a run of setting changes. It also
+                // held up the first load, when there is nothing to settle, so the first value now goes straight through
+                var first = true
                 preferences.data
                     .map {
                         it.interfacePreferences.liveTvPreferences.let {
                             Pair(it.sortByRecentlyWatched, it.favoriteChannelsAtBeginning)
                         }
                     }.distinctUntilChanged()
-                    .debounce { 500.milliseconds }
+                    .debounce { if (first) Duration.ZERO.also { first = false } else 500.milliseconds }
                     .collectLatest {
                         Timber.v("Init due to pref change")
                         _state.update { LiveTvState() }
