@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
@@ -168,6 +169,11 @@ fun NeonLoadingMark(modifier: Modifier = Modifier) {
     val kids = remember(context, signedInKids) { signedInKids ?: LoadingArtworkRotation.lastProfileWasKids(context) }
     val artworks = rememberLoadingArtworks(kids)
     val artwork = remember(context, artworks) { LoadingArtworkRotation.next(context, artworks, kids) }
+    // Get the following loading screen's picture ready while this one is up
+    val upcoming = remember(context, artworks, artwork) { LoadingArtworkRotation.peek(context, artworks, kids) }
+    if (upcoming != null) {
+        LaunchedEffect(context, upcoming) { LoadingArtworkPreload.request(context.resources, upcoming) }
+    }
     if (artwork != null) {
         NeonLoadingArtwork(painterResource(artwork), modifier)
     } else {
