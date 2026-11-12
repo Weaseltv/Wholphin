@@ -136,16 +136,17 @@ class SwitchUserViewModel
         fun init() {
             // A fresh chooser: nothing started before it continues
             leaveFlow()
-            viewModelScope.launchDefault {
-                if (BuildConfig.KID_PROFILES_ENABLED) {
-                    // Chooser teardown (plan 4.1): no session (nor saved current profile) while the profile screen
-                    // shows, and no parental authorization carried over from before
-                    kidSessionGate.clearParentUnlock()
-                    serverRepository.endSessionForChooser()
-                } else {
-                    serverRepository.switchServerOrUser()
+            chooserTeardown =
+                viewModelScope.launchDefault {
+                    if (BuildConfig.KID_PROFILES_ENABLED) {
+                        // Chooser teardown (plan 4.1): no session (nor saved current profile) while the profile screen
+                        // shows, and no parental authorization carried over from before
+                        kidSessionGate.clearParentUnlock()
+                        serverRepository.endSessionForChooser()
+                    } else {
+                        serverRepository.switchServerOrUser()
+                    }
                 }
-            }
             _state.update { SwitchUserState() }
             loadUsers()
 
@@ -189,7 +190,7 @@ class SwitchUserViewModel
             reloadOnReconnect = null
             viewModelScope.launchIO {
                 val mark = networkAvailability.mark()
-                _state.update { it.copy(loading = LoadingState.Loading) }
+                if (!showSavedProfilesFirst()) _state.update { it.copy(loading = LoadingState.Loading) }
                 try {
                     // Speed plan, app start (2026-11): the profiles and the server version don't depend on each other,
                     // so they are asked for together instead of one after the other
@@ -208,6 +209,7 @@ class SwitchUserViewModel
                             users = serverUsers,
                             serverVersion = serverVersion,
                             serverVersionSupported = supported,
+                            serverVersionPending = false,
                         )
                     }
                     if (BuildConfig.KID_PROFILES_ENABLED) viewModelScope.launchIO { syncAccountProfiles() }
@@ -218,6 +220,7 @@ class SwitchUserViewModel
                     _state.update {
                         it.copy(
                             loading = LoadingState.Error(ex),
+                            serverVersionPending = false,
                         )
                     }
                     reloadOnReconnect =
@@ -227,6 +230,43 @@ class SwitchUserViewModel
                             loadUsers()
                         }
                 }
+            }
+        }
+
+        /** [init]'s chooser teardown: the previous session ending. Nothing is offered on the chooser before it is done */
+        private var chooserTeardown: Job? = null
+
+        /**
+         * Speed plan, app start (b) (2026-11): on the chooser's first load, show the profiles saved on this TV at once
+         * instead of the loading picture, while the server is asked for its profiles and version. True when shown.
+         *
+         * Only what is already on the TV is shown early, and only after the chooser teardown has finished, so a
+         * profile can't be chosen while the previous session is still ending. Choosing one is unchanged: entry still
+         * asks the server afresh (its PIN, its account, its kid rules) before anything of it is shown. When the server
+         * answers, the list is replaced by the full one; if it can't be reached, the usual error page takes over.
+         */
+        private suspend fun showSavedProfilesFirst(): Boolean {
+            if (state.value.loading != LoadingState.Pending) return false
+            return try {
+                chooserTeardown?.join()
+                val images = jellyfin.createApi(server.url).imageApi
+                val tags = imageTags
+                val saved =
+                    getSavedUsers().map {
+                        JellyfinUserAndImage(user = it, imageUrl = chooserImageUrl(images, it, tags), known = true)
+                    }
+                if (saved.isEmpty()) return false
+                var shown = false
+                _state.update {
+                    shown = it.loading == LoadingState.Pending
+                    if (shown) it.copy(loading = LoadingState.Success, users = saved, serverVersionPending = true) else it
+                }
+                shown
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                Timber.w(ex, "Couldn't show the saved profiles early")
+                false
             }
         }
 
@@ -1375,6 +1415,8 @@ data class SwitchUserState(
     val loginAttempts: Int = 0,
     val serverVersion: String? = null,
     val serverVersionSupported: ServerVersionSupported = ServerVersionSupported.UNKNOWN,
+    /** The saved profiles are showing before the server has said its version: no version warning yet */
+    val serverVersionPending: Boolean = false,
     // Kid profiles
     val prompt: ChooserPrompt? = null,
     val pendingPinSetup: PendingPinSetup? = null,
