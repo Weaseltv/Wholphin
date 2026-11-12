@@ -441,5 +441,4 @@ private fun library(type: CollectionType) =
         name = "name-${type.serialName}",
         type = BaseItemKind.COLLECTION_FOLDER,
         collectionType = type,
-        isRecordingFolder = false,
     )

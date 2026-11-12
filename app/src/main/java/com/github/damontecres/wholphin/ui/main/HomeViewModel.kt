@@ -30,7 +30,6 @@ import com.github.damontecres.wholphin.services.StreamingQuickListService
 import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.deleteItem
 import com.github.damontecres.wholphin.services.isNetworkFailure
-import com.github.damontecres.wholphin.services.tvAccess
 import com.github.damontecres.wholphin.ui.data.RowColumn
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
@@ -269,7 +268,7 @@ class HomeViewModel
                     Timber.i("Home was loaded moments ago and nothing has changed since: not reloading")
                     return
                 }
-                val libraries = navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
+                val libraries = navDrawerService.getAllUserLibraries(userDto.id)
                 val state = state.value
 
                 // Refreshing if a load has already occurred and the rows haven't significantly changed
@@ -501,7 +500,7 @@ class HomeViewModel
                     launch {
                         val libraries =
                             try {
-                                navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
+                                navDrawerService.getAllUserLibraries(userDto.id)
                             } catch (ex: CancellationException) {
                                 throw ex
                             } catch (ex: Exception) {

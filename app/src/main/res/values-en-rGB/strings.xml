@@ -3,7 +3,6 @@
     <string name="add_favorite">Favourite</string>
     <string name="favorites">Favourites</string>
     <string name="license_info">Licence information</string>
-    <string name="record_program">Record Programme</string>
     <string name="remove_favorite">Unfavourite</string>
     <string name="voice_error_no_match">No speech recognised</string>
     <string name="one_click_pause_summary_on">Press D-Pad centre to pause/play</string>
@@ -22,8 +21,6 @@
     <string name="color_space">Colour space</string>
     <string name="color_transfer">Colour transfer</string>
     <string name="color_primaries">Colour primaries</string>
-    <string name="favorite_channels_at_beginning">Show favourite channels first</string>
-    <string name="color_code_programs">Colour-code programmes</string>
     <string name="quick_connect_summary">Authorise another device to log in to your account</string>
     <string name="quick_connect_success">Device authorised successfully</string>
     <string name="contrast">Contrast</string>
@@ -37,15 +34,12 @@
     <string name="display_toggles_summary">Customise which to display</string>
     <string name="continue_watching_click_behavior">Continue watching/Next up click behaviour</string>
     <string name="about">About</string>
-    <string name="active_recordings">Active Recordings</string>
     <string name="add_server">Add Server</string>
     <string name="add_user">Add User</string>
     <string name="audio">Audio</string>
     <string name="birthplace">Birthplace</string>
     <string name="bitrate">Bitrate</string>
     <string name="born">Born</string>
-    <string name="cancel_recording">Cancel Recording</string>
-    <string name="cancel_series_recording">Cancel Series Recording</string>
     <string name="duration_hours_seconds">%1$dh %2$ds</string>
     <string name="duration_minutes_seconds">%1$dm %2$ds</string>
     <string name="duration_hours">%1$dh</string>

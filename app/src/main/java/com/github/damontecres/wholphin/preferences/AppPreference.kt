@@ -1030,51 +1030,6 @@ sealed interface AppPreference<Pref, T> {
                 },
             )
 
-        val LiveTvShowHeader =
-            AppSwitchPreference<AppPreferences>(
-                title = R.string.show_details,
-                defaultValue = true,
-                getter = { it.interfacePreferences.liveTvPreferences.showHeader },
-                setter = { prefs, value ->
-                    prefs.updateLiveTvPreferences { showHeader = value }
-                },
-                summaryOn = R.string.enabled,
-                summaryOff = R.string.disabled,
-            )
-        val LiveTvFavoriteChannelsBeginning =
-            AppSwitchPreference<AppPreferences>(
-                title = R.string.favorite_channels_at_beginning,
-                defaultValue = true,
-                getter = { it.interfacePreferences.liveTvPreferences.favoriteChannelsAtBeginning },
-                setter = { prefs, value ->
-                    prefs.updateLiveTvPreferences { favoriteChannelsAtBeginning = value }
-                },
-                summaryOn = R.string.enabled,
-                summaryOff = R.string.disabled,
-            )
-        val LiveTvChannelSortByWatched =
-            AppSwitchPreference<AppPreferences>(
-                title = R.string.sort_channels_recently_watched,
-                defaultValue = false,
-                getter = { it.interfacePreferences.liveTvPreferences.sortByRecentlyWatched },
-                setter = { prefs, value ->
-                    prefs.updateLiveTvPreferences { sortByRecentlyWatched = value }
-                },
-                summaryOn = R.string.enabled,
-                summaryOff = R.string.disabled,
-            )
-        val LiveTvColorCodePrograms =
-            AppSwitchPreference<AppPreferences>(
-                title = R.string.color_code_programs,
-                defaultValue = true,
-                getter = { it.interfacePreferences.liveTvPreferences.colorCodePrograms },
-                setter = { prefs, value ->
-                    prefs.updateLiveTvPreferences { colorCodePrograms = value }
-                },
-                summaryOn = R.string.enabled,
-                summaryOff = R.string.disabled,
-            )
-
         val RequestNotifications =
             AppClickablePreference<AppPreferences>(
                 title = R.string.request_notifications,
@@ -1382,14 +1337,6 @@ val advancedPreferences =
             ),
         )
     }
-
-val liveTvPreferences =
-    listOf(
-        AppPreference.LiveTvShowHeader,
-        AppPreference.LiveTvFavoriteChannelsBeginning,
-        AppPreference.LiveTvChannelSortByWatched,
-        AppPreference.LiveTvColorCodePrograms,
-    )
 
 val screensaverPreferences =
     listOf(

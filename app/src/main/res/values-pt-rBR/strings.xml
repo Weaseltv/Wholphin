@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">Sobre</string>
-    <string name="active_recordings">Gravações ativas</string>
     <string name="add_favorite">Favoritar</string>
     <string name="add_server">Adicionar Servidor</string>
     <string name="add_user">Adicionar Usuário</string>
@@ -9,8 +8,6 @@
     <string name="birthplace">Local de nascimento</string>
     <string name="bitrate">Taxa de bits</string>
     <string name="born">Nascido</string>
-    <string name="cancel_recording">Cancelar gravação</string>
-    <string name="cancel_series_recording">Cancelar gravação da série</string>
     <string name="cancel">Cancelar</string>
     <string name="chapters">Capítulos</string>
     <string name="choose_stream">Escolha %1$s</string>
@@ -54,7 +51,6 @@
     <string name="jump_letters">#ABCDEFGHIJKLMNOPQRSTUVWXYZ</string>
     <string name="library">Biblioteca</string>
     <string name="license_info">Informação de licenças</string>
-    <string name="live_tv">TV ao Vivo</string>
     <string name="loading">Carregando…</string>
     <string name="mark_entire_series_as_played">Marcar série inteira como reproduzida?</string>
     <string name="mark_entire_series_as_unplayed">Marcar séria inteira como não reproduzida?</string>
@@ -73,7 +69,6 @@
     <string name="no_data">Sem dados</string>
     <string name="no_results">Sem resultados</string>
     <string name="no_servers_found">Nenhum servidor encontrado</string>
-    <string name="no_scheduled_recordings">Nenhuma gravação agendada</string>
     <string name="no_update_available">Nenhuma atualização disponível</string>
     <string name="none">Nenhum(a)</string>
     <string name="only_forced_subtitles">Apenas Legendas Forçadas</string>
@@ -98,11 +93,8 @@
     <string name="recap">Recapitulação</string>
     <string name="recently_added_in">Recentemente adicionado em %1$s</string>
     <string name="recently_added">Recentemente adicionado</string>
-    <string name="recently_recorded">Recentemente Gravado</string>
     <string name="recently_released">Recentemente Publicado</string>
     <string name="recommended">Recomendado</string>
-    <string name="record_program">Gravar Programa</string>
-    <string name="record_series">Gravar Série</string>
     <string name="remove_favorite">Desfavoritar</string>
     <string name="restart">Reiniciar</string>
     <string name="resume">Continuar</string>
@@ -149,8 +141,6 @@
     <string name="switch_servers">Trocar de servidores</string>
     <string name="switch_user">Trocar</string>
     <string name="top_unwatched">Não assistidos com melhor avaliação</string>
-    <string name="tv_dvr_schedule">Agenda do DVR</string>
-    <string name="tv_guide">Guia</string>
     <string name="tv_season">Temporada</string>
     <string name="tv_seasons">Temporadas</string>
     <plurals name="tv_shows">
@@ -165,7 +155,6 @@
     <string name="video_scale">Escala de Vídeo</string>
     <string name="video">Vídeo</string>
     <string name="videos">Vídeos</string>
-    <string name="watch_live">Assista ao vivo</string>
     <plurals name="years_old">
         <item quantity="other">%1$d anos de idade</item>
     </plurals>
@@ -388,10 +377,6 @@
     <string name="bit_unit">bit</string>
     <string name="sample_rate_unit">Hz</string>
     <string name="show_titles">Mostrar títulos</string>
-    <string name="live_tv_repeat">Repetir</string>
-    <string name="favorite_channels_at_beginning">Mostrar canais favoritos primeiro</string>
-    <string name="sort_channels_recently_watched">Ordenar canais por recentemente assistidos</string>
-    <string name="color_code_programs">Codificar programas por cor</string>
     <string name="subtitle_delay">Atraso na legenda</string>
     <string name="backdrop_display">Estilo de fundo</string>
     <string name="resolution_switching">Troca de resolução</string>
@@ -714,7 +699,5 @@
     <string name="any_language">Qualquer idioma</string>
     <string name="hash_matches">Correspondências de hash</string>
     <string name="subtitles_hearing_impaired">SDH</string>
-    <string name="programs">Programas de TV</string>
-    <string name="recordings">Gravações</string>
     <string name="folders_title">Pastas</string>
 </resources>

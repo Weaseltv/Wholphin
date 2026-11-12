@@ -150,7 +150,7 @@ object NeonType {
     @ReadOnlyComposable
     fun hero(size: TextUnit = 48.sp): TextStyle = header(size, fallback = MaterialTheme.typography.headlineMedium)
 
-    /** Library, guide, search, settings, requests: 40. */
+    /** Library, search, settings, requests: 40. */
     @Composable
     @ReadOnlyComposable
     fun pageTitle(): TextStyle = header(40.sp, fallback = MaterialTheme.typography.headlineSmall)

@@ -1,7 +1,6 @@
 package com.github.damontecres.wholphin.services
 
 import android.content.Context
-import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.InterfacePreferences
@@ -26,8 +25,6 @@ import org.jellyfin.sdk.api.operations.LibraryApi
 import org.jellyfin.sdk.model.UUID
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
-import org.jellyfin.sdk.model.api.UserDto
-import org.jellyfin.sdk.model.api.UserPolicy
 import org.junit.After
 import org.junit.Assert
 import org.junit.Before
@@ -38,13 +35,12 @@ class MediaManagementServiceTest {
 
     private val mockContext = mockk<Context>()
     private val mockApiClient = mockk<ApiClient>()
-    private val mockServerRepository = mockk<ServerRepository>()
     private val mockUserPreferencesService = mockk<UserPreferencesService>()
 
     private val mockLibraryApi = mockk<LibraryApi>()
 
     private val mediaManagementService =
-        MediaManagementService(mockContext, mockApiClient, mockServerRepository, mockUserPreferencesService)
+        MediaManagementService(mockContext, mockApiClient, mockUserPreferencesService)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Before
@@ -68,15 +64,6 @@ class MediaManagementServiceTest {
                 canDelete = true,
             ),
         )
-    private val recording =
-        BaseItem(
-            BaseItemDto(
-                id = UUID.randomUUID(),
-                type = BaseItemKind.RECORDING,
-                canDelete = true,
-            ),
-        )
-
     private val movieCannotDelete =
         BaseItem(
             BaseItemDto(
@@ -84,30 +71,6 @@ class MediaManagementServiceTest {
                 type = BaseItemKind.MOVIE,
                 canDelete = false,
             ),
-        )
-
-    private val userWithLiveTv =
-        UserDto(
-            id = UUID.randomUUID(),
-            hasPassword = true,
-            hasConfiguredPassword = true,
-            hasConfiguredEasyPassword = false,
-            policy =
-                mockk<UserPolicy> {
-                    every { enableLiveTvManagement } returns true
-                },
-        )
-
-    private val userWithoutLiveTv =
-        UserDto(
-            id = UUID.randomUUID(),
-            hasPassword = true,
-            hasConfiguredPassword = true,
-            hasConfiguredEasyPassword = false,
-            policy =
-                mockk<UserPolicy> {
-                    every { enableLiveTvManagement } returns false
-                },
         )
 
     private val prefsEnabled =
@@ -150,20 +113,6 @@ class MediaManagementServiceTest {
         Assert.assertTrue(mediaManagementService.canDelete(playlist(true), prefsEnabled))
         Assert.assertFalse(mediaManagementService.canDelete(playlist(false), prefsDisabled))
         Assert.assertFalse(mediaManagementService.canDelete(playlist(false), prefsEnabled))
-    }
-
-    @Test
-    fun `Test canDelete recording`() {
-        every { mockServerRepository.currentUserDto } returns userWithLiveTv
-        Assert.assertTrue(mediaManagementService.canDelete(recording, prefsEnabled))
-        Assert.assertFalse(mediaManagementService.canDelete(recording, prefsDisabled))
-    }
-
-    @Test
-    fun `Test canDelete recording no permission`() {
-        every { mockServerRepository.currentUserDto } returns userWithoutLiveTv
-        Assert.assertFalse(mediaManagementService.canDelete(recording, prefsEnabled))
-        Assert.assertFalse(mediaManagementService.canDelete(recording, prefsDisabled))
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)

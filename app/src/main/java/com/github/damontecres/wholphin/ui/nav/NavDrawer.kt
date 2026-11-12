@@ -924,7 +924,6 @@ fun NavigationDrawerScope.NavItem(
             .hiltViewModel()
     val requestState by requestsVM.requests.state.collectAsState()
     val context = LocalContext.current
-    val useFont = library !is ServerNavDrawerItem || library.type != CollectionType.LIVETV
     val icon =
         remember(library) {
             when (library) {
@@ -945,7 +944,6 @@ fun NavigationDrawerScope.NavItem(
                         CollectionType.MOVIES -> R.string.fa_film
                         CollectionType.TVSHOWS -> R.string.fa_tv
                         CollectionType.HOMEVIDEOS -> R.string.fa_video
-                        CollectionType.LIVETV -> R.drawable.gf_dvr
                         CollectionType.MUSIC -> R.string.fa_music
                         CollectionType.BOXSETS -> R.string.fa_open_folder
                         CollectionType.PLAYLISTS -> R.string.fa_list_ul
@@ -955,7 +953,7 @@ fun NavigationDrawerScope.NavItem(
             }
         }
     // Neon Board: the section accent — volt for the built-ins, the library's type color
-    // (movies orange, shows yellow, live green, Boxing / UFC cyan by name).
+    // (movies orange, shows yellow, Boxing / UFC cyan by name).
     val accent = remember(library) { sectionAccent(library) }
     val focused by interactionSource.collectIsFocusedAsState()
     NavigationDrawerItem(
@@ -985,7 +983,7 @@ fun NavigationDrawerScope.NavItem(
                         tint = color,
                         modifier = Modifier.size(DrawerIconSize),
                     )
-                } else if (useFont) {
+                } else {
                     Text(
                         text = stringResource(icon),
                         textAlign = TextAlign.Center,
@@ -993,13 +991,6 @@ fun NavigationDrawerScope.NavItem(
                         fontFamily = FontAwesome,
                         color = color,
                         modifier = Modifier,
-                    )
-                } else {
-                    Icon(
-                        painter = painterResource(icon),
-                        contentDescription = null,
-                        tint = color,
-                        modifier = Modifier.size(DrawerIconSize),
                     )
                 }
                 if (library is NavDrawerItem.Discover && requestState.badgeCount > 0) {

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">حول</string>
-    <string name="active_recordings">التسجيلات النشطة</string>
     <string name="add_favorite">إضافة للمفضلة</string>
     <string name="add_server">إضافة خادم</string>
     <string name="add_user">إضافة مستخدم</string>
@@ -9,8 +8,6 @@
     <string name="birthplace">مكان الميلاد</string>
     <string name="bitrate">معدل البت</string>
     <string name="born">وُلد</string>
-    <string name="cancel_recording">إلغاء التسجيل</string>
-    <string name="cancel_series_recording">إلغاء تسجيل المسلسل</string>
     <string name="cancel">إلغاء</string>
     <string name="chapters">الفصول</string>
     <string name="choose_stream">اختيار %1$s</string>
@@ -55,7 +52,6 @@
     <string name="jump_letters">#ABCDEFGHIJKLMNOPQRSTUVWXYZ</string>
     <string name="library">المكتبة</string>
     <string name="license_info">معلومات الترخيص</string>
-    <string name="live_tv">تلفزيون مباشر</string>
     <string name="loading">تحميل…</string>
     <string name="mark_entire_series_as_played">هل تريد تعيين المسلسل بأكمله كمُشاهَد؟</string>
     <string name="mark_entire_series_as_unplayed">هل تريد تعيين المسلسل بأكمله كغير مشاهد؟</string>
@@ -73,7 +69,6 @@
     <string name="no_data">لا توجد بيانات</string>
     <string name="no_results">لا توجد نتائج</string>
     <string name="no_servers_found">لم يتم العثور على خوادم</string>
-    <string name="no_scheduled_recordings">لا توجد تسجيلات مجدولة</string>
     <string name="no_update_available">لا يوجد تحديث متاح</string>
     <string name="none">لا شيء</string>
     <string name="only_forced_subtitles">الترجمات الإجبارية فقط</string>
@@ -97,11 +92,8 @@
     <string name="recap">ملخص ما سبق</string>
     <string name="recently_added_in">أُضيف مؤخرًا في %1$s</string>
     <string name="recently_added">أُضيف مؤخرًا</string>
-    <string name="recently_recorded">التسجيلات الأخيرة</string>
     <string name="recently_released">أحدث الإصدارات</string>
     <string name="recommended">مقترح</string>
-    <string name="record_program">تسجيل البرنامج</string>
-    <string name="record_series">تسجيل المسلسل</string>
     <string name="remove_favorite">إزالة من المفضلة</string>
     <string name="restart">إعادة تشغيل</string>
     <string name="resume">استئناف</string>
@@ -147,8 +139,6 @@
     <string name="version">إصدار</string>
     <string name="tv_seasons">مواسم</string>
     <string name="tv_season">موسم</string>
-    <string name="tv_guide">دليل</string>
-    <string name="watch_live">مشاهدة مباشرة</string>
     <string name="background">الخلفية</string>
     <string name="show_clock">إظهار الساعة</string>
     <plurals name="behind_the_scenes">

@@ -85,7 +85,7 @@ fun ItemCardImage(
 ) {
     val imageUrlService = LocalImageUrlService.current
     val context = LocalContext.current
-    // Neon Board: the type badge top-left (MOVIE / SHOW / S2 · E4, LIVE filled green).
+    // Neon Board: the type badge top-left (MOVIE / SHOW / S2 · E4).
     val typeBadge =
         remember(item?.data) {
             if (item == null) {
@@ -104,7 +104,6 @@ fun ItemCardImage(
                 itemKindLabel(context, item.type)
             }
         }
-    val badgeFilled = item?.type == BaseItemKind.TV_CHANNEL || item?.type == BaseItemKind.LIVE_TV_CHANNEL
     val imageUrl =
         remember(item, imageType, fillWidth, fillHeight) {
             if (item != null && (fillWidth.gt(0) || fillHeight.gt(0))) {
@@ -132,7 +131,6 @@ fun ItemCardImage(
         contentScale = contentScale,
         accent = accent,
         typeBadge = typeBadge,
-        typeBadgeFilled = badgeFilled,
         progressAccent = typeAccent(item?.type),
     )
 }
@@ -152,7 +150,6 @@ fun ItemCardImage(
     contentScale: ContentScale = ContentScale.Fit,
     accent: Color = LocalNeonAccent.current,
     typeBadge: String? = null,
-    typeBadgeFilled: Boolean = false,
     progressAccent: Color = accent,
     fallback: @Composable BoxScope.() -> Unit = {
         ItemCardImageFallback(
@@ -193,7 +190,6 @@ fun ItemCardImage(
                 numberOfVersions = numberOfVersions,
                 accent = accent,
                 typeBadge = typeBadge,
-                typeBadgeFilled = typeBadgeFilled,
                 progressAccent = progressAccent,
                 modifier = Modifier,
             )
@@ -256,7 +252,6 @@ fun ItemCardImageOverlay(
     modifier: Modifier = Modifier,
     accent: Color = LocalNeonAccent.current,
     typeBadge: String? = null,
-    typeBadgeFilled: Boolean = false,
     progressAccent: Color = accent,
 ) {
     val collectionAppearance = LocalCollectionCardAppearance.current.takeIf { isWeaselTv() }
@@ -281,8 +276,7 @@ fun ItemCardImageOverlay(
                 if (typeBadge != null && collectionAppearance == null && !LocalHidePosterTypeBadge.current) {
                     NeonBadge(
                         text = typeBadge,
-                        accent = if (typeBadgeFilled) NeonBoard.Green else accent,
-                        filled = typeBadgeFilled,
+                        accent = accent,
                     )
                 }
                 if (numberOfVersions > 1) {

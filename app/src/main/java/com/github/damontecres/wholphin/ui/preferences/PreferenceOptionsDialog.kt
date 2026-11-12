@@ -15,7 +15,7 @@ import androidx.compose.ui.window.DialogWindowProvider
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.ui.components.BasicDialog
 
-/** Music and guide options share the same bounded, naturally measured side panel. */
+/** View options share the same bounded, naturally measured side panel. */
 @Composable
 fun PreferenceOptionsDialog(
     onDismissRequest: () -> Unit,

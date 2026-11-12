@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">Hakkında</string>
-    <string name="active_recordings">Etkin kayıtlar</string>
     <string name="add_favorite">Favori</string>
     <string name="add_server">Sunucu Ekle</string>
     <string name="add_user">Kullanıcı Ekle</string>
@@ -9,8 +8,6 @@
     <string name="birthplace">Doğum yeri</string>
     <string name="bitrate">Bit hızı</string>
     <string name="born">Doğum Tarihi</string>
-    <string name="cancel_recording">Kaydı iptal et</string>
-    <string name="cancel_series_recording">Dizi kaydını iptal et</string>
     <string name="cancel">İptal</string>
     <string name="chapters">Bölümler</string>
     <string name="choose_stream">Seç: %1$s</string>
@@ -55,7 +52,6 @@
     <string name="jump_letters">#ABCDEFGHIJKLMNOPQRSTUVWXYZ</string>
     <string name="library">Kütüphane</string>
     <string name="license_info">Lisans bilgileri</string>
-    <string name="live_tv">Canlı TV</string>
     <string name="loading">Yükleniyor…</string>
     <string name="mark_entire_series_as_played">Tüm diziyi izlendi olarak işaretle?</string>
     <string name="mark_entire_series_as_unplayed">Tüm diziyi izlenmedi olarak işaretle?</string>
@@ -73,7 +69,6 @@
     <string name="no_data">Veri yok</string>
     <string name="no_results">Sonuç bulunamadı</string>
     <string name="no_servers_found">Sunucu bulunamadı</string>
-    <string name="no_scheduled_recordings">Planlanmış kayıt yok</string>
     <string name="no_update_available">Güncelleme mevcut değil</string>
     <string name="none">Hiçbiri</string>
     <string name="only_forced_subtitles">Sadece zorunlu altyazılar</string>
@@ -97,11 +92,8 @@
     <string name="recap">Özet</string>
     <string name="recently_added_in">%1$s kütüphanesine son eklenenler</string>
     <string name="recently_added">Son eklenen</string>
-    <string name="recently_recorded">Son Kaydedilenler</string>
     <string name="recently_released">Son Çıkanlar</string>
     <string name="recommended">Önerilenler</string>
-    <string name="record_program">Programı Kaydet</string>
-    <string name="record_series">Diziyi Kaydet</string>
     <string name="remove_favorite">Favorilerden kaldır</string>
     <string name="restart">Yeniden Başlat</string>
     <string name="resume">Sürdür</string>
@@ -153,8 +145,6 @@
         <item quantity="one">Fragman</item>
         <item quantity="other">Fragmanlar</item>
     </plurals>
-    <string name="tv_dvr_schedule">Kayıt Takvimi</string>
-    <string name="tv_guide">Rehber</string>
     <string name="tv_season">Sezon</string>
     <string name="tv_seasons">Sezonlar</string>
     <plurals name="tv_shows">
@@ -168,7 +158,6 @@
     <string name="video_scale">Video Ölçeği</string>
     <string name="video">Video</string>
     <string name="videos">Videolar</string>
-    <string name="watch_live">Canlı izle</string>
     <plurals name="years_old">
         <item quantity="one">%1$d yaşında</item>
         <item quantity="other">%1$d yaşında</item>
@@ -383,10 +372,6 @@
     <string name="bit_unit">bit</string>
     <string name="sample_rate_unit">Hz</string>
     <string name="show_titles">Başlıkları göster</string>
-    <string name="live_tv_repeat">Tekrarla</string>
-    <string name="favorite_channels_at_beginning">Favori kanalları en başta göster</string>
-    <string name="sort_channels_recently_watched">Kanalları son izlenene göre sırala</string>
-    <string name="color_code_programs">Programları türüne göre renklendir</string>
     <string name="subtitle_delay">Altyazı gecikmesi</string>
     <string name="backdrop_display">Görsel arka plan stili</string>
     <string name="resolution_switching">Çözünürlük değiştirme</string>
@@ -689,8 +674,6 @@
     <string name="dpad_seek_mode_trickplay">Trickplay</string>
     <string name="hash_matches">Hash Eşleşmeleri</string>
     <string name="subtitles_hearing_impaired">SDH</string>
-    <string name="programs">TV Programları</string>
-    <string name="recordings">Kayıtlar</string>
     <string name="folders_title">Klasörler</string>
     <string name="user_views">Kullanıcı Görünümleri</string>
     <string name="books">Kitaplar</string>

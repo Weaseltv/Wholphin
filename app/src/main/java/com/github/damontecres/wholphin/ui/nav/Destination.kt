@@ -83,11 +83,6 @@ sealed class Destination(
         constructor(item: BaseItem) : this(item.id, item.type, item.data.collectionType)
     }
 
-    @Serializable
-    data class Recordings(
-        val itemId: UUID,
-    ) : Destination()
-
     /**
      * Play a single item (and whatever contextual queue follows it, eg the rest of a season)
      *

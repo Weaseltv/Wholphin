@@ -68,20 +68,6 @@ fun HomeLibraryRowTypeList(
 fun getSupportedRowTypes(library: Library): List<LibraryRowType> {
     val supportsSuggestions = SuggestionsWorker.getTypeForCollection(library.collectionType) != null
     return when {
-        library.isRecordingFolder -> {
-            listOf(
-                LibraryRowType.RECENTLY_RECORDED,
-                LibraryRowType.GENRES,
-            )
-        }
-
-        library.collectionType == CollectionType.LIVETV -> {
-            listOf(
-                LibraryRowType.TV_CHANNELS,
-                LibraryRowType.TV_PROGRAMS,
-            )
-        }
-
         library.collectionType == CollectionType.TVSHOWS -> {
             listOf(
                 LibraryRowType.RECENTLY_ADDED,
@@ -137,9 +123,6 @@ enum class LibraryRowType(
     SUGGESTIONS(R.string.suggestions),
     GENRES(R.string.genres),
     STUDIOS(R.string.studios),
-    TV_CHANNELS(R.string.channels),
-    TV_PROGRAMS(R.string.watch_live),
-    RECENTLY_RECORDED(R.string.recently_recorded),
     COLLECTION(R.string.collection),
     PLAYLIST(R.string.playlist),
 }

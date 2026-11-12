@@ -64,7 +64,6 @@ This is not a fork of the [official client](https://github.com/jellyfin/jellyfin
   - Using D-Pad left/right for seeking during playback
   - Quickly access video chapters & queue during playback
   - Optionally skip back a few seconds when resuming playback
-- Live TV & DVR support
 - Music & music video support
 - Cinema mode/pre-roll intro support (requires compatible server plugin such as [Intros](https://github.com/jellyfin/jellyfin-plugin-intros))
 - Auto play next episodes with pass out protection

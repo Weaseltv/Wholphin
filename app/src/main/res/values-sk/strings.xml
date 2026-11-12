@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">O aplikácii</string>
-    <string name="active_recordings">Aktívne nahrávky</string>
     <string name="add_favorite">Obľúbené</string>
     <string name="add_server">Pridať server</string>
     <string name="add_user">Pridať používateľa</string>
@@ -9,8 +8,6 @@
     <string name="birthplace">Miesto narodenia</string>
     <string name="bitrate">Bitrate</string>
     <string name="born">Dátum narodenia</string>
-    <string name="cancel_recording">Zrušiť nahrávanie</string>
-    <string name="cancel_series_recording">Zrušiť nahrávanie seriálu</string>
     <string name="cancel">Zrušiť</string>
     <string name="chapters">Kapitoly</string>
     <string name="choose_stream">Vybrať %1$s</string>
@@ -52,7 +49,6 @@
     <string name="jump_letters">#ABCDEFGHIJKLMNOPQRSTUVWXYZÁČĎÉÍĽĹŇÓÔŔŠŤÚÝŽ</string>
     <string name="library">Knižnica</string>
     <string name="license_info">Informácie o licencii</string>
-    <string name="live_tv">Živá TV</string>
     <string name="loading">Načítavanie…</string>
     <string name="mark_entire_series_as_played">Označiť celú sériu ako prehranú?</string>
     <string name="mark_entire_series_as_unplayed">Označiť celú sériu ako neprehranú?</string>
@@ -66,7 +62,6 @@
     <string name="next_up">Nasleduje</string>
     <string name="no_data">Žiadne dáta</string>
     <string name="no_results">Žiadne výsledky</string>
-    <string name="no_scheduled_recordings">Žiadne naplánované nahrávky</string>
     <string name="no_update_available">Žiadna aktualizácia nie je k dispozícii</string>
     <string name="none">Žiadne</string>
     <string name="outro">Outro</string>
@@ -86,11 +81,8 @@
     <string name="recap">Rekapitulácia</string>
     <string name="recently_added_in">Nedávno pridané v %1$s</string>
     <string name="recently_added">Nedávno pridané</string>
-    <string name="recently_recorded">Nedávno nahraté</string>
     <string name="recently_released">Nedávno vydané</string>
     <string name="recommended">Odporúčané</string>
-    <string name="record_program">Nahrávať program</string>
-    <string name="record_series">Nahrávať seriál</string>
     <string name="remove_favorite">Neobľúbené</string>
     <string name="restart">Reštartovať</string>
     <string name="resume">Pokračovať</string>
@@ -149,8 +141,6 @@
         <item quantity="many">Trailerov</item>
         <item quantity="other">Trailerov</item>
     </plurals>
-    <string name="tv_dvr_schedule">DVR rozvrh</string>
-    <string name="tv_guide">Sprievodca</string>
     <string name="tv_season">Séria</string>
     <string name="tv_seasons">Série</string>
     <plurals name="tv_shows">
@@ -166,7 +156,6 @@
     <string name="video_scale">Mierka videa</string>
     <string name="video">Video</string>
     <string name="videos">Videá</string>
-    <string name="watch_live">Sledovať naživo</string>
     <plurals name="years_old">
         <item quantity="one">vo veku %1$d roka</item>
         <item quantity="few">vo veku %1$d rokov</item>
@@ -426,10 +415,6 @@
     <string name="bit_unit">bit</string>
     <string name="sample_rate_unit">Hz</string>
     <string name="show_titles">Zobraziť názvy</string>
-    <string name="live_tv_repeat">Opakovať</string>
-    <string name="favorite_channels_at_beginning">Zobraziť obľúbené kanály ako prvé</string>
-    <string name="sort_channels_recently_watched">Zoradiť kanály podľa nedávno pozretých</string>
-    <string name="color_code_programs">Farebné rozlíšenie programov</string>
     <string name="subtitle_delay">Oneskorenie titulkov</string>
     <string name="backdrop_display">Štýl backdropu</string>
     <string name="resolution_switching">Prepínanie rozlíšenia</string>
@@ -733,8 +718,6 @@
     <string name="dpad_seek_mode_trickplay">Trickplay</string>
     <string name="hash_matches">Hash zhody</string>
     <string name="subtitles_hearing_impaired">SDH</string>
-    <string name="programs">TV programy</string>
-    <string name="recordings">Nahrávky</string>
     <string name="folders_title">Priečinky</string>
     <string name="user_views">Používateľské zobrazenia</string>
     <string name="books">Knihy</string>

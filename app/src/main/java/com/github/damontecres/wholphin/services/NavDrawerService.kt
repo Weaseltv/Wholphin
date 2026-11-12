@@ -30,8 +30,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.api.client.ApiClient
-import org.jellyfin.sdk.api.client.exception.InvalidStatusException
-import org.jellyfin.sdk.api.client.extensions.liveTvApi
 import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.api.client.extensions.userViewsApi
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -147,43 +145,20 @@ class NavDrawerService
         /**
          * Get all the libraries the user has access to
          */
-        suspend fun getAllUserLibraries(
-            userId: UUID,
-            tvAccess: Boolean,
-        ): List<Library> {
+        suspend fun getAllUserLibraries(userId: UUID): List<Library> {
             val userViews =
                 api.userViewsApi
                     .getUserViews(userId = userId)
                     .content.items
-            val recordingFolders =
-                if (tvAccess) {
-                    try {
-                        api.liveTvApi
-                            .getRecordingFolders(userId = userId)
-                            .content.items
-                            .map { it.id }
-                            .toSet()
-                    } catch (ex: InvalidStatusException) {
-                        if (ex.status == 401 || ex.status == 403) {
-                            Timber.w("Got HTTP %s querying for recording folders", ex.status)
-                            emptySet()
-                        } else {
-                            throw ex
-                        }
-                    }
-                } else {
-                    emptySet()
-                }
             val libraries =
                 userViews
-                    .filter { it.collectionType in supportedCollectionTypes || it.id in recordingFolders }
+                    .filter { it.collectionType in supportedCollectionTypes }
                     .map {
                         Library(
                             itemId = it.id,
                             name = it.name ?: "",
                             type = it.type,
                             collectionType = it.collectionType ?: CollectionType.UNKNOWN,
-                            isRecordingFolder = it.id in recordingFolders,
                         )
                     }
             // UserViews already follows the member's server-configured library order.
@@ -193,16 +168,13 @@ class NavDrawerService
         /**
          * Get the libraries that the user has not "pinned". These will show in the More section.
          */
-        suspend fun getFilteredUserLibraries(
-            user: JellyfinUser,
-            tvAccess: Boolean,
-        ): List<Library> {
+        suspend fun getFilteredUserLibraries(user: JellyfinUser): List<Library> {
             val pins =
                 serverPreferencesDao
                     .getNavDrawerPinnedItems(user)
                     .associateBy { it.itemId }
             val libraries =
-                getAllUserLibraries(user.id, tvAccess)
+                getAllUserLibraries(user.id)
                     .filterNot { pins[ServerNavDrawerItem.getId(it.itemId)]?.type == NavPinType.UNPINNED }
             return libraries
         }
@@ -263,25 +235,20 @@ class NavDrawerService
                     add(NavDrawerItem.Favorites)
                     if (discoverActive) add(NavDrawerItem.Discover)
                 }
-            var allLibraries = getAllUserLibraries(user.id, userDto.tvAccess)
+            var allLibraries = getAllUserLibraries(user.id)
             allLibraries = restoreServerLibraryOrder(user, allLibraries)
             val libraries =
                 allLibraries
                     .map {
-                        val destination =
-                            if (it.isRecordingFolder) {
-                                Destination.Recordings(it.itemId)
-                            } else {
+                        ServerNavDrawerItem(
+                            itemId = it.itemId,
+                            name = it.name,
+                            destination =
                                 Destination.MediaItem(
                                     it.itemId,
                                     it.type,
                                     it.collectionType,
-                                )
-                            }
-                        ServerNavDrawerItem(
-                            itemId = it.itemId,
-                            name = it.name,
-                            destination = destination,
+                                ),
                             type = it.collectionType,
                         )
                     }
@@ -345,8 +312,6 @@ data class NavDrawerItemState(
     val nowPlayingTitle: String? = null,
     val allLibraries: List<Library> = emptyList(),
 )
-
-val UserDto.tvAccess: Boolean get() = policy?.enableLiveTvAccess == true
 
 /**
  * Flavor builtin and named-library order, followed by other libraries, then Playlists.

@@ -5,7 +5,6 @@
     <string name="add_server">Adicionar Servidor</string>
     <string name="add_user">Adicionar Utilizador</string>
     <string name="audio">Áudio</string>
-    <string name="cancel_recording">Cancelar Gravação</string>
     <string name="cancel">Cancelar</string>
     <string name="chapters">Capítulos</string>
     <string name="choose_stream">Escolher %1$s</string>
@@ -27,11 +26,9 @@
     <string name="file_size">Tamanho</string>
     <string name="forced_track">Forçado</string>
     <string name="go_to">Ir para</string>
-    <string name="active_recordings">Gravações Ativas</string>
     <string name="birthplace">Local de Nascimento</string>
     <string name="bitrate">Bitrate</string>
     <string name="born">Nascido</string>
-    <string name="cancel_series_recording">Cancelar Gravação da Série</string>
     <string name="compose_error_message_title">Ocorreu um erro! Pressiona o botão para enviar o registo para o teu servidor.</string>
     <string name="continue_watching">Continuar a ver</string>
     <string name="died">Morreu</string>
@@ -50,7 +47,6 @@
     <string name="jump_letters">#ABCDEFGHIJKLMNOPQRSTUVWXYZ</string>
     <string name="library">Biblioteca</string>
     <string name="license_info">Informação da licença</string>
-    <string name="live_tv">TV em Directo</string>
     <string name="loading">A carregar…</string>
     <string name="mark_entire_series_as_played">Marcar toda a série como reproduzida?</string>
     <string name="mark_entire_series_as_unplayed">Marcar toda a série como não reproduzida?</string>
@@ -64,7 +60,6 @@
     <string name="next_up">A Seguir</string>
     <string name="no_data">Sem dados</string>
     <string name="no_results">Sem resultados</string>
-    <string name="no_scheduled_recordings">Sem gravações programadas</string>
     <string name="no_update_available">Nenhuma atualização disponível</string>
     <string name="none">Nenhum</string>
     <string name="outro">Créditos finais</string>
@@ -85,11 +80,8 @@
     <string name="recap">Recapitulação</string>
     <string name="recently_added_in">Adicionado recentemente em %1$s</string>
     <string name="recently_added">Adicionado recentemente</string>
-    <string name="recently_recorded">Gravado Recentemente</string>
     <string name="recently_released">Lançado Recentemente</string>
     <string name="recommended">Recomendado</string>
-    <string name="record_program">Gravar Programa</string>
-    <string name="record_series">Gravar Série</string>
     <string name="remove_favorite">Desmarcar como favorito</string>
     <string name="restart">Reiniciar</string>
     <string name="resume">Resumir</string>
@@ -124,8 +116,6 @@
         <item quantity="many">Trailers</item>
         <item quantity="other">Trailers</item>
     </plurals>
-    <string name="tv_dvr_schedule">Programação DVR</string>
-    <string name="tv_guide">Guia</string>
     <string name="tv_season">Temporada</string>
     <string name="tv_seasons">Temporadas</string>
     <string name="tv_shows_title">Séries TV</string>
@@ -136,7 +126,6 @@
     <string name="video_scale">Escala do Vídeo</string>
     <string name="video">Vídeo</string>
     <string name="videos">Vídeos</string>
-    <string name="watch_live">Ver em directo</string>
     <plurals name="years_old">
         <item quantity="one">%1$d ano</item>
         <item quantity="many">%1$d anos</item>
@@ -369,10 +358,6 @@
     <string name="bit_unit">bit</string>
     <string name="sample_rate_unit">Hz</string>
     <string name="container">Formato</string>
-    <string name="live_tv_repeat">Repetir</string>
-    <string name="favorite_channels_at_beginning">Mostrar primeiro os canais favoritos</string>
-    <string name="sort_channels_recently_watched">Ordenar canais por visualizações recentes</string>
-    <string name="color_code_programs">Codificação de cores para os programas</string>
     <string name="subtitle_delay">Atraso da legenda</string>
     <string name="enter_server_address">Insira o endereço do servidor</string>
     <string name="no_servers_found">Nenhum servidor encontrado</string>
@@ -716,8 +701,6 @@
     <string name="dpad_seek_mode_none_summary">Sem barra de pesquisa</string>
     <string name="hash_matches">Correspondências de hash</string>
     <string name="subtitles_hearing_impaired">SDH</string>
-    <string name="programs">Programas de TV</string>
-    <string name="recordings">Gravações</string>
     <string name="folders_title">Pastas</string>
     <string name="user_views">Visualizações do utilizador</string>
     <string name="books">Livros</string>

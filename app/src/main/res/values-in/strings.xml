@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">Tentang</string>
-    <string name="active_recordings">Rekaman Aktif</string>
     <string name="add_favorite">Favorit</string>
     <string name="add_server">Tambahkan Server</string>
     <string name="add_user">Tambahkan Pengguna</string>
@@ -9,8 +8,6 @@
     <string name="birthplace">Tempat Lahir</string>
     <string name="bitrate">Bitrate</string>
     <string name="born">Lahir</string>
-    <string name="cancel_recording">Batalkan Perekaman</string>
-    <string name="cancel_series_recording">Batalkan Perekaman Seri</string>
     <string name="cancel">Batal</string>
     <string name="chapters">Chapter</string>
     <string name="choose_stream">Pilih %1$s</string>
@@ -53,7 +50,6 @@
     <string name="jump_letters">#ABCDEFGHIJKLMNOPQRSTUVWXYZ</string>
     <string name="library">Pustaka</string>
     <string name="license_info">Informasi lisensi</string>
-    <string name="live_tv">Live TV</string>
     <string name="loading">Memuat…</string>
     <string name="mark_entire_series_as_played">Tandai semua episode sudah ditonton?</string>
     <string name="mark_entire_series_as_unplayed">Tandai semua episode belum ditonton?</string>
@@ -67,7 +63,6 @@
     <string name="next_up">Selanjutnya</string>
     <string name="no_data">Tidak ada data</string>
     <string name="no_results">Hasil tidak ditemukan</string>
-    <string name="no_scheduled_recordings">Tidak ada rekaman terjadwal</string>
     <string name="no_update_available">Sudah versi terbaru</string>
     <string name="none">Tidak ada</string>
     <string name="outro">Outro</string>
@@ -87,11 +82,8 @@
     <string name="recap">Rekap</string>
     <string name="recently_added_in">Baru ditambahkan di %1$s</string>
     <string name="recently_added">Baru ditambahkan</string>
-    <string name="recently_recorded">Baru Saja Direkam</string>
     <string name="recently_released">Baru Dirilis</string>
     <string name="recommended">Rekomendasi</string>
-    <string name="record_program">Rekam Program</string>
-    <string name="record_series">Rekam Seri</string>
     <string name="remove_favorite">Hapus dari Favorit</string>
     <string name="restart">Mulai ulang</string>
     <string name="resume">Lanjutkan</string>
@@ -124,8 +116,6 @@
     <plurals name="trailers">
         <item quantity="other">Trailer</item>
     </plurals>
-    <string name="tv_dvr_schedule">Jadwal DVR</string>
-    <string name="tv_guide">Panduan</string>
     <string name="tv_season">Season</string>
     <string name="tv_seasons">Season</string>
     <string name="tv_shows_title">Acara TV</string>
@@ -136,7 +126,6 @@
     <string name="video_scale">Skala Video</string>
     <string name="video">Video</string>
     <string name="videos">Video</string>
-    <string name="watch_live">Tonton langsung</string>
     <plurals name="years_old">
         <item quantity="other">%1$d tahun</item>
     </plurals>
@@ -311,10 +300,6 @@
     <string name="bit_unit">bit</string>
     <string name="sample_rate_unit">Hz</string>
     <string name="show_titles">Tampilkan judul</string>
-    <string name="live_tv_repeat">Ulangi</string>
-    <string name="favorite_channels_at_beginning">Tampilkan saluran favorit dahulu</string>
-    <string name="sort_channels_recently_watched">Urutkan saluran berdasarkan yang baru ditonton</string>
-    <string name="color_code_programs">Program kode warna</string>
     <string name="verbose_logging">Pencatatan rinci</string>
     <string name="require_pin_code">Membutuhkan PIN untuk profil</string>
     <string name="will_remove_pin">PIN akan dihapus</string>
@@ -679,8 +664,6 @@
     <string name="blocklisted">Daftar blokir</string>
     <string name="hash_matches">Hash sesuai</string>
     <string name="subtitles_hearing_impaired">SDH</string>
-    <string name="programs">Acara TV</string>
-    <string name="recordings">Rekaman</string>
     <string name="folders_title">Folder</string>
     <string name="user_views">Tampilan pengguna</string>
     <string name="books">Buku</string>

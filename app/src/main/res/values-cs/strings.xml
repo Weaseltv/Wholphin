@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">O aplikaci</string>
-    <string name="active_recordings">Aktivní nahrávání</string>
     <string name="add_favorite">Oblíbené</string>
     <string name="add_server">Přidat server</string>
     <string name="add_user">Přidat uživatele</string>
@@ -9,8 +8,6 @@
     <string name="birthplace">Místo narození</string>
     <string name="bitrate">Bitrate</string>
     <string name="born">Narozen</string>
-    <string name="cancel_recording">Zrušit nahrávání</string>
-    <string name="cancel_series_recording">Zrušit nahrávání seriálu</string>
     <string name="cancel">Zrušit</string>
     <string name="chapters">Kapitoly</string>
     <string name="choose_stream">Vybrat %1$s</string>
@@ -52,7 +49,6 @@
     <string name="jump_letters">#ABCDEFGHIJKLMNOPQRSTUVWXYZ</string>
     <string name="library">Knihovna</string>
     <string name="license_info">Informace o licenci</string>
-    <string name="live_tv">Živá TV</string>
     <string name="loading">Načítání…</string>
     <string name="mark_entire_series_as_played">Označit celou sérii jako zhlédnutou?</string>
     <string name="mark_entire_series_as_unplayed">Označit celou sérii jako nezhlédnuté?</string>
@@ -70,7 +66,6 @@
     <string name="no_data">Žádná data</string>
     <string name="no_results">Žádné výsledky</string>
     <string name="no_servers_found">Nenalezeny žádné servery</string>
-    <string name="no_scheduled_recordings">Žádné naplánované nahrávání</string>
     <string name="no_update_available">Žádné aktualizace nejsou k dispozici</string>
     <string name="none">Žádný</string>
     <string name="only_forced_subtitles">Pouze vynucené titulky</string>
@@ -94,11 +89,8 @@
     <string name="recap">Shrnout</string>
     <string name="recently_added_in">Nedávno přidáno v %1$s</string>
     <string name="recently_added">Nedávno přidáno</string>
-    <string name="recently_recorded">Nedávno nahráno</string>
     <string name="recently_released">Nedávno vydané</string>
     <string name="recommended">Doporučeno</string>
-    <string name="record_program">Nahrát Program</string>
-    <string name="record_series">Nahrát Seriál</string>
     <string name="remove_favorite">Odebrat z oblíbených</string>
     <string name="restart">Restart</string>
     <string name="resume">Pokračovat</string>
@@ -149,8 +141,6 @@
         <item quantity="one">Upoutávky</item>
         <item quantity="other">Upoutávky</item>
     </plurals>
-    <string name="tv_dvr_schedule">Harmonogram nahrávání</string>
-    <string name="tv_guide">Televizní program</string>
     <string name="tv_season">Sezóna</string>
     <string name="tv_seasons">Sezóny</string>
     <plurals name="tv_shows">
@@ -164,7 +154,6 @@
     <string name="video_scale">Měřítko videa</string>
     <string name="video">Video</string>
     <string name="videos">Videa</string>
-    <string name="watch_live">Sledujte živě</string>
     <plurals name="years_old">
         <item quantity="other">%1$d let starý</item>
     </plurals>
@@ -364,9 +353,6 @@
     <string name="bit_unit">bit</string>
     <string name="sample_rate_unit">Hz</string>
     <string name="show_titles">Zobrazit názvy</string>
-    <string name="live_tv_repeat">Opakovat</string>
-    <string name="favorite_channels_at_beginning">Zobrazit oblíbené kanály jako první</string>
-    <string name="sort_channels_recently_watched">Řadit kanály podle naposledy sledovaných</string>
     <string name="subtitle_delay">Zpoždění titulků</string>
     <string name="backdrop_display">Styl prospektu</string>
     <string name="resolution_switching">Přepínání rozlišení</string>
@@ -423,7 +409,6 @@
     <string name="cast_and_crew">Cast &amp; Crew</string>
     <string name="anamorphic">Anamorfní</string>
     <string name="interlaced">Prokládané</string>
-    <string name="color_code_programs">Color code programs</string>
     <string name="upgrade_mpv_toast">MPV je nyní výchozím přehrávačem mimo HDR.\nToto můžete změnit v nastavení.</string>
     <string name="hdr_subtitle_style">Styl HDR titulků</string>
     <string name="image_subtitle_opacity">Průhlednost obrázku titulků</string>

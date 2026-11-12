@@ -160,13 +160,6 @@ message SubtitlePreferences{
   bool use_separate_hdr = 14;
 }
 
-message LiveTvPreferences {
-  bool show_header = 1;
-  bool favorite_channels_at_beginning = 2;
-  bool sort_by_recently_watched = 3;
-  bool color_code_programs = 4;
-}
-
 enum BackdropStyle{
   BACKDROP_DYNAMIC_COLOR = 0;
   BACKDROP_IMAGE_ONLY = 1;
@@ -204,7 +197,9 @@ message InterfacePreferences {
   bool nav_drawer_switch_on_focus = 5;
   bool show_clock = 6;
   SubtitlePreferences subtitles_preferences = 7;
-  LiveTvPreferences live_tv_preferences = 8;
+  // 8 held the removed TV guide options; stored files may still carry it, so it is never reused
+  reserved 8;
+  reserved "live_tv_preferences";
   BackdropStyle backdrop_style = 9;
   SubtitlePreferences hdr_subtitles_preferences = 10;
   ScreensaverPreferences screensaver_preference = 11;

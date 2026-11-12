@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">Over</string>
-    <string name="active_recordings">Actieve opnames</string>
     <string name="add_favorite">Aan favorieten toevoegen</string>
     <string name="add_server">Server toevoegen</string>
     <string name="add_user">Gebruiker toevoegen</string>
@@ -9,8 +8,6 @@
     <string name="birthplace">Geboorteplaats</string>
     <string name="bitrate">Bitsnelheid</string>
     <string name="born">Geboortedatum</string>
-    <string name="cancel_recording">Opname afbreken</string>
-    <string name="cancel_series_recording">Serieopname afbreken</string>
     <string name="cancel">Annuleren</string>
     <string name="chapters">Hoofdstukken</string>
     <string name="choose_stream">%1$s kiezen</string>
@@ -53,7 +50,6 @@
     <string name="jump_letters">#ABCDEFGHIJKLMNOPQRSTUVWXYZ</string>
     <string name="library">Bibliotheek</string>
     <string name="license_info">Licentie-informatie</string>
-    <string name="live_tv">Live-tv</string>
     <string name="loading">Bezig met laden…</string>
     <string name="mark_entire_series_as_played">Serie als bekeken markeren?</string>
     <string name="mark_entire_series_as_unplayed">Serie als niet-bekeken markeren?</string>
@@ -67,7 +63,6 @@
     <string name="next_up">Volgende</string>
     <string name="no_data">Geen informatie</string>
     <string name="no_results">Geen zoekresultaten</string>
-    <string name="no_scheduled_recordings">Geen ingeplande opnames</string>
     <string name="no_update_available">Geen update beschikbaar</string>
     <string name="none">Geen</string>
     <string name="outro">Aftiteling</string>
@@ -87,11 +82,8 @@
     <string name="recap">Samenvatting</string>
     <string name="recently_added_in">Onlangs toegevoegd aan %1$s</string>
     <string name="recently_added">Onlangs toegevoegd</string>
-    <string name="recently_recorded">Onlangs opgenomen</string>
     <string name="recently_released">Onlangs verschenen</string>
     <string name="recommended">Aanbevolen</string>
-    <string name="record_program">Programma opnemen</string>
-    <string name="record_series">Serie opnemen</string>
     <string name="remove_favorite">Uit favorieten verwijderen</string>
     <string name="restart">Herstarten</string>
     <string name="resume">Hervatten</string>
@@ -125,8 +117,6 @@
         <item quantity="one">Trailer</item>
         <item quantity="other">Trailers</item>
     </plurals>
-    <string name="tv_dvr_schedule">DVR-schema</string>
-    <string name="tv_guide">Gids</string>
     <string name="tv_season">Seizoen</string>
     <string name="tv_seasons">Seizoenen</string>
     <string name="tv_shows_title">Series</string>
@@ -137,7 +127,6 @@
     <string name="video_scale">Beeldverhouding</string>
     <string name="video">Video</string>
     <string name="videos">Video\'s</string>
-    <string name="watch_live">Live kijken</string>
     <plurals name="years_old">
         <item quantity="other">%1$d jaar oud</item>
     </plurals>
@@ -351,10 +340,6 @@
     <string name="hlg">Hlg</string>
     <string name="bit_unit">bit</string>
     <string name="sample_rate_unit">Hz</string>
-    <string name="live_tv_repeat">Herhalen</string>
-    <string name="favorite_channels_at_beginning">Favoriete kanalen eerst tonen</string>
-    <string name="sort_channels_recently_watched">Kanalen sorteren op onlangs bekeken</string>
-    <string name="color_code_programs">Programma\'s voorzien van kleurcode</string>
     <string name="ends_at">Eindigt om %1$s</string>
     <string name="enter_server_address">Voer server-adres in</string>
     <string name="discover">Ontdekken</string>

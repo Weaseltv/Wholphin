@@ -77,7 +77,7 @@ class NavDrawerLibrariesTest {
                 every { migrations.getBoolean(any(), false) } returns true
                 val service =
                     NavDrawerService(context, backgroundScope, api, repository, preferences, seerr, music, management)
-                val libraries = service.getAllUserLibraries(user.id, false)
+                val libraries = service.getAllUserLibraries(user.id)
                 assertEquals(views.map { it.name }, libraries.map { it.name })
                 service.updateNavDrawer(
                     user,

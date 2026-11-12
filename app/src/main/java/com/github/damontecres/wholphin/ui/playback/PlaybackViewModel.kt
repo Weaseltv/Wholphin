@@ -563,7 +563,6 @@ class PlaybackViewModel
                 this@PlaybackViewModel.currentItem = playlistItem
                 this@PlaybackViewModel.itemId = item.id
 
-                val isLiveTv = item.type == BaseItemKind.TV_CHANNEL
                 val base = item.data
 
                 // Use the explicitly requested playback parameters or else check if the database has some
@@ -585,16 +584,11 @@ class PlaybackViewModel
                             }
                         }
                     }
-                val mediaSource =
-                    if (!isLiveTv) {
-                        streamChoiceService.chooseSource(base, itemPlayback)
-                    } else {
-                        null
-                    }
+                val mediaSource = streamChoiceService.chooseSource(base, itemPlayback)
 
                 val plc = streamChoiceService.getPlaybackLanguageChoice(base)
 
-                if (mediaSource == null && !isLiveTv) {
+                if (mediaSource == null) {
                     showToast(
                         context,
                         "Item has no media sources, skipping...",
@@ -605,7 +599,7 @@ class PlaybackViewModel
 
                 val videoStream =
                     mediaSource
-                        ?.mediaStreams
+                        .mediaStreams
                         ?.firstOrNull { it.type == MediaStreamType.VIDEO }
                         ?.let {
                             val isHdr =
@@ -619,42 +613,38 @@ class PlaybackViewModel
                 // Create the correct player for the media
                 createPlayer(videoStream?.hdr == true, videoStream?.is4k == true)
 
-                val subtitleStreams = mediaSource?.let { getSubtitleStreams(mediaSource) }.orEmpty()
-                val audioStreams = mediaSource?.let { getAudioStreams(mediaSource) }.orEmpty()
+                val subtitleStreams = getSubtitleStreams(mediaSource)
+                val audioStreams = getAudioStreams(mediaSource)
                 val audioStream =
-                    mediaSource?.let {
-                        streamChoiceService
-                            .chooseAudioStream(
-                                source = mediaSource,
-                                seriesId = base.seriesId,
-                                itemPlayback = itemPlayback,
-                                plc = plc,
-                                prefs = preferences,
-                            )
-                    }
+                    streamChoiceService
+                        .chooseAudioStream(
+                            source = mediaSource,
+                            seriesId = base.seriesId,
+                            itemPlayback = itemPlayback,
+                            plc = plc,
+                            prefs = preferences,
+                        )
                 val audioIndex = audioStream?.index
 
                 val subtitleIndex =
-                    mediaSource?.let {
-                        streamChoiceService
-                            .chooseSubtitleStream(
-                                source = mediaSource,
-                                audioStream = audioStream,
-                                seriesId = base.seriesId,
-                                itemPlayback = itemPlayback,
-                                plc = plc,
-                                prefs = preferences,
-                            )?.index
-                    }
+                    streamChoiceService
+                        .chooseSubtitleStream(
+                            source = mediaSource,
+                            audioStream = audioStream,
+                            seriesId = base.seriesId,
+                            itemPlayback = itemPlayback,
+                            plc = plc,
+                            prefs = preferences,
+                        )?.index
                 Timber.d(
                     "Selected mediaSource=%s, audioIndex=%s, subtitleIndex=%s",
-                    mediaSource?.id,
+                    mediaSource.id,
                     audioIndex,
                     subtitleIndex,
                 )
 
                 val trickPlayInfo =
-                    mediaSource?.id?.let { sourceId ->
+                    mediaSource.id?.let { sourceId ->
                         item.data.trickplay
                             ?.get(sourceId)
                             ?.values
@@ -682,7 +672,7 @@ class PlaybackViewModel
                 }
                 updateCurrentMedia {
                     CurrentMediaInfo(
-                        sourceId = mediaSource?.id,
+                        sourceId = mediaSource.id,
                         videoStream = videoStream,
                         audioStreams = audioStreams,
                         subtitleStreams = subtitleStreams,
@@ -696,7 +686,7 @@ class PlaybackViewModel
                         audioIndex = audioIndex,
                         subtitleIndex = subtitleIndex,
                         positionMs = if (positionMs > 0) positionMs else C.TIME_UNSET,
-                        sourceId = mediaSource?.id,
+                        sourceId = mediaSource.id,
                         enableDirectPlay = !forceTranscoding,
                         enableDirectStream = !forceTranscoding,
                     )

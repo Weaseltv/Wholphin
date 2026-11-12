@@ -139,7 +139,7 @@ class KidHomeCollectionsTest {
             api = api,
             serverRepository = repository,
             userPreferencesService = preferences,
-            navDrawerService = mockk { coEvery { getAllUserLibraries(any(), any()) } returns emptyList() },
+            navDrawerService = mockk { coEvery { getAllUserLibraries(any()) } returns emptyList() },
             latestNextUpService = latestNextUp,
             imageUrlService = mockk(),
             suggestionService = mockk(),

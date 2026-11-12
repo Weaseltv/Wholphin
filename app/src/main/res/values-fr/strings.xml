@@ -4,7 +4,6 @@
     <string name="add_server">Ajouter un serveur</string>
     <string name="add_user">Ajouter un utilisateur</string>
     <string name="audio">Audio</string>
-    <string name="cancel_recording">Annuler l\'enregistrement</string>
     <string name="cancel">Annuler</string>
     <string name="confirm">Confirmer</string>
     <string name="continue_watching">Continuer à regarder</string>
@@ -12,10 +11,8 @@
     <string name="director">Réalisateur</string>
     <string name="directed_by">Réalisé par %1$s</string>
     <string name="episodes">Épisodes</string>
-    <string name="active_recordings">Enregistrements en cours</string>
     <string name="birthplace">Lieu de naissance</string>
     <string name="born">Né(e)</string>
-    <string name="cancel_series_recording">Annuler l’enregistrement de la série</string>
     <string name="chapters">Chapitres</string>
     <string name="clear_image_cache">Vider le cache des images</string>
     <string name="collection">Collection</string>
@@ -41,7 +38,6 @@
     <string name="home">Accueil</string>
     <string name="immediate">Immédiat</string>
     <string name="library">Bibliothèque</string>
-    <string name="live_tv">TV en direct</string>
     <string name="loading">Chargement en cours…</string>
     <string name="mark_entire_series_as_played">Marquer toute la série comme vue ?</string>
     <string name="mark_entire_series_as_unplayed">Marquer toute la série comme non vue ?</string>
@@ -53,7 +49,6 @@
     <string name="next_up">À suivre</string>
     <string name="no_data">Aucune donnée</string>
     <string name="no_results">Aucun résultat</string>
-    <string name="no_scheduled_recordings">Aucun enregistrement programmé</string>
     <string name="no_update_available">Aucune mise à jour disponible</string>
     <string name="none">Aucun</string>
     <string name="outro">Générique de fin</string>
@@ -71,11 +66,8 @@
     <string name="recap">Récapitulatif</string>
     <string name="recently_added_in">Récemment ajoutés dans %1$s</string>
     <string name="recently_added">Récemment ajouté</string>
-    <string name="recently_recorded">Récemment enregistré</string>
     <string name="recently_released">Récemment sorti</string>
     <string name="recommended">Recommandé</string>
-    <string name="record_program">Enregistrer le programme</string>
-    <string name="record_series">Enregistrer la série</string>
     <string name="remove_favorite">Retirer des favoris</string>
     <string name="restart">Redémarrer</string>
     <string name="resume">Reprendre</string>
@@ -111,7 +103,6 @@
     <string name="version">Version</string>
     <string name="video">Vidéo</string>
     <string name="videos">Vidéos</string>
-    <string name="watch_live">Regarder en direct</string>
     <string name="play_with_transcoding">Lire avec transcodage</string>
     <string name="show_clock">Afficher l’horloge</string>
     <string name="add_favorite">Ajouter aux favoris</string>
@@ -175,7 +166,6 @@
     <string name="show">Afficher</string>
     <string name="shuffle">Mélanger</string>
     <string name="submit">Soumettre</string>
-    <string name="tv_guide">Guide</string>
     <string name="ui_interface">Interface</string>
     <string name="video_scale">Échelle de la vidéo</string>
     <plurals name="years_old">
@@ -295,7 +285,6 @@
     <string name="combine_continue_next"><![CDATA[Combiner Continuer à regarder &amp; À suivre]]></string>
     <string name="download_and_update"><![CDATA[Télécharger &amp; Mettre à jour]]></string>
     <string name="search_and_download"><![CDATA[Rechercher &amp; Télécharger]]></string>
-    <string name="tv_dvr_schedule">Calendrier du DVR</string>
     <string name="aired_episode_order">Trié par date de diffusion</string>
     <string name="one_click_pause_summary_on">Appuyez au centre de la croix directionnelle pour mettre en pause/reprendre</string>
     <plurals name="featurettes">
@@ -365,14 +354,10 @@
     <string name="hdr10_plus">HDR10+</string>
     <string name="bit_unit">bit</string>
     <string name="sample_rate_unit">Hz</string>
-    <string name="live_tv_repeat">Répéter</string>
-    <string name="favorite_channels_at_beginning">Afficher les chaînes favorites en premier</string>
     <string name="nal">NAL</string>
     <string name="hlg">HLG</string>
     <string name="color_primaries">Couleurs primaires</string>
     <string name="ref_frames">Images de référence</string>
-    <string name="sort_channels_recently_watched">Trier les chaînes par date de visionnage</string>
-    <string name="color_code_programs">Classer les programmes par code couleur</string>
     <string name="ends_at">Terminera à %1$s</string>
     <string name="enter_server_address">Entrez l\'adresse du serveur</string>
     <string name="no_servers_found">Aucun serveur trouvé</string>
@@ -716,8 +701,6 @@
     <string name="dpad_seek_mode_none_summary">Pas de barre de progression</string>
     <string name="hash_matches">Correspondances de hachage</string>
     <string name="subtitles_hearing_impaired">SDH</string>
-    <string name="programs">Émissions de télévision</string>
-    <string name="recordings">Enregistrements</string>
     <string name="folders_title">Dossiers</string>
     <string name="user_views">Avis des utilisateurs</string>
     <string name="books">Livres</string>

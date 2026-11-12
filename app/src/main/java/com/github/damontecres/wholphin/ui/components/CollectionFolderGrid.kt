@@ -278,16 +278,6 @@ val CollectionType.baseItemKinds: List<BaseItemKind>
                 listOf(BaseItemKind.PHOTO, BaseItemKind.PHOTO_ALBUM)
             }
 
-            CollectionType.LIVETV -> {
-                listOf(
-                    BaseItemKind.TV_CHANNEL,
-                    BaseItemKind.LIVE_TV_CHANNEL,
-                    BaseItemKind.PROGRAM,
-                    BaseItemKind.TV_PROGRAM,
-                    BaseItemKind.LIVE_TV_PROGRAM,
-                )
-            }
-
             CollectionType.TRAILERS -> {
                 listOf(BaseItemKind.TRAILER)
             }
@@ -300,7 +290,9 @@ val CollectionType.baseItemKinds: List<BaseItemKind>
                 listOf(BaseItemKind.FOLDER)
             }
 
-            CollectionType.UNKNOWN -> {
+            CollectionType.LIVETV,
+            CollectionType.UNKNOWN,
+            -> {
                 listOf()
             }
         }

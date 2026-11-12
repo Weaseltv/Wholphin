@@ -20,7 +20,6 @@ import com.github.damontecres.wholphin.preferences.updateAdvancedPreferences
 import com.github.damontecres.wholphin.preferences.updateExperimentalPreferences
 import com.github.damontecres.wholphin.preferences.updateHomePagePreferences
 import com.github.damontecres.wholphin.preferences.updateInterfacePreferences
-import com.github.damontecres.wholphin.preferences.updateLiveTvPreferences
 import com.github.damontecres.wholphin.preferences.updateMpvOptions
 import com.github.damontecres.wholphin.preferences.updateMusicPreferences
 import com.github.damontecres.wholphin.preferences.updatePhotoPreferences
@@ -225,20 +224,6 @@ class AppUpgradeHandler
                     }
                 }
             }
-            if (previous.isEqualOrBefore(Version.fromString("0.3.5-56-g0"))) {
-                appPreferences.updateData {
-                    it.updateLiveTvPreferences {
-                        showHeader = AppPreference.LiveTvShowHeader.defaultValue
-                        favoriteChannelsAtBeginning =
-                            AppPreference.LiveTvFavoriteChannelsBeginning.defaultValue
-                        sortByRecentlyWatched =
-                            AppPreference.LiveTvChannelSortByWatched.defaultValue
-                        colorCodePrograms =
-                            AppPreference.LiveTvColorCodePrograms.defaultValue
-                    }
-                }
-            }
-
             if (previous.isEqualOrBefore(Version.fromString("0.3.6-52-g0"))) {
                 if (Build.MODEL.equals("shield android tv", ignoreCase = true)) {
                     appPreferences.updateData {

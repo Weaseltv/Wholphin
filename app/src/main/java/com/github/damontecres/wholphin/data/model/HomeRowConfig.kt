@@ -144,39 +144,6 @@ sealed interface HomeRowConfig {
     }
 
     /**
-     * Currently recording
-     */
-    @Serializable
-    @SerialName("Recordings")
-    data class Recordings(
-        override val viewOptions: HomeRowViewOptions = HomeRowViewOptions(),
-    ) : HomeRowConfig {
-        override fun updateViewOptions(viewOptions: HomeRowViewOptions): Recordings = this.copy(viewOptions = viewOptions)
-    }
-
-    /**
-     * Programs on now/recommended
-     */
-    @Serializable
-    @SerialName("TvPrograms")
-    data class TvPrograms(
-        override val viewOptions: HomeRowViewOptions = HomeRowViewOptions.liveTvDefault,
-    ) : HomeRowConfig {
-        override fun updateViewOptions(viewOptions: HomeRowViewOptions): TvPrograms = this.copy(viewOptions = viewOptions)
-    }
-
-    /**
-     * Live TV channels
-     */
-    @Serializable
-    @SerialName("TvChannels")
-    data class TvChannels(
-        override val viewOptions: HomeRowViewOptions = HomeRowViewOptions.liveTvDefault,
-    ) : HomeRowConfig {
-        override fun updateViewOptions(viewOptions: HomeRowViewOptions): TvChannels = this.copy(viewOptions = viewOptions)
-    }
-
-    /**
      * Fetch suggestions from [com.github.damontecres.wholphin.services.SuggestionService] for the given parent ID
      */
     @Serializable
@@ -284,13 +251,6 @@ data class HomeRowViewOptions(
             HomeRowViewOptions(
                 heightDp = if (BuildConfig.FLAVOR == "weaselfin") BuildConfig.DEFAULT_CARD_HEIGHT_DP else Cards.HEIGHT_EPISODE,
                 aspectRatio = if (BuildConfig.FLAVOR == "weaselfin") AspectRatio.TALL else AspectRatio.WIDE,
-            )
-
-        val liveTvDefault =
-            HomeRowViewOptions(
-                heightDp = if (BuildConfig.FLAVOR == "weaselfin") BuildConfig.DEFAULT_CARD_HEIGHT_DP else Cards.HEIGHT_LIVE_TV,
-                aspectRatio = if (BuildConfig.FLAVOR == "weaselfin") AspectRatio.TALL else AspectRatio.WIDE,
-                contentScale = if (BuildConfig.FLAVOR == "weaselfin") PrefContentScale.FILL else PrefContentScale.FIT,
             )
     }
 }

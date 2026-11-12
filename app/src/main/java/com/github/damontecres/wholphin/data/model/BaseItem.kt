@@ -102,11 +102,7 @@ data class BaseItem(
     val favorite get() = data.userData?.isFavorite ?: false
 
     val timeRemainingOrRuntime: Duration?
-        get() =
-            when (type) {
-                BaseItemKind.PROGRAM -> null
-                else -> data.timeRemaining ?: data.runTimeTicks?.ticks
-            }
+        get() = data.timeRemaining ?: data.runTimeTicks?.ticks
 
     /**
      * Contains pre computed UI elements that would be expensive to create on the main thread
@@ -165,17 +161,6 @@ data class BaseItem(
                                     } else if (type == BaseItemKind.BOX_SET) {
                                         data.productionYear?.let { add(it.toString()) }
                                         data.childCount?.let { add("$it items") }
-                                    } else if (type == BaseItemKind.PROGRAM) {
-                                        data.channelName?.let(::add)
-                                        if (data.isSeries == true) {
-                                            // TV episode
-                                            data.seasonEpisode?.let(::add)
-                                            data.premiereDate?.let {
-                                                add(getDateFormatter().format(it))
-                                            }
-                                        } else {
-                                            data.productionYear?.let { add(it.toString()) }
-                                        }
                                     } else {
                                         data.productionYear?.let { add(it.toString()) }
                                     }
@@ -274,25 +259,6 @@ data class BaseItem(
                             seriesId,
                             BaseItemKind.SERIES,
                             SeasonEpisodeIds(id, indexNumber, null, null),
-                        )
-                    } else {
-                        Destination.MediaItem(this)
-                    }
-                }
-
-                BaseItemKind.TV_CHANNEL -> {
-                    Destination.Playback(
-                        itemId = id,
-                        positionMs = 0L,
-                    )
-                }
-
-                BaseItemKind.PROGRAM -> {
-                    val channelId = data.channelId
-                    if (channelId != null) {
-                        Destination.Playback(
-                            itemId = channelId,
-                            positionMs = 0L,
                         )
                     } else {
                         Destination.MediaItem(this)

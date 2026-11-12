@@ -286,20 +286,15 @@ fun formatTypeName(type: BaseItemKind): Int =
         BaseItemKind.AUDIO -> R.string.songs
         BaseItemKind.CHANNEL -> R.string.channels
         BaseItemKind.GENRE -> R.string.genres
-        BaseItemKind.LIVE_TV_CHANNEL -> R.string.channels
         BaseItemKind.MUSIC_ALBUM -> R.string.albums
         BaseItemKind.MUSIC_ARTIST -> R.string.artists
         BaseItemKind.MUSIC_GENRE -> R.string.genres
         BaseItemKind.MUSIC_VIDEO -> R.string.music_videos
         BaseItemKind.PHOTO -> R.string.photos
         BaseItemKind.PHOTO_ALBUM -> R.string.photo_albums
-        BaseItemKind.PROGRAM -> R.string.programs
-        BaseItemKind.RECORDING -> R.string.recordings
         BaseItemKind.SEASON -> R.string.tv_seasons
         BaseItemKind.STUDIO -> R.string.studios
         BaseItemKind.TRAILER -> R.string.trailers_title
-        BaseItemKind.TV_CHANNEL -> R.string.channels
-        BaseItemKind.TV_PROGRAM -> R.string.programs
         BaseItemKind.USER_ROOT_FOLDER -> R.string.folders_title
         BaseItemKind.USER_VIEW -> R.string.user_views
         BaseItemKind.YEAR -> R.string.year
@@ -311,8 +306,13 @@ fun formatTypeName(type: BaseItemKind): Int =
         BaseItemKind.COLLECTION_FOLDER -> R.string.library
         BaseItemKind.FOLDER -> R.string.folders_title
         BaseItemKind.MANUAL_PLAYLISTS_FOLDER -> R.string.playlists
-        BaseItemKind.LIVE_TV_PROGRAM -> R.string.programs
         BaseItemKind.PLAYLISTS_FOLDER -> R.string.playlists
+        BaseItemKind.LIVE_TV_CHANNEL -> R.string.unknown
+        BaseItemKind.LIVE_TV_PROGRAM -> R.string.unknown
+        BaseItemKind.PROGRAM -> R.string.unknown
+        BaseItemKind.RECORDING -> R.string.unknown
+        BaseItemKind.TV_CHANNEL -> R.string.unknown
+        BaseItemKind.TV_PROGRAM -> R.string.unknown
     }
 
 /**

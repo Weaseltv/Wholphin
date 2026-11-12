@@ -217,7 +217,7 @@ class KidHomeViewModelTest {
             api = api,
             serverRepository = repository,
             userPreferencesService = mockk { coEvery { getCurrent() } answers { preferencesNow() } },
-            navDrawerService = mockk { coEvery { getAllUserLibraries(any(), any()) } returns emptyList() },
+            navDrawerService = mockk { coEvery { getAllUserLibraries(any()) } returns emptyList() },
             latestNextUpService = mockk(),
             imageUrlService = mockk(),
             suggestionService = mockk(),
@@ -261,7 +261,7 @@ class KidHomeViewModelTest {
             serverReportService = mockk(relaxed = true),
             navDrawerService =
                 mockk(relaxed = true) {
-                    coEvery { getAllUserLibraries(any(), any()) } coAnswers {
+                    coEvery { getAllUserLibraries(any()) } coAnswers {
                         librariesGate?.await()
                         emptyList()
                     }

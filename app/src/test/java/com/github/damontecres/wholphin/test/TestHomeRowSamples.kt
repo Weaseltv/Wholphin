@@ -75,9 +75,6 @@ class TestHomeRowSamples {
                     viewOptions = HomeRowViewOptions(),
                 ),
                 HomeRowConfig.Favorite(kind = BaseItemKind.SERIES),
-                HomeRowConfig.Recordings(),
-                HomeRowConfig.TvPrograms(),
-                HomeRowConfig.TvChannels(),
                 HomeRowConfig.Suggestions(parentId = UUID.randomUUID()),
                 HomeRowConfig.RecentlyAddedCombined(parentIds = listOf(UUID.randomUUID()), collectionType = CollectionType.MOVIES),
                 HomeRowConfig.JustWatch(list = JustWatchHomeList.TRENDING_MOVIES),
@@ -99,10 +96,7 @@ class TestHomeRowSamples {
                 is HomeRowConfig.ByParent -> foundTypes.add(it::class)
                 is HomeRowConfig.GetItems -> foundTypes.add(it::class)
                 is HomeRowConfig.Favorite -> foundTypes.add(it::class)
-                is HomeRowConfig.Recordings -> foundTypes.add(it::class)
-                is HomeRowConfig.TvPrograms -> foundTypes.add(it::class)
                 is HomeRowConfig.Suggestions -> foundTypes.add(it::class)
-                is HomeRowConfig.TvChannels -> foundTypes.add(it::class)
                 is HomeRowConfig.Studios -> foundTypes.add(it::class)
                 is HomeRowConfig.RecentlyAddedCombined -> foundTypes.add(it::class)
                 is HomeRowConfig.JustWatch -> foundTypes.add(it::class)

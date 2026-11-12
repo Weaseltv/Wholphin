@@ -759,7 +759,6 @@ val favoriteOptions =
         BaseItemKind.EPISODE,
         BaseItemKind.BOX_SET,
         BaseItemKind.PERSON,
-        BaseItemKind.TV_CHANNEL,
         BaseItemKind.MUSIC_ALBUM,
         BaseItemKind.MUSIC_ARTIST,
         BaseItemKind.AUDIO,

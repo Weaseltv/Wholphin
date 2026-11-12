@@ -11,7 +11,7 @@ import java.util.UUID
 
 /**
  * The Neon Board color rules (README § Colors on this app): one neon per section, items
- * carry their type color, named comedy and sports libraries retain their accents, LIVE is green.
+ * carry their type color, named comedy and sports libraries retain their accents.
  */
 class NeonAccentTest {
     private fun library(
@@ -46,7 +46,6 @@ class NeonAccentTest {
     fun `4K libraries share their regular counterpart's colour`() {
         assertEquals(NeonSectionPalette.Movies.border, sectionAccent(library("4K Movies (LAN)", CollectionType.MOVIES)))
         assertEquals(NeonSectionPalette.TvShows.border, sectionAccent(library("4K TV Shows (LAN)", CollectionType.TVSHOWS)))
-        assertEquals(NeonBoard.Green, sectionAccent(library("Live TV", CollectionType.LIVETV)))
         assertEquals(NeonBoard.Volt, sectionAccent(library("Music", CollectionType.MUSIC)))
         assertEquals(sectionAccent(library("ufc", CollectionType.MOVIES)), sectionAccent(library("  UFC ", CollectionType.TVSHOWS)))
     }
@@ -57,9 +56,6 @@ class NeonAccentTest {
         assertEquals(NeonSectionPalette.TvShows.border, typeAccent(BaseItemKind.SERIES))
         assertEquals(NeonSectionPalette.TvShows.border, typeAccent(BaseItemKind.SEASON))
         assertEquals(NeonSectionPalette.TvShows.border, typeAccent(BaseItemKind.EPISODE))
-        assertEquals(NeonBoard.Green, typeAccent(BaseItemKind.TV_CHANNEL))
-        assertEquals(NeonBoard.Green, typeAccent(BaseItemKind.RECORDING))
-        assertEquals(NeonBoard.Cyan, typeAccent(BaseItemKind.TV_PROGRAM))
         assertEquals(NeonBoard.Volt, typeAccent(BaseItemKind.MUSIC_ALBUM))
         assertEquals(NeonBoard.Volt, typeAccent(null))
     }
@@ -67,11 +63,8 @@ class NeonAccentTest {
     @Test
     fun `tints composite the accent over the panel colors`() {
         val chip = NeonBoard.chipOn(NeonBoard.Volt)
-        val now = NeonBoard.nowFill(NeonBoard.Cyan)
         assertEquals(1f, chip.alpha)
-        assertEquals(1f, now.alpha)
         // A 14 % volt over card is brighter than card but nowhere near the accent.
         assert(chip.green > NeonBoard.Card.green && chip.green < NeonBoard.Volt.green)
-        assert(now.blue > NeonBoard.Stage.blue && now.blue < NeonBoard.Cyan.blue)
     }
 }

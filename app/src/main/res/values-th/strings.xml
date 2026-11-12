@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">เกี่ยวกับแอปนี้</string>
-    <string name="active_recordings">การบันทึกที่ใช้งานอยู่</string>
     <string name="add_favorite">ชื่นชอบ</string>
     <string name="add_server">เพิ่มเซิร์ฟเวอร์</string>
     <string name="add_user">เพิ่มผู้ใช้</string>
@@ -9,8 +8,6 @@
     <string name="birthplace">บ้านเกิด</string>
     <string name="bitrate">บิตเรท</string>
     <string name="born">เกิด</string>
-    <string name="cancel_recording">ยกเลิกการบันทึก</string>
-    <string name="cancel_series_recording">ยกเลิกการบันทึกซีรีส์</string>
     <string name="cancel">ยกเลิก</string>
     <string name="chapters">ฉาก</string>
     <string name="choose_stream">เลือก %1$s</string>
@@ -55,7 +52,6 @@
     <string name="jump_letters">#ABCDEFGHIJKLMNOPQRSTUVWXYZ</string>
     <string name="library">คลัง</string>
     <string name="license_info">ข้อมูลใบอนุญาต</string>
-    <string name="live_tv">ทีวี สด</string>
     <string name="loading">กำลังโหลด…</string>
     <string name="mark_entire_series_as_played">ทำเครื่องหมายว่าเล่นซีรีส์ทั้งหมดแล้วหรือไม่?</string>
     <string name="mark_entire_series_as_unplayed">ทำเครื่องหมายซีรีส์ทั้งหมดว่ายังไม่ได้เล่น?</string>
@@ -72,7 +68,6 @@
     <string name="no_data">ไม่มีข้อมูล</string>
     <string name="no_results">ไม่มีผลลัพธ์</string>
     <string name="no_servers_found">ไม่พบเซิร์ฟเวอร์</string>
-    <string name="no_scheduled_recordings">ไม่มีการบันทึกตามกำหนดเวลา</string>
     <string name="no_update_available">ไม่มีการอัปเดต</string>
     <string name="none">ไม่มี</string>
     <string name="only_forced_subtitles">คำบรรยายแบบบังคับเท่านั้น</string>
@@ -95,11 +90,8 @@
     <string name="recap">สรุป</string>
     <string name="recently_added_in">ที่เพิ่งเพิ่มใน %1$s</string>
     <string name="recently_added">ที่เพิ่งเพิ่ม</string>
-    <string name="recently_recorded">บันทึกล่าสุด</string>
     <string name="recently_released">ที่เพิ่งวางขาย</string>
     <string name="recommended">แนะนำ</string>
-    <string name="record_program">โปรแกรมบันทึก</string>
-    <string name="record_series">บันทึกซีรีส์</string>
     <string name="remove_favorite">ไม่เป็นที่ชื่นชอบ</string>
     <string name="restart">เริ่มใหม่</string>
     <string name="resume">เล่นต่อ</string>
@@ -150,8 +142,6 @@
     <plurals name="trailers">
         <item quantity="other">ตัวอย่าง</item>
     </plurals>
-    <string name="tv_dvr_schedule">กำหนดการบันทึก</string>
-    <string name="tv_guide">ผังรายการ</string>
     <string name="tv_season">ซีซั่น</string>
     <string name="tv_seasons">ซีซั่น</string>
     <plurals name="tv_shows">
@@ -164,7 +154,6 @@
     <string name="video_scale">สเกลวิดีโอ</string>
     <string name="video">วิดีโอ</string>
     <string name="videos">วิดีโอ</string>
-    <string name="watch_live">ชมสด</string>
     <plurals name="years_old">
         <item quantity="other">%1$d ปี</item>
     </plurals>
@@ -349,10 +338,6 @@
     <string name="bit_unit">bit</string>
     <string name="sample_rate_unit">Hz</string>
     <string name="show_titles">แสดงชื่อเรื่อง</string>
-    <string name="live_tv_repeat">ทำซ้ำ</string>
-    <string name="favorite_channels_at_beginning">แสดงช่องโปรดก่อน</string>
-    <string name="sort_channels_recently_watched">เรียงลำดับช่องตามลำดับการรับชมล่าสุด</string>
-    <string name="color_code_programs">โปรแกรมรหัสสี</string>
     <string name="subtitle_delay">คำบรรยายล่าช้า</string>
     <string name="backdrop_display">รูปแบบฉากหลัง</string>
     <string name="resolution_switching">การสลับความละเอียด</string>

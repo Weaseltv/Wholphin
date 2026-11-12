@@ -38,7 +38,6 @@ import com.github.damontecres.wholphin.services.StreamChoiceService
 import com.github.damontecres.wholphin.services.ThemeSongPlayer
 import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.deleteItem
-import com.github.damontecres.wholphin.services.tvAccess
 import com.github.damontecres.wholphin.ui.cards.GridCard
 import com.github.damontecres.wholphin.ui.components.ContextMenuProvider
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
@@ -137,7 +136,7 @@ class HomeRowGridViewModel
                     val prefs = preferences.appPreferences.homePagePreferences
                     serverRepository.currentUserDto?.let { userDto ->
                         val libraries =
-                            navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
+                            navDrawerService.getAllUserLibraries(userDto.id)
                         val result =
                             homeSettingsService.fetchDataForRow(
                                 row = rowConfig,

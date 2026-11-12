@@ -15,11 +15,6 @@ val supportItemKinds =
         BaseItemKind.FOLDER,
         BaseItemKind.USER_VIEW,
         BaseItemKind.TRAILER,
-        BaseItemKind.TV_CHANNEL,
-        BaseItemKind.TV_PROGRAM,
-        BaseItemKind.LIVE_TV_CHANNEL,
-        BaseItemKind.LIVE_TV_PROGRAM,
-        BaseItemKind.RECORDING,
     )
 
 val supportedCollectionTypes =
@@ -29,7 +24,6 @@ val supportedCollectionTypes =
         CollectionType.HOMEVIDEOS,
         CollectionType.PLAYLISTS,
         CollectionType.BOXSETS,
-        CollectionType.LIVETV,
         CollectionType.MUSICVIDEOS,
         CollectionType.FOLDERS,
         CollectionType.MUSIC,
@@ -43,9 +37,6 @@ val supportedPlayableTypes =
         BaseItemKind.EPISODE,
         BaseItemKind.VIDEO,
         BaseItemKind.MUSIC_VIDEO,
-        BaseItemKind.TV_CHANNEL,
-        BaseItemKind.TV_PROGRAM,
-        BaseItemKind.RECORDING,
         BaseItemKind.SEASON,
         BaseItemKind.SERIES,
         BaseItemKind.BOX_SET,

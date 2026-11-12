@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">关于</string>
-    <string name="active_recordings">正在录制</string>
     <string name="add_favorite">收藏</string>
     <string name="add_server">添加服务器</string>
     <string name="add_user">添加用户</string>
@@ -9,8 +8,6 @@
     <string name="birthplace">出生地</string>
     <string name="bitrate">比特率</string>
     <string name="born">出生日期</string>
-    <string name="cancel_recording">取消录制</string>
-    <string name="cancel_series_recording">取消剧集录制</string>
     <string name="cancel">取消</string>
     <string name="chapters">章节</string>
     <string name="choose_stream">选择 %1$s</string>
@@ -53,7 +50,6 @@
     <string name="jump_letters">#ABCDEFGHIJKLMNOPQRSTUVWXYZ</string>
     <string name="library">媒体库</string>
     <string name="license_info">许可信息</string>
-    <string name="live_tv">电视直播</string>
     <string name="loading">正在加载…</string>
     <string name="mark_entire_series_as_played">将整部剧标记为已观看？</string>
     <string name="mark_entire_series_as_unplayed">将整部剧标记为未观看？</string>
@@ -67,7 +63,6 @@
     <string name="next_up">即将播放</string>
     <string name="no_data">无数据</string>
     <string name="no_results">无结果</string>
-    <string name="no_scheduled_recordings">无计划录制</string>
     <string name="no_update_available">无可用更新</string>
     <string name="none">无</string>
     <string name="outro">片尾</string>
@@ -87,11 +82,8 @@
     <string name="recap">前情提要</string>
     <string name="recently_added_in">最近添加至 %1$s</string>
     <string name="recently_added">最近添加</string>
-    <string name="recently_recorded">最近录制</string>
     <string name="recently_released">最近发行</string>
     <string name="recommended">推荐</string>
-    <string name="record_program">录制节目</string>
-    <string name="record_series">录制剧集</string>
     <string name="remove_favorite">取消收藏</string>
     <string name="restart">从头播放</string>
     <string name="resume">继续播放</string>
@@ -124,8 +116,6 @@
     <plurals name="trailers">
         <item quantity="other">预告片</item>
     </plurals>
-    <string name="tv_dvr_schedule">DVR 计划</string>
-    <string name="tv_guide">指南</string>
     <string name="tv_season">季</string>
     <string name="tv_seasons">季</string>
     <string name="tv_shows_title">电视节目</string>
@@ -136,7 +126,6 @@
     <string name="video_scale">视频比例</string>
     <string name="video">视频</string>
     <string name="videos">视频</string>
-    <string name="watch_live">观看直播</string>
     <plurals name="years_old">
         <item quantity="other">%1$d 岁</item>
     </plurals>
@@ -335,10 +324,6 @@
     <string name="hlg">HLG</string>
     <string name="bit_unit">位</string>
     <string name="sample_rate_unit">Hz</string>
-    <string name="live_tv_repeat">重复</string>
-    <string name="favorite_channels_at_beginning">优先显示收藏频道</string>
-    <string name="sort_channels_recently_watched">按最近观看的频道排序</string>
-    <string name="color_code_programs">节目颜色标记</string>
     <string name="subtitle_delay">字幕延迟</string>
     <string name="enter_server_address">输入服务器地址</string>
     <string name="no_servers_found">未找到服务器</string>
@@ -667,8 +652,6 @@
     <string name="dpad_seek_mode_trickplay">特技播放</string>
     <string name="hash_matches">哈希匹配</string>
     <string name="subtitles_hearing_impaired">SDH</string>
-    <string name="programs">电视节目</string>
-    <string name="recordings">录制内容</string>
     <string name="folders_title">文件夹</string>
     <string name="user_views">用户视图</string>
     <string name="books">书籍</string>

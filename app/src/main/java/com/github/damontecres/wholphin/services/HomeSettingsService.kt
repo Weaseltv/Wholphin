@@ -19,7 +19,6 @@ import com.github.damontecres.wholphin.preferences.HomePagePreferences
 import com.github.damontecres.wholphin.ui.AspectRatio
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.HomeItemFields
-import com.github.damontecres.wholphin.ui.ProgramItemFields
 import com.github.damontecres.wholphin.ui.components.getGenreImageMap
 import com.github.damontecres.wholphin.ui.components.isKidOrUnknown
 import com.github.damontecres.wholphin.ui.formatTypeName
@@ -36,10 +35,7 @@ import com.github.damontecres.wholphin.util.ApiRequestPager
 import com.github.damontecres.wholphin.util.GetArtistsHandler
 import com.github.damontecres.wholphin.util.GetGenresRequestHandler
 import com.github.damontecres.wholphin.util.GetItemsRequestHandler
-import com.github.damontecres.wholphin.util.GetLiveTvChannelsRequestHandler
 import com.github.damontecres.wholphin.util.GetPersonsHandler
-import com.github.damontecres.wholphin.util.GetProgramsDtoHandler
-import com.github.damontecres.wholphin.util.GetRecordingsRequestHandler
 import com.github.damontecres.wholphin.util.GetStudiosRequestHandler
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import com.github.damontecres.wholphin.util.HomeRowLoadingState.Success
@@ -77,15 +73,12 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.client.extensions.libraryApi
-import org.jellyfin.sdk.api.client.extensions.liveTvApi
 import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
-import org.jellyfin.sdk.model.DateTime
 import org.jellyfin.sdk.model.UUID
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
-import org.jellyfin.sdk.model.api.GetProgramsDto
 import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemSortBy
@@ -95,9 +88,7 @@ import org.jellyfin.sdk.model.api.request.GetArtistsRequest
 import org.jellyfin.sdk.model.api.request.GetGenresRequest
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import org.jellyfin.sdk.model.api.request.GetLatestMediaRequest
-import org.jellyfin.sdk.model.api.request.GetLiveTvChannelsRequest
 import org.jellyfin.sdk.model.api.request.GetPersonsRequest
-import org.jellyfin.sdk.model.api.request.GetRecordingsRequest
 import org.jellyfin.sdk.model.api.request.GetStudiosRequest
 import timber.log.Timber
 import java.io.File
@@ -542,7 +533,7 @@ class HomeSettingsService
                 val libraries =
                     async {
                         try {
-                            navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
+                            navDrawerService.getAllUserLibraries(userDto.id)
                         } catch (ex: CancellationException) {
                             throw ex
                         } catch (ex: Exception) {
@@ -809,10 +800,7 @@ class HomeSettingsService
             )
         }
 
-        private suspend fun homeLibraries(userId: UUID): List<Library> {
-            val userDto = serverRepository.currentUserDto?.takeIf { it.id == userId }
-            return navDrawerService.getAllUserLibraries(userId, userDto?.tvAccess ?: false)
-        }
+        private suspend fun homeLibraries(userId: UUID): List<Library> = navDrawerService.getAllUserLibraries(userId)
 
         /** Save approved defaults to both Alpha and customer server-backed Home preferences. */
         private suspend fun syncApprovedLayoutToServer(
@@ -884,12 +872,11 @@ class HomeSettingsService
         suspend fun createDefault(userId: UUID): HomePageResolvedSettings {
             Timber.v("Creating default settings")
             val user = serverRepository.currentUser?.takeIf { it.id == userId }
-            val userDto = serverRepository.currentUserDto?.takeIf { it.id == userId }
             val libraries =
                 if (user != null) {
-                    navDrawerService.getFilteredUserLibraries(user, userDto?.tvAccess ?: false)
+                    navDrawerService.getFilteredUserLibraries(user)
                 } else {
-                    navDrawerService.getAllUserLibraries(userId, userDto?.tvAccess ?: false)
+                    navDrawerService.getAllUserLibraries(userId)
                 }
 
             val includedIds =
@@ -898,24 +885,16 @@ class HomeSettingsService
                     .mapIndexed { index, library ->
                         val parentId = library.itemId
                         val title = getRecentlyAddedTitle(library.name)
-                        if (library.collectionType == CollectionType.LIVETV) {
-                            HomeRowConfigDisplay(
-                                id = index,
-                                title = ResStringProvider(R.string.watch_live),
-                                config = HomeRowConfig.TvPrograms(),
-                            )
-                        } else {
-                            val viewOptions = viewOptionsForCollectionType(library.collectionType)
-                            HomeRowConfigDisplay(
-                                id = index,
-                                title = title,
-                                config =
-                                    HomeRowConfig.RecentlyAdded(
-                                        parentId = parentId,
-                                        viewOptions = viewOptions,
-                                    ),
-                            )
-                        }
+                        val viewOptions = viewOptionsForCollectionType(library.collectionType)
+                        HomeRowConfigDisplay(
+                            id = index,
+                            title = title,
+                            config =
+                                HomeRowConfig.RecentlyAdded(
+                                    parentId = parentId,
+                                    viewOptions = viewOptions,
+                                ),
+                        )
                     }
             val continueWatchingRow =
                 listOf(
@@ -951,7 +930,7 @@ class HomeSettingsService
             val config = userDto.configuration ?: DefaultUserConfiguration
             val libraries =
                 navDrawerService
-                    .getAllUserLibraries(userId, userDto.tvAccess)
+                    .getAllUserLibraries(userId)
                     .sortedBy { homeLibraryOrder(it.name) }
                     .filterNot {
                         it.itemId in config.latestItemsExcludes
@@ -970,14 +949,6 @@ class HomeSettingsService
                             )
                             val config =
                                 when (sectionType) {
-                                    HomeSectionType.ACTIVE_RECORDINGS -> {
-                                        HomeRowConfigDisplay(
-                                            id = id++,
-                                            title = ResStringProvider(R.string.active_recordings),
-                                            config = HomeRowConfig.Recordings(),
-                                        )
-                                    }
-
                                     HomeSectionType.RESUME -> {
                                         HomeRowConfigDisplay(
                                             id = id++,
@@ -992,18 +963,6 @@ class HomeSettingsService
                                             title = ResStringProvider(R.string.next_up),
                                             config = HomeRowConfig.NextUp(),
                                         )
-                                    }
-
-                                    HomeSectionType.LIVE_TV -> {
-                                        if (userDto.tvAccess) {
-                                            HomeRowConfigDisplay(
-                                                id = id++,
-                                                title = ResStringProvider(R.string.watch_live),
-                                                config = HomeRowConfig.TvPrograms(),
-                                            )
-                                        } else {
-                                            null
-                                        }
                                     }
 
                                     HomeSectionType.LATEST_MEDIA -> {
@@ -1158,30 +1117,6 @@ class HomeSettingsService
                             ResStringProvider(formatTypeName(config.kind)),
                         )
                     HomeRowConfigDisplay(id, name, config)
-                }
-
-                is HomeRowConfig.Recordings -> {
-                    HomeRowConfigDisplay(
-                        id = id,
-                        title = ResStringProvider(R.string.active_recordings),
-                        config,
-                    )
-                }
-
-                is HomeRowConfig.TvPrograms -> {
-                    HomeRowConfigDisplay(
-                        id = id,
-                        title = ResStringProvider(R.string.watch_live),
-                        config,
-                    )
-                }
-
-                is HomeRowConfig.TvChannels -> {
-                    HomeRowConfigDisplay(
-                        id = id,
-                        title = ResStringProvider(R.string.channels),
-                        config,
-                    )
                 }
 
                 is HomeRowConfig.Suggestions -> {
@@ -1900,109 +1835,6 @@ class HomeSettingsService
                     }
                 }
 
-                is HomeRowConfig.Recordings -> {
-                    val request =
-                        GetRecordingsRequest(
-                            userId = userDto.id,
-                            isInProgress = true,
-                            fields = HomeItemFields,
-                            limit = limit,
-                            enableImages = true,
-                            enableUserData = true,
-                            enableTotalRecordCount = false,
-                        )
-                    if (usePaging) {
-                        ApiRequestPager(
-                            api,
-                            request,
-                            GetRecordingsRequestHandler,
-                            scope,
-                            useSeriesForPrimary = row.viewOptions.useSeries,
-                        ).init()
-                    } else {
-                        api.liveTvApi
-                            .getRecordings(request)
-                            .content.items
-                            .map { BaseItem(it, row.viewOptions.useSeries) }
-                    }.let {
-                        Success(
-                            ResStringProvider(R.string.active_recordings),
-                            it,
-                            row.viewOptions,
-                            rowType = row,
-                            showViewMore = it.size >= limit,
-                        )
-                    }
-                }
-
-                is HomeRowConfig.TvPrograms -> {
-                    val request =
-                        GetProgramsDto(
-                            userId = userDto.id,
-                            fields = ProgramItemFields,
-                            limit = limit,
-                            enableUserData = true,
-                            enableImages = true,
-                            enableImageTypes = listOf(ImageType.PRIMARY, ImageType.LOGO),
-                            imageTypeLimit = 1,
-                            isAiring = true,
-                            minEndDate = DateTime.now().plusMinutes(1),
-                        )
-                    if (usePaging) {
-                        ApiRequestPager(
-                            api,
-                            request,
-                            GetProgramsDtoHandler,
-                            scope,
-                            useSeriesForPrimary = row.viewOptions.useSeries,
-                        ).init()
-                    } else {
-                        api.liveTvApi
-                            .getPrograms(request)
-                            .content.items
-                            .map { BaseItem(it, row.viewOptions.useSeries) }
-                    }.let {
-                        Success(
-                            ResStringProvider(R.string.watch_live),
-                            it,
-                            row.viewOptions,
-                            rowType = row,
-                            showViewMore = it.size >= limit,
-                        )
-                    }
-                }
-
-                is HomeRowConfig.TvChannels -> {
-                    val request =
-                        GetLiveTvChannelsRequest(
-                            userId = userDto.id,
-                            fields = HomeItemFields,
-                            limit = limit,
-                            enableImages = true,
-                        )
-                    if (usePaging) {
-                        ApiRequestPager(
-                            api,
-                            request,
-                            GetLiveTvChannelsRequestHandler,
-                            scope,
-                            useSeriesForPrimary = row.viewOptions.useSeries,
-                        ).init()
-                    } else {
-                        api.liveTvApi
-                            .getLiveTvChannels(request)
-                            .toBaseItems(api, row.viewOptions.useSeries)
-                    }.let {
-                        Success(
-                            ResStringProvider(R.string.channels),
-                            it,
-                            row.viewOptions,
-                            rowType = row,
-                            showViewMore = it.size >= limit,
-                        )
-                    }
-                }
-
                 is HomeRowConfig.Suggestions -> {
                     val library =
                         api.userLibraryApi
@@ -2145,18 +1977,17 @@ data class HomePageResolvedSettings(
 }
 
 // https://github.com/jellyfin/jellyfin/blob/v10.11.6/src/Jellyfin.Database/Jellyfin.Database.Implementations/Enums/HomeSectionType.cs
+// The server's two TV-tuner sections are left out: the app has no rows for them, so fromString returns null and they are skipped.
 enum class HomeSectionType(
     val serialName: String,
 ) {
     NONE("none"),
     SMALL_LIBRARY_TILES("smalllibrarytitles"),
     LIBRARY_BUTTONS("librarybuttons"),
-    ACTIVE_RECORDINGS("activerecordings"),
     RESUME("resume"),
     RESUME_AUDIO("resumeaudio"),
     LATEST_MEDIA("latestmedia"),
     NEXT_UP("nextup"),
-    LIVE_TV("livetv"),
     RESUME_BOOK("resumebook"),
     ;
 
@@ -2215,17 +2046,13 @@ fun viewOptionsForCollectionType(collectionType: CollectionType?): HomeRowViewOp
             )
         }
 
-        CollectionType.LIVETV,
-        -> {
-            HomeRowViewOptions.liveTvDefault
-        }
-
         CollectionType.MOVIES,
         CollectionType.TVSHOWS,
         CollectionType.BOXSETS,
         CollectionType.BOOKS,
         CollectionType.PLAYLISTS,
         CollectionType.FOLDERS,
+        CollectionType.LIVETV,
         CollectionType.UNKNOWN,
         null,
         -> {

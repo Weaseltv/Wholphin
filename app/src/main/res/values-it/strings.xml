@@ -6,9 +6,7 @@
     <string name="died">Morto</string>
     <string name="continue_watching">Continua a guardare</string>
     <string name="cancel">Annulla</string>
-    <string name="cancel_series_recording">Annulla registrazione serie</string>
     <string name="born">Nato</string>
-    <string name="cancel_recording">Annulla registrazione</string>
     <string name="audio">Audio</string>
     <string name="birthplace">Luogo di nascita</string>
     <string name="bitrate">Bitrate</string>
@@ -17,7 +15,6 @@
     <string name="add_user">Aggiungi Utente</string>
     <string name="add_server">Aggiungi Server</string>
     <string name="add_favorite">Preferito</string>
-    <string name="active_recordings">Registrazioni attive</string>
     <string name="about">Informazioni</string>
     <string name="genres">Generi</string>
     <string name="favorites">Preferiti</string>
@@ -33,7 +30,6 @@
     <string name="hide">Nascondi</string>
     <string name="loading">Caricamento…</string>
     <string name="library">Libreria</string>
-    <string name="live_tv">Diretta TV</string>
     <string name="movies_title">Film</string>
     <string name="no_results">Nessun risultato</string>
     <string name="max_bitrate">Bitrate massimo</string>
@@ -50,11 +46,8 @@
     <string name="recap">Riassunto</string>
     <string name="recently_added_in">Aggiunti di recente in %1$s</string>
     <string name="recently_added">Aggiunti di recente</string>
-    <string name="recently_recorded">Registrati di recente</string>
     <string name="recently_released">Usciti di recente</string>
     <string name="recommended">Consigliati</string>
-    <string name="record_program">Registra programma</string>
-    <string name="record_series">Registra serie</string>
     <string name="remove_favorite">Rimuovi dai preferiti</string>
     <string name="restart">Riavvia</string>
     <string name="resume">Riprendi</string>
@@ -100,8 +93,6 @@
         <item quantity="many">Scene</item>
         <item quantity="other">Scene</item>
     </plurals>
-    <string name="watch_live">Guarda diretta</string>
-    <string name="tv_guide">Guida TV</string>
     <string name="show">Mostra</string>
     <string name="searching">Ricerca in corso…</string>
     <string name="decimal_seconds">%.2f secondi</string>
@@ -163,7 +154,6 @@
     <string name="no_data">Nessun dato</string>
     <string name="name">Nome</string>
     <string name="next_up">Prossimo Episodio</string>
-    <string name="no_scheduled_recordings">Nessuna registrazione programmata</string>
     <string name="people_title">Persone</string>
     <string name="show_debug_info">Mostra informazioni debug</string>
     <string name="sort_by_date_added">Data di Aggiunta</string>
@@ -179,7 +169,6 @@
         <item quantity="many">Trailer</item>
         <item quantity="other">Trailer</item>
     </plurals>
-    <string name="tv_dvr_schedule">Programma DVR</string>
     <string name="video_scale">Scala Video</string>
     <string name="video">Video</string>
     <string name="videos">I video</string>
@@ -369,10 +358,6 @@
     <string name="sample_rate">Frequenza di campionamento</string>
     <string name="ref_frames">Frame di riferimento</string>
     <string name="layout">Disposizione</string>
-    <string name="live_tv_repeat">Ripeti</string>
-    <string name="favorite_channels_at_beginning">Mostra prima i canali preferiti</string>
-    <string name="sort_channels_recently_watched">Ordina canali per ultimo guardato</string>
-    <string name="color_code_programs">Codifica colori per i programmi</string>
     <string name="subtitle_delay">Ritardo sottotitoli</string>
     <string name="enter_server_address">Inserisci indirizzo server</string>
     <string name="no_servers_found">Nessun server trovato</string>
@@ -710,8 +695,6 @@
     <string name="brown">Marrone</string>
     <string name="dpad_seek_mode_trickplay">Trickplay</string>
     <string name="subtitles_hearing_impaired">SDH</string>
-    <string name="programs">Programmi TV</string>
-    <string name="recordings">Registrazioni</string>
     <string name="folders_title">Cartelle</string>
     <string name="books">Libri</string>
     <string name="d_pad_seek_mode_title">Modalità barra di avanzamento con D-Pad</string>

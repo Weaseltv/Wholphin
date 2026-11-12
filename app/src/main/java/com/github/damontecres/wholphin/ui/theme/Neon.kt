@@ -55,7 +55,6 @@ import com.github.damontecres.wholphin.ui.nav.NavDrawerItem
 import com.github.damontecres.wholphin.ui.nav.ServerNavDrawerItem
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
-import java.time.LocalDateTime
 
 /*
  * WeaselTV "Neon Board" (design handoff 2026-09-16, `01-tokens-tv.md`, `02-components-tv.md`).
@@ -107,9 +106,6 @@ object NeonBoard {
     /** Selected chips and the focused row fill: accent 14 % over [Card]. */
     fun chipOn(accent: Color): Color = accent.copy(alpha = .14f).compositeOver(Card)
 
-    /** The current guide block: accent 9 % over [Stage]. */
-    fun nowFill(accent: Color): Color = accent.copy(alpha = .09f).compositeOver(Stage)
-
     /** Sizes in dp for the 1080p reference frame (960×540 dp). */
     object Size {
         val OverscanX = 48.dp
@@ -128,7 +124,6 @@ object NeonBoard {
         val Tab = 40.dp
         val RowSettings = 60.dp
         val RowMenu = 52.dp
-        val RowGuide = 56.dp
         val UserTile = 120.dp
         val DialogWidth = 448.dp
         val DialogButtonRow = 52.dp
@@ -408,7 +403,6 @@ fun collectionAccent(type: CollectionType?): Color =
     when (type) {
         CollectionType.MOVIES -> NeonSectionPalette.Movies.border
         CollectionType.TVSHOWS -> NeonSectionPalette.TvShows.border
-        CollectionType.LIVETV -> NeonBoard.Green
         CollectionType.BOXSETS -> NeonSectionPalette.Collections.border
         else -> NeonBoard.Volt
     }
@@ -423,34 +417,13 @@ fun typeAccent(kind: BaseItemKind?): Color =
         BaseItemKind.EPISODE,
         -> NeonSectionPalette.TvShows.border
 
-        BaseItemKind.TV_CHANNEL,
-        BaseItemKind.LIVE_TV_CHANNEL,
-        BaseItemKind.CHANNEL,
-        BaseItemKind.RECORDING,
-        -> NeonBoard.Green
-
-        BaseItemKind.TV_PROGRAM,
-        BaseItemKind.LIVE_TV_PROGRAM,
-        BaseItemKind.PROGRAM,
-        -> NeonBoard.Cyan
+        BaseItemKind.CHANNEL -> NeonBoard.Green
 
         else -> NeonBoard.Volt
     }
 
-/** A programme that is on air now is live (green); one that is scheduled is cyan. */
-fun itemAccent(item: BaseItem?): Color {
-    if (item == null) return NeonBoard.Volt
-    val kind = item.type
-    val isProgram =
-        kind == BaseItemKind.TV_PROGRAM || kind == BaseItemKind.LIVE_TV_PROGRAM || kind == BaseItemKind.PROGRAM
-    if (isProgram) {
-        val now = LocalDateTime.now()
-        val start = item.data.startDate
-        val end = item.data.endDate
-        if (start != null && end != null && now.isAfter(start) && now.isBefore(end)) return NeonBoard.Green
-    }
-    return typeAccent(kind)
-}
+/** Type accent for [item], or volt when there is none. */
+fun itemAccent(item: BaseItem?): Color = typeAccent(item?.type)
 
 /** Accent for an item when the theme is active, otherwise the page accent. */
 @Composable

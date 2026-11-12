@@ -1,15 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">Rakenduse teave</string>
-    <string name="active_recordings">Aktiivsed salvestused</string>
     <string name="add_favorite">Lemmik</string>
     <string name="add_server">Lisa server</string>
     <string name="add_user">Lisa kasutaja</string>
     <string name="audio">Heli</string>
     <string name="birthplace">Sünnikoht</string>
     <string name="bitrate">Bitikiirus</string>
-    <string name="cancel_recording">Katkesta salvestamine</string>
-    <string name="cancel_series_recording">Katkesta sarja salvestamine</string>
     <string name="cancel">Katkesta</string>
     <string name="chapters">Peatükid</string>
     <string name="choose_stream">Vali %1$s</string>
@@ -53,7 +50,6 @@
     <string name="jump_letters">#ABCDEFGHIJKLMNOPQRSTUVWXYZ</string>
     <string name="library">Kogu</string>
     <string name="license_info">Litsentsiteave</string>
-    <string name="live_tv">TV otseeter</string>
     <string name="loading">Laadin…</string>
     <string name="mark_entire_series_as_played">Kas märgid kogu telesarja esitatuks?</string>
     <string name="mark_entire_series_as_unplayed">Kas märgid kogu telesarja mitteesitatuks?</string>
@@ -67,7 +63,6 @@
     <string name="next_up">Järgmisena esitamisel</string>
     <string name="no_data">Andmed puuduvad</string>
     <string name="no_results">Tulemusi pole</string>
-    <string name="no_scheduled_recordings">Ajastatud salvestusi pole</string>
     <string name="no_update_available">Uuendusi pole saadaval</string>
     <string name="none">Määramata</string>
     <string name="outro">Väljajuhatus</string>
@@ -87,7 +82,6 @@
     <string name="recap">Kokkuvõte</string>
     <string name="recently_added_in">Hiljuti lisatud: %1$s</string>
     <string name="recently_added">Hiljuti lisatud</string>
-    <string name="recently_recorded">Hiljuti salvestatud</string>
     <string name="recently_released">Hiljuti avaldatud</string>
     <string name="recommended">Soovitatud</string>
     <string name="remove_favorite">Eemalda lemmikute seast</string>
@@ -217,20 +211,15 @@
     <string name="font_opacity">Kirjatüübi läbipaistmatus</string>
     <string name="font_color">Kirjatüübi värv</string>
     <string name="font_size">Kirjatüübi suurus</string>
-    <string name="record_program">Salvesta programm</string>
-    <string name="record_series">Salvesta telesari</string>
     <string name="top_unwatched">Parima hinnanguga vaatamata sisu</string>
     <plurals name="trailers">
         <item quantity="one">Treiler</item>
         <item quantity="other">Treilerid</item>
     </plurals>
-    <string name="tv_dvr_schedule">DVR-i kava</string>
-    <string name="tv_guide">Telekava</string>
     <string name="tv_shows_title">Telesaated</string>
     <string name="video_scale">Video skaleerimine</string>
     <string name="video">Video</string>
     <string name="videos">Videod</string>
-    <string name="watch_live">Vaata otse-eetris</string>
     <plurals name="years_old">
         <item quantity="one">%1$d aasta vana</item>
         <item quantity="other">%1$d aastat vana</item>
@@ -352,10 +341,6 @@
     <string name="pixel_format">Pikslivorming</string>
     <string name="ref_frames">Aluskaadreid</string>
     <string name="nal">NAL</string>
-    <string name="live_tv_repeat">Kordus</string>
-    <string name="favorite_channels_at_beginning">Näita esmalt lemmikkanaleid</string>
-    <string name="sort_channels_recently_watched">Järjesta kanalid viimase vaatamise alusel</string>
-    <string name="color_code_programs">Märgi programmid värvidega</string>
     <string name="subtitle_delay">Subtiitrite viivitus</string>
     <string name="enter_server_address">Sisesta serveri aadress</string>
     <string name="no_servers_found">Ühtegi serverit ei leidu</string>
@@ -686,8 +671,6 @@
     <string name="override_user_profile_settings_summary">Sürjuta serveris leiduvad kasutajaprofiili seadistused</string>
     <string name="any_language">Iga keel</string>
     <string name="brown">Pruun</string>
-    <string name="programs">Teleprogrammid</string>
-    <string name="recordings">Salvestused</string>
     <string name="folders_title">Kaustad</string>
     <string name="user_views">Kasutajate vaatamisi</string>
     <string name="books">Raamatud</string>

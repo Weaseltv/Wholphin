@@ -4,15 +4,12 @@
     <string name="audio">Ljud</string>
     <string name="chapters">Kapitel</string>
     <string name="bitrate">Bitström</string>
-    <string name="active_recordings">Aktiva inspelningar</string>
     <string name="add_server">Lägg till server</string>
     <string name="add_user">Lägg till användare</string>
     <string name="birthplace">Födelseort</string>
     <string name="clear_image_cache">Rensa bildcache</string>
     <string name="community_rating">Användarbetyg</string>
     <string name="born">Född</string>
-    <string name="cancel_recording">Avbryt inspelning</string>
-    <string name="cancel_series_recording">Avbryt serieinspelning</string>
     <string name="about">Om Wholpin</string>
     <string name="choose_stream">Välj %1$s</string>
     <string name="collection">Samling</string>
@@ -22,7 +19,6 @@
     <string name="commercial">Reklam</string>
     <string name="director">Regissör</string>
     <string name="file_size">Storlek</string>
-    <string name="live_tv">Direktsänd TV</string>
     <string name="genres">Genrer</string>
     <string name="episodes">Episoder</string>
     <string name="favorites">Favoriter</string>
@@ -40,11 +36,8 @@
     <string name="queue">Kö</string>
     <string name="recap">Repris</string>
     <string name="recently_added">Nyligen tillagt</string>
-    <string name="recently_recorded">Nyligen inspelat</string>
     <string name="recently_released">Nyligen släppt</string>
     <string name="recommended">Rekommenderat</string>
-    <string name="record_program">Spela in program</string>
-    <string name="record_series">Spela in serie</string>
     <string name="remove_favorite">Ta bort favorit</string>
     <string name="restart">Starta om</string>
     <string name="resume">Fortsätt</string>
@@ -77,8 +70,6 @@
         <item quantity="one">Förhandsvisningar</item>
         <item quantity="other">Förhandsvisningar</item>
     </plurals>
-    <string name="tv_dvr_schedule">DVR-schema</string>
-    <string name="tv_guide">TV Guide</string>
     <string name="tv_season">Säsong</string>
     <string name="tv_seasons">Säsonger</string>
     <string name="tv_shows_title">TV-serier</string>
@@ -89,7 +80,6 @@
     <string name="video_scale">Videostorlek</string>
     <string name="video">Video</string>
     <string name="videos">Videor</string>
-    <string name="watch_live">Titta live</string>
     <plurals name="years_old">
         <item quantity="one">%1$d år gammal</item>
         <item quantity="other">%1$d år gammal</item>
@@ -202,7 +192,6 @@
     <string name="more_like_this">Liknande titlar</string>
     <string name="next_up">Näst på tur</string>
     <string name="no_data">Ingen data</string>
-    <string name="no_scheduled_recordings">Inga schemalagda inspelningar</string>
     <string name="no_update_available">Ingen uppdatering tillgänglig</string>
     <string name="none">Ingen</string>
     <string name="outro">Slutsekvens</string>
@@ -294,7 +283,6 @@
     <string name="language">Språk</string>
     <string name="yes">Ja</string>
     <string name="no">Nej</string>
-    <string name="live_tv_repeat">Upprepa</string>
     <string name="password">Lösenord</string>
     <string name="username">Användarnamn</string>
     <string name="creator">Skapare</string>
@@ -541,8 +529,6 @@
     <string name="voice_error_busy">Röstigenkänning upptagen</string>
     <string name="will_remove_pin">Kommer att ta bort PIN-koden</string>
     <string name="play_as_type">Spela som?</string>
-    <string name="favorite_channels_at_beginning">Visa favoritkanaler först</string>
-    <string name="sort_channels_recently_watched">Sortera kanaler efter senaste visade</string>
     <string name="favorite_items_title">Favoritmarkera %s</string>
     <string name="play_slideshow">Spela bildspel</string>
     <string name="songs">Sånger</string>
