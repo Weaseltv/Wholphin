@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">Om</string>
-    <string name="active_recordings">Aktive opptak</string>
     <string name="add_favorite">Legg til favoritt</string>
     <string name="add_server">Legg til server</string>
     <string name="add_user">Legg til bruker</string>
@@ -9,8 +8,6 @@
     <string name="birthplace">Fødested</string>
     <string name="bitrate">Bitrate</string>
     <string name="born">Født</string>
-    <string name="cancel_recording">Avbryt opptak</string>
-    <string name="cancel_series_recording">Avbryt serieopptak</string>
     <string name="cancel">Avbryt</string>
     <string name="chapters">Kapitler</string>
     <string name="choose_stream">Velg %1$s</string>
@@ -50,7 +47,6 @@
     <string name="jump_letters">#ABCDEFGHIJKLMNOPQRSTUVWXYZÆØÅ</string>
     <string name="library">Bibliotek</string>
     <string name="license_info">Lisensinformasjon</string>
-    <string name="live_tv">Direkte-TV</string>
     <string name="loading">Laster…</string>
     <string name="mark_entire_series_as_played">Marker hele serien som sett?</string>
     <string name="mark_entire_series_as_unplayed">Marker hele serien som usett?</string>
@@ -65,7 +61,6 @@
     <string name="no_data">Ingen data</string>
     <string name="no_results">Ingen resultater</string>
     <string name="no_servers_found">Ingen servere funnet</string>
-    <string name="no_scheduled_recordings">Ingen planlagte opptak</string>
     <string name="no_update_available">Ingen oppdatering tilgjengelig</string>
     <string name="none">Ingen</string>
     <string name="outro">Outro</string>
@@ -85,11 +80,8 @@
     <string name="recap">Sammendrag</string>
     <string name="recently_added_in">Sist lagt til i %1$s</string>
     <string name="recently_added">Sist lagt til</string>
-    <string name="recently_recorded">Sist tatt opp</string>
     <string name="recently_released">Sist utgitt</string>
     <string name="recommended">Anbefalt</string>
-    <string name="record_program">Ta opp program</string>
-    <string name="record_series">Ta opp serie</string>
     <string name="remove_favorite">Fjern favoritt</string>
     <string name="restart">Start på nytt</string>
     <string name="resume">Fortsett</string>
@@ -123,8 +115,6 @@
         <item quantity="one">Trailer</item>
         <item quantity="other">Trailere</item>
     </plurals>
-    <string name="tv_dvr_schedule">DVR-plan</string>
-    <string name="tv_guide">Programoversikt</string>
     <string name="tv_season">Sesong</string>
     <string name="tv_seasons">Sesonger</string>
     <string name="tv_shows_title">TV-serier</string>
@@ -135,7 +125,6 @@
     <string name="video_scale">Videoskalering</string>
     <string name="video">Video</string>
     <string name="videos">Videoer</string>
-    <string name="watch_live">Se direkte</string>
     <plurals name="years_old">
         <item quantity="one">%1$d år gammel</item>
         <item quantity="other">%1$d år gammel</item>
@@ -349,10 +338,6 @@
     <string name="bit_unit">bit</string>
     <string name="sample_rate_unit">Hz</string>
     <string name="show_titles">Vis titler</string>
-    <string name="live_tv_repeat">Repeter</string>
-    <string name="favorite_channels_at_beginning">Vis favorittkanaler først</string>
-    <string name="sort_channels_recently_watched">Sorter kanaler etter sist sett</string>
-    <string name="color_code_programs">Fargekod programmer</string>
     <string name="subtitle_delay">Undertekstforsinkelse</string>
     <string name="backdrop_display">Bakgrunnsstil</string>
     <string name="default_track">Standard</string>
@@ -556,19 +541,8 @@
     <string name="artist">Artist</string>
     <string name="album_artist">Albumartist</string>
     <string name="album">Album</string>
-    <string name="popular_songs">Populære sanger</string>
-    <string name="play_next">Spill av neste</string>
     <string name="music_videos">Musikkvideoer</string>
-    <string name="lyrics">Sangtekst</string>
-    <string name="hide_lyrics">Skjul sangtekst</string>
-    <string name="show_lyrics">Vis sangtekst</string>
-    <string name="song_has_lyrics">Låt har sangtekst</string>
-    <string name="remove_from_queue">Fjern fra kø</string>
-    <string name="show_album_cover">Vis albumomslag</string>
-    <string name="show_visualizer">Vis visualizer</string>
     <string name="show_backdrop">Vis bakgrunn</string>
-    <string name="play_as_type">Spill av som?</string>
-    <string name="visualizer_rationale">Visualisering av lyden som spilles av, krever tillatelse til å ta opp lyd.</string>
     <string name="continue_string">Fortsett</string>
     <string name="select_all">Velg alle</string>
     <string name="separate_types">Seperate typer</string>
@@ -651,14 +625,6 @@
     <string name="send_media_info_log_to_server">Send mediainformasjonslogg til tjener</string>
     <string name="no_limit">Ingen grense</string>
     <string name="max_days_next_up">Maks dager i Neste</string>
-    <string name="albums">Album</string>
-    <string name="artists">Artister</string>
-    <string name="songs">Sanger</string>
-    <string name="go_to_artist">Gå til artist</string>
-    <string name="now_playing">Spilles nå</string>
-    <string name="instant_mix">Øyeblikkelig miks</string>
-    <string name="go_to_album">Gå til album</string>
-    <string name="add_to_queue">Legg til i kø</string>
     <string name="add_row">Legg til rad</string>
     <string name="genres_in">Sjangre i %1$s</string>
     <string name="recently_released_in">Nylig utgitt i %1$s</string>
@@ -696,14 +662,11 @@
     <string name="any_language">Hvilket som helst språk</string>
     <string name="hash_matches">Hash-matcher</string>
     <string name="subtitles_hearing_impaired">SDH</string>
-    <string name="programs">TV-program</string>
-    <string name="recordings">Opptak</string>
     <string name="folders_title">Mapper</string>
     <string name="user_views">Brukervisninger</string>
     <string name="books">Bøker</string>
     <string name="audio_books">Lydbøker</string>
     <string name="server_version_not_supported">Tjenerversjon ikke støttet</string>
-    <string name="appears_on">Opptrer på</string>
     <string name="dim_after_delay">Dim skjerm etter forsinking</string>
     <string name="dim_percentage">Dim prosent</string>
     <string name="dim_screen">Dim skjerm</string>

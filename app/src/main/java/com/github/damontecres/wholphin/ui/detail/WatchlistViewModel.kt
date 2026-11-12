@@ -21,7 +21,6 @@ import com.github.damontecres.wholphin.services.NavDrawerService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.ServerReportService
 import com.github.damontecres.wholphin.services.deleteItem
-import com.github.damontecres.wholphin.services.tvAccess
 import com.github.damontecres.wholphin.ui.SlimItemFields
 import com.github.damontecres.wholphin.ui.components.CollectionFolderState
 import com.github.damontecres.wholphin.ui.components.CollectionFolderViewActions
@@ -153,7 +152,7 @@ class WatchlistViewModel
             val items =
                 try {
                     val user = serverRepository.currentUserDto
-                    val libraries = user?.let { navDrawerService.getAllUserLibraries(it.id, it.tvAccess) }.orEmpty()
+                    val libraries = user?.let { navDrawerService.getAllUserLibraries(it.id) }.orEmpty()
                     _libraries.value = libraries
                     val pager =
                         ApiRequestPager(

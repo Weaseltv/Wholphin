@@ -8,7 +8,6 @@
     <string name="birthplace">Место рождения</string>
     <string name="bitrate">Битрейт</string>
     <string name="born">Рождён</string>
-    <string name="cancel_recording">Отменить запись</string>
     <string name="cancel">Отмена</string>
     <string name="chapters">Главы</string>
     <string name="choose_stream">Выберите %1$s</string>
@@ -46,7 +45,6 @@
     <string name="intro">Вступление</string>
     <string name="library">Библиотека</string>
     <string name="license_info">Информация о лицензии</string>
-    <string name="live_tv">Эфирное ТВ</string>
     <string name="loading">Загрузка…</string>
     <string name="mark_unwatched">Отметить как непросмотренное</string>
     <string name="mark_watched">Отметить как просмотренное</string>
@@ -101,7 +99,6 @@
         <item quantity="many">Трейлеров</item>
         <item quantity="other">Трейлеров</item>
     </plurals>
-    <string name="tv_guide">Телегид</string>
     <string name="tv_season">Сезон</string>
     <string name="tv_seasons">Сезоны</string>
     <string name="tv_shows_title">Телешоу</string>
@@ -177,12 +174,10 @@
         <item quantity="many">%d секунд</item>
         <item quantity="other">%d секунд</item>
     </plurals>
-    <string name="active_recordings">Активные записи</string>
     <string name="external_track">Внешний</string>
     <string name="go_to">Перейти</string>
     <string name="skip_segment_commercial">Пропустить рекламу</string>
     <string name="skip_segment_intro">Пропустить вступление</string>
-    <string name="recently_recorded">Недавно записанное</string>
     <string name="recently_released">Недавно вышедшее</string>
     <string name="commercial">Реклама</string>
     <string name="jump_letters">#ABCDEFGHIJKLMNOPQRSTUVWXYZАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ</string>
@@ -194,11 +189,9 @@
     <string name="enabled">Включено</string>
     <string name="hide_controller_timeout">Скрывать элементы управления воспроизведением</string>
     <string name="more">Ещё</string>
-    <string name="no_scheduled_recordings">Нет запланированных записей</string>
     <string name="play">Воспроизвести</string>
     <string name="restart">Перезапустить</string>
     <string name="play_from_here">Воспроизвести отсюда</string>
-    <string name="watch_live">Смотреть прямой эфир</string>
     <string name="aired_episode_order">Порядок выхода эпизодов</string>
     <string name="reset">Сброс</string>
     <string name="cast_and_crew">Снимались и снимали</string>
@@ -224,11 +217,8 @@
     <string name="preview">Превью</string>
     <string name="submit">Отправить</string>
     <string name="subtitle_download_too_long">Загрузка занимает много времени, возможно, потребуется перезапустить воспроизведение</string>
-    <string name="cancel_series_recording">Отменить запись сериала</string>
     <string name="none">Нет</string>
     <string name="ui_interface">Интерфейс</string>
-    <string name="record_program">Записать программу</string>
-    <string name="record_series">Записать сериал</string>
     <string name="play_count">Количество воспроизведений</string>
     <string name="recap">Краткое содержание</string>
     <string name="use_server_credentials">Вход через сервер</string>
@@ -287,7 +277,6 @@
     <string name="send_app_logs">Отправить журнал на текущий сервер</string>
     <string name="send_crash_reports_summary">Совершит попытку отправки на последний подключённый сервер</string>
     <string name="go_to_series">Перейти к сериалу</string>
-    <string name="tv_dvr_schedule">Расписание записей</string>
     <string name="update_url">Ссылка для обновлениий</string>
     <plurals name="items">
         <item quantity="one">%d объект</item>
@@ -485,9 +474,6 @@
     <string name="disable_audio_offload_summary">Отключение выгрузки аудио-декодирования может исправить фризы воспроизведения на некоторых устройствах</string>
     <string name="nal">NAL</string>
     <string name="show_titles">Показывать названия</string>
-    <string name="live_tv_repeat">Повтор</string>
-    <string name="favorite_channels_at_beginning">Сначала показывать избранные каналы</string>
-    <string name="sort_channels_recently_watched">Сортировка каналов по недавно просмотренным</string>
     <string name="backdrop_display">Стиль фона</string>
     <string name="combined_search_results">Комбинированные результаты поиска</string>
     <string name="visible_ui">Видимый</string>

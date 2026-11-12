@@ -48,7 +48,6 @@ class KidNavigationTest {
             Destination.Home(),
             Destination.Search(),
             Destination.Favorites,
-            Destination.NowPlaying,
             // The update prompt opens by itself on every profile, and Debug from the sign-in screen
             Destination.UpdateApp(),
             Destination.Debug,

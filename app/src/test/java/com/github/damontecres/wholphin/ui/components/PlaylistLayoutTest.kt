@@ -20,7 +20,6 @@ import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.PlaylistInfo
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.services.ImageUrlService
-import com.github.damontecres.wholphin.services.MusicServiceState
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.detail.PlaylistDialog
 import com.github.damontecres.wholphin.ui.detail.PlaylistItems
@@ -89,7 +88,6 @@ class PlaylistLayoutTest {
                     PlaylistItems(
                         LoadingState.Success,
                         items,
-                        MusicServiceState.EMPTY,
                         FocusRequester(),
                         true,
                         { _, _, _ -> },

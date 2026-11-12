@@ -1,15 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">אודות</string>
-    <string name="active_recordings">הקלטות פעילות</string>
     <string name="add_favorite">הוספה למועדפים</string>
     <string name="add_server">הוסף שרת</string>
     <string name="add_user">הוסף משתמש</string>
     <string name="audio">שמע</string>
     <string name="birthplace">מקום לידה</string>
     <string name="bitrate">קצב נתונים</string>
-    <string name="cancel_recording">בטל הקלטה</string>
-    <string name="cancel_series_recording">בטל הקלטת סדרה</string>
     <string name="cancel">בטל</string>
     <string name="chapters">סצינות</string>
     <string name="clear_image_cache">נקה זיכרון מטמון</string>
@@ -147,11 +144,9 @@
     <string name="hide_debug_info">הסתר מידע לניפוי־שגיאות</string>
     <string name="immediate">מיידי</string>
     <string name="license_info">פרטי רישיון</string>
-    <string name="live_tv">טלוויזיה בשידור חי</string>
     <string name="loading">טוען…</string>
     <string name="mark_entire_series_as_played">לסמן את הסדרה כולה כנצפתה?</string>
     <string name="mark_entire_series_as_unplayed">לסמן את הסדרה כולה כלא נצפתה?</string>
-    <string name="no_scheduled_recordings">אין הקלטות מתוזמנות</string>
     <string name="no_update_available">אין עדכון זמין</string>
     <string name="path">נתיב</string>
     <string name="play_count">מספר ניגונים</string>
@@ -162,11 +157,8 @@
     <string name="recap">תקציר</string>
     <string name="recently_added_in">נוסף לאחרונה ב־%1$s</string>
     <string name="recently_added">נוסף לאחרונה</string>
-    <string name="recently_recorded">הוקלט לאחרונה</string>
     <string name="recently_released">שוחררו לאחרונה</string>
     <string name="recommended">מומלץ</string>
-    <string name="record_program">הקלט תוכנית</string>
-    <string name="record_series">הקלט סדרה</string>
     <string name="remove_favorite">הסרה ממועדפים</string>
     <string name="restart">התחל מחדש</string>
     <string name="resume">המשך ניגון</string>
@@ -207,14 +199,11 @@
     <string name="suggestions">הצעות</string>
     <string name="switch_user">החלף</string>
     <string name="top_unwatched">עם הדירוג הגבוה ביותר שלא נצפו</string>
-    <string name="tv_dvr_schedule">תזמון הקלטות</string>
-    <string name="tv_guide">מדריך</string>
     <string name="unknown">לא ידוע</string>
     <string name="updates">עדכונים</string>
     <string name="version">גרסה</string>
     <string name="video_scale">קנה מידה של הוידאו</string>
     <string name="video">וידאו</string>
-    <string name="watch_live">צפה בשידור חי</string>
     <plurals name="years_old">
         <item quantity="one">בגיל שנה</item>
         <item quantity="two">בגיל שנתיים</item>
@@ -417,8 +406,6 @@
     <string name="bit_unit">ביט</string>
     <string name="sample_rate_unit">הרץ</string>
     <string name="show_titles">הצג כותרות</string>
-    <string name="favorite_channels_at_beginning">הצג ערוצים מועדפים ראשונים</string>
-    <string name="sort_channels_recently_watched">מיין ערוצים לפי \"נצפו לאחרונה\"</string>
     <string name="subtitle_delay">היסט כתוביות</string>
     <string name="backdrop_display">סגנון תמונת־רקע</string>
     <string name="resolution_switching">החלפת רזולוציית־תצוגה</string>
@@ -468,14 +455,6 @@
     <string name="send_media_info_log_to_server">שלח לוג של פרטי המדיה לשרת</string>
     <string name="no_limit">ללא הגבלה</string>
     <string name="max_days_next_up">מספר ימים מקסימלי ב־\"הבא בתור\"</string>
-    <string name="albums">אלבומים</string>
-    <string name="artists">אמנים</string>
-    <string name="songs">שירים</string>
-    <string name="go_to_artist">עבור לאמן</string>
-    <string name="now_playing">מנגן כעת</string>
-    <string name="instant_mix">מיקס מיידי</string>
-    <string name="go_to_album">עבור לאלבום</string>
-    <string name="add_to_queue">הוסף לתור</string>
     <string name="add_row">הוסף שורה</string>
     <string name="genres_in">ז\'אנרים ב־%1$s</string>
     <string name="recently_released_in">יצא לאחרונה ב־%1$s</string>
@@ -577,19 +556,8 @@
     <string name="artist">אמן</string>
     <string name="album_artist">אמן האלבום</string>
     <string name="album">אלבום</string>
-    <string name="popular_songs">שירים פופולרים</string>
-    <string name="play_next">נגן מיד אחרי</string>
     <string name="music_videos">קליפי־מוזיקה</string>
-    <string name="lyrics">מילים</string>
-    <string name="hide_lyrics">הסתר מילים</string>
-    <string name="show_lyrics">הצג מילים</string>
-    <string name="song_has_lyrics">לשיר יש מילים</string>
-    <string name="remove_from_queue">הסר מהתור</string>
-    <string name="show_album_cover">הצג עטיפת אלבום</string>
-    <string name="show_visualizer">הצג המחשה חזותית</string>
     <string name="show_backdrop">הצג תמונת־רקע</string>
-    <string name="play_as_type">נגן כ־?</string>
-    <string name="visualizer_rationale">הצגה של המחשה חזותית דורשת הרשאה להקלטת שמע.</string>
     <string name="continue_string">המשך</string>
     <string name="select_all">בחר הכול</string>
     <string name="separate_types">סוגים נפרדים</string>
@@ -630,8 +598,6 @@
     <string name="dts">DTS</string>
     <string name="anamorphic">אנאמורפי</string>
     <string name="image_subtitle_opacity">אטימות כתוביות מבוססות־תמונה</string>
-    <string name="live_tv_repeat">שידור חוזר</string>
-    <string name="color_code_programs">קידוד צבע לתוכניות</string>
     <string name="slideshow_at_beginning">מההתחלה</string>
     <string name="pin_digits_hint">[0–9]</string>
     <string name="combined_search_results">תוצאות חיפוש ממוזגות</string>
@@ -705,8 +671,6 @@
     <string name="subtitle_mode_none">ללא</string>
     <string name="preferred_subtitle_language">שפה מועדפת לכתוביות</string>
     <string name="preferred_audio_language">שפה מועדפת לשמע</string>
-    <string name="programs">תוכניות טלוויזיה</string>
-    <string name="recordings">הקלטות</string>
     <string name="folders_title">תיקיות</string>
     <string name="user_views">צפיות משתמש</string>
     <string name="books">ספרים</string>
@@ -723,7 +687,6 @@
     <string name="subtitles_hearing_impaired">כתוביות לכבדי שמיעה</string>
     <string name="audio_books">ספרי שמע</string>
     <string name="hash_matches">התאמות של פונקציית־גיבוב</string>
-    <string name="appears_on">מופיע ב־</string>
     <string name="disable_audio_offload_summary">השבתת פענוח אודיו בהורדה עשויה לתקן קפיאות בניגון במכשירים מסוימים</string>
     <string name="disable_audio_offload">השבתת פענוח אודיו בהורדה</string>
     <string name="dim_after_delay">עמעם תצוגה אחרי השהייה</string>

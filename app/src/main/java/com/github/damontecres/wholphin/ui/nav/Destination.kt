@@ -78,15 +78,9 @@ sealed class Destination(
         val itemId: UUID,
         val type: BaseItemKind,
         val collectionType: CollectionType? = null,
-        val initialSongId: UUID? = null,
     ) : Destination() {
         constructor(item: BaseItem) : this(item.id, item.type, item.data.collectionType)
     }
-
-    @Serializable
-    data class Recordings(
-        val itemId: UUID,
-    ) : Destination()
 
     /**
      * Play a single item (and whatever contextual queue follows it, eg the rest of a season)
@@ -194,9 +188,6 @@ sealed class Destination(
         val initialFilter: DiscoverFilter = DiscoverFilter(),
         val titleOverride: StringProvider? = null,
     ) : Destination(false)
-
-    @Serializable
-    data object NowPlaying : Destination(true)
 
     /**
      * @param installNow WeaselFin: start downloading as soon as the page opens. Set by the

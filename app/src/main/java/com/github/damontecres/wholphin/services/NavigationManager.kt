@@ -17,6 +17,19 @@ class NavigationManager
         var backStack: MutableList<Destination> = NavBackStack(Destination.Home())
 
         /**
+         * Goes up each time the app is sent back to Home ([goToHome]): from the side menu, or on the way to another
+         * side menu page. Home reads it when it opens: when it has changed since Home was last shown, Home starts at
+         * its top row; when it hasn't (coming back from a title opened from one of its rows), Home keeps its place
+         * (owner, 2026-11-11)
+         */
+        var homeVisit = 0
+            private set
+
+        init {
+            NavTiming.navigated(backStack.lastOrNull())
+        }
+
+        /**
          * Go to the specified [com.github.damontecres.wholphin.ui.nav.Destination]
          */
         fun navigateTo(destination: Destination) {
@@ -49,6 +62,7 @@ class NavigationManager
          * Go all the way back to the home page
          */
         fun goToHome() {
+            homeVisit++
             while (backStack.size > 1) {
                 backStack.removeLastOrNull()
             }
@@ -99,6 +113,7 @@ class NavigationManager
 
         private fun log() {
             val dest = backStack.lastOrNull().toString()
+            NavTiming.navigated(backStack.lastOrNull())
             Timber.i("Current Destination: %s", dest)
             ACRA.errorReporter.putCustomData("destination", dest)
         }

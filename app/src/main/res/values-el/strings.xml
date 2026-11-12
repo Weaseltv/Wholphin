@@ -69,8 +69,6 @@
     <string name="chapters">Κεφάλαια</string>
     <string name="choose_stream">Διάλεξε %1$s</string>
     <string name="add_server">Προσθήκη διακομιστή</string>
-    <string name="cancel_recording">Ακύρωση καταγραφής</string>
-    <string name="cancel_series_recording">Ακύρωση καταγραφής σειράς</string>
     <string name="clear_image_cache">Καθαρισμός μνήμης εικόνας</string>
     <string name="commercial">Διαφήμιση</string>
     <string name="community_rating">Αξιολόγηση κοινού</string>
@@ -94,7 +92,6 @@
     <string name="immediate">Άμεσος</string>
     <string name="intro">Εισαγωγή</string>
     <string name="license_info">Πληροφορίες άδειας</string>
-    <string name="live_tv">Ζωντανή Τηλεόραση</string>
     <string name="loading">Φόρτωση…</string>
     <string name="mark_entire_series_as_played">Επισήμανση ολόκληρης σειράς ως αναπαραγμένης;</string>
     <string name="mark_entire_series_as_unplayed">Επισήμανση ολόκληρης σειράς ως μη αναπαραγμένης;</string>
@@ -104,7 +101,6 @@
     <string name="more">Περισσότερα</string>
     <string name="no_data">Χωρίς δεδομένα</string>
     <string name="no_results">Χωρίς αποτελέσματα</string>
-    <string name="no_scheduled_recordings">Χωρίς προγραμματισμένες καταγραφές</string>
     <string name="no_update_available">Χωρίς διαθέσιμη ενημέρωση</string>
     <string name="play_from_here">Έναρξη από εδώ</string>
     <string name="play">Έναρξη</string>
@@ -119,11 +115,8 @@
     <string name="recap">Ανακεφαλαίωση</string>
     <string name="recently_added_in">Πρόσφατες προσθήκες σε %1$s</string>
     <string name="recently_added">Πρόσφατες προσθήκες</string>
-    <string name="recently_recorded">Πρόσφατα καταγεγραμμένο</string>
     <string name="recently_released">Πρόσφατης κυκλοφορίας</string>
     <string name="recommended">Προτεινόμενο</string>
-    <string name="record_program">Καταγραφή προγράμματος</string>
-    <string name="record_series">Καταγραφή σειράς</string>
     <string name="remove_favorite">Αναίρεση αγαπημένου</string>
     <string name="restart">Επανεκκίνηση</string>
     <string name="resume">Συνέχισε</string>
@@ -144,21 +137,18 @@
     <string name="sort_by_name">Όνομα</string>
     <string name="sort_by_random">Τυχαία</string>
     <string name="submit">Υποβολή</string>
-    <string name="active_recordings">Ενεργές καταγραφές</string>
     <string name="none">Κανένας</string>
     <string name="playback_debug_info">Εμφάνιση πληροφοριών σφαλμάτων αναπαραγωγής</string>
     <string name="subtitle_download_too_long">Καθυστέρηση της λήψης, ίσως απαιτείται επανεκκίνηση αναπαραγωγής</string>
     <string name="switch_servers">Αλλαγή διακομιστή</string>
     <string name="switch_user">Αλλαγή</string>
     <string name="top_unwatched">Κορυφαίας βαθμολογίας που δεν έχουν προβληθεί</string>
-    <string name="tv_guide">Οδηγός</string>
     <string name="tv_season">Σεζόν</string>
     <string name="tv_seasons">Περισσότερες Σεζόν</string>
     <string name="unknown">Άγνωστο</string>
     <string name="updates">Αναβαθμίσεις</string>
     <string name="version">Έκδοση</string>
     <string name="video_scale">Κλίμακα βίντεο</string>
-    <string name="watch_live">Ζωντανή μετάδοση</string>
     <string name="media_information">Πληροφορίες μέσων</string>
     <string name="show_clock">Εμφάνιση ώρας</string>
     <string name="create_playlist">Δημιουργία νέας λίστας αναπαραγωγής</string>
@@ -231,8 +221,6 @@
     <string name="only_forced_subtitles">Μόνο αναγκαστικοί υπότιτλοι</string>
     <string name="outro">Τίτλοι τέλους</string>
     <string name="voice_error_audio">Σφάλμα καταγραφής ήχου</string>
-    <string name="visualizer_rationale">Η οπτικοποίηση του ήχου αναπαραγωγής απαιτεί άδεια καταγραφής ήχου.</string>
-    <string name="recordings">Καταγραφές</string>
     <string name="profile_specific_settings_from_server">Ρυθμίσεις του προφίλ χρήστη στο διακομιστή</string>
     <string name="subtitle_mode">Λειτουργία υποτίτλων</string>
     <string name="use_user_profile">Χρήση των ρυθμίσεων του προφίλ</string>
@@ -261,7 +249,6 @@
         <item quantity="one">Τρέιλερ</item>
         <item quantity="other">Τρέιλερ</item>
     </plurals>
-    <string name="tv_dvr_schedule">Προγραμματισμός DVR</string>
     <plurals name="tv_shows">
         <item quantity="one">Σειρά</item>
         <item quantity="other">Σειρές</item>
@@ -355,11 +342,7 @@
     <string name="mixer">Υπεύθυνος μίξης</string>
     <string name="creator">Δημιουργός</string>
     <string name="artist">Καλλιτέχνης</string>
-    <string name="albums">Άλμπουμ</string>
-    <string name="artists">Καλλιτέχνες</string>
-    <string name="songs">Τραγούδια</string>
     <string name="album">Άλμπουμ</string>
-    <string name="lyrics">Στίχοι</string>
     <string name="continue_string">Συνεχεία</string>
     <string name="transcoding">Μετατροπή</string>
     <string name="reset">Επαναφορά</string>
@@ -381,7 +364,6 @@
     <string name="anamorphic">Αναμορφικό</string>
     <string name="interlaced">Πεπλεγμένο</string>
     <string name="framerate">Ρυθμός ανανέωσης</string>
-    <string name="live_tv_repeat">Επανάληψη</string>
     <string name="retry">Επανάλαβε</string>
     <string name="brightness">Φωτεινότητα</string>
     <string name="contrast">Αντίθεση</string>

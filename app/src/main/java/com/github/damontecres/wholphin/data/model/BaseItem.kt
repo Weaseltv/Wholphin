@@ -10,7 +10,6 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.WholphinApplication
 import com.github.damontecres.wholphin.ui.abbreviateNumber
 import com.github.damontecres.wholphin.ui.detail.CardGridItem
-import com.github.damontecres.wholphin.ui.detail.music.artistsString
 import com.github.damontecres.wholphin.ui.detail.series.SeasonEpisodeIds
 import com.github.damontecres.wholphin.ui.dot
 import com.github.damontecres.wholphin.ui.formatDateTime
@@ -70,7 +69,6 @@ data class BaseItem(
         when (type) {
             BaseItemKind.EPISODE -> listOf(data.seasonEpisode, name).joinNotBlank(" - ")
             BaseItemKind.SERIES -> data.seriesProductionYears
-            BaseItemKind.AUDIO -> listOf(data.album, artistsString).joinNotBlank(" - ")
             else -> data.productionYear?.toString()
         }
     }
@@ -102,11 +100,7 @@ data class BaseItem(
     val favorite get() = data.userData?.isFavorite ?: false
 
     val timeRemainingOrRuntime: Duration?
-        get() =
-            when (type) {
-                BaseItemKind.PROGRAM -> null
-                else -> data.timeRemaining ?: data.runTimeTicks?.ticks
-            }
+        get() = data.timeRemaining ?: data.runTimeTicks?.ticks
 
     /**
      * Contains pre computed UI elements that would be expensive to create on the main thread
@@ -165,17 +159,6 @@ data class BaseItem(
                                     } else if (type == BaseItemKind.BOX_SET) {
                                         data.productionYear?.let { add(it.toString()) }
                                         data.childCount?.let { add("$it items") }
-                                    } else if (type == BaseItemKind.PROGRAM) {
-                                        data.channelName?.let(::add)
-                                        if (data.isSeries == true) {
-                                            // TV episode
-                                            data.seasonEpisode?.let(::add)
-                                            data.premiereDate?.let {
-                                                add(getDateFormatter().format(it))
-                                            }
-                                        } else {
-                                            data.productionYear?.let { add(it.toString()) }
-                                        }
                                     } else {
                                         data.productionYear?.let { add(it.toString()) }
                                     }
@@ -278,35 +261,6 @@ data class BaseItem(
                     } else {
                         Destination.MediaItem(this)
                     }
-                }
-
-                BaseItemKind.TV_CHANNEL -> {
-                    Destination.Playback(
-                        itemId = id,
-                        positionMs = 0L,
-                    )
-                }
-
-                BaseItemKind.PROGRAM -> {
-                    val channelId = data.channelId
-                    if (channelId != null) {
-                        Destination.Playback(
-                            itemId = channelId,
-                            positionMs = 0L,
-                        )
-                    } else {
-                        Destination.MediaItem(this)
-                    }
-                }
-
-                BaseItemKind.AUDIO -> {
-                    data.albumId?.let { albumId ->
-                        Destination.MediaItem(
-                            itemId = albumId,
-                            type = BaseItemKind.MUSIC_ALBUM,
-                            initialSongId = id,
-                        )
-                    } ?: Destination.MediaItem(this)
                 }
 
                 else -> {

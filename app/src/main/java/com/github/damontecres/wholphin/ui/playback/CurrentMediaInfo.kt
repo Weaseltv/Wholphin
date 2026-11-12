@@ -77,7 +77,7 @@ fun BaseItem.toMediaMetadata(imageUrl: String?): MediaMetadata =
                 BaseItemKind.MOVIE -> MediaMetadata.MEDIA_TYPE_MOVIE
                 BaseItemKind.EPISODE -> MediaMetadata.MEDIA_TYPE_TV_SHOW
                 BaseItemKind.VIDEO -> MediaMetadata.MEDIA_TYPE_VIDEO
-                BaseItemKind.TV_CHANNEL, BaseItemKind.CHANNEL, BaseItemKind.LIVE_TV_CHANNEL -> MediaMetadata.MEDIA_TYPE_TV_CHANNEL
+                BaseItemKind.CHANNEL -> MediaMetadata.MEDIA_TYPE_TV_CHANNEL
                 else -> MediaMetadata.MEDIA_TYPE_VIDEO
             },
         ).build()

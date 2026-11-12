@@ -10,10 +10,10 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,9 +24,7 @@ import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.jellyfin.sdk.api.client.ApiClient
@@ -48,8 +46,7 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * Streaming collection lists without waiting on the server.
  *
- * Each collection's members are fetched once, newest first, in pages (a snapshot). The first page
- * is shown as soon as it arrives and the rest fill in behind it. The finished snapshot is kept in
+ * Each collection's members are fetched once, newest first, in one request (a snapshot). The snapshot is kept in
  * memory for the collections in use and saved to the app's cache directory, so it survives app
  * restarts. NEW, Popular, Trending and Top 10, and the ALL / MOVIES / SHOWS
  * filters, are then built from it instantly. Popular, Trending and Top 10 follow the server's saved
@@ -263,26 +260,59 @@ class StreamingQuickListService
                 .onFailure { Timber.w(it, "Couldn't read the saved %s list", list) }
                 .getOrNull()
 
+        /** Guards [prefetchJob], [prefetchUser] and [prefetchDone]. */
+        private val prefetchState = Any()
+        private var prefetchJob: Job? = null
+        private var prefetchUser: UUID? = null
+
+        /** Whose lists the last complete [prefetchAll] pass was for (member, kid rules, session), and when it ended. */
+        private var prefetchDone: Pair<Triple<UUID, String?, Long?>, Long>? = null
+
         /**
          * Save snapshots for [collectionIds] without one from the last [PREFETCH_REFRESH_AFTER],
          * one at a time after a short pause, so opening a streaming collection from Home is instant.
-         * It pauses between pages while a collection is loading on screen.
+         * It waits while a collection is loading on screen.
+         *
+         * Home calls this after every load. Kept gentle on the server (2026-11): one pass at a time (a second Home
+         * load used to start a second pass over the same lists), a pause after each list it fetches, and nothing at
+         * all for [PREFETCH_PASS_EVERY] after a pass that fetched everything it needed.
          */
         fun prefetchAll(
             userId: UUID,
             collectionIds: List<UUID>,
         ) {
-            scope.launch {
-                delay(PREFETCH_DELAY)
-                collectionIds.forEach { collectionId ->
-                    val key = key(userId, collectionId)
-                    val savedAge = savedAge(key)
-                    val loaded = lock.withLock { inMemory[key] } != null
-                    if (!loaded && (savedAge == null || savedAge > PREFETCH_REFRESH_AFTER.inWholeMilliseconds)) {
-                        runCatching { fetchAndSave(key, progress = null, background = true) }
-                            .onFailure { Timber.w(it, "Prefetch failed for %s", collectionId) }
-                    }
+            synchronized(prefetchState) {
+                if (prefetchJob?.isActive == true) {
+                    if (prefetchUser == userId) return
+                    // Another member's pass: theirs stops, this one starts
+                    prefetchJob?.cancel()
                 }
+                prefetchUser = userId
+                prefetchJob =
+                    scope.launch {
+                        val session = kidContentGuard.sessionOf(api)
+                        val who = Triple(userId, session?.rules, session?.epoch)
+                        val recent =
+                            synchronized(prefetchState) { prefetchDone }
+                                ?.let { (doneFor, at) -> doneFor == who && age(at) < PREFETCH_PASS_EVERY.inWholeMilliseconds }
+                        if (recent == true) return@launch
+                        delay(PREFETCH_DELAY)
+                        var failed = false
+                        collectionIds.forEach { collectionId ->
+                            val key = key(userId, collectionId)
+                            val savedAge = savedAge(key)
+                            val loaded = lock.withLock { inMemory[key] } != null
+                            if (!loaded && (savedAge == null || savedAge > PREFETCH_REFRESH_AFTER.inWholeMilliseconds)) {
+                                runCatching { fetchAndSave(key, progress = null, background = true) }
+                                    .onFailure {
+                                        failed = true
+                                        Timber.w(it, "Prefetch failed for %s", collectionId)
+                                    }
+                                delay(PREFETCH_PAUSE)
+                            }
+                        }
+                        if (!failed) synchronized(prefetchState) { prefetchDone = who to System.currentTimeMillis() }
+                    }
             }
         }
 
@@ -328,8 +358,11 @@ class StreamingQuickListService
             }
 
         /**
-         * Fetch the members newest first: a small first page (shown straight away when
-         * [progress] is set), then the rest in larger pages, two at a time.
+         * Fetch the members newest first, all in one request.
+         *
+         * Until 2026-11 this was a first page of 60 and then pages of 300, two at a time. The server works through the
+         * whole collection for every request whatever its limit (about 1 ms per title, measured on a copy of the
+         * server, 2026-11-12), so each page cost as much as the whole list: nine full passes for a list of 2,181.
          */
         private suspend fun fetchAndSave(
             key: Key,
@@ -348,12 +381,11 @@ class StreamingQuickListService
                 if (session != null && kidContentGuard.sessionOf(api) != session) throw StaleSessionException()
             }
 
-            suspend fun response(
-                startIndex: Int,
-                limit: Int,
-                count: Boolean,
-            ) = GetItemsRequestHandler
-                .execute(
+            // Let a collection being opened go first
+            if (background) foregroundLoads.first { it == 0 }
+            // No startIndex or limit: the whole list in one answer. A kid session's answer comes back already filtered
+            val response =
+                GetItemsRequestHandler.execute(
                     api,
                     GetItemsRequest(
                         userId = key.userId,
@@ -363,59 +395,11 @@ class StreamingQuickListService
                         sortBy = listOf(ItemSortBy.PREMIERE_DATE, ItemSortBy.SORT_NAME),
                         sortOrder = listOf(SortOrder.DESCENDING, SortOrder.ASCENDING),
                         fields = SlimItemFields + ItemFields.PROVIDER_IDS,
-                        startIndex = startIndex,
-                        limit = limit,
-                        enableTotalRecordCount = count,
+                        enableTotalRecordCount = false,
                     ),
-                ).also {
-                    if (session != null && !session.made(kidContentGuard.sessionOf(it.headers))) throw StaleSessionException()
-                }
-
-            suspend fun page(
-                startIndex: Int,
-                limit: Int,
-                count: Boolean,
-            ) = response(startIndex, limit, count).content
-
-            val firstResponse = response(0, FIRST_PAGE, count = true)
-            val first = firstResponse.content
-            // Kid content rules: pages are the server's, so count what the filter removed from the first one too
-            val removed = KidContentGuard.removedBy(firstResponse.headers)
-            val serverTotal = first.totalRecordCount + (removed ?: 0)
-            val dtos = first.items.toMutableList()
-            stillCurrent()
-            progress?.value =
-                Progress(
-                    dtos.map { BaseItem(it, true) },
-                    if (removed ==
-                        null
-                    ) {
-                        dtos.size >= first.totalRecordCount
-                    } else {
-                        serverTotal <= FIRST_PAGE
-                    },
                 )
-            val pageStarts = (FIRST_PAGE until serverTotal step PAGE).toList()
-            val permits = Semaphore(PARALLEL_PAGES)
-            coroutineScope {
-                val pages =
-                    pageStarts.map { start ->
-                        async {
-                            permits.withPermit {
-                                // Let a collection being opened go first
-                                if (background) foregroundLoads.first { it == 0 }
-                                page(start, PAGE, count = false).items
-                            }
-                        }
-                    }
-                // Add pages in order as they arrive
-                pages.forEachIndexed { index, page ->
-                    dtos += page.await()
-                    stillCurrent()
-                    progress?.value = Progress(dtos.map { BaseItem(it, true) }, index == pages.lastIndex)
-                }
-            }
-            val items = dtos.distinctBy { it.id }
+            if (session != null && !session.made(kidContentGuard.sessionOf(response.headers))) throw StaleSessionException()
+            val items = response.content.items.distinctBy { it.id }
             Timber.d("Snapshot for %s: %s items in %s ms", key.collectionId, items.size, System.currentTimeMillis() - started)
             val now = System.currentTimeMillis()
             stillCurrent()
@@ -448,16 +432,17 @@ class StreamingQuickListService
 
         companion object {
             private const val MEMORY_SNAPSHOTS = 3
-
-            /** The first page: about what the page showed before, so it arrives as quickly. */
-            private const val FIRST_PAGE = 60
-            private const val PAGE = 300
-            private const val PARALLEL_PAGES = 2
             private val REFRESH_AFTER = 30.minutes
             private val MAX_AGE = 24.hours
 
             /** Home's background prefetch only refreshes lists older than this, to spare the server. */
             private val PREFETCH_REFRESH_AFTER = 6.hours
             private val PREFETCH_DELAY = 5.seconds
+
+            /** Between two lists the background prefetch fetches, so the server isn't kept busy without a break. */
+            private val PREFETCH_PAUSE = 2.seconds
+
+            /** After a complete prefetch pass, Home loads don't start another for this long. */
+            private val PREFETCH_PASS_EVERY = 30.minutes
         }
     }

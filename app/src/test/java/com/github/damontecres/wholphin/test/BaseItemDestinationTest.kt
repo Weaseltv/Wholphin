@@ -4,36 +4,20 @@ import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.ui.nav.Destination
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Test
 import java.util.UUID
 
 class BaseItemDestinationTest {
+    /** Songs have no page: one that reaches the app opens as itself, which shows the "unsupported" text */
     @Test
-    fun audioWithAlbumId_navigatesToAlbumWithInitialSongId() {
+    fun audio_returnsSelfAsMediaItem() {
         val songId = UUID.randomUUID()
-        val albumId = UUID.randomUUID()
-        val item = BaseItem(song(id = songId, albumId = albumId), false)
-
-        val dest = item.destination()
-
-        assertEquals(Destination.MediaItem::class, dest::class)
-        val media = dest as Destination.MediaItem
-        assertEquals(albumId, media.itemId)
-        assertEquals(BaseItemKind.MUSIC_ALBUM, media.type)
-        assertEquals(songId, media.initialSongId)
-    }
-
-    @Test
-    fun audioWithoutAlbumId_returnsSelfAsMediaItem() {
-        val songId = UUID.randomUUID()
-        val item = BaseItem(song(id = songId, albumId = null), false)
+        val item = BaseItem(song(id = songId, albumId = UUID.randomUUID()), false)
 
         val dest = item.destination()
 
         assertEquals(songId, (dest as Destination.MediaItem).itemId)
         assertEquals(BaseItemKind.AUDIO, dest.type)
-        assertNull(dest.initialSongId)
     }
 
     @Test

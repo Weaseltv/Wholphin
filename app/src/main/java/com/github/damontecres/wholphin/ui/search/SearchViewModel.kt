@@ -15,7 +15,6 @@ import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.updateSearchPreferences
 import com.github.damontecres.wholphin.services.FavoriteWatchManager
 import com.github.damontecres.wholphin.services.KeyValueService
-import com.github.damontecres.wholphin.services.LiveTvService
 import com.github.damontecres.wholphin.services.MediaManagementService
 import com.github.damontecres.wholphin.services.NavDrawerService
 import com.github.damontecres.wholphin.services.NavigationManager
@@ -24,21 +23,17 @@ import com.github.damontecres.wholphin.services.SeerrService
 import com.github.damontecres.wholphin.services.ServerReportService
 import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.deleteItem
-import com.github.damontecres.wholphin.services.tvAccess
-import com.github.damontecres.wholphin.ui.ProgramItemFields
 import com.github.damontecres.wholphin.ui.SlimItemFields
 import com.github.damontecres.wholphin.ui.components.ContextMenuProvider
 import com.github.damontecres.wholphin.ui.components.VoiceInputManager
 import com.github.damontecres.wholphin.ui.components.baseItemKinds
 import com.github.damontecres.wholphin.ui.data.RowColumn
-import com.github.damontecres.wholphin.ui.detail.livetv.ProgramDialogState
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.showToast
 import com.github.damontecres.wholphin.ui.toBaseItems
-import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import com.github.damontecres.wholphin.util.FuzzySearch
 import com.github.damontecres.wholphin.util.SearchRelevance
@@ -48,9 +43,11 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -63,7 +60,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.api.client.ApiClient
-import org.jellyfin.sdk.api.client.extensions.artistsApi
 import org.jellyfin.sdk.api.client.extensions.itemsApi
 import org.jellyfin.sdk.api.client.extensions.personsApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
@@ -88,7 +84,6 @@ class SearchViewModel
         private val favoriteWatchManager: FavoriteWatchManager,
         private val mediaManagementService: MediaManagementService,
         private val serverReportService: ServerReportService,
-        private val liveTvService: LiveTvService,
         private val keyValueService: KeyValueService,
         private val navDrawerService: NavDrawerService,
         private val searchIndexService: SearchIndexService,
@@ -107,9 +102,6 @@ class SearchViewModel
 
         private var currentQuery: String? = null
         private var combinedMode = false
-
-        private val _programDialogState = MutableStateFlow(ProgramDialogState())
-        val programDialogState: StateFlow<ProgramDialogState> = _programDialogState
 
         private var userLibraryTypes: Set<BaseItemKind> = emptySet()
 
@@ -196,7 +188,6 @@ class SearchViewModel
         }
 
         private fun determineSearchableTypes(excludedSearchableTypes: List<BaseItemKind>): List<BaseItemKind> {
-            val tvAccess = serverRepository.currentUserDto?.tvAccess == true
             val searchableTypes =
                 allSearchableTypes.filter {
                     val excluded = excludedSearchableTypes.contains(it)
@@ -205,13 +196,6 @@ class SearchViewModel
                     when (it) {
                         // No library type for person
                         BaseItemKind.PERSON -> !excluded
-
-                        // Remove live tv search if user doesn't have access
-                        BaseItemKind.TV_CHANNEL,
-                        BaseItemKind.LIVE_TV_PROGRAM,
-                        BaseItemKind.TV_PROGRAM,
-                        BaseItemKind.PROGRAM,
-                        -> tvAccess && !excluded
 
                         else -> hasLibrary && !excluded
                     }
@@ -230,6 +214,7 @@ class SearchViewModel
             currentQuery = query
             combinedMode = combined
             unindexed.value = emptyList()
+            dropEarlierSearches()
             if (query.isNotNullOrBlank()) {
                 _state.update {
                     it.copy(
@@ -260,117 +245,120 @@ class SearchViewModel
                                 }
                             },
                         combinedResults = SearchResult.NoQuery,
+                        // Its request may just have been dropped mid-flight, which would leave it "searching"
+                        seerrResults = SearchResult.NoQuery,
                     )
                 }
             }
+        }
+
+        /**
+         * Speed plan 18e (2026-11): the requests of the search now showing. A search already sent used to keep running
+         * when a newer one started, and its late answer could land on top of the newer results. Starting a search (or
+         * clearing the box) now drops the earlier one's requests.
+         */
+        private val searchJobs = mutableListOf<Job>()
+
+        private fun dropEarlierSearches() =
+            synchronized(searchJobs) {
+                searchJobs.forEach { it.cancel() }
+                searchJobs.clear()
+            }
+
+        private fun Job.ofThisSearch() {
+            synchronized(searchJobs) { searchJobs += this }
         }
 
         private fun searchType(
             query: String,
             type: BaseItemKind,
         ) {
-            viewModelScope.launchIO {
-                try {
-                    val indexTypes = listOf(type).filter { it in FuzzySearch.TYPES }
-                    val indexed = indexMatchesAsync(query, indexTypes)
-                    val items: List<BaseItem> =
-                        when (type) {
-                            BaseItemKind.LIVE_TV_PROGRAM -> {
-                                val request =
-                                    GetItemsRequest(
-                                        searchTerm = query,
-                                        recursive = true,
-                                        includeItemTypes = listOf(type),
-                                        fields = ProgramItemFields,
-                                        limit = SEARCH_LIMIT,
-                                        enableTotalRecordCount = false,
-                                    )
-                                api.itemsApi.getItems(request).toBaseItems(api, false)
-                            }
+            viewModelScope
+                .launchIO {
+                    try {
+                        val indexTypes = listOf(type).filter { it in FuzzySearch.TYPES }
+                        val indexed = indexMatchesAsync(query, indexTypes)
+                        val items: List<BaseItem> =
+                            when (type) {
+                                BaseItemKind.PERSON -> {
+                                    api.personsApi
+                                        .getPersons(
+                                            searchTerm = query,
+                                            fields = SlimItemFields,
+                                            limit = SEARCH_LIMIT,
+                                        ).toBaseItems(api, false)
+                                }
 
-                            BaseItemKind.MUSIC_ARTIST -> {
-                                api.artistsApi
-                                    .getArtists(
-                                        searchTerm = query,
-                                        fields = SlimItemFields,
-                                        limit = SEARCH_LIMIT,
-                                        enableTotalRecordCount = false,
-                                    ).toBaseItems(api, false)
+                                else -> {
+                                    val request =
+                                        GetItemsRequest(
+                                            searchTerm = query,
+                                            recursive = true,
+                                            includeItemTypes = listOf(type),
+                                            fields = SlimItemFields,
+                                            limit = SEARCH_LIMIT,
+                                            enableTotalRecordCount = false,
+                                        )
+                                    api.itemsApi.getItems(request).toBaseItems(api, false)
+                                }
                             }
-
-                            BaseItemKind.PERSON -> {
-                                api.personsApi
-                                    .getPersons(
-                                        searchTerm = query,
-                                        fields = SlimItemFields,
-                                        limit = SEARCH_LIMIT,
-                                    ).toBaseItems(api, false)
-                            }
-
-                            else -> {
-                                val request =
-                                    GetItemsRequest(
-                                        searchTerm = query,
-                                        recursive = true,
-                                        includeItemTypes = listOf(type),
-                                        fields = SlimItemFields,
-                                        limit = SEARCH_LIMIT,
-                                        enableTotalRecordCount = false,
-                                    )
-                                api.itemsApi.getItems(request).toBaseItems(api, false)
-                            }
-                        }
-                    val sorted =
-                        items.sortedWith(
-                            compareBy<BaseItem> { SearchRelevance.score(it, query) },
-                        )
-                    val results = indexed?.let { FuzzySearch.merge(it.await(), sorted) { item -> item.id } } ?: sorted
-                    Timber.v("Search finished for %s, %s results", type, results.size)
-                    _state.value.results[type] = SearchResult.Success(results)
-                    if (indexed == null) addIndexMatchesLater(type, query, indexTypes, sorted)
-                } catch (ex: CancellationException) {
-                    throw ex
-                } catch (ex: Exception) {
-                    Timber.e(ex, "Exception searching for $type")
-                    _state.value.results[type] = SearchResult.Error(ex)
-                }
-            }
+                        val sorted =
+                            items.sortedWith(
+                                compareBy<BaseItem> { SearchRelevance.score(it, query) },
+                            )
+                        val results = indexed?.let { FuzzySearch.merge(it.await(), sorted) { item -> item.id } } ?: sorted
+                        Timber.v("Search finished for %s, %s results", type, results.size)
+                        ensureActive()
+                        _state.value.results[type] = SearchResult.Success(results)
+                        if (indexed == null) addIndexMatchesLater(type, query, indexTypes, sorted)
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: Exception) {
+                        Timber.e(ex, "Exception searching for $type")
+                        _state.value.results[type] = SearchResult.Error(ex)
+                    }
+                }.ofThisSearch()
         }
 
         private fun searchCombined(query: String) {
-            viewModelScope.launch(ExceptionHandler() + WholphinDispatchers.IO) {
-                try {
-                    Timber.v("Starting searchCombined")
-                    val types = state.value.includedSearchableTypes
-                    val indexTypes = types.filter { it in FuzzySearch.TYPES }
-                    val indexed = indexMatchesAsync(query, indexTypes)
-                    val request =
-                        GetItemsRequest(
-                            searchTerm = query,
-                            recursive = true,
-                            includeItemTypes = types,
-                            fields = SlimItemFields,
-                            limit = SEARCH_LIMIT,
-                        )
+            viewModelScope
+                .launch(ExceptionHandler() + WholphinDispatchers.IO) {
+                    try {
+                        Timber.v("Starting searchCombined")
+                        val types = state.value.includedSearchableTypes
+                        val indexTypes = types.filter { it in FuzzySearch.TYPES }
+                        val indexed = indexMatchesAsync(query, indexTypes)
+                        val request =
+                            GetItemsRequest(
+                                searchTerm = query,
+                                recursive = true,
+                                includeItemTypes = types,
+                                fields = SlimItemFields,
+                                limit = SEARCH_LIMIT,
+                            )
 
-                    val result = api.itemsApi.getItems(request).content
-                    val items =
-                        result.items.map {
-                            BaseItem(it, false)
-                        }
-                    val sorted =
-                        items.sortedWith(
-                            compareBy<BaseItem> { SearchRelevance.score(it, query) },
-                        )
-                    val results = indexed?.let { FuzzySearch.merge(it.await(), sorted) { item -> item.id } } ?: sorted
-                    Timber.v("searchCombined complete %s results", results.size)
-                    _state.update { it.copy(combinedResults = SearchResult.Success(results)) }
-                    if (indexed == null) addIndexMatchesLater(null, query, indexTypes, sorted)
-                } catch (ex: Exception) {
-                    Timber.e(ex, "Exception in combined search")
-                    _state.update { it.copy(combinedResults = SearchResult.Error(ex)) }
-                }
-            }
+                        val result = api.itemsApi.getItems(request).content
+                        val items =
+                            result.items.map {
+                                BaseItem(it, false)
+                            }
+                        val sorted =
+                            items.sortedWith(
+                                compareBy<BaseItem> { SearchRelevance.score(it, query) },
+                            )
+                        val results = indexed?.let { FuzzySearch.merge(it.await(), sorted) { item -> item.id } } ?: sorted
+                        Timber.v("searchCombined complete %s results", results.size)
+                        ensureActive()
+                        _state.update { it.copy(combinedResults = SearchResult.Success(results)) }
+                        if (indexed == null) addIndexMatchesLater(null, query, indexTypes, sorted)
+                    } catch (ex: CancellationException) {
+                        // Dropped for a newer search: not an error to show
+                        throw ex
+                    } catch (ex: Exception) {
+                        Timber.e(ex, "Exception in combined search")
+                        _state.update { it.copy(combinedResults = SearchResult.Error(ex)) }
+                    }
+                }.ofThisSearch()
         }
 
         /** Get the member's title index ready for the movie, show and collection sections Search shows. */
@@ -497,17 +485,19 @@ class SearchViewModel
         }
 
         private fun searchSeerr(query: String) {
-            viewModelScope.launchIO {
-                if (seerrActive.first() && state.value.discoverEnabled) {
-                    _state.update { it.copy(seerrResults = SearchResult.Searching) }
-                    val results =
-                        seerrService
-                            .search(query)
-                            .map { seerrService.createDiscoverItem(it) }
-                            .filter { it.type == SeerrItemType.MOVIE || it.type == SeerrItemType.TV }
-                    _state.update { it.copy(seerrResults = SearchResult.SuccessSeerr(results)) }
-                }
-            }
+            viewModelScope
+                .launchIO {
+                    if (seerrActive.first() && state.value.discoverEnabled) {
+                        _state.update { it.copy(seerrResults = SearchResult.Searching) }
+                        val results =
+                            seerrService
+                                .search(query)
+                                .map { seerrService.createDiscoverItem(it) }
+                                .filter { it.type == SeerrItemType.MOVIE || it.type == SeerrItemType.TV }
+                        ensureActive()
+                        _state.update { it.copy(seerrResults = SearchResult.SuccessSeerr(results)) }
+                    }
+                }.ofThisSearch()
         }
 
         init {
@@ -605,56 +595,6 @@ class SearchViewModel
         override fun isAdministrator(): Boolean = serverRepository.currentUserDto?.policy?.isAdministrator == true
 
         override fun sendReportFor(itemId: UUID) = serverReportService.sendMediaReportFor(itemId)
-
-        fun fetchProgramForDialog(programId: UUID) {
-            _programDialogState.update { it.copy(loading = DataLoadingState.Loading) }
-            viewModelScope.launchDefault {
-                try {
-                    val result = liveTvService.fetchProgramForDialog(programId)
-                    _programDialogState.update { it.copy(loading = DataLoadingState.Success(result)) }
-                } catch (ex: CancellationException) {
-                    throw ex
-                } catch (ex: Exception) {
-                    Timber.e(ex, "Error fetching program $programId")
-                    _programDialogState.update { it.copy(loading = DataLoadingState.Error(ex)) }
-                }
-            }
-        }
-
-        fun cancelRecording(
-            series: Boolean,
-            timerId: String?,
-        ) {
-            viewModelScope.launchIO(ExceptionHandler(autoToast = true)) {
-                try {
-                    val result = liveTvService.cancelRecording(series, timerId)
-                    // TODO update program card?
-                } catch (ex: CancellationException) {
-                    throw ex
-                } catch (ex: Exception) {
-                    Timber.e(ex, "Error canceling timer %s, series=%s", timerId, series)
-                    if (!ex.isStaleSession()) showToast(context, "Error: ${ex.localizedMessage}")
-                }
-            }
-        }
-
-        fun record(
-            programId: UUID,
-            series: Boolean,
-        ) {
-            viewModelScope.launchIO {
-                try {
-                    liveTvService.record(programId, series)
-                    // TODO update program card?
-                    refreshItem(programId)
-                } catch (ex: CancellationException) {
-                    throw ex
-                } catch (ex: Exception) {
-                    Timber.e(ex, "Error recording %s, series=%s", programId, series)
-                    if (!ex.isStaleSession()) showToast(context, "Error: ${ex.localizedMessage}")
-                }
-            }
-        }
 
         fun onClickExcludeSearchableType(type: BaseItemKind) {
             viewModelScope.launchIO {
@@ -765,11 +705,6 @@ private val allSearchableTypes =
         BaseItemKind.EPISODE,
         BaseItemKind.BOX_SET,
         BaseItemKind.PERSON,
-        BaseItemKind.TV_CHANNEL,
-        BaseItemKind.LIVE_TV_PROGRAM,
-        BaseItemKind.MUSIC_ALBUM,
-        BaseItemKind.MUSIC_ARTIST,
-        BaseItemKind.AUDIO,
         BaseItemKind.MUSIC_VIDEO,
         BaseItemKind.PLAYLIST,
         BaseItemKind.VIDEO,

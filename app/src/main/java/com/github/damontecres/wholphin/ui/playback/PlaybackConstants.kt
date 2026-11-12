@@ -44,21 +44,15 @@ val BaseItemKind.playable: Boolean
             BaseItemKind.MUSIC_VIDEO,
             BaseItemKind.TRAILER,
             BaseItemKind.VIDEO,
-            BaseItemKind.LIVE_TV_CHANNEL,
-            BaseItemKind.LIVE_TV_PROGRAM,
-            BaseItemKind.PROGRAM,
-            BaseItemKind.RECORDING,
-            BaseItemKind.TV_CHANNEL,
-            BaseItemKind.TV_PROGRAM,
             -> true
 
             // TODO add support for these eventually
             BaseItemKind.AUDIO_BOOK,
-            BaseItemKind.AUDIO,
             BaseItemKind.CHANNEL,
             -> false
 
             BaseItemKind.AGGREGATE_FOLDER,
+            BaseItemKind.AUDIO,
             BaseItemKind.BASE_PLUGIN_FOLDER,
             BaseItemKind.BOOK,
             BaseItemKind.BOX_SET,
@@ -66,6 +60,8 @@ val BaseItemKind.playable: Boolean
             BaseItemKind.COLLECTION_FOLDER,
             BaseItemKind.FOLDER,
             BaseItemKind.GENRE,
+            BaseItemKind.LIVE_TV_CHANNEL,
+            BaseItemKind.LIVE_TV_PROGRAM,
             BaseItemKind.MANUAL_PLAYLISTS_FOLDER,
             BaseItemKind.MUSIC_ALBUM,
             BaseItemKind.MUSIC_ARTIST,
@@ -75,9 +71,13 @@ val BaseItemKind.playable: Boolean
             BaseItemKind.PHOTO_ALBUM,
             BaseItemKind.PLAYLIST,
             BaseItemKind.PLAYLISTS_FOLDER,
+            BaseItemKind.PROGRAM,
+            BaseItemKind.RECORDING,
             BaseItemKind.SEASON,
             BaseItemKind.SERIES,
             BaseItemKind.STUDIO,
+            BaseItemKind.TV_CHANNEL,
+            BaseItemKind.TV_PROGRAM,
             BaseItemKind.USER_ROOT_FOLDER,
             BaseItemKind.USER_VIEW,
             BaseItemKind.YEAR,
@@ -89,14 +89,14 @@ fun getTypeFor(collectionType: CollectionType): BaseItemKind? =
         CollectionType.UNKNOWN -> null
         CollectionType.MOVIES -> BaseItemKind.MOVIE
         CollectionType.TVSHOWS -> BaseItemKind.SERIES
-        CollectionType.MUSIC -> BaseItemKind.AUDIO
+        CollectionType.MUSIC -> null
         CollectionType.MUSICVIDEOS -> BaseItemKind.MUSIC_VIDEO
         CollectionType.TRAILERS -> BaseItemKind.TRAILER
         CollectionType.HOMEVIDEOS -> BaseItemKind.VIDEO
         CollectionType.BOXSETS -> BaseItemKind.BOX_SET
         CollectionType.BOOKS -> BaseItemKind.BOOK
         CollectionType.PHOTOS -> BaseItemKind.PHOTO_ALBUM
-        CollectionType.LIVETV -> BaseItemKind.LIVE_TV_CHANNEL
+        CollectionType.LIVETV -> null
         CollectionType.PLAYLISTS -> BaseItemKind.PLAYLIST
         CollectionType.FOLDERS -> BaseItemKind.FOLDER
     }

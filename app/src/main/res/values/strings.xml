@@ -3,7 +3,6 @@
     <string name="app_name_long" translatable="false">Wholphin</string>
 
     <string name="about">About</string>
-    <string name="active_recordings">Active Recordings</string>
     <string name="add_favorite">Favorite</string>
     <string name="add_server">Add Server</string>
     <string name="add_user">Add User</string>
@@ -11,8 +10,6 @@
     <string name="birthplace">Birthplace</string>
     <string name="bitrate">Bitrate</string>
     <string name="born">Born</string>
-    <string name="cancel_recording">Cancel Recording</string>
-    <string name="cancel_series_recording">Cancel Series Recording</string>
     <string name="cancel">Cancel</string>
     <string name="cancel_request">Cancel request</string>
     <string name="chapters">Chapters</string>
@@ -66,7 +63,6 @@
     <string name="jump_letters">#ABCDEFGHIJKLMNOPQRSTUVWXYZ</string>
     <string name="library">Library</string>
     <string name="license_info">License information</string>
-    <string name="live_tv">Live TV</string>
     <string name="loading">Loading…</string>
     <string name="mark_entire_series_as_played">Mark entire series as played?</string>
     <string name="mark_entire_series_as_unplayed">Mark entire series as unplayed?</string>
@@ -81,7 +77,6 @@
     <string name="no_data">No data</string>
     <string name="no_results">No results</string>
     <string name="no_servers_found">No servers found</string>
-    <string name="no_scheduled_recordings">No scheduled recordings</string>
     <string name="no_update_available">No update available</string>
     <string name="none">None</string>
     <string name="only_forced_subtitles">Only Forced Subtitles</string>
@@ -104,11 +99,8 @@
     <string name="recently_added_in">Recently added in %1$s</string>
     <string name="recently_added">Recently added</string>
     <string name="home_new_in">New in</string>
-    <string name="recently_recorded">Recently Recorded</string>
     <string name="recently_released">Recently Released</string>
     <string name="recommended">Recommended</string>
-    <string name="record_program">Record Program</string>
-    <string name="record_series">Record Series</string>
     <string name="remove_favorite">Unfavorite</string>
     <string name="restart">Restart</string>
     <string name="resume">Resume</string>
@@ -159,8 +151,6 @@
     <string name="time_left">%1$s left</string>
     <string name="top_unwatched">Top Rated Unwatched</string>
     <string name="trailers_title">Trailers</string>
-    <string name="tv_dvr_schedule">DVR Schedule</string>
-    <string name="tv_guide">Guide</string>
     <string name="tv_season">Season</string>
     <string name="tv_seasons">Seasons</string>
     <string name="season_episode_number">S%1$d E%2$s</string>
@@ -175,7 +165,6 @@
     <string name="video_scale">Video Scale</string>
     <string name="video">Video</string>
     <string name="videos">Videos</string>
-    <string name="watch_live">Watch live</string>g
     <plurals name="years_old">
         <item quantity="zero">%1$d years old</item>
         <item quantity="one">%1$d year old</item>
@@ -333,8 +322,6 @@
     <string name="kind_movie">Movie</string>
     <string name="kind_season">Season</string>
     <string name="kind_episode">Episode</string>
-    <string name="kind_live">Live</string>
-    <string name="kind_song">Song</string>
     <string name="auto_check_for_updates">Automatically check for updates</string>
     <string name="auto_play_next_delay">Delay before playing next up</string>
     <string name="auto_play_next">Auto play next up</string>
@@ -474,10 +461,6 @@
     <string name="bit_unit">bit</string>
     <string name="sample_rate_unit">Hz</string>
     <string name="show_titles">Show titles</string>
-    <string name="live_tv_repeat">Repeat</string>
-    <string name="favorite_channels_at_beginning">Show favorite channels first</string>
-    <string name="sort_channels_recently_watched">Sort channels by recently watched</string>
-    <string name="color_code_programs">Color-code programs</string>
     <string name="subtitle_delay">Subtitle delay</string>
     <string name="backdrop_display">Backdrop style</string>
     <string name="combined_search_results">Combined search results</string>
@@ -552,14 +535,6 @@
     <string name="send_media_info_log_to_server">Send media info log to server</string>
     <string name="no_limit">No limit</string>
     <string name="max_days_next_up">Max days in Next Up</string>
-    <string name="albums">Albums</string>
-    <string name="artists">Artists</string>
-    <string name="songs">Songs</string>
-    <string name="go_to_artist">Go to artist</string>
-    <string name="now_playing">Now playing</string>
-    <string name="instant_mix">Instant mix</string>
-    <string name="go_to_album">Go to album</string>
-    <string name="add_to_queue">Add to queue</string>
 
     <string name="add_row">Add row</string>
     <string name="genres_in">Genres in %1$s</string>
@@ -809,19 +784,8 @@
     <string name="artist">Artist</string>
     <string name="album_artist">Album artist</string>
     <string name="album">Album</string>
-    <string name="popular_songs">Popular songs</string>
-    <string name="play_next">Play next</string>
     <string name="music_videos">Music videos</string>
-    <string name="lyrics">Lyrics</string>
-    <string name="hide_lyrics">Hide lyrics</string>
-    <string name="show_lyrics">Show lyrics</string>
-    <string name="song_has_lyrics">Song has lyrics</string>
-    <string name="remove_from_queue">Remove from queue</string>
-    <string name="show_album_cover">Show album cover</string>
-    <string name="show_visualizer">Show visualizer</string>
     <string name="show_backdrop">Show backdrop</string>
-    <string name="play_as_type">Play as?</string>
-    <string name="visualizer_rationale">Visualizing the currently playing audio requires permission to record audio.</string>
     <string name="continue_string">Continue</string>
     <string name="select_all">Select all</string>
     <string name="separate_types">Separate types</string>
@@ -935,14 +899,11 @@
     <string name="any_language">Any language</string>
     <string name="hash_matches">Hash matches</string>
     <string name="subtitles_hearing_impaired">SDH</string>
-    <string name="programs">TV programs</string>
-    <string name="recordings">Recordings</string>
     <string name="folders_title">Folders</string>
     <string name="user_views">User views</string>
     <string name="books">Books</string>
     <string name="audio_books">Audio books</string>
     <string name="server_version_not_supported">Server version not supported</string>
-    <string name="appears_on">Appears on</string>
     <string name="dim_after_delay">Dim screen after delay</string>
     <string name="dim_percentage">Dim percentage</string>
     <string name="dim_screen">Dim screen</string>
@@ -992,7 +953,6 @@
     <!-- Kid profiles (runbooks/kid-profiles) -->
     <string name="kid_content_playback_refused">This title isn\'t available on this profile</string>
     <string name="kid_content_item_unavailable">This title isn\'t available on this profile</string>
-    <string name="kid_music_unavailable">Music isn\'t available on this profile</string>
     <string name="play_start_item_unavailable">The title you picked isn\'t available</string>
     <string name="kid_pin_wrong">Wrong PIN. %1$d tries left before a pause.</string>
     <string name="kid_pin_locked_out">Too many wrong PINs. Try again in %1$d seconds.</string>

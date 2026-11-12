@@ -30,7 +30,6 @@ import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.FavoriteWatchManager
 import com.github.damontecres.wholphin.services.HomeSettingsService
 import com.github.damontecres.wholphin.services.MediaManagementService
-import com.github.damontecres.wholphin.services.MusicService
 import com.github.damontecres.wholphin.services.NavDrawerService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.ServerReportService
@@ -38,7 +37,6 @@ import com.github.damontecres.wholphin.services.StreamChoiceService
 import com.github.damontecres.wholphin.services.ThemeSongPlayer
 import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.deleteItem
-import com.github.damontecres.wholphin.services.tvAccess
 import com.github.damontecres.wholphin.ui.cards.GridCard
 import com.github.damontecres.wholphin.ui.components.ContextMenuProvider
 import com.github.damontecres.wholphin.ui.components.ErrorMessage
@@ -91,7 +89,6 @@ class HomeRowGridViewModel
         private val navigationManager: NavigationManager,
         private val themeSongPlayer: ThemeSongPlayer,
         private val mediaManagementService: MediaManagementService,
-        private val musicService: MusicService,
         val streamChoiceService: StreamChoiceService,
         val serverReportService: ServerReportService,
         @Assisted private val title: StringProvider,
@@ -137,7 +134,7 @@ class HomeRowGridViewModel
                     val prefs = preferences.appPreferences.homePagePreferences
                     serverRepository.currentUserDto?.let { userDto ->
                         val libraries =
-                            navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
+                            navDrawerService.getAllUserLibraries(userDto.id)
                         val result =
                             homeSettingsService.fetchDataForRow(
                                 row = rowConfig,

@@ -114,45 +114,6 @@ val BoxSetSortOptions =
         ItemSortBy.RANDOM,
     )
 
-val AlbumSortOptions =
-    listOf(
-        ItemSortBy.SORT_NAME,
-        ItemSortBy.PREMIERE_DATE,
-        ItemSortBy.DATE_CREATED,
-        ItemSortBy.DATE_PLAYED,
-        ItemSortBy.ALBUM_ARTIST,
-        ItemSortBy.COMMUNITY_RATING,
-        ItemSortBy.CRITIC_RATING,
-        ItemSortBy.RANDOM,
-    )
-
-val ArtistSortOptions =
-    listOf(
-        ItemSortBy.SORT_NAME,
-        ItemSortBy.PREMIERE_DATE,
-        ItemSortBy.DATE_CREATED,
-        ItemSortBy.DATE_PLAYED,
-        ItemSortBy.COMMUNITY_RATING,
-        ItemSortBy.CRITIC_RATING,
-        ItemSortBy.RANDOM,
-    )
-
-val SongSortOptions =
-    listOf(
-        ItemSortBy.SORT_NAME,
-        ItemSortBy.PREMIERE_DATE,
-        ItemSortBy.ALBUM,
-        ItemSortBy.ALBUM_ARTIST,
-        ItemSortBy.ARTIST,
-        ItemSortBy.DATE_CREATED,
-        ItemSortBy.DATE_PLAYED,
-        ItemSortBy.COMMUNITY_RATING,
-        ItemSortBy.CRITIC_RATING,
-        ItemSortBy.PLAY_COUNT,
-        ItemSortBy.RUNTIME,
-        ItemSortBy.RANDOM,
-    )
-
 @StringRes
 fun getStringRes(sort: ItemSortBy): Int =
     when (sort) {
@@ -186,6 +147,7 @@ fun getStringRes(sort: ItemSortBy): Int =
 
         ItemSortBy.DEFAULT -> R.string.default_track
 
+        // No page offers these any more, but a sort saved for a library can still hold one, and it must never throw
         ItemSortBy.ALBUM -> R.string.album
 
         ItemSortBy.ALBUM_ARTIST -> R.string.album_artist
@@ -201,7 +163,6 @@ fun rememberSortOptions(collectionType: CollectionType): List<ItemSortBy> =
         when (collectionType) {
             CollectionType.MOVIES -> MovieSortOptions
             CollectionType.TVSHOWS -> SeriesSortOptions
-            CollectionType.MUSIC -> AlbumSortOptions
             CollectionType.BOXSETS -> BoxSetSortOptions
             else -> VideoSortOptions
         }
@@ -215,9 +176,6 @@ fun rememberSortOptions(type: BaseItemKind): List<ItemSortBy> =
             BaseItemKind.SERIES -> SeriesSortOptions
             BaseItemKind.SEASON -> SeriesSortOptions
             BaseItemKind.EPISODE -> EpisodeSortOptions
-            BaseItemKind.AUDIO -> SongSortOptions
-            BaseItemKind.MUSIC_ALBUM -> AlbumSortOptions
-            BaseItemKind.MUSIC_ARTIST -> ArtistSortOptions
             BaseItemKind.BOX_SET -> BoxSetSortOptions
             else -> VideoSortOptions
         }

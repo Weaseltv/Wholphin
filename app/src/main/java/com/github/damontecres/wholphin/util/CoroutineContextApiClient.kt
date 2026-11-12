@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.util
 
 import com.github.damontecres.wholphin.kids.KidContentGuard
+import com.github.damontecres.wholphin.services.HomeFreshness
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.api.client.ApiClient
@@ -104,6 +105,24 @@ class CoroutineContextApiClient(
         requestBody: Any?,
     ): RawResponse =
         withContext(coroutineContext) {
+            // Anything but a read may change what Home shows (speed plan step 16)
+            val changes = method != HttpMethod.GET
+            if (changes) HomeFreshness.changed()
+            try {
+                requestNow(method, pathTemplate, pathParameters, queryParameters, requestBody)
+            } finally {
+                if (changes) HomeFreshness.changed()
+            }
+        }
+
+    private suspend fun requestNow(
+        method: HttpMethod,
+        pathTemplate: String,
+        pathParameters: Map<String, Any?>,
+        queryParameters: Map<String, Any?>,
+        requestBody: Any?,
+    ): RawResponse =
+        run {
             val guard = contentGuard
             if (guard == null) {
                 client.request(

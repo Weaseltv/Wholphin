@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
+import com.github.damontecres.wholphin.services.NavTiming
 import com.github.damontecres.wholphin.ui.theme.LocalHomeCardAppearance
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.util.KeepVisibleBringIntoViewSpec
@@ -174,6 +175,7 @@ fun DetailPageViewport(
                 // Let the reported sizes settle for a frame before fixing the header's size
                 withFrameNanos { }
                 state.lock()
+                NavTiming.mark("page revealed", once = true)
             }
         }
         val alpha by animateFloatAsState(if (!neon || state.isLocked) 1f else 0f, tween(100), label = "pageReveal")

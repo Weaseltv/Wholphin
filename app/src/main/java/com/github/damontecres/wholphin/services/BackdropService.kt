@@ -34,6 +34,7 @@ import org.jellyfin.sdk.model.api.ImageType
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.roundToInt
 
 /**
  * Stores state for the backdrop of the app shown on non-full screen pages
@@ -58,17 +59,40 @@ class BackdropService
 
         /**
          * Update the backdrop to use the specified item
+         *
+         * @param pauseFirst wait half a second before fetching the picture, so moving across cards doesn't fetch one
+         * per card. A title page asks once when it opens and passes false (speed plan step 5, 2026-11)
          */
-        suspend fun submit(item: BaseItem) =
-            withContext(WholphinDispatchers.IO) {
-                val imageUrl =
-                    if (item.type == BaseItemKind.GENRE) {
-                        item.imageUrlOverride
-                    } else {
-                        imageUrlService.getItemImageUrl(item, ImageType.BACKDROP)
-                    }
-                submit(item.id.toString(), imageUrl)
-            }
+        suspend fun submit(
+            item: BaseItem,
+            pauseFirst: Boolean = true,
+        ) = withContext(WholphinDispatchers.IO) {
+            val imageUrl =
+                if (item.type == BaseItemKind.GENRE) {
+                    item.imageUrlOverride
+                } else {
+                    atShownSize(imageUrlService.getItemImageUrl(item, ImageType.BACKDROP))
+                }
+            submit(item.id.toString(), imageUrl, pauseFirst)
+        }
+
+        /**
+         * [url] (the server's backdrop for an item) limited to the size the backdrop is drawn at.
+         *
+         * Speed plan step 11 (2026-11): the picture was asked for at its original size, often 4K, for a box that is
+         * [SHOWN_FRACTION] of the screen each way ([com.github.damontecres.wholphin.ui.nav.Backdrop]). With a maximum
+         * size the server (Jellyfin 12.2, ImageProcessingOptions.HasDefaultOptions) still sends the original file
+         * untouched when it is no bigger than this, and otherwise sends a smaller copy it makes once and keeps. Sized
+         * here and not in [ImageUrlService], whose addresses the screensaver also uses for full-screen pictures.
+         */
+        private fun atShownSize(url: String?): String? {
+            if (url.isNullOrBlank()) return url
+            val metrics = context.resources.displayMetrics
+            val width = (metrics.widthPixels * SHOWN_FRACTION).roundToInt()
+            val height = (metrics.heightPixels * SHOWN_FRACTION).roundToInt()
+            if (width <= 0 || height <= 0) return url
+            return url + (if ('?' in url) "&" else "?") + "maxWidth=$width&maxHeight=$height"
+        }
 
         /** Home renders provider wordmarks in the header instead of a collection photo. */
         suspend fun submitHome(item: BaseItem) {
@@ -82,7 +106,10 @@ class BackdropService
         /**
          * Update the backdrop to use the specified discovered item
          */
-        suspend fun submit(item: DiscoverItem) = submit("discover_${item.id}", item.backDropUrl)
+        suspend fun submit(
+            item: DiscoverItem,
+            pauseFirst: Boolean = true,
+        ) = submit("discover_${item.id}", item.backDropUrl, pauseFirst)
 
         /**
          * Update the backdrop to use the specified URL
@@ -90,6 +117,7 @@ class BackdropService
         suspend fun submit(
             itemId: String,
             imageUrl: String?,
+            pauseFirst: Boolean = true,
         ) = withContext(WholphinDispatchers.IO) {
             val request =
                 requestMutex.withLock {
@@ -112,7 +140,7 @@ class BackdropService
                         }
                     }
                 }
-            if (request != null) extractColors(itemId, imageUrl, request)
+            if (request != null) extractColors(itemId, imageUrl, request, pauseFirst)
         }
 
         /**
@@ -129,8 +157,13 @@ class BackdropService
             itemId: String,
             imageUrl: String?,
             request: Long,
+            pauseFirst: Boolean,
         ) {
-            delay(500)
+            if (pauseFirst) delay(500)
+            // Speed plan step 3 (2026-11): callers do not cancel a request when the focus moves on, so by now a newer
+            // one may have replaced this. Its answer would be thrown away at the check below, so stop before the
+            // download and the colour work instead of after them
+            if (requestMutex.withLock { requestVersion != request }) return
             val backdropStyle =
                 preferences.data
                     .firstOrNull()
@@ -269,6 +302,11 @@ class BackdropService
 
         fun clearColorCache() {
             extractedColorCache.evictAll()
+        }
+
+        companion object {
+            /** The share of the screen's width and height the backdrop picture is drawn in */
+            private const val SHOWN_FRACTION = 0.7f
         }
     }
 

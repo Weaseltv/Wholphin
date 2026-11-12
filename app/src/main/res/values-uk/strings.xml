@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">Про застосунок</string>
-    <string name="active_recordings">Активні Записи</string>
     <string name="add_favorite">Улюблене</string>
     <string name="add_server">Додати сервер</string>
     <string name="add_user">Додати користувача</string>
@@ -9,8 +8,6 @@
     <string name="birthplace">Місце народження</string>
     <string name="bitrate">Бітрейт</string>
     <string name="born">Дата народження</string>
-    <string name="cancel_recording">Скасувати запис</string>
-    <string name="cancel_series_recording">Скасувати запис серіалу</string>
     <string name="cancel">Скасувати</string>
     <string name="chapters">Розділи</string>
     <string name="choose_stream">Виберіть%1$s</string>
@@ -55,7 +52,6 @@
     <string name="jump_letters">#абвгґдеєжзиіїйклмнопрстуфхцчшщьюя</string>
     <string name="library">Бібліотека</string>
     <string name="license_info">Інформація про ліцензію</string>
-    <string name="live_tv">Ефірне ТБ</string>
     <string name="loading">Завантаження…</string>
     <string name="mark_entire_series_as_played">Серія переглянута?</string>
     <string name="mark_entire_series_as_unplayed">Позначити серію не відтворену?</string>
@@ -75,7 +71,6 @@
     <string name="no_data">Дані відсутні</string>
     <string name="no_results">Результати відсутні</string>
     <string name="no_servers_found">Сервери не знайдені</string>
-    <string name="no_scheduled_recordings">Заплановані записи відсутні</string>
     <string name="no_update_available">Немає доступних оновлень</string>
     <string name="none">Нічого</string>
     <string name="only_forced_subtitles">Тільки примусові субтитри</string>
@@ -101,11 +96,8 @@
     <string name="recap">Підсумок</string>
     <string name="recently_added_in">Нещодавно додано: %1$s</string>
     <string name="recently_added">Нещодавно додано</string>
-    <string name="recently_recorded">Нещодавно записано</string>
     <string name="recently_released">Нещодавно випущено</string>
     <string name="recommended">Рекомендовано</string>
-    <string name="record_program">Програма запису</string>
-    <string name="record_series">Запис серії</string>
     <string name="remove_favorite">Не улюблений</string>
     <string name="restart">Перезавантаження</string>
     <string name="resume">Відновити</string>
@@ -159,8 +151,6 @@
         <item quantity="many">Трейлерів</item>
         <item quantity="other">Трейлерів</item>
     </plurals>
-    <string name="tv_dvr_schedule">Розклад DVR</string>
-    <string name="tv_guide">Посібник</string>
     <string name="tv_season">Сезон</string>
     <string name="tv_seasons">Сезони</string>
     <plurals name="tv_shows">
@@ -176,7 +166,6 @@
     <string name="video_scale">Маштаб відео</string>
     <string name="video">Відео</string>
     <string name="videos">Відоси</string>
-    <string name="watch_live">Дивитись онлайн</string>
     <string name="play_with_transcoding">Відтворити з перекодуванням</string>
     <string name="media_information">Інформація</string>
     <string name="show_clock">Показати годиник</string>
@@ -417,10 +406,6 @@
     <string name="bit_unit">біт</string>
     <string name="sample_rate_unit">Гц</string>
     <string name="show_titles">Показати заголовок</string>
-    <string name="live_tv_repeat">Повторити</string>
-    <string name="favorite_channels_at_beginning">Показати обрані канали на початку</string>
-    <string name="sort_channels_recently_watched">Відсортувати канали за нещодавно переглянутими</string>
-    <string name="color_code_programs">Кольоровий код програм</string>
     <string name="subtitle_delay">Затримка субтитрів</string>
     <string name="backdrop_display">Стиль фону</string>
     <string name="resolution_switching">Перемикання розширення</string>
@@ -541,14 +526,6 @@
     <string name="visible_ui">Видимий</string>
     <string name="hidden_ui">Прихований</string>
     <string name="results">Результати</string>
-    <string name="albums">Альбоми</string>
-    <string name="artists">Виконавці</string>
-    <string name="songs">Пісні</string>
-    <string name="go_to_artist">До виконавця</string>
-    <string name="now_playing">Зараз грає</string>
-    <string name="instant_mix">Швидкий мікс</string>
-    <string name="go_to_album">До альбому</string>
-    <string name="add_to_queue">Додати до черги</string>
     <string name="start_after">Почати після</string>
     <string name="animate">Анімація</string>
     <string name="max_age_rating">Обмеження за віком</string>
@@ -638,19 +615,8 @@
     <string name="artist">Виконавець</string>
     <string name="album_artist">Виконавець альбому</string>
     <string name="album">Альбом</string>
-    <string name="popular_songs">Популярні пісні</string>
-    <string name="play_next">Відтворити наступним</string>
     <string name="music_videos">Музичні відео</string>
-    <string name="lyrics">Текст пісн</string>
-    <string name="hide_lyrics">Приховати текст пісні</string>
-    <string name="show_lyrics">Показати текст пісні</string>
-    <string name="song_has_lyrics">Пісня має текст</string>
-    <string name="remove_from_queue">Видалити з черги</string>
-    <string name="show_album_cover">Показувати обкладинку альбому</string>
-    <string name="show_visualizer">Показувати візуалізатор</string>
     <string name="show_backdrop">Показувати фон</string>
-    <string name="play_as_type">Відтворити як?</string>
-    <string name="visualizer_rationale">Для візуалізації аудіо, що зараз відтворюється, потрібен дозвіл на запис звуку.</string>
     <string name="continue_string">Продовжити</string>
     <string name="select_all">Вибрати все</string>
     <string name="separate_types">Розділяти типи</string>

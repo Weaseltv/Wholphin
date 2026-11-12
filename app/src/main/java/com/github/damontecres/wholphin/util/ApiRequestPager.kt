@@ -11,10 +11,8 @@ import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.Response
-import org.jellyfin.sdk.api.client.extensions.artistsApi
 import org.jellyfin.sdk.api.client.extensions.genresApi
 import org.jellyfin.sdk.api.client.extensions.itemsApi
-import org.jellyfin.sdk.api.client.extensions.liveTvApi
 import org.jellyfin.sdk.api.client.extensions.personsApi
 import org.jellyfin.sdk.api.client.extensions.playlistsApi
 import org.jellyfin.sdk.api.client.extensions.studiosApi
@@ -22,16 +20,12 @@ import org.jellyfin.sdk.api.client.extensions.suggestionsApi
 import org.jellyfin.sdk.api.client.extensions.tvShowsApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.model.api.BaseItemDtoQueryResult
-import org.jellyfin.sdk.model.api.GetProgramsDto
-import org.jellyfin.sdk.model.api.request.GetArtistsRequest
 import org.jellyfin.sdk.model.api.request.GetEpisodesRequest
 import org.jellyfin.sdk.model.api.request.GetGenresRequest
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
-import org.jellyfin.sdk.model.api.request.GetLiveTvChannelsRequest
 import org.jellyfin.sdk.model.api.request.GetNextUpRequest
 import org.jellyfin.sdk.model.api.request.GetPersonsRequest
 import org.jellyfin.sdk.model.api.request.GetPlaylistItemsRequest
-import org.jellyfin.sdk.model.api.request.GetRecordingsRequest
 import org.jellyfin.sdk.model.api.request.GetResumeItemsRequest
 import org.jellyfin.sdk.model.api.request.GetStudiosRequest
 import org.jellyfin.sdk.model.api.request.GetSuggestionsRequest
@@ -288,25 +282,6 @@ object GetGenresRequestHandler : RequestHandler<GetGenresRequest> {
 }
 
 @Serializable
-object GetProgramsDtoHandler : RequestHandler<GetProgramsDto> {
-    override fun prepare(
-        request: GetProgramsDto,
-        startIndex: Int,
-        limit: Int,
-        enableTotalRecordCount: Boolean,
-    ): GetProgramsDto =
-        request.copy(
-            startIndex = startIndex,
-            limit = limit,
-        )
-
-    override suspend fun execute(
-        api: ApiClient,
-        request: GetProgramsDto,
-    ): Response<BaseItemDtoQueryResult> = api.liveTvApi.getPrograms(request)
-}
-
-@Serializable
 object GetPersonsHandler : RequestHandler<GetPersonsRequest> {
     override fun prepare(
         request: GetPersonsRequest,
@@ -345,65 +320,6 @@ object GetStudiosRequestHandler : RequestHandler<GetStudiosRequest> {
     ): Response<BaseItemDtoQueryResult> = api.studiosApi.getStudios(request)
 }
 
-@Serializable
-object GetRecordingsRequestHandler : RequestHandler<GetRecordingsRequest> {
-    override fun prepare(
-        request: GetRecordingsRequest,
-        startIndex: Int,
-        limit: Int,
-        enableTotalRecordCount: Boolean,
-    ): GetRecordingsRequest =
-        request.copy(
-            startIndex = startIndex,
-            limit = limit,
-            enableTotalRecordCount = enableTotalRecordCount,
-        )
-
-    override suspend fun execute(
-        api: ApiClient,
-        request: GetRecordingsRequest,
-    ): Response<BaseItemDtoQueryResult> = api.liveTvApi.getRecordings(request)
-}
-
-@Serializable
-object GetLiveTvChannelsRequestHandler : RequestHandler<GetLiveTvChannelsRequest> {
-    override fun prepare(
-        request: GetLiveTvChannelsRequest,
-        startIndex: Int,
-        limit: Int,
-        enableTotalRecordCount: Boolean,
-    ): GetLiveTvChannelsRequest =
-        request.copy(
-            startIndex = startIndex,
-            limit = limit,
-//                enableTotalRecordCount = enableTotalRecordCount,
-        )
-
-    override suspend fun execute(
-        api: ApiClient,
-        request: GetLiveTvChannelsRequest,
-    ): Response<BaseItemDtoQueryResult> = api.liveTvApi.getLiveTvChannels(request)
-}
-
-@Serializable
-object GetArtistsHandler : RequestHandler<GetArtistsRequest> {
-    override fun prepare(
-        request: GetArtistsRequest,
-        startIndex: Int,
-        limit: Int,
-        enableTotalRecordCount: Boolean,
-    ): GetArtistsRequest =
-        request.copy(
-            startIndex = startIndex,
-            limit = limit,
-        )
-
-    override suspend fun execute(
-        api: ApiClient,
-        request: GetArtistsRequest,
-    ): Response<BaseItemDtoQueryResult> = api.artistsApi.getArtists((request))
-}
-
 val requestSerializersModule =
     SerializersModule {
         polymorphic(Any::class) {
@@ -414,11 +330,7 @@ val requestSerializersModule =
             subclass(GetSuggestionsRequest::class)
             subclass(GetPlaylistItemsRequest::class)
             subclass(GetGenresRequest::class)
-            subclass(GetProgramsDto::class)
             subclass(GetPersonsRequest::class)
             subclass(GetStudiosRequest::class)
-            subclass(GetRecordingsRequest::class)
-            subclass(GetLiveTvChannelsRequest::class)
-            subclass(GetArtistsHandler::class)
         }
     }

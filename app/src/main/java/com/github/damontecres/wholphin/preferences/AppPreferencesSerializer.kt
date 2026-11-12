@@ -125,19 +125,6 @@ class AppPreferencesSerializer
                                             resetSubtitles()
                                         }.build()
 
-                                liveTvPreferences =
-                                    LiveTvPreferences
-                                        .newBuilder()
-                                        .apply {
-                                            showHeader = AppPreference.LiveTvShowHeader.defaultValue
-                                            favoriteChannelsAtBeginning =
-                                                AppPreference.LiveTvFavoriteChannelsBeginning.defaultValue
-                                            sortByRecentlyWatched =
-                                                AppPreference.LiveTvChannelSortByWatched.defaultValue
-                                            colorCodePrograms =
-                                                AppPreference.LiveTvColorCodePrograms.defaultValue
-                                        }.build()
-
                                 screensaverPreference =
                                     ScreensaverPreferences
                                         .newBuilder()
@@ -167,15 +154,6 @@ class AppPreferencesSerializer
                             .apply {
                                 slideshowDuration = AppPreference.SlideshowDuration.defaultValue
                                 slideshowPlayVideos = AppPreference.SlideshowPlayVideos.defaultValue
-                            }.build()
-
-                    musicPreferences =
-                        MusicPreferences
-                            .newBuilder()
-                            .apply {
-                                showBackdrop = true
-                                showLyrics = true
-                                showAlbumArt = true
                             }.build()
 
                     experimentalPreferences =
@@ -240,11 +218,6 @@ inline fun AppPreferences.updateSubtitlePreferences(block: SubtitlePreferences.B
         subtitlesPreferences = subtitlesPreferences.toBuilder().apply(block).build()
     }
 
-inline fun AppPreferences.updateLiveTvPreferences(block: LiveTvPreferences.Builder.() -> Unit): AppPreferences =
-    updateInterfacePreferences {
-        liveTvPreferences = liveTvPreferences.toBuilder().apply(block).build()
-    }
-
 inline fun AppPreferences.updateAdvancedPreferences(block: AdvancedPreferences.Builder.() -> Unit): AppPreferences =
     update {
         advancedPreferences = advancedPreferences.toBuilder().apply(block).build()
@@ -258,11 +231,6 @@ inline fun AppPreferences.updatePhotoPreferences(block: PhotoPreferences.Builder
 inline fun AppPreferences.updateScreensaverPreferences(block: ScreensaverPreferences.Builder.() -> Unit): AppPreferences =
     updateInterfacePreferences {
         screensaverPreference = screensaverPreference.toBuilder().apply(block).build()
-    }
-
-inline fun AppPreferences.updateMusicPreferences(block: MusicPreferences.Builder.() -> Unit): AppPreferences =
-    update {
-        musicPreferences = musicPreferences.toBuilder().apply(block).build()
     }
 
 inline fun AppPreferences.updateExperimentalPreferences(block: ExperimentalPreferences.Builder.() -> Unit): AppPreferences =

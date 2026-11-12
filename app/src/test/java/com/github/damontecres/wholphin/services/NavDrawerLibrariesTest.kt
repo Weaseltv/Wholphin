@@ -67,8 +67,6 @@ class NavDrawerLibrariesTest {
                 coEvery { preferences.getNavDrawerPinnedItems(user) } returns emptyList()
                 val seerr = mockk<SeerrServerRepository>()
                 every { seerr.active } returns MutableStateFlow(true)
-                val music = mockk<MusicService>()
-                every { music.state } returns MutableStateFlow(MusicServiceState.EMPTY)
                 val management = mockk<MediaManagementService>()
                 every { management.deletedItemFlow } returns MutableSharedFlow()
                 val context = mockk<Context>(relaxed = true)
@@ -76,8 +74,8 @@ class NavDrawerLibrariesTest {
                 every { context.getSharedPreferences("sidebar_palette_migrations", Context.MODE_PRIVATE) } returns migrations
                 every { migrations.getBoolean(any(), false) } returns true
                 val service =
-                    NavDrawerService(context, backgroundScope, api, repository, preferences, seerr, music, management)
-                val libraries = service.getAllUserLibraries(user.id, false)
+                    NavDrawerService(context, backgroundScope, api, repository, preferences, seerr, management)
+                val libraries = service.getAllUserLibraries(user.id)
                 assertEquals(views.map { it.name }, libraries.map { it.name })
                 service.updateNavDrawer(
                     user,

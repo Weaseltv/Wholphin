@@ -7,7 +7,6 @@
     <string name="audio">Audio</string>
     <string name="birthplace">Locul nașterii</string>
     <string name="born">Născut</string>
-    <string name="cancel_recording">Anulează înregistrarea</string>
     <string name="cancel">Anulează</string>
     <string name="chapters">Capitole</string>
     <string name="choose_stream">Alege %1$s</string>
@@ -38,7 +37,6 @@
     <string name="next_up">În continuare</string>
     <string name="no_results">Nu există rezultate</string>
     <string name="no_servers_found">Nu s-au găsit servere</string>
-    <string name="no_scheduled_recordings">Nu sunt înregistrări programate</string>
     <string name="no_update_available">Nu este disponibilă nicio actualizare</string>
     <plurals name="movies">
         <item quantity="one">Filme</item>
@@ -98,9 +96,6 @@
     <string name="hdr10_plus">HDR10+</string>
     <string name="hlg">HLG</string>
     <string name="show_titles">Arată titlurile</string>
-    <string name="live_tv_repeat">Repetă</string>
-    <string name="favorite_channels_at_beginning">Afișează mai întâi canalele favorite</string>
-    <string name="sort_channels_recently_watched">Sortează canalele după vizionarea recentă</string>
     <string name="subtitle_delay">Decalare subitrare</string>
     <string name="discover">Descoperă</string>
     <string name="play_trailer">Redă trailer</string>
@@ -129,14 +124,6 @@
     <string name="blue">Albastru</string>
     <string name="blur">Estompare</string>
     <string name="save_for_album">Salvează pentru album</string>
-    <string name="albums">Albume</string>
-    <string name="artists">Artiști</string>
-    <string name="songs">Cântece</string>
-    <string name="go_to_artist">Mergi la artist</string>
-    <string name="now_playing">Se redă acum</string>
-    <string name="instant_mix">Mix instant</string>
-    <string name="go_to_album">Mergi la album</string>
-    <string name="add_to_queue">Adaugă în coadă</string>
     <string name="add_row">Adaugă rând</string>
     <string name="genres_in">Genuri în %1$s</string>
     <string name="recently_released_in">Lansate recent în %1$s</string>
@@ -177,14 +164,11 @@
     <string name="compose_error_message_title">A apărut o eroare! Apasă butonul pentru a trimite jurnalele către serverul tău.</string>
     <string name="default_track">Implicit</string>
     <string name="died">Decedat</string>
-    <string name="active_recordings">Înregistrări active</string>
     <string name="critic_rating">Evaluarea criticilor</string>
     <string name="hide_controller_timeout">Ascunde comenzile de redare</string>
-    <string name="live_tv">TV în direct</string>
     <string name="play">Redă</string>
     <string name="recap">Recapitulare</string>
     <string name="recently_added">Adăugat recent</string>
-    <string name="recently_recorded">Înregistrat recent</string>
     <string name="recently_released">Lansat recent</string>
     <string name="recommended">Recomandat</string>
     <string name="playlists">Liste de redare</string>
@@ -223,7 +207,6 @@
     <plurals name="years_old">
         <item quantity="other">%1$d ani vechime</item>
     </plurals>
-    <string name="tv_guide">Ghid</string>
     <string name="one_click_pause">Pauză cu un click</string>
     <plurals name="interviews">
         <item quantity="one">Interviuri</item>
@@ -298,13 +281,7 @@
     <string name="search_and_download_subtitles">Caută &amp; descarcă subtitrări</string>
     <string name="composer">Compozitor</string>
     <string name="writer">Scriitor</string>
-    <string name="lyrics">Versuri</string>
-    <string name="hide_lyrics">Ascunde versurile</string>
-    <string name="show_lyrics">Afișează versurile</string>
-    <string name="song_has_lyrics">Cântecul are versuri</string>
     <string name="select_all">Selectează tot</string>
-    <string name="play_as_type">Redă ca?</string>
-    <string name="cancel_series_recording">Anulează înregistrarea seriei</string>
     <string name="license_info">Informații privind licența</string>
     <string name="forced_track">Forțat</string>
     <string name="hide_debug_info">Ascunde informațiile de depanare</string>

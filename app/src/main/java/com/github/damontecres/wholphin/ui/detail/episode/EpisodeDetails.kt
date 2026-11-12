@@ -74,7 +74,7 @@ fun EpisodeDetails(
     playlistViewModel: AddPlaylistViewModel = hiltViewModel(),
 ) {
     LifecycleResumeEffect(Unit) {
-        viewModel.init()
+        viewModel.onResume()
         onPauseOrDispose { }
     }
     val state by viewModel.state.collectAsState()
@@ -270,7 +270,9 @@ fun EpisodeDetailsContent(
                             .fillMaxWidth()
                             .bringIntoViewRequester(bringIntoViewRequester),
                 ) {
-                    FittedDetailHeader {
+                    // This page has no row under its buttons, so none is ever measured. Say so up front, with the
+                    // same 280 dp the header fell back to after waiting 300 ms for one: same layout, shown sooner
+                    FittedDetailHeader(firstRowHeight = 280.dp) {
                         EpisodeDetailsHeader(
                             preferences = preferences,
                             ep = ep,

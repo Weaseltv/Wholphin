@@ -381,8 +381,6 @@ class PlaylistCreator
 //                BaseItemKind.FOLDER -> TODO()
 //                BaseItemKind.GENRE -> TODO()
 //                BaseItemKind.MANUAL_PLAYLISTS_FOLDER -> TODO()
-//                BaseItemKind.MUSIC_ALBUM -> TODO()
-//                BaseItemKind.MUSIC_ARTIST -> TODO()
 
                 else -> {
                     PlaylistCreationResult.Error(null, "Unsupported type: ${item.type}")

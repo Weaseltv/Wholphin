@@ -90,7 +90,6 @@ class ContextMenuUtils(
                         onClearChosenStreams = {
                             // Not supported on this page
                         },
-                        onClickAddToQueue = playlistViewModel::addToQueue,
                     )
                 }
             val contextMenu =

@@ -32,16 +32,13 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.jellyfin.sdk.api.client.ApiClient
-import org.jellyfin.sdk.api.client.extensions.artistsApi
 import org.jellyfin.sdk.api.client.extensions.itemsApi
 import org.jellyfin.sdk.api.client.extensions.personsApi
-import org.jellyfin.sdk.api.operations.ArtistsApi
 import org.jellyfin.sdk.api.operations.ItemsApi
 import org.jellyfin.sdk.api.operations.PersonsApi
 import org.jellyfin.sdk.model.UUID
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
-import org.jellyfin.sdk.model.api.request.GetArtistsRequest
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import org.jellyfin.sdk.model.api.request.GetPersonsRequest
 import org.junit.Assert.assertEquals
@@ -67,13 +64,11 @@ class TestFavoritesViewModel {
     private val navDrawerService: NavDrawerService = mockk()
 
     private val itemsApi: ItemsApi = mockk()
-    private val artistsApi: ArtistsApi = mockk()
     private val personsApi: PersonsApi = mockk()
 
     @Before
     fun setup() {
         every { api.itemsApi } returns itemsApi
-        every { api.artistsApi } returns artistsApi
         every { api.personsApi } returns personsApi
         every { navDrawerService.state } returns
             MutableStateFlow(
@@ -377,35 +372,6 @@ class TestFavoritesViewModel {
         }
 
     @Test
-    fun `Test fetchType for artists`() =
-        runTest {
-            val item = item(BaseItemKind.MUSIC_ARTIST)
-            coEvery { artistsApi.getArtists(any<GetArtistsRequest>()) } returns successQueryResult(listOf(item))
-
-            val viewModel = createViewModel()
-            val data =
-                viewModel.fetchType(
-                    type = BaseItemKind.MUSIC_ARTIST,
-                    sortAndDirection = SortAndDirection.DEFAULT,
-                    filter = GetItemsFilter(),
-                    viewOptions = ViewOptions(),
-                )
-            assertTrue(data is DataLoadingState.Success)
-            assertEquals(BaseItem(item), (data as DataLoadingState.Success).data.first())
-            viewModel.state.value.let { state ->
-                assertTrue(BaseItemKind.MUSIC_ARTIST in state.tabs)
-                assertTrue(BaseItemKind.MUSIC_ARTIST in state.favorites)
-                state.favorites[BaseItemKind.MUSIC_ARTIST]!!.let { st ->
-                    assertTrue(st.item is DataLoadingState.Success)
-                    assertTrue(st.items is DataLoadingState.Success)
-                }
-            }
-            coVerify(exactly = 1) { artistsApi.getArtists(any<GetArtistsRequest>()) }
-            coVerify(exactly = 0) { itemsApi.getItems(any<GetItemsRequest>()) }
-            coVerify(exactly = 0) { personsApi.getPersons(any<GetPersonsRequest>()) }
-        }
-
-    @Test
     fun `Test fetchType for persons`() =
         runTest {
             val item = item(BaseItemKind.PERSON)
@@ -431,7 +397,6 @@ class TestFavoritesViewModel {
             }
             coVerify(exactly = 1) { personsApi.getPersons(any<GetPersonsRequest>()) }
             coVerify(exactly = 0) { itemsApi.getItems(any<GetItemsRequest>()) }
-            coVerify(exactly = 0) { artistsApi.getArtists(any<GetArtistsRequest>()) }
         }
 }
 
@@ -441,5 +406,4 @@ private fun library(type: CollectionType) =
         name = "name-${type.serialName}",
         type = BaseItemKind.COLLECTION_FOLDER,
         collectionType = type,
-        isRecordingFolder = false,
     )

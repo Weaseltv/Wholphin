@@ -84,12 +84,6 @@ fun itemKindLabel(
         BaseItemKind.SERIES -> context.getString(R.string.show)
         BaseItemKind.SEASON -> context.getString(R.string.kind_season)
         BaseItemKind.EPISODE -> context.getString(R.string.kind_episode)
-        BaseItemKind.TV_CHANNEL, BaseItemKind.LIVE_TV_CHANNEL -> context.getString(R.string.kind_live)
-        BaseItemKind.TV_PROGRAM, BaseItemKind.LIVE_TV_PROGRAM, BaseItemKind.PROGRAM -> context.getString(R.string.live_tv)
-        BaseItemKind.RECORDING -> context.getString(R.string.recordings)
-        BaseItemKind.MUSIC_ALBUM -> context.getString(R.string.album)
-        BaseItemKind.MUSIC_ARTIST -> context.getString(R.string.artist)
-        BaseItemKind.AUDIO -> context.getString(R.string.kind_song)
         BaseItemKind.BOX_SET -> context.getString(R.string.collection)
         BaseItemKind.PLAYLIST -> context.getString(R.string.playlist)
         else -> null

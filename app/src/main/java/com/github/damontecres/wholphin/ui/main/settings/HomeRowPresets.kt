@@ -28,9 +28,7 @@ data class HomeRowPresets(
     val tvLibrary: HomeRowViewOptions,
     val videoLibrary: HomeRowViewOptions,
     val photoLibrary: HomeRowViewOptions,
-    val musicLibrary: HomeRowViewOptions,
     val playlist: HomeRowViewOptions,
-    val liveTv: HomeRowViewOptions,
     val genreSize: Int,
 ) {
     fun getByCollectionType(collectionType: CollectionType): HomeRowViewOptions =
@@ -49,14 +47,12 @@ data class HomeRowPresets(
 
             CollectionType.PHOTOS -> photoLibrary
 
-            CollectionType.LIVETV -> liveTv
-
-            CollectionType.MUSIC -> musicLibrary
-
             CollectionType.UNKNOWN,
             CollectionType.BOOKS,
             CollectionType.PLAYLISTS,
             CollectionType.FOLDERS,
+            CollectionType.LIVETV,
+            CollectionType.MUSIC,
             -> HomeRowViewOptions()
         }
 
@@ -82,20 +78,7 @@ data class HomeRowPresets(
 
             BaseItemKind.PERSON -> movieLibrary
 
-            BaseItemKind.MUSIC_ARTIST,
-            BaseItemKind.MUSIC_ALBUM,
-            BaseItemKind.AUDIO,
-            -> musicLibrary
-
-            BaseItemKind.TV_CHANNEL,
-            BaseItemKind.LIVE_TV_CHANNEL,
-            BaseItemKind.PROGRAM,
-            BaseItemKind.TV_PROGRAM,
-            BaseItemKind.LIVE_TV_PROGRAM,
-            -> liveTv
-
             BaseItemKind.GENRE,
-            BaseItemKind.MUSIC_GENRE,
             BaseItemKind.STUDIO,
             -> genreDefault.copy(heightDp = genreSize)
 
@@ -117,16 +100,11 @@ data class HomeRowPresets(
                         aspectRatio = AspectRatio.WIDE,
                         contentScale = PrefContentScale.CROP,
                     ),
-                musicLibrary =
-                    HomeRowViewOptions(
-                        aspectRatio = AspectRatio.SQUARE,
-                    ),
                 playlist =
                     HomeRowViewOptions(
                         aspectRatio = AspectRatio.SQUARE,
                         contentScale = PrefContentScale.FIT,
                     ),
-                liveTv = HomeRowViewOptions.liveTvDefault,
                 genreSize = HomeRowViewOptions.genreDefault.heightDp,
             )
         }
@@ -158,18 +136,12 @@ data class HomeRowPresets(
                         aspectRatio = AspectRatio.WIDE,
                         contentScale = PrefContentScale.CROP,
                     ),
-                musicLibrary =
-                    HomeRowViewOptions(
-                        heightDp = epHeight,
-                        aspectRatio = AspectRatio.SQUARE,
-                    ),
                 playlist =
                     HomeRowViewOptions(
                         heightDp = epHeight,
                         aspectRatio = AspectRatio.SQUARE,
                         contentScale = PrefContentScale.FIT,
                     ),
-                liveTv = HomeRowViewOptions.liveTvDefault,
                 genreSize = epHeight,
             )
         }
@@ -206,18 +178,12 @@ data class HomeRowPresets(
                         aspectRatio = AspectRatio.WIDE,
                         contentScale = PrefContentScale.CROP,
                     ),
-                musicLibrary =
-                    HomeRowViewOptions(
-                        heightDp = epHeight,
-                        aspectRatio = AspectRatio.SQUARE,
-                    ),
                 playlist =
                     HomeRowViewOptions(
                         heightDp = epHeight,
                         aspectRatio = AspectRatio.SQUARE,
                         contentScale = PrefContentScale.FIT,
                     ),
-                liveTv = HomeRowViewOptions.liveTvDefault,
                 genreSize = epHeight,
             )
         }
@@ -255,18 +221,12 @@ data class HomeRowPresets(
                         aspectRatio = AspectRatio.WIDE,
                         contentScale = PrefContentScale.CROP,
                     ),
-                musicLibrary =
-                    HomeRowViewOptions(
-                        heightDp = epHeight,
-                        aspectRatio = AspectRatio.SQUARE,
-                    ),
                 playlist =
                     HomeRowViewOptions(
                         heightDp = epHeight,
                         aspectRatio = AspectRatio.SQUARE,
                         contentScale = PrefContentScale.FIT,
                     ),
-                liveTv = HomeRowViewOptions.liveTvDefault,
                 genreSize = epHeight,
             )
         }

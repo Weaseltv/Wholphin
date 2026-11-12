@@ -18,8 +18,6 @@ import com.github.damontecres.wholphin.data.model.HomeRowConfig.NextUp
 import com.github.damontecres.wholphin.data.model.HomeRowConfig.RecentlyAdded
 import com.github.damontecres.wholphin.data.model.HomeRowConfig.RecentlyReleased
 import com.github.damontecres.wholphin.data.model.HomeRowConfig.Suggestions
-import com.github.damontecres.wholphin.data.model.HomeRowConfig.TvChannels
-import com.github.damontecres.wholphin.data.model.HomeRowConfig.TvPrograms
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.data.model.SUPPORTED_HOME_PAGE_SETTINGS_VERSION
 import com.github.damontecres.wholphin.preferences.AppPreferences
@@ -31,9 +29,7 @@ import com.github.damontecres.wholphin.services.NavDrawerService
 import com.github.damontecres.wholphin.services.SeerrServerRepository
 import com.github.damontecres.wholphin.services.UnsupportedHomeSettingsVersionException
 import com.github.damontecres.wholphin.services.UserPreferencesService
-import com.github.damontecres.wholphin.services.getRecentlyAddedTitle
 import com.github.damontecres.wholphin.services.hilt.IoCoroutineScope
-import com.github.damontecres.wholphin.services.tvAccess
 import com.github.damontecres.wholphin.services.viewOptionsForCollectionType
 import com.github.damontecres.wholphin.ui.formatTypeName
 import com.github.damontecres.wholphin.ui.launchDefault
@@ -98,7 +94,7 @@ class HomeSettingsViewModel
             addCloseable { saveToLocal() }
             viewModelScope.launchIO {
                 val userDto = serverRepository.currentUserDto ?: return@launchIO
-                val libraries = navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
+                val libraries = navDrawerService.getAllUserLibraries(userDto.id)
                 val currentSettings =
                     homeSettingsService.currentSettings.first { it != HomePageResolvedSettings.EMPTY }
                 originalLocalSettings = homeSettingsService.loadFromLocal(userDto.id)
@@ -341,36 +337,6 @@ class HomeSettingsViewModel
                                 id = id,
                                 title = title,
                                 config = Suggestions(library.itemId, viewOptions),
-                            )
-                        }
-
-                        LibraryRowType.TV_CHANNELS -> {
-                            val title = ResStringProvider(R.string.channels)
-                            HomeRowConfigDisplay(
-                                id = id,
-                                title = title,
-                                config =
-                                    TvChannels(
-                                        viewOptions = HomeRowViewOptions.liveTvDefault,
-                                    ),
-                            )
-                        }
-
-                        LibraryRowType.TV_PROGRAMS -> {
-                            val title = ResStringProvider(R.string.watch_live)
-                            HomeRowConfigDisplay(
-                                id = id,
-                                title = title,
-                                config = TvPrograms(),
-                            )
-                        }
-
-                        LibraryRowType.RECENTLY_RECORDED -> {
-                            val title = getRecentlyAddedTitle(library.name)
-                            HomeRowConfigDisplay(
-                                id = id,
-                                title = title,
-                                config = RecentlyAdded(library.itemId),
                             )
                         }
 
@@ -736,22 +702,10 @@ class HomeSettingsViewModel
                                     it.config.updateViewOptions(preset.getByCollectionType(CollectionType.MOVIES))
                                 }
 
-                                is HomeRowConfig.Recordings -> {
-                                    it.config.updateViewOptions(preset.tvLibrary)
-                                }
-
                                 is Suggestions -> {
                                     val collectionType = getCollectionType(it.config.parentId)
                                     val viewOptions = preset.getByCollectionType(collectionType)
                                     it.config.updateViewOptions(viewOptions)
-                                }
-
-                                is HomeRowConfig.TvPrograms -> {
-                                    it.config.updateViewOptions(preset.liveTv)
-                                }
-
-                                is HomeRowConfig.TvChannels -> {
-                                    it.config.updateViewOptions(preset.liveTv)
                                 }
                             }
                         it.copy(config = newConfig)
@@ -894,5 +848,4 @@ data class Library(
     val name: String,
     val type: BaseItemKind,
     val collectionType: CollectionType,
-    val isRecordingFolder: Boolean,
 )

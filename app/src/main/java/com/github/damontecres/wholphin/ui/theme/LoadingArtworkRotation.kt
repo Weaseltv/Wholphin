@@ -1,6 +1,14 @@
 package com.github.damontecres.wholphin.ui.theme
 
 import android.content.Context
+import android.content.res.Resources
+import android.graphics.drawable.Drawable
+import androidx.annotation.DrawableRes
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import timber.log.Timber
 
 /** Keep the next loading illustration across app restarts without loading artwork over the network. */
 internal object LoadingArtworkRotation {
@@ -100,6 +108,18 @@ internal object LoadingArtworkRotation {
         return artworks[index]
     }
 
+    /** The picture the next [next] will return, without advancing. */
+    @Synchronized
+    fun peek(
+        context: Context,
+        artworks: List<Int>,
+        kids: Boolean = false,
+    ): Int? {
+        if (artworks.isEmpty()) return null
+        val index = preferences(context).getInt(if (kids) NEXT_KIDS_INDEX else NEXT_INDEX, 0).mod(artworks.size)
+        return artworks[index]
+    }
+
     /** Whether the last signed-in profile was a kid, for loading shown at app start before a profile is restored. */
     fun lastProfileWasKids(context: Context): Boolean = preferences(context).getBoolean(LAST_PROFILE_KIDS, false)
 
@@ -111,4 +131,35 @@ internal object LoadingArtworkRotation {
     }
 
     private fun preferences(context: Context) = context.applicationContext.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+}
+
+/**
+ * Speed plan step 14 (2026-11): the next loading picture, decoded ahead of time.
+ *
+ * A loading screen used to decode its picture (1672x941) on the main thread at the moment it appeared, in the middle
+ * of a page change. While one loading screen is up, the picture for the following one is now decoded on a
+ * background thread and held here. Android hands the same decoded picture back when the next loading screen asks
+ * for that resource, as long as something still holds it, so nothing about what is shown changes. Only one picture
+ * is held; a different one (after a profile switch, say) is decoded on the spot as before.
+ */
+internal object LoadingArtworkPreload {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    @Volatile
+    private var held: Pair<Int, Drawable>? = null
+
+    /** Decode [id] in the background, unless it is the one already held. Not tied to the caller, so leaving the page doesn't stop it */
+    fun request(
+        resources: Resources,
+        @DrawableRes id: Int,
+    ) {
+        if (held?.first == id) return
+        scope.launch {
+            try {
+                held = id to resources.getDrawable(id, null)
+            } catch (ex: Exception) {
+                Timber.w(ex, "Couldn't decode the next loading picture")
+            }
+        }
+    }
 }

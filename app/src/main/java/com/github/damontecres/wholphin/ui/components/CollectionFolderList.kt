@@ -69,7 +69,6 @@ import com.github.damontecres.wholphin.ui.roundMinutes
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
 import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemSortBy
@@ -322,7 +321,6 @@ fun CollectionFolderListItem(
     when (collectionType) {
         CollectionType.MOVIES -> ListItemMovie(dense, item, onClick, onLongClick, modifier)
         CollectionType.TVSHOWS -> ListItemSeries(dense, item, onClick, onLongClick, modifier)
-        CollectionType.MUSIC -> ListItemAlbum(dense, item, onClick, onLongClick, modifier)
         else -> ListItemGeneric(dense, item, onClick, onLongClick, modifier)
     }
 }
@@ -498,83 +496,6 @@ fun ListItemSeries(
         },
         supportingContent = supportingContent,
         trailingContent = trailingContent,
-        scale = scale,
-        colors = listItemColors(),
-        interactionSource = interactionSource,
-        modifier = modifier,
-    )
-}
-
-@Composable
-fun ListItemAlbum(
-    dense: Boolean,
-    item: BaseItem?,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
-) {
-    val title =
-        remember(item, dense) {
-            if (dense && item != null && item.title != null && item.data.productionYear != null) {
-                "${item.title} (${item.data.productionYear})"
-            } else {
-                item?.title ?: ""
-            }
-        }
-    val supportingContent =
-        remember(item, dense) {
-            if (!dense && item?.subtitle != null) {
-                @Composable {
-                    Text(item.subtitle ?: "")
-                }
-            } else {
-                null
-            }
-        }
-    val overlineContent =
-        remember(item, dense) {
-            if (!dense && item?.data?.albumArtist != null) {
-                @Composable {
-                    Text(item.data.albumArtist ?: "")
-                }
-            } else {
-                null
-            }
-        }
-    val trailingContent =
-        remember(item) {
-            if (item?.type == BaseItemKind.MUSIC_ALBUM) {
-                @Composable {
-                    Text(
-                        text =
-                            item
-                                .data
-                                .runTimeTicks
-                                ?.ticks
-                                ?.roundMinutes
-                                ?.let { LocalResources.current.formatDuration(it) } ?: "",
-                    )
-                }
-            } else {
-                null
-            }
-        }
-    ListItemWrapper(
-        dense = dense,
-        selected = false,
-        enabled = true,
-        onClick = onClick,
-        onLongClick = onLongClick,
-        leadingContent = {
-            if (item?.favorite == true) {
-                FavoriteIndicator()
-            }
-        },
-        headlineContent = { TitleContent(title, interactionSource) },
-        supportingContent = supportingContent,
-        trailingContent = trailingContent,
-        overlineContent = overlineContent,
         scale = scale,
         colors = listItemColors(),
         interactionSource = interactionSource,

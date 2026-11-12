@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">Om</string>
-    <string name="active_recordings">Aktive optagelser</string>
     <string name="add_favorite">Favorit</string>
     <string name="add_server">Tilføj server</string>
     <string name="add_user">Tilføj bruger</string>
@@ -9,8 +8,6 @@
     <string name="birthplace">Fødested</string>
     <string name="bitrate">Bitrate</string>
     <string name="born">Født</string>
-    <string name="cancel_recording">Annullér optagelse</string>
-    <string name="cancel_series_recording">Annullér serieoptagelse</string>
     <string name="cancel">Annullér</string>
     <string name="chapters">Kapitler</string>
     <string name="choose_stream">Vælg %1$s</string>
@@ -54,7 +51,6 @@
     <string name="jump_letters">#ABCDEFGHIJKLMNOPQRSTUVWXYZÆØÅ</string>
     <string name="library">Bibliotek</string>
     <string name="license_info">Licensoplysninger</string>
-    <string name="live_tv">Live-tv</string>
     <string name="loading">Indlæser…</string>
     <string name="mark_entire_series_as_played">Markér hele serien som set?</string>
     <string name="mark_entire_series_as_unplayed">Markér hele serien som ikke set?</string>
@@ -72,7 +68,6 @@
     <string name="no_data">Ingen data</string>
     <string name="no_results">Ingen resultater</string>
     <string name="no_servers_found">Ingen servere fundet</string>
-    <string name="no_scheduled_recordings">Ingen planlagte optagelser</string>
     <string name="no_update_available">Ingen opdatering tilgængelig</string>
     <string name="none">Ingen</string>
     <string name="only_forced_subtitles">Kun tvungne undertekster</string>
@@ -96,11 +91,8 @@
     <string name="recap">Opsummering</string>
     <string name="recently_added_in">Nyligt tilføjet i %1$s</string>
     <string name="recently_added">Nyligt tilføjet</string>
-    <string name="recently_recorded">Nyligt optaget</string>
     <string name="recently_released">Nyligt udgivet</string>
     <string name="recommended">Anbefalet</string>
-    <string name="record_program">Optag program</string>
-    <string name="record_series">Optag serie</string>
     <string name="remove_favorite">Fjern fra favoritter</string>
     <string name="restart">Genstart</string>
     <string name="resume">Fortsæt</string>
@@ -152,8 +144,6 @@
         <item quantity="one">Trailer</item>
         <item quantity="other">Trailere</item>
     </plurals>
-    <string name="tv_dvr_schedule">DVR-plan</string>
-    <string name="tv_guide">TV-guide</string>
     <string name="tv_season">Sæson</string>
     <string name="tv_seasons">Sæsoner</string>
     <plurals name="tv_shows">
@@ -167,7 +157,6 @@
     <string name="video_scale">Videoskalering</string>
     <string name="video">Video</string>
     <string name="videos">Videoer</string>
-    <string name="watch_live">Se live</string>
     <plurals name="years_old">
         <item quantity="one">%1$d år gammel</item>
         <item quantity="other">%1$d år gammel</item>
@@ -386,10 +375,6 @@
     <string name="bit_unit">bit</string>
     <string name="sample_rate_unit">Hz</string>
     <string name="show_titles">Vis titler</string>
-    <string name="live_tv_repeat">Gentag</string>
-    <string name="favorite_channels_at_beginning">Vis favoritkanaler først</string>
-    <string name="sort_channels_recently_watched">Sorter kanaler efter senest sete</string>
-    <string name="color_code_programs">Farvekod programmer</string>
     <string name="subtitle_delay">Undertekstforsinkelse</string>
     <string name="backdrop_display">Baggrundsbilledstil</string>
     <string name="resolution_switching">Skift af opløsning</string>
@@ -511,13 +496,6 @@
     <string name="visible_ui">Synlig</string>
     <string name="hidden_ui">Skjult</string>
     <string name="results">Resultater</string>
-    <string name="albums">Albummer</string>
-    <string name="artists">Kunstnere</string>
-    <string name="songs">Sange</string>
-    <string name="go_to_artist">Gå til kunstneren</string>
-    <string name="now_playing">Afspiller nu</string>
-    <string name="go_to_album">Gå til albummet</string>
-    <string name="add_to_queue">Føj til kø</string>
     <string name="prefer_ac3_for_surround_summary"><![CDATA[Transkod ikke-stereolyd til AC3/Dolby Digital]]></string>
     <string name="prefer_ac3_for_surround">Brug AC3 til surroundlyd</string>
     <string name="start_after">Start efter</string>
@@ -605,10 +583,6 @@
     <string name="album">Album</string>
     <string name="album_artist">Albumkunstner</string>
     <string name="any_language">Ethvert sprog</string>
-    <string name="popular_songs">Populære sange</string>
-    <string name="play_next">Afspil næste</string>
-    <string name="play_as_type">Afspil som?</string>
-    <string name="visualizer_rationale">Visualizeren kræver tilladelse til at optage den lyd, der afspilles.</string>
     <string name="last_played">Sidst afspillet</string>
     <string name="ass_subtitle_mode_libass">Direkte afspilning med libass</string>
     <string name="ass_subtitle_mode_exoplayer">Direkte afspilning med ExoPlayers indbyggede understøttelse</string>
@@ -621,17 +595,9 @@
     <string name="seerr_local_user">Lokal bruger</string>
     <string name="people_title">Personer</string>
     <string name="samples_title">Smagsprøver</string>
-    <string name="instant_mix">Hurtigt mix</string>
     <string name="volume_full">Maks.</string>
     <string name="in_app_screensaver">Brug appens egen pauseskærm</string>
     <string name="music_videos">Musikvideoer</string>
-    <string name="lyrics">Sangtekst</string>
-    <string name="hide_lyrics">Skjul sangtekst</string>
-    <string name="show_lyrics">Vis sangtekst</string>
-    <string name="song_has_lyrics">Sangen har sangtekst</string>
-    <string name="remove_from_queue">Fjern fra kø</string>
-    <string name="show_album_cover">Vis albumcover</string>
-    <string name="show_visualizer">Vis visualizer</string>
     <string name="show_backdrop">Vis baggrundsbillede</string>
     <string name="continue_string">Fortsæt</string>
     <string name="select_all">Vælg alle</string>
@@ -696,14 +662,11 @@
     <string name="override_user_profile_settings_summary">Tilsidesæt dine profilindstillinger fra serveren</string>
     <string name="hash_matches">Hash-match</string>
     <string name="subtitles_hearing_impaired">SDH</string>
-    <string name="programs">TV-programmer</string>
-    <string name="recordings">Optagelser</string>
     <string name="folders_title">Mapper</string>
     <string name="user_views">Brugervisninger</string>
     <string name="books">Bøger</string>
     <string name="audio_books">Lydbøger</string>
     <string name="server_version_not_supported">Serverversionen understøttes ikke</string>
-    <string name="appears_on">Medvirker på</string>
     <string name="dim_after_delay">Dæmp skærmen efter ventetid</string>
     <string name="dim_percentage">Dæmpning (%)</string>
     <string name="dim_screen">Dæmp skærmen</string>

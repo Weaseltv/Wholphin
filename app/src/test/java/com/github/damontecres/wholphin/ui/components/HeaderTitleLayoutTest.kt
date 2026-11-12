@@ -91,7 +91,7 @@ class HeaderTitleLayoutTest {
                 "TV Shows" to CollectionType.TVSHOWS,
                 "Stand Up Comedy" to CollectionType.MOVIES,
                 "Sports" to CollectionType.MOVIES,
-            ).map { (name, type) -> Library(UUID.randomUUID(), name, BaseItemKind.COLLECTION_FOLDER, type, false) }
+            ).map { (name, type) -> Library(UUID.randomUUID(), name, BaseItemKind.COLLECTION_FOLDER, type) }
         val config = mutableStateOf<HomeRowConfig>(HomeRowConfig.RecentlyAdded(libraries.first().itemId))
         var actual = androidx.compose.ui.graphics.Color.Unspecified
         compose.setContent {

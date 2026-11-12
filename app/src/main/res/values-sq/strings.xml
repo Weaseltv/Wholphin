@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="active_recordings">Rregjistrime aktive</string>
     <string name="add_favorite">Shto si të preferuar</string>
     <string name="add_server">Shto server</string>
     <string name="add_user">Shto përdorues</string>
@@ -22,11 +21,8 @@
     <string name="ends_at">Përfundon në %1$s</string>
     <string name="enter_server_url">Vendos IP-në ose URL-në e serverit</string>
     <string name="subtitles_hearing_impaired">SDH</string>
-    <string name="programs">Programe TV</string>
-    <string name="recordings">Rregjistrime</string>
     <string name="books">Libra</string>
     <string name="user_views">Shikimet e përdoruesit</string>
-    <string name="appears_on">Shfaqet në</string>
     <string name="audio_books">Audiolibra</string>
     <string name="server_version_not_supported">Versioni i serverit nuk suportohet</string>
     <string name="folders_title">Dosje</string>

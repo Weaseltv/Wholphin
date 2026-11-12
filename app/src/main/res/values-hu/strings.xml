@@ -33,9 +33,6 @@
     <string name="error_loading_collection">Hiba a következő gyűjtemény betöltése során: %1$s</string>
     <string name="external_track">Külső</string>
     <string name="favorites">Kedvencek</string>
-    <string name="active_recordings">Aktív felvételek</string>
-    <string name="cancel_recording">Felvétel leállítása</string>
-    <string name="cancel_series_recording">Sorozatfelvétel leállítása</string>
     <string name="commercial">Reklám</string>
     <string name="continue_watching">Megtekintés folytatása</string>
     <string name="died">Elhunyt</string>
@@ -53,7 +50,6 @@
     <string name="jump_letters">#ABCDEFGHIJKLMNOPQRSTUVWXYZ</string>
     <string name="library">Könyvtár</string>
     <string name="license_info">Lincenc információk</string>
-    <string name="live_tv">Élő TV</string>
     <string name="loading">Betöltés…</string>
     <string name="mark_entire_series_as_played">Megjelöli az egész sorozatot megnézettként?</string>
     <string name="mark_entire_series_as_unplayed">Megjelöli az egész sorozatot megnézetlenként?</string>
@@ -67,7 +63,6 @@
     <string name="next_up">Következő</string>
     <string name="no_data">Nincs adat</string>
     <string name="no_results">Nincs találat</string>
-    <string name="no_scheduled_recordings">Nincs időzített felvétel</string>
     <string name="no_update_available">Nincs elérhető frissítés</string>
     <string name="none">Nincs</string>
     <string name="outro">Stáblista</string>
@@ -86,11 +81,8 @@
     <string name="queue">Lejátszási sor</string>
     <string name="recently_added_in">Nemrég hozzáadva: %1$s</string>
     <string name="recently_added">Nemrég hozzáadott</string>
-    <string name="recently_recorded">Nemrég rögzített</string>
     <string name="recently_released">Nemrég megjelent</string>
     <string name="recommended">Ajánlott</string>
-    <string name="record_program">Műsor felvétele</string>
-    <string name="record_series">Sorozat felvétele</string>
     <string name="remove_favorite">Törlés a kedvencekből</string>
     <string name="restart">Újraindítás</string>
     <string name="resume">Folytatás</string>
@@ -124,8 +116,6 @@
         <item quantity="one">Előzetesek</item>
         <item quantity="other">Előzetesek</item>
     </plurals>
-    <string name="tv_dvr_schedule">DVR Időzítés</string>
-    <string name="tv_guide">Műsorújság</string>
     <string name="tv_season">Évad</string>
     <string name="tv_seasons">Évadok</string>
     <string name="tv_shows_title">Sorozatok</string>
@@ -136,7 +126,6 @@
     <string name="video_scale">Kép méretezése</string>
     <string name="video">Videó</string>
     <string name="videos">Videók</string>
-    <string name="watch_live">Nézze élőben</string>
     <plurals name="years_old">
         <item quantity="other">%1$d éves</item>
     </plurals>
@@ -347,10 +336,6 @@
     <string name="bit_unit">bit</string>
     <string name="sample_rate_unit">Hz</string>
     <string name="show_titles">Címek mutatása</string>
-    <string name="live_tv_repeat">Ismétlés</string>
-    <string name="favorite_channels_at_beginning">A kedvenc csatornákat mutassa először</string>
-    <string name="sort_channels_recently_watched">Legutóbb nézett csatornák előre sorolása</string>
-    <string name="color_code_programs">Műsorok kategória szerinti színezése</string>
     <string name="subtitle_delay">Felirat késleltetése</string>
     <string name="backdrop_display">Háttér stílusa</string>
     <string name="enter_server_address">Adja meg a szerver címét</string>

@@ -83,7 +83,7 @@ fun DiscoverMovieDetails(
     val resources = LocalResources.current
     val context = LocalContext.current
     LifecycleResumeEffect(Unit) {
-        viewModel.init()
+        viewModel.onResume()
         onPauseOrDispose { }
     }
     val state by viewModel.state.collectAsState()

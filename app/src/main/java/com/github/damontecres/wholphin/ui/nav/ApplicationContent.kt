@@ -1,5 +1,11 @@
 package com.github.damontecres.wholphin.ui.nav
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -41,6 +47,9 @@ import javax.inject.Inject
 // Top scrim configuration for text readability (clock, season tabs)
 const val TOP_SCRIM_ALPHA = 0.55f
 const val TOP_SCRIM_END_FRACTION = 0.25f // Fraction of backdrop image height
+
+/** How long a page change takes, forward or Back (owner's speed plan, 2026-11: was Navigation3's default 700) */
+private const val PAGE_TRANSITION_MS = 150
 
 @HiltViewModel
 class ApplicationContentViewModel
@@ -91,6 +100,14 @@ fun ApplicationContent(
             NavDisplay(
                 backStack = navigationManager.backStack,
                 onBack = { navigationManager.goBack() },
+                // Speed plan step 2: Navigation3's default is a 700 ms cross-fade each way. The page on top fades
+                // while the one under it stays whole, so the side menu, the same on both, never dims in between.
+                transitionSpec = {
+                    fadeIn(tween(PAGE_TRANSITION_MS)) togetherWith fadeOut(snap(delayMillis = PAGE_TRANSITION_MS))
+                },
+                popTransitionSpec = {
+                    EnterTransition.None togetherWith fadeOut(tween(PAGE_TRANSITION_MS))
+                },
                 entryDecorators =
                     listOf(
                         rememberSaveableStateHolderNavEntryDecorator(),

@@ -17,6 +17,7 @@ import com.github.damontecres.wholphin.data.model.SeerrAvailability
 import com.github.damontecres.wholphin.data.model.SeerrItemType
 import com.github.damontecres.wholphin.data.model.Trailer
 import com.github.damontecres.wholphin.services.BackdropService
+import com.github.damontecres.wholphin.services.HomeFreshness
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.SeerrConnectionStatus
 import com.github.damontecres.wholphin.services.SeerrServerRepository
@@ -104,7 +105,10 @@ class DiscoverSeriesViewModel
                     val tv = seerrService.api.tvApi.tvTvIdGet(tvId = item.id)
                     _state.update { it.copy(tvSeries = DataLoadingState.Success(tv)) }
                     val discoveredItem = seerrService.createDiscoverItem(tv)
-                    backdropService.submit(discoveredItem)
+                    // Speed plan step 4 (2026-11): the page no longer waits for the backdrop, which pauses 500 ms and then
+                    // works out its colours. It arrives on its own, as it does on Home
+                    // Step 5: and without the half-second pause meant for moving across cards
+                    viewModelScope.launchIO { backdropService.submit(discoveredItem, pauseFirst = false) }
 
                     updateSeasonStatus(tv)
                     updateCanCancel()
@@ -364,6 +368,8 @@ class DiscoverSeriesViewModel
                                 it.is4k == request.is4k &&
                                 it.requestedBy?.id == account.config.id
                         }
+                    // Home loads again after a request is made or changed (speed plan step 16)
+                    HomeFreshness.changed()
                     val created =
                         if (currentRequest != null) {
                             Timber.v("User has pending request, will update")
@@ -442,6 +448,7 @@ class DiscoverSeriesViewModel
                         // TODO handle multiple requests? Or just delete self's request?
                         try {
                             val deletingScope = requestStatusRepository.state.value.scope
+                            HomeFreshness.changed()
                             seerrService.api.requestApi.requestRequestIdDelete(it.id.toString())
                             requestStatusRepository.forget(it.id, deletingScope)
                         } catch (ex: CancellationException) {

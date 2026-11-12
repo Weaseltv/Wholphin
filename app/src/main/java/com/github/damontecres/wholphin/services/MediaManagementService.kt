@@ -3,7 +3,6 @@ package com.github.damontecres.wholphin.services
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.ui.combinePair
@@ -31,7 +30,6 @@ class MediaManagementService
     constructor(
         @param:ApplicationContext private val context: Context,
         private val api: ApiClient,
-        private val serverRepository: ServerRepository,
         private val userPreferencesService: UserPreferencesService,
     ) {
         private val _deletedItemFlow =
@@ -63,15 +61,7 @@ class MediaManagementService
             // it for the playlist's owner or an admin, so it doesn't need media management on.
             if (item.type == BaseItemKind.PLAYLIST) return item.canDelete
             val enabled = appPreferences.interfacePreferences.enableMediaManagement
-            return enabled &&
-                item.canDelete &&
-                if (item.type == BaseItemKind.RECORDING) {
-                    serverRepository.currentUserDto
-                        ?.policy
-                        ?.enableLiveTvManagement == true
-                } else {
-                    true
-                }
+            return enabled && item.canDelete
         }
 
         suspend fun collectCanDelete(

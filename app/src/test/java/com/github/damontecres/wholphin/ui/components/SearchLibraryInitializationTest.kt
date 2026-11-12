@@ -68,7 +68,6 @@ class SearchLibraryInitializationTest {
                         favoriteWatchManager = mockk(relaxed = true),
                         mediaManagementService = mockk(relaxed = true),
                         serverReportService = mockk(relaxed = true),
-                        liveTvService = mockk(relaxed = true),
                         keyValueService = mockk(relaxed = true),
                         navDrawerService = nav,
                         searchIndexService = searchIndex,
@@ -76,8 +75,8 @@ class SearchLibraryInitializationTest {
                 store.put("search", model)
                 advanceUntilIdle()
                 assertTrue(BaseItemKind.PERSON in model.state.value.possibleSearchableTypes)
-                val movies = Library(UUID.randomUUID(), "Movies", BaseItemKind.COLLECTION_FOLDER, CollectionType.MOVIES, false)
-                val shows = Library(UUID.randomUUID(), "TV Shows", BaseItemKind.COLLECTION_FOLDER, CollectionType.TVSHOWS, false)
+                val movies = Library(UUID.randomUUID(), "Movies", BaseItemKind.COLLECTION_FOLDER, CollectionType.MOVIES)
+                val shows = Library(UUID.randomUUID(), "TV Shows", BaseItemKind.COLLECTION_FOLDER, CollectionType.TVSHOWS)
                 libraries.value = NavDrawerItemState(allLibraries = listOf(movies, shows))
                 advanceUntilIdle()
                 for (type in listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES, BaseItemKind.EPISODE)) {

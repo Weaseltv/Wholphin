@@ -67,7 +67,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -88,6 +87,9 @@ import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import org.jellyfin.sdk.model.api.request.GetSimilarItemsRequest
 import timber.log.Timber
 import java.util.UUID
+
+/** How long focus rests on an episode before its cast is asked for, in milliseconds */
+private const val EPISODE_CAST_WAIT = 200L
 
 @HiltViewModel(assistedFactory = SeriesViewModel.Factory::class)
 class SeriesViewModel
@@ -164,6 +166,10 @@ class SeriesViewModel
             viewModelScope.launchIO {
                 Timber.v("Start")
                 addCloseable { themeSongPlayer.stop() }
+                // Speed plan step 7 (2026-11): the seasons need only the show's id, so for adults they are asked for
+                // together with the show instead of after it. A kid page keeps the old order: the kid content rules
+                // look the show up themselves when its seasons are asked for first, which would add a request
+                val early = if (kidPage) null else startSeasonsAndEpisodes()
                 val series =
                     try {
                         api.userLibraryApi
@@ -174,6 +180,8 @@ class SeriesViewModel
                         throw ex
                     } catch (ex: Exception) {
                         Timber.e(ex, "Error fetching series %s", seriesId)
+                        early?.first?.cancel()
+                        early?.second?.cancel()
                         _state.update { it.copy(series = DataLoadingState.Error(ex)) }
                         return@launchIO
                     }
@@ -182,34 +190,12 @@ class SeriesViewModel
                         _state.update { it.copy(canDeleteSeries = canDelete) }
                     }
                 }
-                backdropService.submit(series)
+                // Speed plan step 4 (2026-11): the page no longer waits for the backdrop, which pauses 500 ms and then
+                // works out its colours. It arrives on its own, as it does on Home
+                // Step 5: and without the half-second pause meant for moving across cards
+                viewModelScope.launchIO { backdropService.submit(series, pauseFirst = false) }
 
-                val seasonsDeferred = getSeasons(series, seasonEpisodeIds?.seasonNumber)
-
-                val episodeListDeferred =
-                    if (seriesPageType == SeriesPageType.OVERVIEW) {
-                        viewModelScope.async(WholphinDispatchers.IO) {
-                            if (seasonEpisodeIds != null) {
-                                loadEpisodesInternal(
-                                    seasonEpisodeIds.seasonId,
-                                    seasonEpisodeIds.seasonNumber,
-                                    seasonEpisodeIds.episodeId,
-                                    seasonEpisodeIds.episodeNumber,
-                                )
-                            } else {
-                                seasonsDeferred.await().firstOrNull()?.let {
-                                    loadEpisodesInternal(
-                                        it.id,
-                                        it.indexNumber,
-                                        null,
-                                        null,
-                                    )
-                                } ?: EpisodeList.Error(message = "Could not determine season")
-                            }
-                        }
-                    } else {
-                        CompletableDeferred(value = EpisodeList.Loading)
-                    }
+                val (seasonsDeferred, episodeListDeferred) = early ?: startSeasonsAndEpisodes()
                 val (seasons, episodes) =
                     try {
                         val seasons = seasonsDeferred.await()
@@ -301,24 +287,8 @@ class SeriesViewModel
                             _state.update { it.copy(discovered = results) }
                         }
                     }
-                    viewModelScope.launchIO {
-                        seerrService.active.collectLatest { active ->
-                            val tv =
-                                if (active) {
-                                    try {
-                                        seerrService
-                                            .getTvSeries(series)
-                                            ?.let { seerrService.createDiscoverItem(it) }
-                                    } catch (ex: Exception) {
-                                        Timber.e(ex)
-                                        null
-                                    }
-                                } else {
-                                    null
-                                }
-                            _state.update { it.copy(discoverSeries = tv) }
-                        }
-                    }
+                    // Speed plan step 8 (2026-11): this used to ask Seerr about the show on every open, for a value
+                    // (discoverSeries) that no page shows. The request is gone; the value stays null
                 }
                 mediaManagementService.deletedItemFlow
                     .onEach { deletedItem ->
@@ -328,7 +298,7 @@ class SeriesViewModel
                                 deletedItem.item.id,
                                 seriesId,
                             )
-                            val seasons = getSeasons(series, seasonEpisodeIds?.seasonNumber).await()
+                            val seasons = getSeasons(seasonEpisodeIds?.seasonNumber).await()
                             _state.update { it.copy(seasons = seasons) }
                         }
                     }.catch { ex ->
@@ -360,15 +330,45 @@ class SeriesViewModel
             themeSongPlayer.stop()
         }
 
-        private fun getSeasons(
-            series: BaseItem,
-            seasonNum: Int?,
-        ): Deferred<List<BaseItem?>> =
+        /**
+         * Start the seasons request and, on the season page, the episodes: of the season the page was opened on, or
+         * else of the first season once the seasons are known.
+         */
+        private fun startSeasonsAndEpisodes(): Pair<Deferred<List<BaseItem?>>, Deferred<EpisodeList>> {
+            val seasonsDeferred = getSeasons(seasonEpisodeIds?.seasonNumber)
+            val episodeListDeferred =
+                if (seriesPageType == SeriesPageType.OVERVIEW) {
+                    viewModelScope.async(WholphinDispatchers.IO) {
+                        if (seasonEpisodeIds != null) {
+                            loadEpisodesInternal(
+                                seasonEpisodeIds.seasonId,
+                                seasonEpisodeIds.seasonNumber,
+                                seasonEpisodeIds.episodeId,
+                                seasonEpisodeIds.episodeNumber,
+                            )
+                        } else {
+                            seasonsDeferred.await().firstOrNull()?.let {
+                                loadEpisodesInternal(
+                                    it.id,
+                                    it.indexNumber,
+                                    null,
+                                    null,
+                                )
+                            } ?: EpisodeList.Error(message = "Could not determine season")
+                        }
+                    }
+                } else {
+                    CompletableDeferred(value = EpisodeList.Loading)
+                }
+            return seasonsDeferred to episodeListDeferred
+        }
+
+        private fun getSeasons(seasonNum: Int?): Deferred<List<BaseItem?>> =
             viewModelScope.async(WholphinDispatchers.IO) {
-                Timber.v("getSeasons for %s", series.id)
+                Timber.v("getSeasons for %s", seriesId)
                 val request =
                     GetItemsRequest(
-                        parentId = series.id,
+                        parentId = seriesId,
                         recursive = false,
                         includeItemTypes = listOf(BaseItemKind.SEASON),
                         sortBy = listOf(ItemSortBy.INDEX_NUMBER),
@@ -501,7 +501,7 @@ class SeriesViewModel
                         _state.update { it.copy(people = people) }
                     }
                     viewModelScope.launchIO {
-                        val seasons = getSeasons(series, null).await()
+                        val seasons = getSeasons(null).await()
                         _state.update { it.copy(seasons = seasons) }
                     }
                 } catch (ex: Exception) {
@@ -679,28 +679,36 @@ class SeriesViewModel
                 .maximumSize(25)
                 .build<UUID, Deferred<PeopleInItem>>()
 
+        /**
+         * The cast of the focused episode, for the row under the episodes.
+         *
+         * Speed plan step 9 (2026-11): the request used to go out the moment an episode took focus, so moving along a
+         * season fetched every episode passed. Now it goes out only once focus has rested for [EPISODE_CAST_WAIT]; an
+         * episode looked up before shows after the same wait without asking again.
+         */
         suspend fun lookupPeopleInEpisode(item: BaseItem) {
             peopleInEpisodeJob?.cancel()
             if (state.value.peopleInEpisode.itemId != item.id) {
                 _state.update { it.copy(peopleInEpisode = PeopleInItem()) }
-                val result =
-                    peopleInEpisodeCache
-                        .get(item.id) {
-                            viewModelScope.async(WholphinDispatchers.IO) {
-                                val list =
-                                    api.userLibraryApi
-                                        .getItem(item.id)
-                                        .content.people
-                                        ?.map { Person.fromDto(context, it, api) }
-                                        .orEmpty()
-                                        .mergeRepeated()
-
-                                PeopleInItem(item.id, list)
-                            }
-                        }
                 peopleInEpisodeJob =
                     viewModelScope.launch(ExceptionHandler()) {
-                        delay(250)
+                        delay(EPISODE_CAST_WAIT)
+                        val result =
+                            peopleInEpisodeCache
+                                .get(item.id) {
+                                    // In the page's scope, not this job's: moving on doesn't throw the answer away
+                                    viewModelScope.async(WholphinDispatchers.IO) {
+                                        val list =
+                                            api.userLibraryApi
+                                                .getItem(item.id)
+                                                .content.people
+                                                ?.map { Person.fromDto(context, it, api) }
+                                                .orEmpty()
+                                                .mergeRepeated()
+
+                                        PeopleInItem(item.id, list)
+                                    }
+                                }
                         val peopleInEpisode = result.await()
                         _state.update { it.copy(peopleInEpisode = peopleInEpisode) }
                     }
@@ -724,7 +732,7 @@ class SeriesViewModel
                         navigationManager.goBack()
                     } else if (seriesPageType == SeriesPageType.DETAILS) {
                         state.value.series.successValue?.let { series ->
-                            val seasons = getSeasons(series, null).await()
+                            val seasons = getSeasons(null).await()
                             if (seasons.isEmpty()) {
                                 navigationManager.goBack()
                             } else {

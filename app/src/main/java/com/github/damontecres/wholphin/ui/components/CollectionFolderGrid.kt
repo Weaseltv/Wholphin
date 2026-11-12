@@ -254,14 +254,6 @@ val CollectionType.baseItemKinds: List<BaseItemKind>
                 listOf(BaseItemKind.VIDEO)
             }
 
-            CollectionType.MUSIC -> {
-                listOf(
-                    BaseItemKind.AUDIO,
-                    BaseItemKind.MUSIC_ARTIST,
-                    BaseItemKind.MUSIC_ALBUM,
-                )
-            }
-
             CollectionType.MUSICVIDEOS -> {
                 listOf(BaseItemKind.MUSIC_VIDEO)
             }
@@ -278,16 +270,6 @@ val CollectionType.baseItemKinds: List<BaseItemKind>
                 listOf(BaseItemKind.PHOTO, BaseItemKind.PHOTO_ALBUM)
             }
 
-            CollectionType.LIVETV -> {
-                listOf(
-                    BaseItemKind.TV_CHANNEL,
-                    BaseItemKind.LIVE_TV_CHANNEL,
-                    BaseItemKind.PROGRAM,
-                    BaseItemKind.TV_PROGRAM,
-                    BaseItemKind.LIVE_TV_PROGRAM,
-                )
-            }
-
             CollectionType.TRAILERS -> {
                 listOf(BaseItemKind.TRAILER)
             }
@@ -300,7 +282,10 @@ val CollectionType.baseItemKinds: List<BaseItemKind>
                 listOf(BaseItemKind.FOLDER)
             }
 
-            CollectionType.UNKNOWN -> {
+            CollectionType.LIVETV,
+            CollectionType.MUSIC,
+            CollectionType.UNKNOWN,
+            -> {
                 listOf()
             }
         }

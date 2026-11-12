@@ -19,8 +19,6 @@ import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.ui.detail.collection.CollectionButtons
 import com.github.damontecres.wholphin.ui.detail.collection.CollectionState
 import com.github.damontecres.wholphin.ui.detail.discover.ExpandableDiscoverButtons
-import com.github.damontecres.wholphin.ui.detail.music.MusicButtonActions
-import com.github.damontecres.wholphin.ui.detail.music.MusicExpandableButtons
 import com.github.damontecres.wholphin.ui.slideshow.ImageControlsOverlay
 import com.github.damontecres.wholphin.ui.slideshow.SlideshowControls
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
@@ -37,19 +35,6 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class MediaToolbarLayoutTest {
     @get:Rule val compose = createComposeRule()
-
-    @Test
-    fun `music action bar reserves vertical room for focused button glow`() {
-        compose.setContent {
-            WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
-                Box(Modifier.width(800.dp)) {
-                    MusicExpandableButtons("Album", MusicButtonActions({}, {}, {}, {}, {}), false, false, {})
-                }
-            }
-        }
-        checkClearance("Play")
-        checkClearance("More")
-    }
 
     @Test
     fun `photo action bar reserves vertical room for focused button glow`() {

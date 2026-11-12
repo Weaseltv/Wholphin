@@ -90,13 +90,10 @@ val PhotoItemFields =
             ItemFields.HEIGHT,
         )
 
-val ProgramItemFields = DetailItemFields + listOf(ItemFields.CHANNEL_INFO)
-
 object Cards {
     const val HEIGHT_2X3_DP = 172
     val height2x3 = (if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.CARD_HEIGHT_DP else HEIGHT_2X3_DP).dp
     const val HEIGHT_EPISODE = 128
-    const val HEIGHT_LIVE_TV = 96
     val heightEpisode = HEIGHT_EPISODE.dp
     val playedPercentHeight = 6.dp
     val serverUserCircle = height2x3 * .75f

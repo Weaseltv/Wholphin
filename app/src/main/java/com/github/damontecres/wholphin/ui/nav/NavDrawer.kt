@@ -2,12 +2,9 @@ package com.github.damontecres.wholphin.ui.nav
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.animateIntOffsetAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
@@ -33,7 +30,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
@@ -92,7 +88,6 @@ import com.github.damontecres.wholphin.kids.KidSessionGate
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.BackdropService
-import com.github.damontecres.wholphin.services.MusicService
 import com.github.damontecres.wholphin.services.NavDrawerService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.ProfilePictureService
@@ -148,7 +143,6 @@ class NavDrawerViewModel
         val navigationManager: NavigationManager,
         val setupNavigationManager: SetupNavigationManager,
         val backdropService: BackdropService,
-        private val musicService: MusicService,
         private val profilePictureService: ProfilePictureService,
         kidSessionGate: KidSessionGate,
     ) : ViewModel() {
@@ -231,8 +225,6 @@ class NavDrawerViewModel
                             HOME_INDEX
                         } else if (key is Destination.Search) {
                             SEARCH_INDEX
-                        } else if (key is Destination.NowPlaying) {
-                            NOW_PLAYING_INDEX
                         } else {
                             val idx =
                                 asDestinations.indexOfFirst {
@@ -255,7 +247,6 @@ class NavDrawerViewModel
 
         fun navigateToSetup(userList: SetupDestination) {
             viewModelScope.launchDefault {
-                musicService.stop()
                 setupNavigationManager.navigateTo(userList)
             }
         }
@@ -376,7 +367,6 @@ private fun coachMarkId(item: NavDrawerItem): String? =
     }
 
 private const val SEARCH_INDEX = -2
-private const val NOW_PLAYING_INDEX = -3
 
 /**
  * Display the left side navigation drawer with [DestinationContent] on the right
@@ -465,7 +455,17 @@ fun NavDrawer(
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(spacedBy),
-                    modifier = Modifier.fillMaxHeight().coachMarkTarget(CoachMarkIds.MENU),
+                    modifier =
+                        Modifier
+                            .fillMaxHeight()
+                            .coachMarkTarget(CoachMarkIds.MENU)
+                            // Coming into the menu from the page lands on the current page's button (owner,
+                            // 2026-11-11). The list below already does this for its own items, but the profile
+                            // button sits outside it: a new page's menu could take focus there for a moment while
+                            // the page loaded, the menu remembered that, and Left then went back to the profile.
+                            // Moving around inside the menu is not "coming in", so Up from Search still reaches it.
+                            .focusProperties { onEnter = { focusRequester.tryRequestFocus() } }
+                            .focusGroup(),
                 ) {
                     // Even though some must be clicked, focusing on it should clear other focused items
                     val interactionSource = remember { MutableInteractionSource() }
@@ -487,32 +487,6 @@ fun NavDrawer(
                         },
                         modifier = Modifier.coachMarkTarget(CoachMarkIds.PROFILE),
                     )
-                    AnimatedVisibility(
-                        visible = serviceState.nowPlayingEnabled,
-                        enter = expandVertically(expandFrom = Alignment.Top),
-                        exit = shrinkVertically(shrinkTowards = Alignment.Top),
-                    ) {
-                        val interactionSource = remember { MutableInteractionSource() }
-                        IconNavItem(
-                            text = stringResource(R.string.now_playing),
-                            subtext = serviceState.nowPlayingTitle,
-                            icon = Icons.Default.PlayArrow,
-                            accent = RailAccents.NowPlaying,
-                            selected = selectedIndex == NOW_PLAYING_INDEX,
-                            drawerOpen = isOpen,
-                            interactionSource = interactionSource,
-                            onClick = {
-                                viewModel.setIndex(NOW_PLAYING_INDEX)
-                                viewModel.navigationManager.navigateTo(Destination.NowPlaying)
-                            },
-                            modifier =
-                                Modifier
-                                    .ifElse(
-                                        selectedIndex == NOW_PLAYING_INDEX,
-                                        Modifier.focusRequester(focusRequester),
-                                    ),
-                        )
-                    }
                     RailList(
                         state = navDrawerListState,
                         spacedBy = spacedBy,
@@ -914,7 +888,6 @@ fun NavigationDrawerScope.NavItem(
             .hiltViewModel()
     val requestState by requestsVM.requests.state.collectAsState()
     val context = LocalContext.current
-    val useFont = library !is ServerNavDrawerItem || library.type != CollectionType.LIVETV
     val icon =
         remember(library) {
             when (library) {
@@ -935,8 +908,6 @@ fun NavigationDrawerScope.NavItem(
                         CollectionType.MOVIES -> R.string.fa_film
                         CollectionType.TVSHOWS -> R.string.fa_tv
                         CollectionType.HOMEVIDEOS -> R.string.fa_video
-                        CollectionType.LIVETV -> R.drawable.gf_dvr
-                        CollectionType.MUSIC -> R.string.fa_music
                         CollectionType.BOXSETS -> R.string.fa_open_folder
                         CollectionType.PLAYLISTS -> R.string.fa_list_ul
                         else -> R.string.fa_film
@@ -945,7 +916,7 @@ fun NavigationDrawerScope.NavItem(
             }
         }
     // Neon Board: the section accent — volt for the built-ins, the library's type color
-    // (movies orange, shows yellow, live green, Boxing / UFC cyan by name).
+    // (movies orange, shows yellow, Boxing / UFC cyan by name).
     val accent = remember(library) { sectionAccent(library) }
     val focused by interactionSource.collectIsFocusedAsState()
     NavigationDrawerItem(
@@ -975,7 +946,7 @@ fun NavigationDrawerScope.NavItem(
                         tint = color,
                         modifier = Modifier.size(DrawerIconSize),
                     )
-                } else if (useFont) {
+                } else {
                     Text(
                         text = stringResource(icon),
                         textAlign = TextAlign.Center,
@@ -983,13 +954,6 @@ fun NavigationDrawerScope.NavItem(
                         fontFamily = FontAwesome,
                         color = color,
                         modifier = Modifier,
-                    )
-                } else {
-                    Icon(
-                        painter = painterResource(icon),
-                        contentDescription = null,
-                        tint = color,
-                        modifier = Modifier.size(DrawerIconSize),
                     )
                 }
                 if (library is NavDrawerItem.Discover && requestState.badgeCount > 0) {

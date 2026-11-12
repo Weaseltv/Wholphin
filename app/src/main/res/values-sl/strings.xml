@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">O aplikaciji</string>
-    <string name="active_recordings">Aktivni posnetki</string>
     <string name="add_favorite">Dodaj med priljubljene</string>
     <string name="add_server">Dodaj strežnik</string>
     <string name="add_user">Dodaj uporabnika</string>
@@ -9,8 +8,6 @@
     <string name="birthplace">Rojstni kraj</string>
     <string name="bitrate">Bitna hitrost</string>
     <string name="born">Rojen</string>
-    <string name="cancel_recording">Prekliči Snemanje</string>
-    <string name="cancel_series_recording">Prekliči snemanje serije</string>
     <string name="cancel">Prekliči</string>
     <string name="chapters">Poglavja</string>
     <string name="choose_stream">Izberi %1$s</string>
@@ -55,7 +52,6 @@
     <string name="jump_letters">#ABCČDEFGHIJKLMNOPQRSŠTUVWXYZŽ</string>
     <string name="library">Knjižnica</string>
     <string name="license_info">Informacije o licenci</string>
-    <string name="live_tv">TV v živo</string>
     <string name="loading">Nalaganje…</string>
     <string name="mark_entire_series_as_played">Označi serijo kot predvajano?</string>
     <string name="mark_entire_series_as_unplayed">Označi serijo kot nepredvajeno?</string>
@@ -73,7 +69,6 @@
     <string name="no_data">Ni podatkov</string>
     <string name="no_results">Ni rezultatov</string>
     <string name="no_servers_found">Ni najdenih strežnikov</string>
-    <string name="no_scheduled_recordings">Ni načrtovanih posnetkov</string>
     <string name="no_update_available">Ni novih posodobitev</string>
     <string name="none">Nobeno</string>
     <string name="only_forced_subtitles">Samo prisiljeni podanpisi</string>
@@ -97,11 +92,8 @@
     <string name="recap">Povzetek</string>
     <string name="recently_added_in">Nedavno dodano v %1$s</string>
     <string name="recently_added">Nedavno dodano</string>
-    <string name="recently_recorded">Nedavno posneto</string>
     <string name="recently_released">Nedavno izdano</string>
     <string name="recommended">Priporočeno</string>
-    <string name="record_program">Posnemi program</string>
-    <string name="record_series">Posnemi serijo</string>
     <string name="remove_favorite">Odstrani iz priljubljenih</string>
     <string name="restart">Zaženi znova</string>
     <string name="resume">Nadaljuj</string>
@@ -152,8 +144,6 @@
         <item quantity="one">Napovedniki</item>
         <item quantity="other">Napovedniki</item>
     </plurals>
-    <string name="tv_dvr_schedule">Program snemalnika</string>
-    <string name="tv_guide">Vodnik</string>
     <string name="tv_season">Sezona</string>
     <string name="tv_seasons">Sezone</string>
     <plurals name="tv_shows">
@@ -167,7 +157,6 @@
     <string name="video_scale">Povečava videa</string>
     <string name="video">Video</string>
     <string name="videos">Videji</string>
-    <string name="watch_live">Glej v živo</string>
     <plurals name="years_old">
         <item quantity="other">%1$d let staro</item>
     </plurals>
@@ -401,10 +390,6 @@
     <string name="bit_unit">bit</string>
     <string name="sample_rate_unit">Hz</string>
     <string name="show_titles">Pokaži naslove</string>
-    <string name="live_tv_repeat">Ponovi</string>
-    <string name="favorite_channels_at_beginning">Najprej prikaži priljubljene kanale</string>
-    <string name="sort_channels_recently_watched">Razvrsti kanale po zadnjih ogledih</string>
-    <string name="color_code_programs">Barvno označi programe</string>
     <string name="subtitle_delay">Zakasnitev podnapisov</string>
     <string name="backdrop_display">Slog ozadja</string>
     <string name="resolution_switching">Preklapljanje ločljivosti</string>
@@ -465,14 +450,6 @@
     <string name="send_media_info_log_to_server">Pošlji dnevnik medijskih podatkov na strežnik</string>
     <string name="no_limit">Brez omejitve</string>
     <string name="max_days_next_up">Največje število dni v »Naslednjo«</string>
-    <string name="albums">Albumi</string>
-    <string name="artists">Umetniki</string>
-    <string name="songs">Glsabe</string>
-    <string name="go_to_artist">Pojdi na stran izvajalca</string>
-    <string name="now_playing">Trenutno predvajano</string>
-    <string name="instant_mix">Instantna mešanica</string>
-    <string name="go_to_album">Pojdi na album</string>
-    <string name="add_to_queue">Dodaj v čakalno vrsto</string>
     <string name="add_row">Dodaj vrstico</string>
     <string name="genres_in">Žanra v %1$s</string>
     <string name="recently_released_in">Nedavno izdano v %1$s</string>
@@ -583,19 +560,8 @@
     <string name="artist">Umetnik</string>
     <string name="album_artist">Izvajalec albuma</string>
     <string name="album">Album</string>
-    <string name="popular_songs">Priljubljene glasbe</string>
-    <string name="play_next">Predvajaj naslednjo</string>
     <string name="music_videos">Glasbeni videospoti</string>
-    <string name="lyrics">Besedilo</string>
-    <string name="hide_lyrics">Skrij besedilo</string>
-    <string name="show_lyrics">Pokaži besedilo</string>
-    <string name="song_has_lyrics">Glsaba ima besedilo</string>
-    <string name="remove_from_queue">Odstrani iz čakalne vrste</string>
-    <string name="show_album_cover">Pokaži naslovnico albuma</string>
-    <string name="show_visualizer">Prikaži vizualizator</string>
     <string name="show_backdrop">Prikaži ozadje</string>
-    <string name="play_as_type">Predvajaj kot?</string>
-    <string name="visualizer_rationale">Za vizualizacijo zvoka je potrebno dovoljenje za snemanje zvoka.</string>
     <string name="continue_string">Nadaljuj</string>
     <string name="select_all">Izberi vse</string>
     <string name="separate_types">Ločene vrste</string>

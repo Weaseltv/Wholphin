@@ -19,7 +19,6 @@ import com.github.damontecres.wholphin.preferences.HomePagePreferences
 import com.github.damontecres.wholphin.ui.AspectRatio
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.HomeItemFields
-import com.github.damontecres.wholphin.ui.ProgramItemFields
 import com.github.damontecres.wholphin.ui.components.getGenreImageMap
 import com.github.damontecres.wholphin.ui.components.isKidOrUnknown
 import com.github.damontecres.wholphin.ui.formatTypeName
@@ -33,13 +32,9 @@ import com.github.damontecres.wholphin.ui.util.ResStringProvider
 import com.github.damontecres.wholphin.ui.util.StringProvider
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
 import com.github.damontecres.wholphin.util.ApiRequestPager
-import com.github.damontecres.wholphin.util.GetArtistsHandler
 import com.github.damontecres.wholphin.util.GetGenresRequestHandler
 import com.github.damontecres.wholphin.util.GetItemsRequestHandler
-import com.github.damontecres.wholphin.util.GetLiveTvChannelsRequestHandler
 import com.github.damontecres.wholphin.util.GetPersonsHandler
-import com.github.damontecres.wholphin.util.GetProgramsDtoHandler
-import com.github.damontecres.wholphin.util.GetRecordingsRequestHandler
 import com.github.damontecres.wholphin.util.GetStudiosRequestHandler
 import com.github.damontecres.wholphin.util.HomeRowLoadingState
 import com.github.damontecres.wholphin.util.HomeRowLoadingState.Success
@@ -63,7 +58,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -75,33 +72,28 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.client.extensions.libraryApi
-import org.jellyfin.sdk.api.client.extensions.liveTvApi
 import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
-import org.jellyfin.sdk.model.DateTime
 import org.jellyfin.sdk.model.UUID
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
-import org.jellyfin.sdk.model.api.GetProgramsDto
 import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
 import org.jellyfin.sdk.model.api.UserDto
-import org.jellyfin.sdk.model.api.request.GetArtistsRequest
 import org.jellyfin.sdk.model.api.request.GetGenresRequest
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import org.jellyfin.sdk.model.api.request.GetLatestMediaRequest
-import org.jellyfin.sdk.model.api.request.GetLiveTvChannelsRequest
 import org.jellyfin.sdk.model.api.request.GetPersonsRequest
-import org.jellyfin.sdk.model.api.request.GetRecordingsRequest
 import org.jellyfin.sdk.model.api.request.GetStudiosRequest
 import timber.log.Timber
 import java.io.File
 import java.time.LocalDateTime
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -121,6 +113,7 @@ class HomeSettingsService
         private val suggestionService: SuggestionService,
         private val displayPreferencesService: DisplayPreferencesService,
         private val streamingOrderService: StreamingOrderService,
+        private val streamingServices: StreamingServicesCache,
         private val justWatchRowService: JustWatchRowService,
         private val kidHomeCache: KidHomeCache,
     ) {
@@ -330,7 +323,10 @@ class HomeSettingsService
                 rowsElement
                     ?.mapNotNull { row ->
                         try {
-                            jsonParser.decodeFromJsonElement<HomeRowConfig>(row)
+                            // A saved Favorites row for a kind the app no longer shows is dropped like an unknown row
+                            jsonParser
+                                .decodeFromJsonElement<HomeRowConfig>(row)
+                                .takeUnless { it is HomeRowConfig.Favorite && it.kind in RemovedFavoriteKinds }
                         } catch (ex: Exception) {
                             Timber.w(ex, "Unknown row %s", row)
                             // TODO maybe use placeholder instead of null?
@@ -538,7 +534,7 @@ class HomeSettingsService
                 val libraries =
                     async {
                         try {
-                            navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
+                            navDrawerService.getAllUserLibraries(userDto.id)
                         } catch (ex: CancellationException) {
                             throw ex
                         } catch (ex: Exception) {
@@ -805,10 +801,7 @@ class HomeSettingsService
             )
         }
 
-        private suspend fun homeLibraries(userId: UUID): List<Library> {
-            val userDto = serverRepository.currentUserDto?.takeIf { it.id == userId }
-            return navDrawerService.getAllUserLibraries(userId, userDto?.tvAccess ?: false)
-        }
+        private suspend fun homeLibraries(userId: UUID): List<Library> = navDrawerService.getAllUserLibraries(userId)
 
         /** Save approved defaults to both Alpha and customer server-backed Home preferences. */
         private suspend fun syncApprovedLayoutToServer(
@@ -880,12 +873,11 @@ class HomeSettingsService
         suspend fun createDefault(userId: UUID): HomePageResolvedSettings {
             Timber.v("Creating default settings")
             val user = serverRepository.currentUser?.takeIf { it.id == userId }
-            val userDto = serverRepository.currentUserDto?.takeIf { it.id == userId }
             val libraries =
                 if (user != null) {
-                    navDrawerService.getFilteredUserLibraries(user, userDto?.tvAccess ?: false)
+                    navDrawerService.getFilteredUserLibraries(user)
                 } else {
-                    navDrawerService.getAllUserLibraries(userId, userDto?.tvAccess ?: false)
+                    navDrawerService.getAllUserLibraries(userId)
                 }
 
             val includedIds =
@@ -894,24 +886,16 @@ class HomeSettingsService
                     .mapIndexed { index, library ->
                         val parentId = library.itemId
                         val title = getRecentlyAddedTitle(library.name)
-                        if (library.collectionType == CollectionType.LIVETV) {
-                            HomeRowConfigDisplay(
-                                id = index,
-                                title = ResStringProvider(R.string.watch_live),
-                                config = HomeRowConfig.TvPrograms(),
-                            )
-                        } else {
-                            val viewOptions = viewOptionsForCollectionType(library.collectionType)
-                            HomeRowConfigDisplay(
-                                id = index,
-                                title = title,
-                                config =
-                                    HomeRowConfig.RecentlyAdded(
-                                        parentId = parentId,
-                                        viewOptions = viewOptions,
-                                    ),
-                            )
-                        }
+                        val viewOptions = viewOptionsForCollectionType(library.collectionType)
+                        HomeRowConfigDisplay(
+                            id = index,
+                            title = title,
+                            config =
+                                HomeRowConfig.RecentlyAdded(
+                                    parentId = parentId,
+                                    viewOptions = viewOptions,
+                                ),
+                        )
                     }
             val continueWatchingRow =
                 listOf(
@@ -947,7 +931,7 @@ class HomeSettingsService
             val config = userDto.configuration ?: DefaultUserConfiguration
             val libraries =
                 navDrawerService
-                    .getAllUserLibraries(userId, userDto.tvAccess)
+                    .getAllUserLibraries(userId)
                     .sortedBy { homeLibraryOrder(it.name) }
                     .filterNot {
                         it.itemId in config.latestItemsExcludes
@@ -966,14 +950,6 @@ class HomeSettingsService
                             )
                             val config =
                                 when (sectionType) {
-                                    HomeSectionType.ACTIVE_RECORDINGS -> {
-                                        HomeRowConfigDisplay(
-                                            id = id++,
-                                            title = ResStringProvider(R.string.active_recordings),
-                                            config = HomeRowConfig.Recordings(),
-                                        )
-                                    }
-
                                     HomeSectionType.RESUME -> {
                                         HomeRowConfigDisplay(
                                             id = id++,
@@ -988,18 +964,6 @@ class HomeSettingsService
                                             title = ResStringProvider(R.string.next_up),
                                             config = HomeRowConfig.NextUp(),
                                         )
-                                    }
-
-                                    HomeSectionType.LIVE_TV -> {
-                                        if (userDto.tvAccess) {
-                                            HomeRowConfigDisplay(
-                                                id = id++,
-                                                title = ResStringProvider(R.string.watch_live),
-                                                config = HomeRowConfig.TvPrograms(),
-                                            )
-                                        } else {
-                                            null
-                                        }
                                     }
 
                                     HomeSectionType.LATEST_MEDIA -> {
@@ -1156,30 +1120,6 @@ class HomeSettingsService
                     HomeRowConfigDisplay(id, name, config)
                 }
 
-                is HomeRowConfig.Recordings -> {
-                    HomeRowConfigDisplay(
-                        id = id,
-                        title = ResStringProvider(R.string.active_recordings),
-                        config,
-                    )
-                }
-
-                is HomeRowConfig.TvPrograms -> {
-                    HomeRowConfigDisplay(
-                        id = id,
-                        title = ResStringProvider(R.string.watch_live),
-                        config,
-                    )
-                }
-
-                is HomeRowConfig.TvChannels -> {
-                    HomeRowConfigDisplay(
-                        id = id,
-                        title = ResStringProvider(R.string.channels),
-                        config,
-                    )
-                }
-
                 is HomeRowConfig.Suggestions -> {
                     val title = getItemName(R.string.suggestions_for, config.parentId)
                     HomeRowConfigDisplay(
@@ -1213,7 +1153,73 @@ class HomeSettingsService
                 ResStringProvider(R.string.unknown)
             }
 
-        private val mediaLibraries = java.util.concurrent.ConcurrentHashMap<Pair<UUID, UUID>, UUID>()
+        /** A title's library (by member and the title's show, folder or self) and when it was looked up */
+        private class KnownLibrary(
+            val id: UUID,
+            val atMillis: Long,
+        ) {
+            fun saved() = SavedLibrary(id.toString(), atMillis)
+        }
+
+        private val mediaLibraries = java.util.concurrent.ConcurrentHashMap<Pair<UUID, UUID>, KnownLibrary>()
+
+        /**
+         * Speed plan step 13 (2026-11): the lookups above used to last only until the app closed, so the first Home
+         * after every start asked the server once per Continue Watching and Watchlist card. They are now also saved
+         * on the TV, one file per member (a member's id belongs to one server), and read back once per app start.
+         * A saved answer is used for [LIBRARY_KEEP]; after that the title is looked up again, in case it moved.
+         * The answer only sets a card's look and label: it never decides what a kid may see.
+         */
+        private val savedLibrariesRead =
+            java.util.concurrent.ConcurrentHashMap
+                .newKeySet<UUID>()
+        private val savedLibrariesLock = Mutex()
+
+        private fun savedLibrariesFile(userId: UUID) = File(File(context.cacheDir, "item-libraries"), "$userId.json")
+
+        private fun KnownLibrary.fresh() = clock() - atMillis in 0 until LIBRARY_KEEP.inWholeMilliseconds
+
+        private suspend fun readSavedLibraries(userId: UUID) {
+            if (userId in savedLibrariesRead) return
+            savedLibrariesLock.withLock {
+                if (!savedLibrariesRead.add(userId)) return
+                withContext(WholphinDispatchers.IO) {
+                    try {
+                        val file = savedLibrariesFile(userId)
+                        if (file.exists()) {
+                            jsonParser.decodeFromString<Map<String, SavedLibrary>>(file.readText()).forEach { (ancestorId, saved) ->
+                                val known = KnownLibrary(UUID.fromString(saved.library), saved.at)
+                                if (known.fresh()) mediaLibraries.putIfAbsent(userId to UUID.fromString(ancestorId), known)
+                            }
+                        }
+                    } catch (ex: Exception) {
+                        Timber.w(ex, "Couldn't read the saved item libraries")
+                    }
+                }
+            }
+        }
+
+        private suspend fun writeSavedLibraries(userId: UUID) {
+            savedLibrariesLock.withLock {
+                withContext(WholphinDispatchers.IO) {
+                    try {
+                        val entries =
+                            mediaLibraries.entries
+                                .filter { it.key.first == userId && it.value.fresh() }
+                                .sortedByDescending { it.value.atMillis }
+                                .take(MAX_SAVED_LIBRARIES)
+                                .associate { it.key.second.toString() to it.value.saved() }
+                        val file = savedLibrariesFile(userId)
+                        file.parentFile?.mkdirs()
+                        val temp = File(file.parentFile, file.name + ".tmp")
+                        temp.writeText(jsonParser.encodeToString(entries))
+                        if (!temp.renameTo(file)) temp.delete()
+                    } catch (ex: Exception) {
+                        Timber.w(ex, "Couldn't save the item libraries")
+                    }
+                }
+            }
+        }
 
         /** Resolve real library membership; media type alone cannot distinguish Sports or Comedy. */
         suspend fun resolveItemLibraries(
@@ -1223,6 +1229,10 @@ class HomeSettingsService
         ): List<BaseItem> {
             if (BuildConfig.FLAVOR != "weaselfin") return items
             val libraryIds = libraries.map { it.itemId }.toSet()
+            readSavedLibraries(userId)
+            val lookedUp =
+                java.util.concurrent.atomic
+                    .AtomicBoolean(false)
             return coroutineScope {
                 items
                     .map { item ->
@@ -1230,7 +1240,7 @@ class HomeSettingsService
                             val ancestorId = item.data.seriesId ?: item.data.parentId ?: item.id
                             val key = userId to ancestorId
                             val direct = listOfNotNull(item.data.parentId, ancestorId).firstOrNull { it in libraryIds }
-                            val cached = mediaLibraries[key]?.takeIf { it in libraryIds }
+                            val cached = mediaLibraries[key]?.takeIf { it.fresh() }?.id?.takeIf { it in libraryIds }
                             val libraryId =
                                 direct ?: cached ?: try {
                                     api.libraryApi
@@ -1238,7 +1248,10 @@ class HomeSettingsService
                                         .content
                                         .firstOrNull { it.id in libraryIds }
                                         ?.id
-                                        ?.also { mediaLibraries[key] = it }
+                                        ?.also {
+                                            mediaLibraries[key] = KnownLibrary(it, clock())
+                                            lookedUp.set(true)
+                                        }
                                 } catch (ex: CancellationException) {
                                     throw ex
                                 } catch (ex: Exception) {
@@ -1248,7 +1261,7 @@ class HomeSettingsService
                             item.copy(libraryId = libraryId)
                         }
                     }.awaitAll()
-            }
+            }.also { if (lookedUp.get()) writeSavedLibraries(userId) }
         }
 
         /**
@@ -1695,7 +1708,7 @@ class HomeSettingsService
                         }
                     val items =
                         if (streaming) {
-                            streamingOrderService.sort(userDto.id, StreamingCollections.fetch(api, userDto.id)).map {
+                            streamingOrderService.sort(userDto.id, streamingServices.get(api, userDto.id)).map {
                                 // Collection unwatched counts include episodes; these tiles represent services.
                                 BaseItem(
                                     it.copy(
@@ -1758,29 +1771,6 @@ class HomeSettingsService
                                 GetPersonsHandler.execute(api, request).toBaseItems()
                             }
 
-                            BaseItemKind.MUSIC_ARTIST -> {
-                                val request =
-                                    GetArtistsRequest(
-                                        userId = userDto.id,
-                                        limit = limit,
-                                        fields = HomeItemFields,
-                                        isFavorite = true,
-                                    )
-                                if (usePaging) {
-                                    ApiRequestPager(
-                                        api,
-                                        request,
-                                        GetArtistsHandler,
-                                        scope,
-                                        useSeriesForPrimary = row.viewOptions.useSeries,
-                                    ).init()
-                                } else {
-                                    GetArtistsHandler
-                                        .execute(api, request)
-                                        .toBaseItems(row.viewOptions.useSeries)
-                                }
-                            }
-
                             else -> {
                                 val fields =
                                     if (row.kind == BaseItemKind.BOX_SET) {
@@ -1815,109 +1805,6 @@ class HomeSettingsService
                     resultList.let {
                         Success(
                             title,
-                            it,
-                            row.viewOptions,
-                            rowType = row,
-                            showViewMore = it.size >= limit,
-                        )
-                    }
-                }
-
-                is HomeRowConfig.Recordings -> {
-                    val request =
-                        GetRecordingsRequest(
-                            userId = userDto.id,
-                            isInProgress = true,
-                            fields = HomeItemFields,
-                            limit = limit,
-                            enableImages = true,
-                            enableUserData = true,
-                            enableTotalRecordCount = false,
-                        )
-                    if (usePaging) {
-                        ApiRequestPager(
-                            api,
-                            request,
-                            GetRecordingsRequestHandler,
-                            scope,
-                            useSeriesForPrimary = row.viewOptions.useSeries,
-                        ).init()
-                    } else {
-                        api.liveTvApi
-                            .getRecordings(request)
-                            .content.items
-                            .map { BaseItem(it, row.viewOptions.useSeries) }
-                    }.let {
-                        Success(
-                            ResStringProvider(R.string.active_recordings),
-                            it,
-                            row.viewOptions,
-                            rowType = row,
-                            showViewMore = it.size >= limit,
-                        )
-                    }
-                }
-
-                is HomeRowConfig.TvPrograms -> {
-                    val request =
-                        GetProgramsDto(
-                            userId = userDto.id,
-                            fields = ProgramItemFields,
-                            limit = limit,
-                            enableUserData = true,
-                            enableImages = true,
-                            enableImageTypes = listOf(ImageType.PRIMARY, ImageType.LOGO),
-                            imageTypeLimit = 1,
-                            isAiring = true,
-                            minEndDate = DateTime.now().plusMinutes(1),
-                        )
-                    if (usePaging) {
-                        ApiRequestPager(
-                            api,
-                            request,
-                            GetProgramsDtoHandler,
-                            scope,
-                            useSeriesForPrimary = row.viewOptions.useSeries,
-                        ).init()
-                    } else {
-                        api.liveTvApi
-                            .getPrograms(request)
-                            .content.items
-                            .map { BaseItem(it, row.viewOptions.useSeries) }
-                    }.let {
-                        Success(
-                            ResStringProvider(R.string.watch_live),
-                            it,
-                            row.viewOptions,
-                            rowType = row,
-                            showViewMore = it.size >= limit,
-                        )
-                    }
-                }
-
-                is HomeRowConfig.TvChannels -> {
-                    val request =
-                        GetLiveTvChannelsRequest(
-                            userId = userDto.id,
-                            fields = HomeItemFields,
-                            limit = limit,
-                            enableImages = true,
-                        )
-                    if (usePaging) {
-                        ApiRequestPager(
-                            api,
-                            request,
-                            GetLiveTvChannelsRequestHandler,
-                            scope,
-                            useSeriesForPrimary = row.viewOptions.useSeries,
-                        ).init()
-                    } else {
-                        api.liveTvApi
-                            .getLiveTvChannels(request)
-                            .toBaseItems(api, row.viewOptions.useSeries)
-                    }.let {
-                        Success(
-                            ResStringProvider(R.string.channels),
                             it,
                             row.viewOptions,
                             rowType = row,
@@ -1990,6 +1877,19 @@ data class HomeRowConfigDisplay(
 /** How long a kids Home load may show nothing before the loading picture goes anyway (PR #98 review rounds 1 and 2) */
 private val KID_LOAD_TIMEOUT = 30.seconds
 
+/** How long a saved "which library is this title in" answer is used before the title is looked up again */
+private val LIBRARY_KEEP = 7.days
+
+/** The most answers saved per member, newest first */
+private const val MAX_SAVED_LIBRARIES = 2000
+
+/** One saved answer of [HomeSettingsService.resolveItemLibraries]: the library's id and when it was looked up */
+@Serializable
+internal data class SavedLibrary(
+    val library: String,
+    val at: Long,
+)
+
 /** Nothing to show yet after [KID_LOAD_TIMEOUT]: the loading picture goes; rows still loading fill in when they arrive */
 class KidHomeSlow : IllegalStateException("Home is taking longer than usual to load.")
 
@@ -2055,18 +1955,17 @@ data class HomePageResolvedSettings(
 }
 
 // https://github.com/jellyfin/jellyfin/blob/v10.11.6/src/Jellyfin.Database/Jellyfin.Database.Implementations/Enums/HomeSectionType.cs
+// The server's two TV-tuner sections are left out: the app has no rows for them, so fromString returns null and they are skipped.
 enum class HomeSectionType(
     val serialName: String,
 ) {
     NONE("none"),
     SMALL_LIBRARY_TILES("smalllibrarytitles"),
     LIBRARY_BUTTONS("librarybuttons"),
-    ACTIVE_RECORDINGS("activerecordings"),
     RESUME("resume"),
     RESUME_AUDIO("resumeaudio"),
     LATEST_MEDIA("latestmedia"),
     NEXT_UP("nextup"),
-    LIVE_TV("livetv"),
     RESUME_BOOK("resumebook"),
     ;
 
@@ -2104,16 +2003,11 @@ private val Library?.itemFields: List<ItemFields>
 
 private val HomeItemFieldsBoxSets get() = HomeItemFields + listOf(ItemFields.CHILD_COUNT)
 
+/** Kinds a saved [HomeRowConfig.Favorite] row may still name although their pages were removed with Music. */
+private val RemovedFavoriteKinds = setOf(BaseItemKind.AUDIO, BaseItemKind.MUSIC_ALBUM, BaseItemKind.MUSIC_ARTIST)
+
 fun viewOptionsForCollectionType(collectionType: CollectionType?): HomeRowViewOptions =
     when (collectionType) {
-        CollectionType.MUSIC,
-        -> {
-            HomeRowViewOptions(
-                heightDp = if (BuildConfig.FLAVOR == "weaselfin") BuildConfig.DEFAULT_CARD_HEIGHT_DP else Cards.HEIGHT_EPISODE,
-                aspectRatio = if (BuildConfig.FLAVOR == "weaselfin") AspectRatio.TALL else AspectRatio.SQUARE,
-            )
-        }
-
         CollectionType.PHOTOS,
         CollectionType.HOMEVIDEOS,
         CollectionType.MUSICVIDEOS,
@@ -2125,17 +2019,14 @@ fun viewOptionsForCollectionType(collectionType: CollectionType?): HomeRowViewOp
             )
         }
 
-        CollectionType.LIVETV,
-        -> {
-            HomeRowViewOptions.liveTvDefault
-        }
-
         CollectionType.MOVIES,
         CollectionType.TVSHOWS,
         CollectionType.BOXSETS,
         CollectionType.BOOKS,
         CollectionType.PLAYLISTS,
         CollectionType.FOLDERS,
+        CollectionType.LIVETV,
+        CollectionType.MUSIC,
         CollectionType.UNKNOWN,
         null,
         -> {

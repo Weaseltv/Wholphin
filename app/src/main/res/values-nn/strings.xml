@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">Om</string>
-    <string name="active_recordings">Aktive opptak</string>
     <string name="add_favorite">Favoritt</string>
     <string name="add_server">Legg til server</string>
     <string name="add_user">Legg til brukar</string>
@@ -9,8 +8,6 @@
     <string name="birthplace">Fødestad</string>
     <string name="bitrate">Bitrate</string>
     <string name="born">Fødd</string>
-    <string name="cancel_recording">Avbryt opptak</string>
-    <string name="cancel_series_recording">Avbryt opptak av serie</string>
     <string name="cancel">Avbryt</string>
     <string name="chapters">Kapittel</string>
     <string name="choose_stream">Vel %1$s</string>
@@ -55,7 +52,6 @@
     <string name="jump_letters">#ABCDEFGHIJKLMNOPQRSTUVWXYZÆØÅ</string>
     <string name="library">Bibliotek</string>
     <string name="license_info">Lisensinformasjon</string>
-    <string name="live_tv">Direkte-TV</string>
     <string name="loading">Lastar…</string>
     <string name="mark_entire_series_as_played">Marker heile serien som sett?</string>
     <string name="mark_entire_series_as_unplayed">Marker heile serien som usett?</string>
@@ -70,7 +66,6 @@
     <string name="no_data">Ingen data</string>
     <string name="no_results">Ingen resultat</string>
     <string name="no_servers_found">Ingen servarar funne</string>
-    <string name="no_scheduled_recordings">Ingen planlagde opptak</string>
     <string name="no_update_available">Ingen oppdatering tilgjengeleg</string>
     <string name="outro">Outro</string>
     <string name="path">Filveg</string>
@@ -89,11 +84,8 @@
     <string name="recap">Samandrag</string>
     <string name="recently_added_in">Sist lagt til i %1$s</string>
     <string name="recently_added">Sist lagt til</string>
-    <string name="recently_recorded">Sist tatt opp</string>
     <string name="recently_released">Sist utgitt</string>
     <string name="recommended">Tilrådd</string>
-    <string name="record_program">Ta opp program</string>
-    <string name="record_series">Ta opp serie</string>
     <string name="remove_favorite">Fjern favoritt</string>
     <string name="restart">Start på nytt</string>
     <string name="resume">Hald fram</string>
@@ -126,8 +118,6 @@
         <item quantity="one">Trailerar</item>
         <item quantity="other">Trailerar</item>
     </plurals>
-    <string name="tv_dvr_schedule">DVR-plan</string>
-    <string name="tv_guide">Programoversikt</string>
     <string name="tv_season">Sesong</string>
     <string name="tv_seasons">Sesongar</string>
     <string name="tv_shows_title">TV-seriar</string>
@@ -138,7 +128,6 @@
     <string name="video_scale">Videoskalering</string>
     <string name="video">Video</string>
     <string name="videos">Videoar</string>
-    <string name="watch_live">Sjå direkte</string>
     <plurals name="years_old">
         <item quantity="other">%1$d år gammal</item>
     </plurals>
@@ -334,10 +323,6 @@
     <string name="bit_unit">bit</string>
     <string name="sample_rate_unit">Hz</string>
     <string name="show_titles">Vis titlar</string>
-    <string name="live_tv_repeat">Repeter</string>
-    <string name="favorite_channels_at_beginning">Vis favorittkanalar først</string>
-    <string name="sort_channels_recently_watched">Sorter kanalar etter sist sett</string>
-    <string name="color_code_programs">Fargekod program</string>
     <string name="subtitle_delay">Undertekstforseinking</string>
     <string name="backdrop_display">Bakgrunnsstil</string>
     <string name="none">Ingen</string>

@@ -16,6 +16,13 @@ import javax.inject.Singleton
  * Provides image URLs for items with several convenience methods
  *
  * This is available in compose UI code via [com.github.damontecres.wholphin.ui.LocalImageUrlService]
+ *
+ * Addresses carry the image's tag when the item's data has it (speed plan, owner's go-ahead 2026-11-11). The server
+ * makes the tag from the picture's file path and the date it recorded for the picture, so a tagged address always
+ * means the same picture and the copy saved on the device is shown without asking the server first
+ * (`WholphinCacheStrategy`). That date is also what the server compared when the app asked "has this changed?", so a
+ * replaced picture is noticed in the same cases as before: when fresh item data arrives with its new tag. An address
+ * without a tag is still checked with the server every time.
  */
 @Singleton
 class ImageUrlService
@@ -35,42 +42,29 @@ class ImageUrlService
             parentBackdropId: UUID? = null,
             fillWidth: Int? = null,
             fillHeight: Int? = null,
-        ): String? =
-            when (imageType) {
+            seriesPrimaryTag: String? = null,
+            seriesLogoTag: String? = null,
+            parentThumbTag: String? = null,
+            parentBackdropTag: String? = null,
+        ): String? {
+            // The series' backdrop tag is only known when the series is also the item the backdrop is inherited from
+            val seriesBackdropTag = parentBackdropTag.takeIf { seriesId != null && seriesId == parentBackdropId }
+            val seriesTag = seriesPrimaryTag.takeIf { imageType == ImageType.PRIMARY }
+            return when (imageType) {
                 ImageType.LOGO -> {
                     if (seriesId != null && (itemType == BaseItemKind.EPISODE || itemType == BaseItemKind.SEASON)) {
-                        getItemImageUrl(
-                            itemId = seriesId,
-                            imageType = imageType,
-                            fillWidth = fillWidth,
-                            fillHeight = fillHeight,
-                        )
+                        url(seriesId, imageType, fillWidth, fillHeight, seriesLogoTag)
                     } else {
-                        getItemImageUrl(
-                            itemId = itemId,
-                            imageType = imageType,
-                            fillWidth = fillWidth,
-                            fillHeight = fillHeight,
-                        )
+                        url(itemId, imageType, fillWidth, fillHeight, imageTags[imageType])
                     }
                 }
 
                 ImageType.BACKDROP,
                 -> {
                     if (seriesId != null && (itemType == BaseItemKind.EPISODE || itemType == BaseItemKind.SEASON)) {
-                        getItemImageUrl(
-                            itemId = seriesId,
-                            imageType = imageType,
-                            fillWidth = fillWidth,
-                            fillHeight = fillHeight,
-                        )
+                        url(seriesId, imageType, fillWidth, fillHeight, seriesBackdropTag)
                     } else if (backdropTags.isNotEmpty()) {
-                        getItemImageUrl(
-                            itemId = itemId,
-                            imageType = imageType,
-                            fillWidth = fillWidth,
-                            fillHeight = fillHeight,
-                        )
+                        url(itemId, imageType, fillWidth, fillHeight, backdropTags.first())
                     } else {
                         null
                     }
@@ -81,56 +75,26 @@ class ImageUrlService
                         (itemType == BaseItemKind.EPISODE || itemType == BaseItemKind.SEASON)
                     ) {
                         // Use parent's thumb
-                        getItemImageUrl(
-                            itemId = parentThumbId,
-                            imageType = imageType,
-                            fillWidth = fillWidth,
-                            fillHeight = fillHeight,
-                        )
+                        url(parentThumbId, imageType, fillWidth, fillHeight, parentThumbTag)
                     } else if (useSeriesForPrimary && parentBackdropId != null &&
                         (itemType == BaseItemKind.EPISODE || itemType == BaseItemKind.SEASON)
                     ) {
                         // No parent thumb, so use backdrop instead
-                        getItemImageUrl(
-                            itemId = parentBackdropId,
-                            imageType = ImageType.BACKDROP,
-                            fillWidth = fillWidth,
-                            fillHeight = fillHeight,
-                        )
+                        url(parentBackdropId, ImageType.BACKDROP, fillWidth, fillHeight, parentBackdropTag)
                     } else if (parentThumbId != null && itemType == BaseItemKind.SEASON && imageType !in imageTags) {
-                        getItemImageUrl(
-                            itemId = parentThumbId,
-                            imageType = imageType,
-                            fillWidth = fillWidth,
-                            fillHeight = fillHeight,
-                        )
+                        url(parentThumbId, imageType, fillWidth, fillHeight, parentThumbTag)
                     } else if (useSeriesForPrimary &&
                         parentThumbId == null &&
                         itemType == BaseItemKind.EPISODE &&
                         imageType !in imageTags
                     ) {
                         // Workaround to fall back to episode image if no parent thumb
-                        getItemImageUrl(
-                            itemId = itemId,
-                            imageType = ImageType.PRIMARY,
-                            fillWidth = fillWidth,
-                            fillHeight = fillHeight,
-                        )
+                        url(itemId, ImageType.PRIMARY, fillWidth, fillHeight, imageTags[ImageType.PRIMARY])
                     } else if (imageType !in imageTags && backdropTags.isNotEmpty()) {
                         // If no thumb, use backdrop if available
-                        getItemImageUrl(
-                            itemId = itemId,
-                            imageType = ImageType.BACKDROP,
-                            fillWidth = fillWidth,
-                            fillHeight = fillHeight,
-                        )
+                        url(itemId, ImageType.BACKDROP, fillWidth, fillHeight, backdropTags.first())
                     } else {
-                        getItemImageUrl(
-                            itemId = itemId,
-                            imageType = imageType,
-                            fillWidth = fillWidth,
-                            fillHeight = fillHeight,
-                        )
+                        url(itemId, imageType, fillWidth, fillHeight, imageTags[imageType])
                     }
                 }
 
@@ -140,38 +104,27 @@ class ImageUrlService
                     if (useSeriesForPrimary && seriesId != null &&
                         (itemType == BaseItemKind.EPISODE || itemType == BaseItemKind.SEASON)
                     ) {
-                        getItemImageUrl(
-                            itemId = seriesId,
-                            imageType = imageType,
-                            fillWidth = fillWidth,
-                            fillHeight = fillHeight,
-                        )
+                        url(seriesId, imageType, fillWidth, fillHeight, seriesTag)
                     } else if (seriesId != null && itemType == BaseItemKind.SEASON && imageType !in imageTags) {
-                        getItemImageUrl(
-                            itemId = seriesId,
-                            imageType = imageType,
-                            fillWidth = fillWidth,
-                            fillHeight = fillHeight,
-                        )
+                        url(seriesId, imageType, fillWidth, fillHeight, seriesTag)
                     } else {
-                        getItemImageUrl(
-                            itemId = itemId,
-                            imageType = imageType,
-                            fillWidth = fillWidth,
-                            fillHeight = fillHeight,
-                        )
+                        url(itemId, imageType, fillWidth, fillHeight, imageTags[imageType])
                     }
                 }
 
                 else -> {
-                    getItemImageUrl(
-                        itemId = itemId,
-                        imageType = imageType,
-                        fillWidth = fillWidth,
-                        fillHeight = fillHeight,
-                    )
+                    url(itemId, imageType, fillWidth, fillHeight, imageTags[imageType])
                 }
             }
+        }
+
+        private fun url(
+            itemId: UUID,
+            imageType: ImageType,
+            fillWidth: Int?,
+            fillHeight: Int?,
+            tag: String?,
+        ): String? = getItemImageUrl(itemId = itemId, imageType = imageType, fillWidth = fillWidth, fillHeight = fillHeight, tag = tag)
 
         fun getItemImageUrl(
             item: BaseItem?,
@@ -193,6 +146,10 @@ class ImageUrlService
                     backdropTags = item.data.backdropImageTags.orEmpty(),
                     fillWidth = fillWidth,
                     fillHeight = fillHeight,
+                    seriesPrimaryTag = item.data.seriesPrimaryImageTag,
+                    seriesLogoTag = item.data.parentLogoImageTag.takeIf { item.data.parentLogoItemId == item.data.seriesId },
+                    parentThumbTag = item.data.parentThumbImageTag,
+                    parentBackdropTag = item.data.parentBackdropImageTags?.firstOrNull(),
                 )
             } else {
                 null

@@ -113,7 +113,6 @@ class StreamingCollectionViewModelTest {
             keyValueService = KeyValueService(dataStore),
             libraryDisplayInfoDao = displayInfo,
             imageUrlService = mockk(relaxed = true),
-            musicService = mockk(relaxed = true),
             serverReportService = mockk(relaxed = true),
             filterOptionCache = mockk(relaxed = true),
             quickListService = mockk(relaxed = true),

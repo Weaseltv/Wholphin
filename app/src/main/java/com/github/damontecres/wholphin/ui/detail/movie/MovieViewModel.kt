@@ -29,6 +29,7 @@ import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.deleteItem
 import com.github.damontecres.wholphin.ui.ItemRowFields
 import com.github.damontecres.wholphin.ui.components.isKidOrUnknown
+import com.github.damontecres.wholphin.ui.detail.ResumeReload
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.letNotEmpty
@@ -86,8 +87,11 @@ class MovieViewModel
         /** The kid title page (owner mockup 2026-10-23) for a kid or unknown session (fail closed); adults keep theirs */
         val kidPage: Boolean = isKidOrUnknown(serverRepository.currentUser)
 
+        private val resumeReload: ResumeReload
+
         init {
-            init()
+            resumeReload =
+                ResumeReload(viewModelScope, init(), failed = { state.value.loading is DataLoadingState.Error }) { init() }
             viewModelScope.launchDefault {
                 mediaManagementService.collectCanDelete(state.map { it.movie }) { canDelete ->
                     _state.update {
@@ -96,6 +100,9 @@ class MovieViewModel
                 }
             }
         }
+
+        /** The page resumed: reload, except on the resume that is the page opening ([ResumeReload]) */
+        fun onResume() = resumeReload.onResume()
 
         private suspend fun getMovie(): BaseItem {
             val item =
@@ -131,7 +138,10 @@ class MovieViewModel
                         chapters = chapters,
                     )
                 }
-                backdropService.submit(movie)
+                // Speed plan step 4 (2026-11): the page no longer waits for the backdrop, which pauses 500 ms and then
+                // works out its colours. It arrives on its own, as it does on Home
+                // Step 5: and without the half-second pause meant for moving across cards
+                viewModelScope.launchIO { backdropService.submit(movie, pauseFirst = false) }
                 viewModelScope.launchIO {
                     trailerService.getLocalTrailers(movie).letNotEmpty { localTrailers ->
                         _state.update {

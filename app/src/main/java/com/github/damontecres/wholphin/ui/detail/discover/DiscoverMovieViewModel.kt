@@ -18,10 +18,12 @@ import com.github.damontecres.wholphin.data.model.SeerrPermission
 import com.github.damontecres.wholphin.data.model.Trailer
 import com.github.damontecres.wholphin.data.model.hasPermission
 import com.github.damontecres.wholphin.services.BackdropService
+import com.github.damontecres.wholphin.services.HomeFreshness
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.SeerrServerRepository
 import com.github.damontecres.wholphin.services.SeerrService
 import com.github.damontecres.wholphin.services.SeerrUserConfig
+import com.github.damontecres.wholphin.ui.detail.ResumeReload
 import com.github.damontecres.wholphin.ui.equalsNotNull
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.launchDefault
@@ -76,9 +78,11 @@ class DiscoverMovieViewModel
         val request4kEnabled =
             seerrServerRepository.current.map { it?.request4kMovieEnabled ?: false }
 
-        init {
-            init()
-        }
+        private val resumeReload =
+            ResumeReload(viewModelScope, init(), failed = { state.value.movie is DataLoadingState.Error }) { init() }
+
+        /** The page resumed: reload, except on the resume that is the page opening ([ResumeReload]) */
+        fun onResume() = resumeReload.onResume()
 
         private fun fetchAndSetItem(): Deferred<MovieDetails?> =
             viewModelScope.async(WholphinDispatchers.IO) {
@@ -101,7 +105,10 @@ class DiscoverMovieViewModel
                     val movie = seerrService.api.moviesApi.movieMovieIdGet(movieId = item.id)
                     _state.update { it.copy(movie = DataLoadingState.Success(movie)) }
                     val discoveredItem = seerrService.createDiscoverItem(movie)
-                    backdropService.submit(discoveredItem)
+                    // Speed plan step 4 (2026-11): the page no longer waits for the backdrop, which pauses 500 ms and then
+                    // works out its colours. It arrives on its own, as it does on Home
+                    // Step 5: and without the half-second pause meant for moving across cards
+                    viewModelScope.launchIO { backdropService.submit(discoveredItem, pauseFirst = false) }
 
                     updateCanCancel()
 
@@ -193,6 +200,8 @@ class DiscoverMovieViewModel
                 }
                 try {
                     val submittingScope = requestStatusRepository.state.value.scope
+                    // Home loads again after a request is made or changed (speed plan step 16)
+                    HomeFreshness.changed()
                     val created =
                         seerrService.api.requestApi.requestPost(
                             RequestPostRequest(
@@ -239,6 +248,7 @@ class DiscoverMovieViewModel
                         // TODO handle multiple requests? Or just delete self's request?
                         try {
                             val deletingScope = requestStatusRepository.state.value.scope
+                            HomeFreshness.changed()
                             seerrService.api.requestApi.requestRequestIdDelete(it.id.toString())
                             requestStatusRepository.forget(it.id, deletingScope)
                         } catch (ex: kotlinx.coroutines.CancellationException) {

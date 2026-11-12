@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">Über diese App</string>
-    <string name="active_recordings">Aktive Aufnahmen</string>
     <string name="add_favorite">Zu Favoriten hinzufügen</string>
     <string name="add_server">Server hinzufügen</string>
     <string name="add_user">Benutzer hinzufügen</string>
@@ -9,8 +8,6 @@
     <string name="birthplace">Geburtsort</string>
     <string name="bitrate">Bitrate</string>
     <string name="born">Geboren</string>
-    <string name="cancel_recording">Aufnahme abbrechen</string>
-    <string name="cancel_series_recording">Serienaufnahme abbrechen</string>
     <string name="cancel">Abbrechen</string>
     <string name="chapters">Kapitel</string>
     <string name="collection">Sammlung</string>
@@ -29,13 +26,11 @@
     <string name="name">Name</string>
     <string name="no_data">Keine Daten</string>
     <string name="no_results">Keine Ergebnisse</string>
-    <string name="no_scheduled_recordings">Keine geplanten Aufnahmen</string>
     <string name="no_update_available">Kein Update verfügbar</string>
     <string name="path">Pfad</string>
     <string name="people_title">Personen</string>
     <string name="recently_added_in">Zuletzt hinzugefügt in %1$s</string>
     <string name="recently_added">Zuletzt hinzugefügt</string>
-    <string name="recently_recorded">Zuletzt aufgenommen</string>
     <string name="recommended">Empfohlen</string>
     <string name="restart">Neustarten</string>
     <string name="resume">Fortsetzen</string>
@@ -57,7 +52,6 @@
     <string name="unknown">Unbekannt</string>
     <string name="updates">Aktualisierungen</string>
     <string name="version">Version</string>
-    <string name="watch_live">Live ansehen</string>
     <plurals name="years_old">
         <item quantity="one">%1$d Jahr alt</item>
         <item quantity="other">%1$d Jahre alt</item>
@@ -128,8 +122,6 @@
     <string name="queue">Warteschlange</string>
     <string name="recap">Rückblick</string>
     <string name="recently_released">Zuletzt veröffentlicht</string>
-    <string name="record_program">Programm aufnehmen</string>
-    <string name="record_series">Serie aufnehmen</string>
     <string name="remove_favorite">Nicht favorisieren</string>
     <string name="search_and_download"><![CDATA[Suchen & Herunterladen]]></string>
     <string name="show_debug_info">Debug-Infos anzeigen</string>
@@ -147,7 +139,6 @@
     <string name="suggestions">Vorschläge</string>
     <string name="switch_user">Wechseln</string>
     <string name="top_unwatched">Am besten bewertet ungesehen</string>
-    <string name="tv_guide">Guide</string>
     <string name="play_with_transcoding">Mit Transcoding wiedergeben</string>
     <string name="show_clock">Uhr anzeigen</string>
     <string name="create_playlist">Neue Playlist erstellen</string>
@@ -182,7 +173,6 @@
     <string name="installed_version">Installierte Version</string>
     <string name="max_homepage_items">Max. Anzahl Objekte je Startseiten-Reihe</string>
     <string name="jump_letters">#ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ</string>
-    <string name="live_tv">Live-TV</string>
     <string name="outro">Abspann</string>
     <string name="play_count">Wiedergabeanzahl</string>
     <string name="playback_debug_info">Wiedergabe Debug-Infos anzeigen</string>
@@ -192,7 +182,6 @@
     <string name="show">Zeigen</string>
     <string name="sort_by_name">Name</string>
     <string name="studios">Studios</string>
-    <string name="tv_dvr_schedule">Aufnahmeplan</string>
     <string name="video_scale">Videoskalierung</string>
     <string name="video">Video</string>
     <string name="videos">Videos</string>
@@ -322,7 +311,6 @@
     <string name="yes">Ja</string>
     <string name="no">Nein</string>
     <string name="show_titles">Titel anzeigen</string>
-    <string name="live_tv_repeat">Wiederholen</string>
     <string name="general">Allgemein</string>
     <string name="no_trailers">Keine Trailer</string>
     <string name="play_trailer">Trailer abspielen</string>
@@ -382,8 +370,6 @@
     <string name="upcoming_tv">Kommende Serien</string>
     <string name="force_dovi_profile_7">Direktes Abspielen von Dolby Vision Profil 7</string>
     <string name="subtitle_delay">Untertitelverzögerung</string>
-    <string name="sort_channels_recently_watched">Sortiere Kanäle nach zuletzt geschaut</string>
-    <string name="favorite_channels_at_beginning">Favoriten als Erstes anzeigen</string>
     <string name="backdrop_display">Hintergrundstil</string>
     <string name="refresh_rate_switching">Bildwiederholraten-Anpassung</string>
     <string name="voice_error_speech_timeout">Keine Spracheingabe erkannt</string>
@@ -394,7 +380,6 @@
     <string name="voice_error_timeout">Spracherkennung ist abgelaufen</string>
     <string name="video_range">Videobereich</string>
     <string name="video_range_type">Videobereich-Typ</string>
-    <string name="color_code_programs">Farbkorrektur-Software</string>
     <string name="clear_track_choices">Spur-Auswahl löschen</string>
     <string name="remove_seerr_server">Seerr-Server entfernen</string>
     <string name="software_decoding_av1">AV1 Software-Dekodierung</string>
@@ -554,29 +539,10 @@
     <string name="background_style_boxed">Kasten</string>
     <string name="mixer">Mischer</string>
     <string name="select_all">Alle auswählen</string>
-    <string name="albums">Alben</string>
-    <string name="artists">Interpreten</string>
-    <string name="songs">Lieder</string>
-    <string name="go_to_artist">Zu Interpret wechseln</string>
-    <string name="now_playing">Läuft gerade</string>
-    <string name="instant_mix">Sofortmix</string>
-    <string name="go_to_album">Zu Album wechseln</string>
-    <string name="add_to_queue">Zur Warteschlange hinzufügen</string>
     <string name="album_artist">Albumkünstler</string>
     <string name="album">Album</string>
-    <string name="popular_songs">Beliebte Lieder</string>
-    <string name="play_next">Als Nächstes abspielen</string>
     <string name="music_videos">Musikvideos</string>
-    <string name="lyrics">Liedtexte</string>
-    <string name="hide_lyrics">Liedtexte ausblenden</string>
-    <string name="show_lyrics">Liedtexte einblenden</string>
-    <string name="song_has_lyrics">Lied hat Liedtext</string>
-    <string name="remove_from_queue">Aus Warteschlange entfernen</string>
-    <string name="show_album_cover">Albumcover anzeigen</string>
-    <string name="show_visualizer">Visualizer anzeigen</string>
     <string name="show_backdrop">Hintergrundbild anzeigen</string>
-    <string name="play_as_type">Abspielen als?</string>
-    <string name="visualizer_rationale">Die Visualisierung der aktuellen Wiedergabe erfordert die Berechtigung zur Audioaufzeichnung.</string>
     <string name="continue_string">Fortfahren</string>
     <string name="separate_types">Verschiedene Arten</string>
     <string name="prefer_logos">Bevorzugt Logo statt Titel anzeigen</string>
@@ -687,15 +653,12 @@
     <string name="any_language">Beliebige Sprache</string>
     <string name="hash_matches">Hash Übereinstimmungen</string>
     <string name="subtitles_hearing_impaired">SDH</string>
-    <string name="programs">TV Programme</string>
-    <string name="recordings">Aufnahmen</string>
     <string name="folders_title">Ordner</string>
     <string name="books">Bücher</string>
     <string name="audio_books">Hörbücher</string>
     <string name="d_pad_seek_mode_title">D-Pad Suchmodus</string>
     <string name="dpad_seek_mode_trickplay">Trickplay Vorschau</string>
     <string name="user_views">Benutzeransicht</string>
-    <string name="appears_on">Erscheint auf</string>
     <string name="dpad_seek_mode_minimal">Minimal</string>
     <string name="dpad_seek_mode_minimal_summary">Kleine Suchleiste am unteren Rand des Bildschirms (Standard)</string>
     <string name="brown">Braun</string>

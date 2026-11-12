@@ -35,7 +35,6 @@
     <string name="fa_house" translatable="false">&#xf015;</string>
     <string name="fa_closed_captioning" translatable="false">&#xf20a;</string>
     <string name="fa_tv" translatable="false">&#xf26c;</string>
-    <string name="fa_music" translatable="false">&#xf001;</string>
     <string name="fa_eye" translatable="false">&#xf06e;</string>
     <string name="fa_eye_slash" translatable="false">&#xf070;</string>
     <string name="fa_arrow_left_arrow_right" translatable="false">&#xf0ec;</string>
@@ -60,7 +59,6 @@
     <string name="fa_cloud_arrow_down" translatable="false">&#xf0ed;</string>
     <string name="fa_compass" translatable="false">&#xf14e;</string>
     <string name="fa_repeat" translatable="false">&#xf363;</string>
-    <string name="fa_compact_disc" translatable="false">&#xf51f;</string>
     <string name="fa_xmark" translatable="false">&#xf00d;</string>
     <string name="fa_dice" translatable="false">&#xf522;</string>
     <string name="fa_circle_xmark" translatable="false">&#xf057;</string>
