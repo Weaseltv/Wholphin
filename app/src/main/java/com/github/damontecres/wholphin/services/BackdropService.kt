@@ -34,6 +34,7 @@ import org.jellyfin.sdk.model.api.ImageType
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.roundToInt
 
 /**
  * Stores state for the backdrop of the app shown on non-full screen pages
@@ -70,9 +71,27 @@ class BackdropService
                 if (item.type == BaseItemKind.GENRE) {
                     item.imageUrlOverride
                 } else {
-                    imageUrlService.getItemImageUrl(item, ImageType.BACKDROP)
+                    atShownSize(imageUrlService.getItemImageUrl(item, ImageType.BACKDROP))
                 }
             submit(item.id.toString(), imageUrl, pauseFirst)
+        }
+
+        /**
+         * [url] (the server's backdrop for an item) limited to the size the backdrop is drawn at.
+         *
+         * Speed plan step 11 (2026-11): the picture was asked for at its original size, often 4K, for a box that is
+         * [SHOWN_FRACTION] of the screen each way ([com.github.damontecres.wholphin.ui.nav.Backdrop]). With a maximum
+         * size the server (Jellyfin 12.2, ImageProcessingOptions.HasDefaultOptions) still sends the original file
+         * untouched when it is no bigger than this, and otherwise sends a smaller copy it makes once and keeps. Sized
+         * here and not in [ImageUrlService], whose addresses the screensaver also uses for full-screen pictures.
+         */
+        private fun atShownSize(url: String?): String? {
+            if (url.isNullOrBlank()) return url
+            val metrics = context.resources.displayMetrics
+            val width = (metrics.widthPixels * SHOWN_FRACTION).roundToInt()
+            val height = (metrics.heightPixels * SHOWN_FRACTION).roundToInt()
+            if (width <= 0 || height <= 0) return url
+            return url + (if ('?' in url) "&" else "?") + "maxWidth=$width&maxHeight=$height"
         }
 
         /** Home renders provider wordmarks in the header instead of a collection photo. */
@@ -283,6 +302,11 @@ class BackdropService
 
         fun clearColorCache() {
             extractedColorCache.evictAll()
+        }
+
+        companion object {
+            /** The share of the screen's width and height the backdrop picture is drawn in */
+            private const val SHOWN_FRACTION = 0.7f
         }
     }
 
