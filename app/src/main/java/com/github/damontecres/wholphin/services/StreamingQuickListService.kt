@@ -10,6 +10,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -45,8 +46,7 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * Streaming collection lists without waiting on the server.
  *
- * Each collection's members are fetched once, newest first, in pages (a snapshot). The first page
- * is shown as soon as it arrives and the rest fill in behind it. The finished snapshot is kept in
+ * Each collection's members are fetched once, newest first, in one request (a snapshot). The snapshot is kept in
  * memory for the collections in use and saved to the app's cache directory, so it survives app
  * restarts. NEW, Popular, Trending and Top 10, and the ALL / MOVIES / SHOWS
  * filters, are then built from it instantly. Popular, Trending and Top 10 follow the server's saved
@@ -260,26 +260,59 @@ class StreamingQuickListService
                 .onFailure { Timber.w(it, "Couldn't read the saved %s list", list) }
                 .getOrNull()
 
+        /** Guards [prefetchJob], [prefetchUser] and [prefetchDone]. */
+        private val prefetchState = Any()
+        private var prefetchJob: Job? = null
+        private var prefetchUser: UUID? = null
+
+        /** Whose lists the last complete [prefetchAll] pass was for (member, kid rules, session), and when it ended. */
+        private var prefetchDone: Pair<Triple<UUID, String?, Long?>, Long>? = null
+
         /**
          * Save snapshots for [collectionIds] without one from the last [PREFETCH_REFRESH_AFTER],
          * one at a time after a short pause, so opening a streaming collection from Home is instant.
-         * It pauses between pages while a collection is loading on screen.
+         * It waits while a collection is loading on screen.
+         *
+         * Home calls this after every load. Kept gentle on the server (2026-11): one pass at a time (a second Home
+         * load used to start a second pass over the same lists), a pause after each list it fetches, and nothing at
+         * all for [PREFETCH_PASS_EVERY] after a pass that fetched everything it needed.
          */
         fun prefetchAll(
             userId: UUID,
             collectionIds: List<UUID>,
         ) {
-            scope.launch {
-                delay(PREFETCH_DELAY)
-                collectionIds.forEach { collectionId ->
-                    val key = key(userId, collectionId)
-                    val savedAge = savedAge(key)
-                    val loaded = lock.withLock { inMemory[key] } != null
-                    if (!loaded && (savedAge == null || savedAge > PREFETCH_REFRESH_AFTER.inWholeMilliseconds)) {
-                        runCatching { fetchAndSave(key, progress = null, background = true) }
-                            .onFailure { Timber.w(it, "Prefetch failed for %s", collectionId) }
-                    }
+            synchronized(prefetchState) {
+                if (prefetchJob?.isActive == true) {
+                    if (prefetchUser == userId) return
+                    // Another member's pass: theirs stops, this one starts
+                    prefetchJob?.cancel()
                 }
+                prefetchUser = userId
+                prefetchJob =
+                    scope.launch {
+                        val session = kidContentGuard.sessionOf(api)
+                        val who = Triple(userId, session?.rules, session?.epoch)
+                        val recent =
+                            synchronized(prefetchState) { prefetchDone }
+                                ?.let { (doneFor, at) -> doneFor == who && age(at) < PREFETCH_PASS_EVERY.inWholeMilliseconds }
+                        if (recent == true) return@launch
+                        delay(PREFETCH_DELAY)
+                        var failed = false
+                        collectionIds.forEach { collectionId ->
+                            val key = key(userId, collectionId)
+                            val savedAge = savedAge(key)
+                            val loaded = lock.withLock { inMemory[key] } != null
+                            if (!loaded && (savedAge == null || savedAge > PREFETCH_REFRESH_AFTER.inWholeMilliseconds)) {
+                                runCatching { fetchAndSave(key, progress = null, background = true) }
+                                    .onFailure {
+                                        failed = true
+                                        Timber.w(it, "Prefetch failed for %s", collectionId)
+                                    }
+                                delay(PREFETCH_PAUSE)
+                            }
+                        }
+                        if (!failed) synchronized(prefetchState) { prefetchDone = who to System.currentTimeMillis() }
+                    }
             }
         }
 
@@ -405,5 +438,11 @@ class StreamingQuickListService
             /** Home's background prefetch only refreshes lists older than this, to spare the server. */
             private val PREFETCH_REFRESH_AFTER = 6.hours
             private val PREFETCH_DELAY = 5.seconds
+
+            /** Between two lists the background prefetch fetches, so the server isn't kept busy without a break. */
+            private val PREFETCH_PAUSE = 2.seconds
+
+            /** After a complete prefetch pass, Home loads don't start another for this long. */
+            private val PREFETCH_PASS_EVERY = 30.minutes
         }
     }
