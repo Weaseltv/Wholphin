@@ -270,11 +270,7 @@ enum class ViewOptionsType {
 val BaseItemKind.defaultViewOptions: ViewOptions
     get() =
         when (this) {
-            BaseItemKind.AUDIO,
-            BaseItemKind.MUSIC_ALBUM,
-            BaseItemKind.MUSIC_ARTIST,
-            BaseItemKind.PLAYLIST,
-            -> ViewOptionsSquare
+            BaseItemKind.PLAYLIST -> ViewOptionsSquare
 
             BaseItemKind.EPISODE,
             BaseItemKind.VIDEO,

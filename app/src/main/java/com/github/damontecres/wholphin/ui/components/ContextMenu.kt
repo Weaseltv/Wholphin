@@ -3,7 +3,6 @@ package com.github.damontecres.wholphin.ui.components
 import android.content.res.Resources
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
@@ -20,7 +19,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ChosenStreams
-import com.github.damontecres.wholphin.data.model.AudioItem
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.ItemPlayback
 import com.github.damontecres.wholphin.data.model.Person
@@ -64,23 +62,6 @@ sealed interface ContextMenu {
         val actions: PersonContextActions,
     ) : ContextMenu
 
-    data class ForMusic(
-        val fromLongClick: Boolean,
-        val item: BaseItem,
-        val index: Int,
-        val canDelete: Boolean,
-        val canRemoveFromQueue: Boolean,
-        val actions: MusicContextActions,
-        val showRemoveFromPlaylist: Boolean = false,
-    ) : ContextMenu
-
-    data class ForQueue(
-        val fromLongClick: Boolean,
-        val item: AudioItem,
-        val index: Int,
-        val actions: QueueContextActions,
-    ) : ContextMenu
-
     companion object {
         const val UNSPECIFIED_INDEX = -12
     }
@@ -99,7 +80,6 @@ data class ContextMenuActions(
     val onClearChosenStreams: (ChosenStreams?) -> Unit,
     val onClickGoTo: (BaseItem) -> Unit = { navigateTo(it.destination()) },
     val onClickRemoveFromNextUp: (BaseItem) -> Unit = {},
-    val onClickAddToQueue: (BaseItem) -> Unit = {},
     val onRemoveFromPlaylist: (Int, UUID) -> Unit = { _, _ -> },
     /** Set where the item's row can be reordered, e.g. Home's Streaming Services row. */
     val onReorder: ((BaseItem) -> Unit)? = null,
@@ -110,37 +90,6 @@ data class ContextMenuActions(
 data class PersonContextActions(
     val navigateTo: (Destination) -> Unit,
     val onClickFavorite: (UUID, Boolean) -> Unit,
-)
-
-data class MusicContextActions(
-    val navigateTo: (Destination) -> Unit,
-    val onClickPlay: (Int, BaseItem) -> Unit,
-    val onClickPlayNext: (Int, BaseItem) -> Unit,
-    val onClickFavorite: (UUID, Boolean) -> Unit,
-    val onClickAddPlaylist: (UUID) -> Unit,
-    val onDeleteItem: (BaseItem) -> Unit,
-    val onClickAddToQueue: (BaseItem) -> Unit,
-    val onClickRemoveFromQueue: (Int, BaseItem) -> Unit,
-    val onClickGoToAlbum: (UUID) -> Unit = {
-        navigateTo.invoke(Destination.MediaItem(itemId = it, type = BaseItemKind.MUSIC_ALBUM))
-    },
-    val onClickGoToArtist: (UUID) -> Unit = {
-        navigateTo.invoke(Destination.MediaItem(itemId = it, type = BaseItemKind.MUSIC_ARTIST))
-    },
-    val onRemoveFromPlaylist: (Int, UUID) -> Unit = { _, _ -> },
-)
-
-data class QueueContextActions(
-    val onNavigate: (Destination) -> Unit,
-    val onClickPlay: (Int, AudioItem) -> Unit,
-    val onClickPlayNext: (Int, AudioItem) -> Unit,
-    val onClickGoToAlbum: (java.util.UUID) -> Unit = {
-        onNavigate.invoke(Destination.MediaItem(itemId = it, type = BaseItemKind.MUSIC_ALBUM))
-    },
-    val onClickGoToArtist: (java.util.UUID) -> Unit = {
-        onNavigate.invoke(Destination.MediaItem(itemId = it, type = BaseItemKind.MUSIC_ARTIST))
-    },
-    val onClickRemoveFromQueue: (Int, AudioItem) -> Unit,
 )
 
 data class ChosenTrackResult(
@@ -169,22 +118,6 @@ fun ContextMenuDialog(
         }
 
         is ContextMenu.ForPerson -> {
-            ContextMenu(
-                onDismissRequest = onDismissRequest,
-                item = contextMenu,
-                actions = contextMenu.actions,
-            )
-        }
-
-        is ContextMenu.ForMusic -> {
-            ContextMenu(
-                onDismissRequest = onDismissRequest,
-                item = contextMenu,
-                actions = contextMenu.actions,
-            )
-        }
-
-        is ContextMenu.ForQueue -> {
             ContextMenu(
                 onDismissRequest = onDismissRequest,
                 item = contextMenu,
@@ -350,8 +283,7 @@ private fun buildContextMenuItems(
     onClickPlayWith: () -> Unit,
 ): List<DialogItem> =
     buildList {
-        // Songs should not show Go to
-        if (contextMenu.showGoTo && item.type != BaseItemKind.AUDIO) {
+        if (contextMenu.showGoTo) {
             add(
                 DialogItem(
                     resources.getString(R.string.go_to),
@@ -489,17 +421,6 @@ private fun buildContextMenuItems(
                 }
             }
         }
-        if (item.type == BaseItemKind.MUSIC_ALBUM || item.type == BaseItemKind.AUDIO) {
-            add(
-                DialogItem(
-                    resources.getString(R.string.add_to_queue),
-                    Icons.Default.Add,
-                    dismissOnClick = true,
-                ) {
-                    actions.onClickAddToQueue(item)
-                },
-            )
-        }
         if (contextMenu.showRemoveFromPlaylist) {
             add(
                 DialogItem(
@@ -572,40 +493,6 @@ private fun buildContextMenuItems(
                     dismissOnClick = true,
                 ) {
                     actions.onClickFavorite.invoke(item.id, !favorite)
-                },
-            )
-        }
-        item.data.albumId?.let { albumId ->
-            add(
-                DialogItem(
-                    resources.getString(R.string.go_to_album),
-                    R.string.fa_compact_disc,
-                    dismissOnClick = true,
-                ) {
-                    actions.navigateTo(
-                        Destination.MediaItem(
-                            albumId,
-                            BaseItemKind.MUSIC_ALBUM,
-                            null,
-                        ),
-                    )
-                },
-            )
-        }
-        item.data.artistItems?.firstOrNull()?.id?.let { artistId ->
-            add(
-                DialogItem(
-                    resources.getString(R.string.go_to_artist),
-                    R.string.fa_user,
-                    dismissOnClick = true,
-                ) {
-                    actions.navigateTo(
-                        Destination.MediaItem(
-                            artistId,
-                            BaseItemKind.MUSIC_ARTIST,
-                            null,
-                        ),
-                    )
                 },
             )
         }
@@ -748,239 +635,3 @@ fun ContextMenu(
         waitToLoad = item.fromLongClick,
     )
 }
-
-@Composable
-fun ContextMenu(
-    onDismissRequest: () -> Unit,
-    item: ContextMenu.ForMusic,
-    actions: MusicContextActions,
-) {
-    val resources = LocalResources.current
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    val dialogItems =
-        remember(resources, item, actions) {
-            buildContextForMusic(resources, item, actions, onClickDelete = {
-                showDeleteDialog = true
-            })
-        }
-    DialogPopup(
-        showDialog = true,
-        title = item.item.title ?: "",
-        dialogItems = dialogItems,
-        onDismissRequest = onDismissRequest,
-        dismissOnClick = false,
-        waitToLoad = item.fromLongClick,
-    )
-    if (showDeleteDialog) {
-        ConfirmDeleteDialog(
-            itemTitle = item.item.title ?: "",
-            onCancel = { showDeleteDialog = false },
-            onConfirm = {
-                actions.onDeleteItem.invoke(item.item)
-                onDismissRequest.invoke()
-            },
-        )
-    }
-}
-
-fun buildContextForMusic(
-    resources: Resources,
-    music: ContextMenu.ForMusic,
-    actions: MusicContextActions,
-    onClickDelete: () -> Unit,
-): List<DialogItem> =
-    buildList {
-        val item = music.item
-        val index = music.index
-        add(
-            DialogItem(
-                resources.getString(R.string.play),
-                Icons.Default.PlayArrow,
-                dismissOnClick = true,
-            ) {
-                actions.onClickPlay(index, item)
-            },
-        )
-        add(
-            DialogItem(
-                resources.getString(R.string.play_next),
-                Icons.Default.PlayArrow,
-                dismissOnClick = true,
-            ) {
-                actions.onClickPlayNext(index, item)
-            },
-        )
-        if (music.canRemoveFromQueue) {
-            add(
-                DialogItem(
-                    resources.getString(R.string.remove_from_queue),
-                    Icons.Default.Delete,
-                    dismissOnClick = true,
-                ) {
-                    actions.onClickRemoveFromQueue(index, item)
-                },
-            )
-        } else {
-            add(
-                DialogItem(
-                    resources.getString(R.string.add_to_queue),
-                    Icons.Default.Add,
-                    dismissOnClick = true,
-                ) {
-                    actions.onClickAddToQueue(item)
-                },
-            )
-        }
-        if (music.showRemoveFromPlaylist) {
-            add(
-                DialogItem(
-                    text = R.string.remove_from_playlist,
-                    iconStringRes = R.string.fa_circle_xmark,
-                    dismissOnClick = true,
-                ) {
-                    actions.onRemoveFromPlaylist.invoke(index, item.id)
-                },
-            )
-        }
-        add(
-            DialogItem(
-                text = R.string.add_to_playlist,
-                iconStringRes = R.string.fa_list_ul,
-                dismissOnClick = true,
-            ) {
-                actions.onClickAddPlaylist.invoke(item.id)
-            },
-        )
-        if (music.canDelete) {
-            add(
-                DialogItem(
-                    resources.getString(R.string.delete),
-                    Icons.Default.Delete,
-                    iconColor = Color.Red.copy(alpha = .8f),
-                    dismissOnClick = false,
-                ) {
-                    onClickDelete.invoke()
-                },
-            )
-        }
-        add(
-            DialogItem(
-                text = if (item.favorite) R.string.remove_favorite else R.string.add_favorite,
-                iconStringRes = R.string.fa_heart,
-                iconColor = if (item.favorite) Color.Red else Color.Unspecified,
-                dismissOnClick = true,
-            ) {
-                actions.onClickFavorite.invoke(item.id, !item.favorite)
-            },
-        )
-        if (item.type == BaseItemKind.AUDIO && item.data.albumId != null) {
-            add(
-                DialogItem(
-                    resources.getString(R.string.go_to_album),
-                    R.string.fa_compact_disc,
-                    dismissOnClick = true,
-                ) {
-                    actions.onClickGoToAlbum.invoke(item.data.albumId!!)
-                },
-            )
-        }
-        if ((item.type == BaseItemKind.AUDIO || item.type == BaseItemKind.MUSIC_ALBUM) && item.data.artistItems?.isNotEmpty() == true) {
-            add(
-                DialogItem(
-                    resources.getString(R.string.go_to_artist),
-                    R.string.fa_user,
-                    dismissOnClick = true,
-                ) {
-                    actions.onClickGoToArtist.invoke(
-                        item.data.artistItems!!
-                            .first()
-                            .id,
-                    )
-                },
-            )
-        }
-    }
-
-@Composable
-fun ContextMenu(
-    onDismissRequest: () -> Unit,
-    item: ContextMenu.ForQueue,
-    actions: QueueContextActions,
-) {
-    val resources = LocalResources.current
-    val dialogItems =
-        remember(resources, item, actions) {
-            buildContextForMusicQueue(
-                resources,
-                item.item,
-                item.index,
-                actions,
-            )
-        }
-    DialogPopup(
-        showDialog = true,
-        title = item.item.title ?: "",
-        dialogItems = dialogItems,
-        onDismissRequest = onDismissRequest,
-        dismissOnClick = false,
-        waitToLoad = item.fromLongClick,
-    )
-}
-
-fun buildContextForMusicQueue(
-    resources: Resources,
-    item: AudioItem,
-    index: Int,
-    actions: QueueContextActions,
-): List<DialogItem> =
-    buildList {
-        add(
-            DialogItem(
-                resources.getString(R.string.play),
-                Icons.Default.PlayArrow,
-                dismissOnClick = true,
-            ) {
-                actions.onClickPlay(index, item)
-            },
-        )
-        add(
-            DialogItem(
-                resources.getString(R.string.play_next),
-                Icons.Default.PlayArrow,
-                dismissOnClick = true,
-            ) {
-                actions.onClickPlayNext(index, item)
-            },
-        )
-        add(
-            DialogItem(
-                resources.getString(R.string.remove_from_queue),
-                Icons.Default.Delete,
-                dismissOnClick = true,
-            ) {
-                actions.onClickRemoveFromQueue(index, item)
-            },
-        )
-        if (item.albumId != null) {
-            add(
-                DialogItem(
-                    resources.getString(R.string.go_to_album),
-                    Icons.Default.ArrowForward,
-                    dismissOnClick = true,
-                ) {
-                    actions.onClickGoToAlbum.invoke(item.albumId)
-                },
-            )
-        }
-        if (item.artistId != null) {
-            add(
-                DialogItem(
-                    resources.getString(R.string.go_to_artist),
-                    Icons.Default.ArrowForward,
-                    dismissOnClick = true,
-                ) {
-                    actions.onClickGoToArtist.invoke(item.artistId)
-                },
-            )
-        }
-    }

@@ -32,7 +32,6 @@ import com.github.damontecres.wholphin.ui.util.ResStringProvider
 import com.github.damontecres.wholphin.ui.util.StringProvider
 import com.github.damontecres.wholphin.ui.util.StringStringProvider
 import com.github.damontecres.wholphin.util.ApiRequestPager
-import com.github.damontecres.wholphin.util.GetArtistsHandler
 import com.github.damontecres.wholphin.util.GetGenresRequestHandler
 import com.github.damontecres.wholphin.util.GetItemsRequestHandler
 import com.github.damontecres.wholphin.util.GetPersonsHandler
@@ -84,7 +83,6 @@ import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
 import org.jellyfin.sdk.model.api.UserDto
-import org.jellyfin.sdk.model.api.request.GetArtistsRequest
 import org.jellyfin.sdk.model.api.request.GetGenresRequest
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import org.jellyfin.sdk.model.api.request.GetLatestMediaRequest
@@ -325,7 +323,10 @@ class HomeSettingsService
                 rowsElement
                     ?.mapNotNull { row ->
                         try {
-                            jsonParser.decodeFromJsonElement<HomeRowConfig>(row)
+                            // A saved Favorites row for a kind the app no longer shows is dropped like an unknown row
+                            jsonParser
+                                .decodeFromJsonElement<HomeRowConfig>(row)
+                                .takeUnless { it is HomeRowConfig.Favorite && it.kind in RemovedFavoriteKinds }
                         } catch (ex: Exception) {
                             Timber.w(ex, "Unknown row %s", row)
                             // TODO maybe use placeholder instead of null?
@@ -1770,29 +1771,6 @@ class HomeSettingsService
                                 GetPersonsHandler.execute(api, request).toBaseItems()
                             }
 
-                            BaseItemKind.MUSIC_ARTIST -> {
-                                val request =
-                                    GetArtistsRequest(
-                                        userId = userDto.id,
-                                        limit = limit,
-                                        fields = HomeItemFields,
-                                        isFavorite = true,
-                                    )
-                                if (usePaging) {
-                                    ApiRequestPager(
-                                        api,
-                                        request,
-                                        GetArtistsHandler,
-                                        scope,
-                                        useSeriesForPrimary = row.viewOptions.useSeries,
-                                    ).init()
-                                } else {
-                                    GetArtistsHandler
-                                        .execute(api, request)
-                                        .toBaseItems(row.viewOptions.useSeries)
-                                }
-                            }
-
                             else -> {
                                 val fields =
                                     if (row.kind == BaseItemKind.BOX_SET) {
@@ -2025,16 +2003,11 @@ private val Library?.itemFields: List<ItemFields>
 
 private val HomeItemFieldsBoxSets get() = HomeItemFields + listOf(ItemFields.CHILD_COUNT)
 
+/** Kinds a saved [HomeRowConfig.Favorite] row may still name although their pages were removed with Music. */
+private val RemovedFavoriteKinds = setOf(BaseItemKind.AUDIO, BaseItemKind.MUSIC_ALBUM, BaseItemKind.MUSIC_ARTIST)
+
 fun viewOptionsForCollectionType(collectionType: CollectionType?): HomeRowViewOptions =
     when (collectionType) {
-        CollectionType.MUSIC,
-        -> {
-            HomeRowViewOptions(
-                heightDp = if (BuildConfig.FLAVOR == "weaselfin") BuildConfig.DEFAULT_CARD_HEIGHT_DP else Cards.HEIGHT_EPISODE,
-                aspectRatio = if (BuildConfig.FLAVOR == "weaselfin") AspectRatio.TALL else AspectRatio.SQUARE,
-            )
-        }
-
         CollectionType.PHOTOS,
         CollectionType.HOMEVIDEOS,
         CollectionType.MUSICVIDEOS,
@@ -2053,6 +2026,7 @@ fun viewOptionsForCollectionType(collectionType: CollectionType?): HomeRowViewOp
         CollectionType.PLAYLISTS,
         CollectionType.FOLDERS,
         CollectionType.LIVETV,
+        CollectionType.MUSIC,
         CollectionType.UNKNOWN,
         null,
         -> {

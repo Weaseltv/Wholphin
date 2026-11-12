@@ -322,7 +322,6 @@
     <string name="kind_movie">Movie</string>
     <string name="kind_season">Season</string>
     <string name="kind_episode">Episode</string>
-    <string name="kind_song">Song</string>
     <string name="auto_check_for_updates">Automatically check for updates</string>
     <string name="auto_play_next_delay">Delay before playing next up</string>
     <string name="auto_play_next">Auto play next up</string>
@@ -536,14 +535,6 @@
     <string name="send_media_info_log_to_server">Send media info log to server</string>
     <string name="no_limit">No limit</string>
     <string name="max_days_next_up">Max days in Next Up</string>
-    <string name="albums">Albums</string>
-    <string name="artists">Artists</string>
-    <string name="songs">Songs</string>
-    <string name="go_to_artist">Go to artist</string>
-    <string name="now_playing">Now playing</string>
-    <string name="instant_mix">Instant mix</string>
-    <string name="go_to_album">Go to album</string>
-    <string name="add_to_queue">Add to queue</string>
 
     <string name="add_row">Add row</string>
     <string name="genres_in">Genres in %1$s</string>
@@ -793,19 +784,8 @@
     <string name="artist">Artist</string>
     <string name="album_artist">Album artist</string>
     <string name="album">Album</string>
-    <string name="popular_songs">Popular songs</string>
-    <string name="play_next">Play next</string>
     <string name="music_videos">Music videos</string>
-    <string name="lyrics">Lyrics</string>
-    <string name="hide_lyrics">Hide lyrics</string>
-    <string name="show_lyrics">Show lyrics</string>
-    <string name="song_has_lyrics">Song has lyrics</string>
-    <string name="remove_from_queue">Remove from queue</string>
-    <string name="show_album_cover">Show album cover</string>
-    <string name="show_visualizer">Show visualizer</string>
     <string name="show_backdrop">Show backdrop</string>
-    <string name="play_as_type">Play as?</string>
-    <string name="visualizer_rationale">Visualizing the currently playing audio requires permission to record audio.</string>
     <string name="continue_string">Continue</string>
     <string name="select_all">Select all</string>
     <string name="separate_types">Separate types</string>
@@ -924,7 +904,6 @@
     <string name="books">Books</string>
     <string name="audio_books">Audio books</string>
     <string name="server_version_not_supported">Server version not supported</string>
-    <string name="appears_on">Appears on</string>
     <string name="dim_after_delay">Dim screen after delay</string>
     <string name="dim_percentage">Dim percentage</string>
     <string name="dim_screen">Dim screen</string>
@@ -974,7 +953,6 @@
     <!-- Kid profiles (runbooks/kid-profiles) -->
     <string name="kid_content_playback_refused">This title isn\'t available on this profile</string>
     <string name="kid_content_item_unavailable">This title isn\'t available on this profile</string>
-    <string name="kid_music_unavailable">Music isn\'t available on this profile</string>
     <string name="play_start_item_unavailable">The title you picked isn\'t available</string>
     <string name="kid_pin_wrong">Wrong PIN. %1$d tries left before a pause.</string>
     <string name="kid_pin_locked_out">Too many wrong PINs. Try again in %1$d seconds.</string>

@@ -218,13 +218,6 @@ message PhotoPreferences{
   bool slideshow_play_videos = 2;
 }
 
-message MusicPreferences {
-  bool show_lyrics = 1;
-  bool show_visualizer = 2;
-  bool show_album_Art = 3;
-  bool show_backdrop = 4;
-}
-
 message ExperimentalPreferences {
   bool enabled = 1;
   bool video_tunneling_enabled = 2;
@@ -248,6 +241,8 @@ message AppPreferences {
   AdvancedPreferences advanced_preferences = 10;
   bool sign_in_automatically = 11;
   PhotoPreferences photo_preferences = 12;
-  MusicPreferences music_preferences = 13;
+  // 13 held the removed music player options; stored files may still carry it, so it is never reused
+  reserved 13;
+  reserved "music_preferences";
   ExperimentalPreferences experimental_preferences = 14;
 }

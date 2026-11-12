@@ -11,7 +11,6 @@ import com.github.damontecres.wholphin.data.model.NavPinType
 import com.github.damontecres.wholphin.kids.isStaleSession
 import com.github.damontecres.wholphin.services.hilt.DefaultCoroutineScope
 import com.github.damontecres.wholphin.ui.collectLatestIn
-import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.main.settings.Library
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.nav.NavDrawerItem
@@ -22,10 +21,8 @@ import com.github.damontecres.wholphin.util.supportedCollectionTypes
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
@@ -39,7 +36,6 @@ import timber.log.Timber
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.time.Duration.Companion.hours
 
 /**
  * Gets the items to show in the nav drawer
@@ -54,7 +50,6 @@ class NavDrawerService
         private val serverRepository: ServerRepository,
         private val serverPreferencesDao: ServerPreferencesDao,
         private val seerrServerRepository: SeerrServerRepository,
-        private val musicService: MusicService,
         private val mediaManagementService: MediaManagementService,
     ) {
         private val _state = MutableStateFlow(NavDrawerItemState())
@@ -95,42 +90,6 @@ class NavDrawerService
             // The server only lists a Playlists library while the member has a playlist
             mediaManagementService.deletedItemFlow.collectLatestIn(coroutineScope) {
                 if (it.item.type == BaseItemKind.PLAYLIST) refresh()
-            }
-
-            // Handle when music is actively playing or not
-            coroutineScope.launchDefault {
-                musicService.state.collectLatest { music ->
-                    Timber.v("MusicService updated")
-                    when (music.status) {
-                        NowPlayingStatus.PLAYING -> {
-                            _state.update {
-                                it.copy(
-                                    nowPlayingEnabled = true,
-                                    nowPlayingTitle = music.currentItemTitle,
-                                )
-                            }
-                        }
-
-                        NowPlayingStatus.IDLE -> {
-                            _state.update {
-                                it.copy(
-                                    nowPlayingEnabled = false,
-                                    nowPlayingTitle = null,
-                                )
-                            }
-                        }
-
-                        NowPlayingStatus.PAUSED -> {
-                            delay(2.hours)
-                            _state.update {
-                                it.copy(
-                                    nowPlayingEnabled = false,
-                                    nowPlayingTitle = null,
-                                )
-                            }
-                        }
-                    }
-                }
             }
         }
 
@@ -308,8 +267,6 @@ class NavDrawerService
 data class NavDrawerItemState(
     val items: List<NavDrawerItem> = emptyList(),
     val moreItems: List<NavDrawerItem> = emptyList(),
-    val nowPlayingEnabled: Boolean = false,
-    val nowPlayingTitle: String? = null,
     val allLibraries: List<Library> = emptyList(),
 )
 

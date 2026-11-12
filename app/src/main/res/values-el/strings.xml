@@ -221,7 +221,6 @@
     <string name="only_forced_subtitles">Μόνο αναγκαστικοί υπότιτλοι</string>
     <string name="outro">Τίτλοι τέλους</string>
     <string name="voice_error_audio">Σφάλμα καταγραφής ήχου</string>
-    <string name="visualizer_rationale">Η οπτικοποίηση του ήχου αναπαραγωγής απαιτεί άδεια καταγραφής ήχου.</string>
     <string name="profile_specific_settings_from_server">Ρυθμίσεις του προφίλ χρήστη στο διακομιστή</string>
     <string name="subtitle_mode">Λειτουργία υποτίτλων</string>
     <string name="use_user_profile">Χρήση των ρυθμίσεων του προφίλ</string>
@@ -343,11 +342,7 @@
     <string name="mixer">Υπεύθυνος μίξης</string>
     <string name="creator">Δημιουργός</string>
     <string name="artist">Καλλιτέχνης</string>
-    <string name="albums">Άλμπουμ</string>
-    <string name="artists">Καλλιτέχνες</string>
-    <string name="songs">Τραγούδια</string>
     <string name="album">Άλμπουμ</string>
-    <string name="lyrics">Στίχοι</string>
     <string name="continue_string">Συνεχεία</string>
     <string name="transcoding">Μετατροπή</string>
     <string name="reset">Επαναφορά</string>

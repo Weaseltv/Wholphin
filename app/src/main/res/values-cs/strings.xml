@@ -561,11 +561,4 @@
     <string name="visible_ui">Viditelné</string>
     <string name="hidden_ui">Skryté</string>
     <string name="results">Výsledky</string>
-    <string name="albums">Alba</string>
-    <string name="artists">Tvůrci</string>
-    <string name="songs">Skladby</string>
-    <string name="go_to_artist">Přejdi na tvůrce</string>
-    <string name="now_playing">Právě hraje</string>
-    <string name="go_to_album">Jdi do alba</string>
-    <string name="add_to_queue">Přidat do fronty</string>
 </resources>

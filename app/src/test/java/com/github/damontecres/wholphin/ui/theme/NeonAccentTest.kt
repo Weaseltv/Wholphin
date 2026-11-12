@@ -46,7 +46,7 @@ class NeonAccentTest {
     fun `4K libraries share their regular counterpart's colour`() {
         assertEquals(NeonSectionPalette.Movies.border, sectionAccent(library("4K Movies (LAN)", CollectionType.MOVIES)))
         assertEquals(NeonSectionPalette.TvShows.border, sectionAccent(library("4K TV Shows (LAN)", CollectionType.TVSHOWS)))
-        assertEquals(NeonBoard.Volt, sectionAccent(library("Music", CollectionType.MUSIC)))
+        assertEquals(NeonBoard.Volt, sectionAccent(library("Photos", CollectionType.PHOTOS)))
         assertEquals(sectionAccent(library("ufc", CollectionType.MOVIES)), sectionAccent(library("  UFC ", CollectionType.TVSHOWS)))
     }
 
@@ -56,7 +56,7 @@ class NeonAccentTest {
         assertEquals(NeonSectionPalette.TvShows.border, typeAccent(BaseItemKind.SERIES))
         assertEquals(NeonSectionPalette.TvShows.border, typeAccent(BaseItemKind.SEASON))
         assertEquals(NeonSectionPalette.TvShows.border, typeAccent(BaseItemKind.EPISODE))
-        assertEquals(NeonBoard.Volt, typeAccent(BaseItemKind.MUSIC_ALBUM))
+        assertEquals(NeonBoard.Volt, typeAccent(BaseItemKind.PHOTO))
         assertEquals(NeonBoard.Volt, typeAccent(null))
     }
 

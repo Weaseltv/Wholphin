@@ -21,7 +21,6 @@ import com.github.damontecres.wholphin.services.ImageUrlService
 import com.github.damontecres.wholphin.services.JustWatchRowService
 import com.github.damontecres.wholphin.services.KeyValueService
 import com.github.damontecres.wholphin.services.MediaManagementService
-import com.github.damontecres.wholphin.services.MusicService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.ServerReportService
 import com.github.damontecres.wholphin.services.StreamingCollections
@@ -35,7 +34,6 @@ import com.github.damontecres.wholphin.ui.collectLatestIn
 import com.github.damontecres.wholphin.ui.components.ViewOptions
 import com.github.damontecres.wholphin.ui.data.RowColumn
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
-import com.github.damontecres.wholphin.ui.detail.music.addToQueue
 import com.github.damontecres.wholphin.ui.formatTypeName
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
@@ -100,7 +98,6 @@ class CollectionViewModel
         private val keyValueService: KeyValueService,
         private val libraryDisplayInfoDao: LibraryDisplayInfoDao,
         private val imageUrlService: ImageUrlService,
-        private val musicService: MusicService,
         val serverReportService: ServerReportService,
         private val filterOptionCache: FilterOptionCache,
         private val quickListService: StreamingQuickListService,
@@ -695,11 +692,6 @@ class CollectionViewModel
             }
         }
 
-        fun addToQueue(
-            item: BaseItem,
-            index: Int,
-        ) = addToQueue(api, musicService, item, index)
-
         companion object {
             val typesInCollection =
                 listOf(
@@ -708,8 +700,6 @@ class CollectionViewModel
                     BaseItemKind.EPISODE,
                     BaseItemKind.VIDEO,
                     BaseItemKind.BOX_SET,
-                    BaseItemKind.MUSIC_ARTIST,
-                    BaseItemKind.MUSIC_ALBUM,
                     BaseItemKind.MUSIC_VIDEO,
                 )
 

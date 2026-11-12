@@ -48,11 +48,11 @@ val BaseItemKind.playable: Boolean
 
             // TODO add support for these eventually
             BaseItemKind.AUDIO_BOOK,
-            BaseItemKind.AUDIO,
             BaseItemKind.CHANNEL,
             -> false
 
             BaseItemKind.AGGREGATE_FOLDER,
+            BaseItemKind.AUDIO,
             BaseItemKind.BASE_PLUGIN_FOLDER,
             BaseItemKind.BOOK,
             BaseItemKind.BOX_SET,
@@ -89,7 +89,7 @@ fun getTypeFor(collectionType: CollectionType): BaseItemKind? =
         CollectionType.UNKNOWN -> null
         CollectionType.MOVIES -> BaseItemKind.MOVIE
         CollectionType.TVSHOWS -> BaseItemKind.SERIES
-        CollectionType.MUSIC -> BaseItemKind.AUDIO
+        CollectionType.MUSIC -> null
         CollectionType.MUSICVIDEOS -> BaseItemKind.MUSIC_VIDEO
         CollectionType.TRAILERS -> BaseItemKind.TRAILER
         CollectionType.HOMEVIDEOS -> BaseItemKind.VIDEO

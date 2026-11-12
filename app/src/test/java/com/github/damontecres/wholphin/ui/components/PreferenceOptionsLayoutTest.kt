@@ -4,7 +4,6 @@ import android.app.Application
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
@@ -14,11 +13,9 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.unit.Density
-import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.ui.detail.collection.CollectionViewOptions
 import com.github.damontecres.wholphin.ui.detail.collection.CollectionViewOptionsDialog
-import com.github.damontecres.wholphin.ui.detail.music.MusicViewOptionsDialog
 import com.github.damontecres.wholphin.ui.theme.WholphinTheme
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -83,27 +80,6 @@ class PreferenceOptionsLayoutTest {
                     bounds.top >= header.bottom && bounds.bottom.value <= 540,
                 )
             }
-        }
-    }
-
-    @Test
-    fun `music panel preserves its heading and each focused preference`() {
-        compose.setContent {
-            CompositionLocalProvider(LocalDensity provides Density(1f, 1.2f)) {
-                WholphinTheme(appThemeColors = AppThemeColors.WEASELTV) {
-                    MusicViewOptionsDialog(AppPreferences.getDefaultInstance(), {}, {}, {})
-                }
-            }
-        }
-        for (label in listOf("Show album cover", "Show visualizer", "Show backdrop", "Show lyrics")) {
-            compose.onNode(hasScrollAction()).performScrollToNode(hasText(label))
-            val entry = compose.onNode(hasText(label) and isFocusable())
-            entry.requestFocus()
-            val bounds = entry.getUnclippedBoundsInRoot()
-            assertTrue("$label clears the panel edges: $bounds", bounds.top.value >= 0 && bounds.bottom.value <= 540)
-            val header = compose.onNodeWithText("VIEW OPTIONS")
-            header.assertIsDisplayed()
-            assertTrue("Header and list must not overlap", header.getUnclippedBoundsInRoot().bottom <= bounds.top)
         }
     }
 }

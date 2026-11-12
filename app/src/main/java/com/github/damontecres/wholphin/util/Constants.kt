@@ -26,7 +26,6 @@ val supportedCollectionTypes =
         CollectionType.BOXSETS,
         CollectionType.MUSICVIDEOS,
         CollectionType.FOLDERS,
-        CollectionType.MUSIC,
         CollectionType.PHOTOS,
         null, // Mixed
     )

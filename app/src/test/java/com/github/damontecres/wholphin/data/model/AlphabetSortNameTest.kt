@@ -12,13 +12,13 @@ class AlphabetSortNameTest {
         val dto =
             BaseItemDto(
                 id = UUID.randomUUID(),
-                type = BaseItemKind.MUSIC_ARTIST,
-                name = "The Beatles",
-                sortName = "beatles",
+                type = BaseItemKind.SERIES,
+                name = "The Office",
+                sortName = "office",
             )
 
-        assertEquals("beatles", dto.alphabetSortName)
-        assertEquals("beatles", BaseItem(dto).sortName)
+        assertEquals("office", dto.alphabetSortName)
+        assertEquals("office", BaseItem(dto).sortName)
     }
 
     @Test

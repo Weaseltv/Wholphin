@@ -10,7 +10,6 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.WholphinApplication
 import com.github.damontecres.wholphin.ui.abbreviateNumber
 import com.github.damontecres.wholphin.ui.detail.CardGridItem
-import com.github.damontecres.wholphin.ui.detail.music.artistsString
 import com.github.damontecres.wholphin.ui.detail.series.SeasonEpisodeIds
 import com.github.damontecres.wholphin.ui.dot
 import com.github.damontecres.wholphin.ui.formatDateTime
@@ -70,7 +69,6 @@ data class BaseItem(
         when (type) {
             BaseItemKind.EPISODE -> listOf(data.seasonEpisode, name).joinNotBlank(" - ")
             BaseItemKind.SERIES -> data.seriesProductionYears
-            BaseItemKind.AUDIO -> listOf(data.album, artistsString).joinNotBlank(" - ")
             else -> data.productionYear?.toString()
         }
     }
@@ -263,16 +261,6 @@ data class BaseItem(
                     } else {
                         Destination.MediaItem(this)
                     }
-                }
-
-                BaseItemKind.AUDIO -> {
-                    data.albumId?.let { albumId ->
-                        Destination.MediaItem(
-                            itemId = albumId,
-                            type = BaseItemKind.MUSIC_ALBUM,
-                            initialSongId = id,
-                        )
-                    } ?: Destination.MediaItem(this)
                 }
 
                 else -> {

@@ -13,8 +13,6 @@ import androidx.media3.common.TrackSelectionParameters.AudioOffloadPreferences
 import androidx.media3.common.util.ExperimentalApi
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.datasource.ResolvingDataSource
-import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.Renderer
@@ -32,7 +30,6 @@ import com.github.damontecres.wholphin.preferences.AssPlaybackMode
 import com.github.damontecres.wholphin.preferences.MediaExtensionStatus
 import com.github.damontecres.wholphin.preferences.PlayerBackend
 import com.github.damontecres.wholphin.preferences.get
-import com.github.damontecres.wholphin.services.hilt.AuthOkHttpClient
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.peerless2012.ass.media.AssHandler
@@ -41,7 +38,6 @@ import io.github.peerless2012.ass.media.kt.withAssMkvSupport
 import io.github.peerless2012.ass.media.parser.AssSubtitleParserFactory
 import io.github.peerless2012.ass.media.type.AssRenderType
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 import timber.log.Timber
 import java.lang.reflect.Constructor
 import javax.inject.Inject
@@ -55,7 +51,6 @@ class PlayerFactory
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
-        @param:AuthOkHttpClient private val authOkHttpClient: OkHttpClient,
         private val preloadManager: com.github.damontecres.wholphin.services.preload.PreloadManager,
     ) {
         @Volatile
@@ -174,51 +169,6 @@ class PlayerFactory
                 }
             currentPlayer = newPlayer
             return PlayerCreation(newPlayer, assHandler)
-        }
-
-        /**
-         * @param resolver runs before every stream is opened (each track, seek, repeat or retry), eg to refuse it
-         */
-        fun createAudioPlayer(
-            disableAudioOffload: Boolean,
-            extensions: MediaExtensionStatus = MediaExtensionStatus.MES_FALLBACK,
-            resolver: ResolvingDataSource.Resolver? = null,
-        ): ExoPlayer {
-            val rendererMode =
-                when (extensions) {
-                    MediaExtensionStatus.MES_FALLBACK -> DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
-                    MediaExtensionStatus.MES_PREFERRED -> DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
-                    MediaExtensionStatus.MES_DISABLED -> DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF
-                    else -> DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
-                }
-            val extractorsFactory = createExtractorsFactory()
-            val renderersFactory: RenderersFactory =
-                WholphinRenderersFactory(context, false)
-                    .setEnableDecoderFallback(true)
-                    .setExtensionRendererMode(rendererMode)
-            val upstream = OkHttpDataSource.Factory(authOkHttpClient)
-            val mediaSourceFactory =
-                DefaultMediaSourceFactory(
-                    resolver?.let { ResolvingDataSource.Factory(upstream, it) } ?: upstream,
-                    extractorsFactory,
-                )
-            val trackSelector = createTrackSelector(disableAudioOffload = disableAudioOffload)
-            return ExoPlayer
-                .Builder(context)
-                .setMediaSourceFactory(mediaSourceFactory)
-                .setRenderersFactory(renderersFactory)
-                .setTrackSelector(trackSelector)
-                .build()
-                .also {
-                    it.setAudioAttributes(
-                        AudioAttributes
-                            .Builder()
-                            .setUsage(C.USAGE_MEDIA)
-                            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-                            .build(),
-                        true,
-                    )
-                }
         }
 
         /**

@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.ui.detail
 
 import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -17,7 +18,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -51,8 +51,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.tv.material3.ListItem
 import androidx.tv.material3.MaterialTheme
@@ -67,20 +67,19 @@ import com.github.damontecres.wholphin.data.filter.ItemFilterBy
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.GetItemsFilter
 import com.github.damontecres.wholphin.data.model.LibraryDisplayInfo
+import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.FavoriteWatchManager
 import com.github.damontecres.wholphin.services.FilterOptionCache
 import com.github.damontecres.wholphin.services.MediaManagementService
-import com.github.damontecres.wholphin.services.MusicService
-import com.github.damontecres.wholphin.services.MusicServiceState
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.PlaylistCreator
 import com.github.damontecres.wholphin.services.ServerReportService
+import com.github.damontecres.wholphin.services.deleteItem
 import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.SlimItemFields
 import com.github.damontecres.wholphin.ui.cards.ItemCardImage
-import com.github.damontecres.wholphin.ui.components.BasicDialog
 import com.github.damontecres.wholphin.ui.components.Button
 import com.github.damontecres.wholphin.ui.components.ContextMenu
 import com.github.damontecres.wholphin.ui.components.ContextMenuActions
@@ -92,29 +91,22 @@ import com.github.damontecres.wholphin.ui.components.ExpandablePlayButton
 import com.github.damontecres.wholphin.ui.components.FilterByButton
 import com.github.damontecres.wholphin.ui.components.GridTitle
 import com.github.damontecres.wholphin.ui.components.LoadingPage
-import com.github.damontecres.wholphin.ui.components.MusicContextActions
 import com.github.damontecres.wholphin.ui.components.Optional
 import com.github.damontecres.wholphin.ui.components.OverviewText
 import com.github.damontecres.wholphin.ui.components.SortByButton
-import com.github.damontecres.wholphin.ui.components.TextButton
 import com.github.damontecres.wholphin.ui.components.keepFocusedItemVisible
 import com.github.damontecres.wholphin.ui.data.AddPlaylistViewModel
 import com.github.damontecres.wholphin.ui.data.BoxSetSortOptions
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
-import com.github.damontecres.wholphin.ui.detail.music.MusicQueueMarker
-import com.github.damontecres.wholphin.ui.detail.music.MusicViewModel
 import com.github.damontecres.wholphin.ui.enableMarquee
-import com.github.damontecres.wholphin.ui.equalsNotNull
 import com.github.damontecres.wholphin.ui.formatDateTime
 import com.github.damontecres.wholphin.ui.formatDuration
 import com.github.damontecres.wholphin.ui.formatTime
-import com.github.damontecres.wholphin.ui.ifElse
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.main.settings.MoveDirection
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.roundMinutes
-import com.github.damontecres.wholphin.ui.roundSeconds
 import com.github.damontecres.wholphin.ui.showToast
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonListItemBorder
@@ -157,11 +149,10 @@ import kotlin.time.Duration
 class PlaylistViewModel
     @AssistedInject
     constructor(
-        @ApplicationContext context: Context,
-        api: ApiClient,
-        navigationManager: NavigationManager,
-        musicService: MusicService,
-        mediaManagementService: MediaManagementService,
+        @param:ApplicationContext internal val context: Context,
+        internal val api: ApiClient,
+        internal val navigationManager: NavigationManager,
+        internal val mediaManagementService: MediaManagementService,
         private val backdropService: BackdropService,
         private val serverRepository: ServerRepository,
         private val libraryDisplayInfoDao: LibraryDisplayInfoDao,
@@ -169,21 +160,20 @@ class PlaylistViewModel
         private val serverReportService: ServerReportService,
         private val filterOptionCache: FilterOptionCache,
         private val playlistCreator: PlaylistCreator,
-        @Assisted itemId: UUID,
-    ) : MusicViewModel(itemId, context, api, musicService, navigationManager, mediaManagementService) {
+        @Assisted internal val itemId: UUID,
+    ) : ViewModel() {
         @AssistedFactory
         interface Factory {
             fun create(itemId: UUID): PlaylistViewModel
         }
 
         val state = MutableStateFlow(PlaylistDetailsState())
-        val musicState = musicService.state
 
         init {
             init()
         }
 
-        override fun init() {
+        private fun init() {
             state.update { it.copy(loading = LoadingState.Loading) }
             viewModelScope.launchDefault {
                 try {
@@ -395,6 +385,26 @@ class PlaylistViewModel
             viewModelScope.launchDefault { serverReportService.sendMediaReportFor(itemId) }
         }
 
+        fun canDelete(
+            item: BaseItem,
+            appPreferences: AppPreferences,
+        ): Boolean = mediaManagementService.canDelete(item, appPreferences)
+
+        fun deleteItem(item: BaseItem) {
+            deleteItem(context, mediaManagementService, item) {
+                if (item.id == itemId) {
+                    navigationManager.goBack()
+                } else {
+                    init()
+                }
+            }
+        }
+
+        /** The video player is the only player, and it skips audio tracks one at a time: say so once instead. */
+        fun audioNotSupported() {
+            viewModelScope.launchIO { showToast(context, "Audio playlists are not supported", Toast.LENGTH_SHORT) }
+        }
+
         fun removeFromPlaylist(
             index: Int,
             itemId: UUID,
@@ -472,10 +482,8 @@ fun PlaylistDetails(
     addToPlaylistViewModel: AddPlaylistViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
-    val musicState by viewModel.musicState.collectAsState()
 
     var showContextMenu by remember { mutableStateOf<ContextMenu?>(null) }
-    var showConfirmTypeDialog by remember { mutableStateOf<Triple<Int, BaseItem, Boolean>?>(null) }
     var showPlaylistDialog by remember { mutableStateOf<Optional<UUID>>(Optional.absent()) }
     val addPlaylistState by addToPlaylistViewModel.playlistState.collectAsState()
 
@@ -483,10 +491,13 @@ fun PlaylistDetails(
         index: Int,
         item: BaseItem,
         shuffle: Boolean,
-        mediaTypeOverride: MediaType? = null,
     ) {
-        when (mediaTypeOverride ?: state.mediaType) {
-            MediaType.VIDEO -> {
+        when (state.mediaType) {
+            MediaType.AUDIO -> {
+                viewModel.audioNotSupported()
+            }
+
+            else -> {
                 viewModel.navigationManager.navigateTo(
                     Destination.PlaybackList(
                         itemId = destination.itemId,
@@ -498,33 +509,8 @@ fun PlaylistDetails(
                     ),
                 )
             }
-
-            MediaType.AUDIO -> {
-                viewModel.play(item, index, shuffle)
-            }
-
-            else -> {
-                showConfirmTypeDialog = Triple(index, item, shuffle)
-            }
         }
     }
-    val musicContextActions =
-        remember {
-            MusicContextActions(
-                navigateTo = { viewModel.navigationManager.navigateTo(it) },
-                onClickPlay = { index, item -> play(index, item, false, MediaType.AUDIO) },
-                onClickPlayNext = { index, item -> viewModel.playNext(item) },
-                onClickAddToQueue = { item -> viewModel.addToQueue(item, Int.MAX_VALUE) },
-                onClickFavorite = { id, favorite -> viewModel.setFavorite(id, favorite) },
-                onClickAddPlaylist = { itemId ->
-                    addToPlaylistViewModel.loadPlaylists()
-                    showPlaylistDialog.makePresent(itemId)
-                },
-                onClickRemoveFromQueue = { _, _ -> },
-                onDeleteItem = viewModel::deleteItem,
-                onRemoveFromPlaylist = viewModel::removeFromPlaylist,
-            )
-        }
     val contextActions =
         remember {
             ContextMenuActions(
@@ -537,7 +523,6 @@ fun PlaylistDetails(
                 },
                 onSendMediaInfo = viewModel::sendMediaReport,
                 onDeleteItem = viewModel::deleteItem,
-                onClickAddToQueue = { viewModel.addToQueue(it, 0) },
                 onShowOverview = {},
                 onChooseVersion = { _, _ -> },
                 onChooseTracks = {},
@@ -551,7 +536,6 @@ fun PlaylistDetails(
         loadingState = state.loading,
         playlist = state.playlist,
         items = state.items,
-        musicState = musicState,
         onChangeBackdrop = viewModel::updateBackdrop,
         onClickIndex = { index, item ->
             play(index, item, false)
@@ -563,31 +547,19 @@ fun PlaylistDetails(
         },
         onShowContextMenu = { index, item, fromLongClick ->
             showContextMenu =
-                if (item.type == BaseItemKind.AUDIO) {
-                    ContextMenu.ForMusic(
-                        fromLongClick = fromLongClick,
-                        item = item,
-                        index = index,
-                        canDelete = viewModel.canDelete(item, preferences.appPreferences),
-                        canRemoveFromQueue = false,
-                        actions = musicContextActions,
-                        showRemoveFromPlaylist = state.canEdit,
-                    )
-                } else {
-                    ContextMenu.ForBaseItem(
-                        fromLongClick = fromLongClick,
-                        item = item,
-                        index = index,
-                        chosenStreams = null,
-                        showGoTo = true,
-                        showStreamChoices = false,
-                        canDelete = viewModel.canDelete(item, preferences.appPreferences),
-                        canRemoveContinueWatching = false,
-                        canRemoveNextUp = false,
-                        actions = contextActions,
-                        showRemoveFromPlaylist = state.canEdit,
-                    )
-                }
+                ContextMenu.ForBaseItem(
+                    fromLongClick = fromLongClick,
+                    item = item,
+                    index = index,
+                    chosenStreams = null,
+                    showGoTo = true,
+                    showStreamChoices = false,
+                    canDelete = viewModel.canDelete(item, preferences.appPreferences),
+                    canRemoveContinueWatching = false,
+                    canRemoveNextUp = false,
+                    actions = contextActions,
+                    showRemoveFromPlaylist = state.canEdit,
+                )
         },
         filterAndSort = state.filterAndSort,
         onFilterAndSortChange = viewModel::loadItems,
@@ -602,12 +574,6 @@ fun PlaylistDetails(
             getMediaSource = null,
             contextMenu = contextMenu,
             preferredSubtitleLanguage = null,
-        )
-    }
-    showConfirmTypeDialog?.let { (index, item, shuffle) ->
-        ConfirmMediaTypeDialog(
-            onConfirm = { mediaType -> play(index, item, shuffle, mediaType) },
-            onCancel = { showConfirmTypeDialog = null },
         )
     }
     showPlaylistDialog.compose { itemId ->
@@ -634,7 +600,6 @@ fun PlaylistDetails(
 fun PlaylistDetailsContent(
     playlist: BaseItem?,
     items: List<BaseItem?>,
-    musicState: MusicServiceState,
     onClickIndex: (Int, BaseItem) -> Unit,
     onShowContextMenu: (Int, BaseItem, Boolean) -> Unit,
     onClickPlay: (shuffle: Boolean) -> Unit,
@@ -705,7 +670,6 @@ fun PlaylistDetailsContent(
                 PlaylistItems(
                     loadingState = loadingState,
                     items = items,
-                    musicState = musicState,
                     playButtonFocusRequester = playButtonFocusRequester,
                     onFocusItem = { index, item ->
                         focusedIndex = index
@@ -821,7 +785,6 @@ fun PlaylistDetailsHeader(
 fun PlaylistItems(
     loadingState: LoadingState,
     items: List<BaseItem?>,
-    musicState: MusicServiceState,
     playButtonFocusRequester: FocusRequester,
     canMove: Boolean,
     onMoveItem: (Int, UUID, MoveDirection) -> Unit,
@@ -866,12 +829,6 @@ fun PlaylistItems(
                             onLongClick = {
                                 onShowContextMenu.invoke(index, item, true)
                             },
-                            isPlaying =
-                                equalsNotNull(
-                                    musicState.currentItemId,
-                                    item?.id,
-                                ),
-                            isQueued = item?.id in musicState.queuedIds,
                             canMove = canMove,
                             moveUpAllowed = index > 0,
                             moveDownAllowed = index < items.lastIndex,
@@ -886,10 +843,8 @@ fun PlaylistItems(
                             modifier =
                                 Modifier
                                     .animateItem()
-                                    .ifElse(
-                                        item?.type != BaseItemKind.AUDIO,
-                                        Modifier.heightIn(min = 80.dp),
-                                    ).onFocusChanged {
+                                    .heightIn(min = 80.dp)
+                                    .onFocusChanged {
                                         if (it.hasFocus) {
                                             onFocusItem(index, item)
                                         }
@@ -930,8 +885,6 @@ fun PlaylistItem(
     onClickMore: () -> Unit,
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
-    isPlaying: Boolean = false,
-    isQueued: Boolean = false,
 ) {
     val focused by interactionSource.collectIsFocusedAsState()
     val imageWidth = 160.dp
@@ -973,21 +926,11 @@ fun PlaylistItem(
             },
             trailingContent = {
                 val duration =
-                    when (item?.type) {
-                        BaseItemKind.AUDIO -> {
-                            item.data.runTimeTicks
-                                ?.ticks
-                                ?.roundSeconds
-                        }
-
-                        else -> {
-                            item
-                                ?.data
-                                ?.runTimeTicks
-                                ?.ticks
-                                ?.roundMinutes
-                        }
-                    }
+                    item
+                        ?.data
+                        ?.runTimeTicks
+                        ?.ticks
+                        ?.roundMinutes
                 duration?.let { duration ->
                     val now by LocalClock.current.now
                     val context = LocalContext.current
@@ -1003,12 +946,10 @@ fun PlaylistItem(
                         Text(
                             text = durationText,
                         )
-                        if (item?.type != BaseItemKind.AUDIO) {
-                            Text(
-                                text = stringResource(R.string.ends_at, endTimeStr),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
+                        Text(
+                            text = stringResource(R.string.ends_at, endTimeStr),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
                     }
                 }
             },
@@ -1021,35 +962,28 @@ fun PlaylistItem(
                         text = "${index + 1}.",
                         style = MaterialTheme.typography.labelLarge,
                     )
-                    if (item?.type == BaseItemKind.AUDIO) {
-                        MusicQueueMarker(
-                            isPlaying = isPlaying,
-                            isQueued = isQueued,
-                        )
-                    } else {
-                        val imageType =
-                            remember(item) {
-                                if (item != null && ImageType.THUMB in item.data.imageTags.orEmpty()) {
-                                    ImageType.THUMB
-                                } else {
-                                    ImageType.PRIMARY
-                                }
+                    val imageType =
+                        remember(item) {
+                            if (item != null && ImageType.THUMB in item.data.imageTags.orEmpty()) {
+                                ImageType.THUMB
+                            } else {
+                                ImageType.PRIMARY
                             }
-                        ItemCardImage(
-                            item = item,
-                            name = item?.name,
-                            imageType = imageType,
-                            showOverlay = true,
-                            favorite = item?.data?.userData?.isFavorite ?: false,
-                            watched = item?.data?.userData?.played ?: false,
-                            unwatchedCount = item?.countBadge ?: -1,
-                            watchedPercent = 0.0,
-                            numberOfVersions = item?.data?.mediaSourceCount ?: 0,
-                            modifier = Modifier.width(imageWidth).height(72.dp),
-                            useFallbackText = false,
-                            fillWidth = imageWidthPx,
-                        )
-                    }
+                        }
+                    ItemCardImage(
+                        item = item,
+                        name = item?.name,
+                        imageType = imageType,
+                        showOverlay = true,
+                        favorite = item?.data?.userData?.isFavorite ?: false,
+                        watched = item?.data?.userData?.played ?: false,
+                        unwatchedCount = item?.countBadge ?: -1,
+                        watchedPercent = 0.0,
+                        numberOfVersions = item?.data?.mediaSourceCount ?: 0,
+                        modifier = Modifier.width(imageWidth).height(72.dp),
+                        useFallbackText = false,
+                        fillWidth = imageWidthPx,
+                    )
                 }
             },
             modifier = Modifier.weight(1f),
@@ -1091,50 +1025,6 @@ fun PlaylistItem(
                     text = stringResource(R.string.fa_ellipsis_vertical),
                     fontFamily = FontAwesome,
                 )
-            }
-        }
-    }
-}
-
-@Composable
-fun ConfirmMediaTypeDialog(
-    onConfirm: (MediaType) -> Unit,
-    onCancel: () -> Unit,
-) {
-    BasicDialog(
-        onDismissRequest = onCancel,
-        properties = DialogProperties(),
-        elevation = 3.dp,
-    ) {
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = DialogListEdge),
-            modifier = Modifier.wrapContentSize(),
-        ) {
-            item {
-                Text(
-                    text = stringResource(R.string.play_as_type),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.titleLarge,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillParentMaxWidth(),
-                )
-            }
-
-            item {
-                Row(
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    TextButton(
-                        stringRes = R.string.audio,
-                        onClick = { onConfirm.invoke(MediaType.AUDIO) },
-                    )
-                    TextButton(
-                        stringRes = R.string.video,
-                        onClick = { onConfirm.invoke(MediaType.VIDEO) },
-                    )
-                }
             }
         }
     }

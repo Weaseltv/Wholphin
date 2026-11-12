@@ -47,7 +47,6 @@ import com.github.damontecres.wholphin.util.ApiRequestPager
 import com.github.damontecres.wholphin.util.BlockingList
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.ExceptionHandler
-import com.github.damontecres.wholphin.util.GetArtistsHandler
 import com.github.damontecres.wholphin.util.GetItemsRequestHandler
 import com.github.damontecres.wholphin.util.GetPersonsHandler
 import com.github.damontecres.wholphin.util.LoadingState
@@ -65,7 +64,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.model.api.BaseItemKind
-import org.jellyfin.sdk.model.api.request.GetArtistsRequest
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import org.jellyfin.sdk.model.api.request.GetPersonsRequest
 import timber.log.Timber
@@ -363,19 +361,6 @@ class FavoritesViewModel
                 overwriteIncludeTypes = false,
             )
 
-        private fun createGetArtistsRequest(
-            filter: GetItemsFilter,
-            sortAndDirection: SortAndDirection,
-        ): GetArtistsRequest =
-            filter.applyTo(
-                GetArtistsRequest(
-                    isFavorite = true,
-                    fields = SlimItemFields,
-                    sortBy = listOf(sortAndDirection.sort),
-                    sortOrder = listOf(sortAndDirection.direction),
-                ),
-            )
-
         private fun createGetPersonsRequest(filter: GetItemsFilter): GetPersonsRequest =
             filter.applyTo(
                 GetPersonsRequest(
@@ -390,11 +375,6 @@ class FavoritesViewModel
             sortAndDirection: SortAndDirection,
         ): ApiRequestPager<*> =
             when (type) {
-                BaseItemKind.MUSIC_ARTIST -> {
-                    val request = createGetArtistsRequest(filter, sortAndDirection)
-                    ApiRequestPager(api, request, GetArtistsHandler, viewModelScope, pageSize = 50)
-                }
-
                 BaseItemKind.PERSON -> {
                     val request = createGetPersonsRequest(filter)
                     ApiRequestPager(api, request, GetPersonsHandler, viewModelScope, pageSize = 50)
@@ -659,19 +639,6 @@ class FavoritesViewModel
             override suspend fun positionOfLetter(letter: Char): Int? =
                 collectionStateFor(type)?.let { collectionState ->
                     when (type) {
-                        BaseItemKind.MUSIC_ARTIST -> {
-                            val request =
-                                createGetArtistsRequest(
-                                    collectionState.filter,
-                                    collectionState.sortAndDirection,
-                                ).copy(
-                                    enableUserData = false,
-                                    limit = 0,
-                                    enableTotalRecordCount = true,
-                                )
-                            GetArtistsHandler.execute(api, request).content.totalRecordCount
-                        }
-
                         BaseItemKind.PERSON -> {
                             null
                         }
@@ -759,9 +726,6 @@ val favoriteOptions =
         BaseItemKind.EPISODE,
         BaseItemKind.BOX_SET,
         BaseItemKind.PERSON,
-        BaseItemKind.MUSIC_ALBUM,
-        BaseItemKind.MUSIC_ARTIST,
-        BaseItemKind.AUDIO,
         BaseItemKind.MUSIC_VIDEO,
         BaseItemKind.PLAYLIST,
         BaseItemKind.VIDEO,

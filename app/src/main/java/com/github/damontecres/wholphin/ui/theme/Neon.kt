@@ -269,7 +269,6 @@ object RailAccents {
     val Search = NeonSectionPalette.Search.border
     val Home = NeonSectionPalette.Home.border
     val Settings = Color(0xFFEAF2FF)
-    val NowPlaying = NeonBoard.Green
 }
 
 /** Inherit the most recent sidebar section through nested details, dialogs and playback. */
@@ -305,10 +304,6 @@ fun navigationSectionAccent(
 
                 Destination.UserAppPreferences -> {
                     RailAccents.User
-                }
-
-                Destination.NowPlaying -> {
-                    RailAccents.NowPlaying
                 }
 
                 else -> {

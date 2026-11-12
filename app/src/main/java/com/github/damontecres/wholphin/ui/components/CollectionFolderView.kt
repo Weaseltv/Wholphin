@@ -54,7 +54,6 @@ import com.github.damontecres.wholphin.services.FavoriteWatchManager
 import com.github.damontecres.wholphin.services.FilterOptionCache
 import com.github.damontecres.wholphin.services.HomeSettingsService
 import com.github.damontecres.wholphin.services.MediaManagementService
-import com.github.damontecres.wholphin.services.MusicService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.ServerReportService
 import com.github.damontecres.wholphin.services.StreamChoiceService
@@ -64,7 +63,6 @@ import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.deleteItem
 import com.github.damontecres.wholphin.ui.SlimItemFields
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
-import com.github.damontecres.wholphin.ui.detail.music.addToQueue
 import com.github.damontecres.wholphin.ui.equalsNotNull
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
@@ -81,7 +79,6 @@ import com.github.damontecres.wholphin.util.ApiRequestPager
 import com.github.damontecres.wholphin.util.BlockingList
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.ExceptionHandler
-import com.github.damontecres.wholphin.util.GetArtistsHandler
 import com.github.damontecres.wholphin.util.GetItemsRequestHandler
 import com.github.damontecres.wholphin.util.GetPersonsHandler
 import com.github.damontecres.wholphin.util.LoadingState
@@ -111,7 +108,6 @@ import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
-import org.jellyfin.sdk.model.api.request.GetArtistsRequest
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import org.jellyfin.sdk.model.api.request.GetPersonsRequest
 import org.jellyfin.sdk.model.serializer.toUUID
@@ -138,7 +134,6 @@ class CollectionFolderViewModel
         private val themeSongPlayer: ThemeSongPlayer,
         private val userPreferencesService: UserPreferencesService,
         private val mediaManagementService: MediaManagementService,
-        private val musicService: MusicService,
         val streamChoiceService: StreamChoiceService,
         val serverReportService: ServerReportService,
         private val filterOptionCache: FilterOptionCache,
@@ -608,32 +603,7 @@ class CollectionFolderViewModel
                         )
                     newPager
                 }
-
-                GetItemsFilterOverride.ARTIST -> {
-                    ApiRequestPager(
-                        api,
-                        createGetArtistsRequest(filter),
-                        GetArtistsHandler,
-                        viewModelScope,
-                        useSeriesForPrimary = useSeriesForPrimary,
-                    )
-                }
             }
-
-        /**
-         * Shared with [positionOfLetter] so that the alphabet jump counts the same artists that are
-         * actually paged through
-         */
-        private fun createGetArtistsRequest(filter: GetItemsFilter): GetArtistsRequest {
-            val item = state.value.item.successValue
-            return filter.applyTo(
-                GetArtistsRequest(
-                    parentId = item?.id,
-                    enableImageTypes = listOf(ImageType.PRIMARY, ImageType.THUMB),
-                    fields = SlimItemFields,
-                ),
-            )
-        }
 
         private fun createGetItemsRequest(
             sortAndDirection: SortAndDirection,
@@ -724,21 +694,6 @@ class CollectionFolderViewModel
                         }.takeIf { it >= 0 }
                 }
                 when (filter.override) {
-                    GetItemsFilterOverride.ARTIST -> {
-                        GetArtistsHandler.countMatching(
-                            api = api,
-                            request =
-                                createGetArtistsRequest(filter).copy(
-                                    enableImageTypes = null,
-                                    fields = null,
-                                    nameLessThan = letter.toString(),
-                                    limit = 0,
-                                    enableTotalRecordCount = true,
-                                    enableUserData = false,
-                                ),
-                        )
-                    }
-
                     // GetPersonsRequest has no nameLessThan or startIndex, so /Persons cannot be
                     // counted up to a letter at all
                     GetItemsFilterOverride.PERSON -> {
@@ -829,11 +784,6 @@ class CollectionFolderViewModel
             item: BaseItem,
             appPreferences: AppPreferences,
         ): Boolean = mediaManagementService.canDelete(item, appPreferences)
-
-        fun addToQueue(
-            item: BaseItem,
-            index: Int,
-        ) = addToQueue(api, musicService, item, index)
 
         override fun sendReportFor(itemId: UUID) = serverReportService.sendMediaReportFor(itemId)
 

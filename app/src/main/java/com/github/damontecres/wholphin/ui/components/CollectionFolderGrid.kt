@@ -254,14 +254,6 @@ val CollectionType.baseItemKinds: List<BaseItemKind>
                 listOf(BaseItemKind.VIDEO)
             }
 
-            CollectionType.MUSIC -> {
-                listOf(
-                    BaseItemKind.AUDIO,
-                    BaseItemKind.MUSIC_ARTIST,
-                    BaseItemKind.MUSIC_ALBUM,
-                )
-            }
-
             CollectionType.MUSICVIDEOS -> {
                 listOf(BaseItemKind.MUSIC_VIDEO)
             }
@@ -291,6 +283,7 @@ val CollectionType.baseItemKinds: List<BaseItemKind>
             }
 
             CollectionType.LIVETV,
+            CollectionType.MUSIC,
             CollectionType.UNKNOWN,
             -> {
                 listOf()

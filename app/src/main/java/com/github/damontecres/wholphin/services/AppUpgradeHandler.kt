@@ -21,7 +21,6 @@ import com.github.damontecres.wholphin.preferences.updateExperimentalPreferences
 import com.github.damontecres.wholphin.preferences.updateHomePagePreferences
 import com.github.damontecres.wholphin.preferences.updateInterfacePreferences
 import com.github.damontecres.wholphin.preferences.updateMpvOptions
-import com.github.damontecres.wholphin.preferences.updateMusicPreferences
 import com.github.damontecres.wholphin.preferences.updatePhotoPreferences
 import com.github.damontecres.wholphin.preferences.updatePlaybackOverrides
 import com.github.damontecres.wholphin.preferences.updatePlaybackPreferences
@@ -302,16 +301,6 @@ class AppUpgradeHandler
                     seerrServerDao.updateServer(
                         server.copy(url = migrateSeerrUrl(server.url)),
                     )
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("0.5.4-6-g0"))) {
-                appPreferences.updateData {
-                    it.updateMusicPreferences {
-                        showBackdrop = true
-                        showLyrics = true
-                        showAlbumArt = true
-                    }
                 }
             }
 

@@ -124,14 +124,6 @@
     <string name="blue">Albastru</string>
     <string name="blur">Estompare</string>
     <string name="save_for_album">Salvează pentru album</string>
-    <string name="albums">Albume</string>
-    <string name="artists">Artiști</string>
-    <string name="songs">Cântece</string>
-    <string name="go_to_artist">Mergi la artist</string>
-    <string name="now_playing">Se redă acum</string>
-    <string name="instant_mix">Mix instant</string>
-    <string name="go_to_album">Mergi la album</string>
-    <string name="add_to_queue">Adaugă în coadă</string>
     <string name="add_row">Adaugă rând</string>
     <string name="genres_in">Genuri în %1$s</string>
     <string name="recently_released_in">Lansate recent în %1$s</string>
@@ -289,12 +281,7 @@
     <string name="search_and_download_subtitles">Caută &amp; descarcă subtitrări</string>
     <string name="composer">Compozitor</string>
     <string name="writer">Scriitor</string>
-    <string name="lyrics">Versuri</string>
-    <string name="hide_lyrics">Ascunde versurile</string>
-    <string name="show_lyrics">Afișează versurile</string>
-    <string name="song_has_lyrics">Cântecul are versuri</string>
     <string name="select_all">Selectează tot</string>
-    <string name="play_as_type">Redă ca?</string>
     <string name="license_info">Informații privind licența</string>
     <string name="forced_track">Forțat</string>
     <string name="hide_debug_info">Ascunde informațiile de depanare</string>

@@ -7,7 +7,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.github.damontecres.wholphin.data.model.BaseItem
-import com.github.damontecres.wholphin.ui.AspectRatios
 import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.cards.BannerCardWithTitle
@@ -35,21 +34,6 @@ fun SearchPageCard(
                 onLongClick = onLongClick,
                 modifier = modifier.padding(horizontal = 8.dp),
                 cardHeight = Cards.heightEpisode,
-            )
-        }
-
-        BaseItemKind.MUSIC_ALBUM,
-        BaseItemKind.MUSIC_ARTIST,
-        BaseItemKind.AUDIO,
-        -> {
-            SeasonCard(
-                item = item,
-                onClick = onClick,
-                onLongClick = onLongClick,
-                imageHeight = Cards.heightEpisode,
-                aspectRatio = AspectRatios.SQUARE,
-                showImageOverlay = true,
-                modifier = modifier,
             )
         }
 

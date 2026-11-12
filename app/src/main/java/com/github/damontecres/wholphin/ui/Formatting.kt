@@ -283,12 +283,8 @@ fun formatTypeName(type: BaseItemKind): Int =
         BaseItemKind.PLAYLIST -> R.string.playlists
         BaseItemKind.PERSON -> R.string.people_title
         BaseItemKind.BOX_SET -> R.string.collections
-        BaseItemKind.AUDIO -> R.string.songs
         BaseItemKind.CHANNEL -> R.string.channels
         BaseItemKind.GENRE -> R.string.genres
-        BaseItemKind.MUSIC_ALBUM -> R.string.albums
-        BaseItemKind.MUSIC_ARTIST -> R.string.artists
-        BaseItemKind.MUSIC_GENRE -> R.string.genres
         BaseItemKind.MUSIC_VIDEO -> R.string.music_videos
         BaseItemKind.PHOTO -> R.string.photos
         BaseItemKind.PHOTO_ALBUM -> R.string.photo_albums
@@ -307,8 +303,12 @@ fun formatTypeName(type: BaseItemKind): Int =
         BaseItemKind.FOLDER -> R.string.folders_title
         BaseItemKind.MANUAL_PLAYLISTS_FOLDER -> R.string.playlists
         BaseItemKind.PLAYLISTS_FOLDER -> R.string.playlists
+        BaseItemKind.AUDIO -> R.string.unknown
         BaseItemKind.LIVE_TV_CHANNEL -> R.string.unknown
         BaseItemKind.LIVE_TV_PROGRAM -> R.string.unknown
+        BaseItemKind.MUSIC_ALBUM -> R.string.unknown
+        BaseItemKind.MUSIC_ARTIST -> R.string.unknown
+        BaseItemKind.MUSIC_GENRE -> R.string.unknown
         BaseItemKind.PROGRAM -> R.string.unknown
         BaseItemKind.RECORDING -> R.string.unknown
         BaseItemKind.TV_CHANNEL -> R.string.unknown

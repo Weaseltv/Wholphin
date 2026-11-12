@@ -24,7 +24,6 @@ import com.github.damontecres.wholphin.services.ActivePlaybackRegistry
 import com.github.damontecres.wholphin.services.DatePlayedService
 import com.github.damontecres.wholphin.services.DeviceProfileService
 import com.github.damontecres.wholphin.services.ImageUrlService
-import com.github.damontecres.wholphin.services.MusicService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.PlayerCreation
 import com.github.damontecres.wholphin.services.PlayerFactory
@@ -107,7 +106,6 @@ class PlaybackViewModelTests {
     private val mockUserPreferencesService = mockk<UserPreferencesService>(relaxed = true)
     private val mockImageUrlService = mockk<ImageUrlService>(relaxed = true)
     private val mockScreensaverService = mockk<ScreensaverService>(relaxed = true)
-    private val mockMusicService = mockk<MusicService>(relaxed = true)
     private val activePlaybackRegistry = ActivePlaybackRegistry()
     private val mockVolumeService = mockk<VolumeService>(relaxed = true)
 
@@ -137,7 +135,6 @@ class PlaybackViewModelTests {
             userPreferencesService = mockUserPreferencesService,
             imageUrlService = mockImageUrlService,
             screensaverService = mockScreensaverService,
-            musicService = mockMusicService,
             activePlaybackRegistry = activePlaybackRegistry,
             volumeService = mockVolumeService,
             kidContentGuard =

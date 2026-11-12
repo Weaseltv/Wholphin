@@ -2,12 +2,9 @@ package com.github.damontecres.wholphin.ui.nav
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.animateIntOffsetAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
@@ -33,7 +30,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
@@ -92,7 +88,6 @@ import com.github.damontecres.wholphin.kids.KidSessionGate
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.BackdropService
-import com.github.damontecres.wholphin.services.MusicService
 import com.github.damontecres.wholphin.services.NavDrawerService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.ProfilePictureService
@@ -148,7 +143,6 @@ class NavDrawerViewModel
         val navigationManager: NavigationManager,
         val setupNavigationManager: SetupNavigationManager,
         val backdropService: BackdropService,
-        private val musicService: MusicService,
         private val profilePictureService: ProfilePictureService,
         kidSessionGate: KidSessionGate,
     ) : ViewModel() {
@@ -231,8 +225,6 @@ class NavDrawerViewModel
                             HOME_INDEX
                         } else if (key is Destination.Search) {
                             SEARCH_INDEX
-                        } else if (key is Destination.NowPlaying) {
-                            NOW_PLAYING_INDEX
                         } else {
                             val idx =
                                 asDestinations.indexOfFirst {
@@ -255,7 +247,6 @@ class NavDrawerViewModel
 
         fun navigateToSetup(userList: SetupDestination) {
             viewModelScope.launchDefault {
-                musicService.stop()
                 setupNavigationManager.navigateTo(userList)
             }
         }
@@ -376,7 +367,6 @@ private fun coachMarkId(item: NavDrawerItem): String? =
     }
 
 private const val SEARCH_INDEX = -2
-private const val NOW_PLAYING_INDEX = -3
 
 /**
  * Display the left side navigation drawer with [DestinationContent] on the right
@@ -497,32 +487,6 @@ fun NavDrawer(
                         },
                         modifier = Modifier.coachMarkTarget(CoachMarkIds.PROFILE),
                     )
-                    AnimatedVisibility(
-                        visible = serviceState.nowPlayingEnabled,
-                        enter = expandVertically(expandFrom = Alignment.Top),
-                        exit = shrinkVertically(shrinkTowards = Alignment.Top),
-                    ) {
-                        val interactionSource = remember { MutableInteractionSource() }
-                        IconNavItem(
-                            text = stringResource(R.string.now_playing),
-                            subtext = serviceState.nowPlayingTitle,
-                            icon = Icons.Default.PlayArrow,
-                            accent = RailAccents.NowPlaying,
-                            selected = selectedIndex == NOW_PLAYING_INDEX,
-                            drawerOpen = isOpen,
-                            interactionSource = interactionSource,
-                            onClick = {
-                                viewModel.setIndex(NOW_PLAYING_INDEX)
-                                viewModel.navigationManager.navigateTo(Destination.NowPlaying)
-                            },
-                            modifier =
-                                Modifier
-                                    .ifElse(
-                                        selectedIndex == NOW_PLAYING_INDEX,
-                                        Modifier.focusRequester(focusRequester),
-                                    ),
-                        )
-                    }
                     RailList(
                         state = navDrawerListState,
                         spacedBy = spacedBy,
@@ -944,7 +908,6 @@ fun NavigationDrawerScope.NavItem(
                         CollectionType.MOVIES -> R.string.fa_film
                         CollectionType.TVSHOWS -> R.string.fa_tv
                         CollectionType.HOMEVIDEOS -> R.string.fa_video
-                        CollectionType.MUSIC -> R.string.fa_music
                         CollectionType.BOXSETS -> R.string.fa_open_folder
                         CollectionType.PLAYLISTS -> R.string.fa_list_ul
                         else -> R.string.fa_film

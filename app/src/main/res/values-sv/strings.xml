@@ -455,15 +455,9 @@
     <string name="artist">Artist</string>
     <string name="album_artist">Albumartist</string>
     <string name="album">Album</string>
-    <string name="popular_songs">Populära låtar</string>
-    <string name="play_next">Spela nästa</string>
     <string name="music_videos">Musikvideor</string>
-    <string name="lyrics">Låttexter</string>
-    <string name="hide_lyrics">Döjt låttexter</string>
-    <string name="show_lyrics">Visa låttexter</string>
     <string name="sort">Sortera</string>
     <string name="subtitle_delay">Undertextfördröjning</string>
-    <string name="artists">Artister</string>
     <string name="start_after">Starta efter</string>
     <string name="apply_all_rows">Tillämpa på alla rader</string>
     <string name="continue_watching_click_summary_on">Spela vid klick</string>
@@ -472,13 +466,8 @@
     <string name="split_into_separate_rows">Dela upp i separata rader</string>
     <string name="contrast">Kontrast</string>
     <string name="sdr">SDR</string>
-    <string name="go_to_album">Gå till album</string>
-    <string name="add_to_queue">Lägg till i kön</string>
-    <string name="albums">Album</string>
     <string name="add_row_for">Lägg till rad för %1$s</string>
-    <string name="now_playing">Spelas nu</string>
     <string name="hidden_ui">Dold</string>
-    <string name="remove_from_queue">Ta bort från kön</string>
     <string name="require_login">Kräv inloggning för profil</string>
     <string name="remove_next_up">Ta bort serien från Fortsätt titta</string>
     <string name="view_removed_next_up">Visa serier som tagits bort från Fortsätt titta</string>
@@ -528,10 +517,8 @@
     <string name="voice_error_no_match">Inget tal kändes igen</string>
     <string name="voice_error_busy">Röstigenkänning upptagen</string>
     <string name="will_remove_pin">Kommer att ta bort PIN-koden</string>
-    <string name="play_as_type">Spela som?</string>
     <string name="favorite_items_title">Favoritmarkera %s</string>
     <string name="play_slideshow">Spela bildspel</string>
-    <string name="songs">Sånger</string>
     <string name="prefer_logos">Föredra att visa logotyper för titlar</string>
     <string name="brightness">Ljusstyrka</string>
     <string name="cinema_mode">Bioläge</string>
@@ -571,7 +558,6 @@
     <string name="stop_slideshow">Stoppa bildspelet</string>
     <string name="slideshow_at_beginning">I början</string>
     <string name="no_more_images">Inga fler bilder</string>
-    <string name="go_to_artist">Gå till artist</string>
     <string name="load_from_web_client">Ladda från webbklient</string>
     <string name="for_episodes">För episoder</string>
     <string name="increase_all_cards_size">Öka storleken för alla kort</string>
@@ -579,8 +565,6 @@
     <string name="animate">Animera</string>
     <string name="max_age_rating">Maximal åldersgräns</string>
     <string name="include_types_summary">Vilka typer av objekt ska bilder visas för</string>
-    <string name="song_has_lyrics">Låten har text</string>
-    <string name="show_album_cover">Visa omslag till album</string>
     <string name="updated_toast">Wholphin har uppdaterats till %s</string>
     <string name="last_played">Senast visat</string>
     <string name="root_folder">Huvudkatalog</string>
@@ -632,7 +616,6 @@
     <string name="play_videos_during_slideshow">Spela videor under bildspel</string>
     <string name="prefer_ac3_for_surround">Använd AC3 för surroundljud</string>
     <string name="brown">Brun</string>
-    <string name="show_visualizer">Visa visualizer</string>
     <string name="show_backdrop">Visa bakgrund</string>
     <string name="player_backend">Uppspelning backend</string>
     <string name="season_number">Säsong %1$d</string>
@@ -648,7 +631,6 @@
     <string name="use_user_profile">Använd profilinställningar</string>
     <string name="override_user_profile_settings_summary">Ignorera serverns profilinställningar</string>
     <string name="server_version_not_supported">Serverns version stöds inte</string>
-    <string name="appears_on">Medverkar i</string>
     <string name="photo_albums">Fotoalbum</string>
     <string name="no_favorites_found">Inga favoriter hittades!</string>
     <string name="confirm_enable_experimental_body">Experimentella inställningar kan vara instabila!\n\n Dessa kan tas bort eller ändras i framtida versioner.</string>

@@ -61,11 +61,7 @@ fun CollectionRows(
                                         )
                                     }
 
-                                    BaseItemKind.MUSIC_ARTIST,
-                                    BaseItemKind.MUSIC_ALBUM,
-                                    BaseItemKind.PLAYLIST,
-                                    BaseItemKind.AUDIO,
-                                    -> {
+                                    BaseItemKind.PLAYLIST -> {
                                         HomeRowViewOptions(
                                             heightDp = Cards.HEIGHT_EPISODE,
                                             aspectRatio = AspectRatio.SQUARE,

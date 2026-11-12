@@ -11,7 +11,6 @@ import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.Response
-import org.jellyfin.sdk.api.client.extensions.artistsApi
 import org.jellyfin.sdk.api.client.extensions.genresApi
 import org.jellyfin.sdk.api.client.extensions.itemsApi
 import org.jellyfin.sdk.api.client.extensions.personsApi
@@ -21,7 +20,6 @@ import org.jellyfin.sdk.api.client.extensions.suggestionsApi
 import org.jellyfin.sdk.api.client.extensions.tvShowsApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.model.api.BaseItemDtoQueryResult
-import org.jellyfin.sdk.model.api.request.GetArtistsRequest
 import org.jellyfin.sdk.model.api.request.GetEpisodesRequest
 import org.jellyfin.sdk.model.api.request.GetGenresRequest
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
@@ -322,25 +320,6 @@ object GetStudiosRequestHandler : RequestHandler<GetStudiosRequest> {
     ): Response<BaseItemDtoQueryResult> = api.studiosApi.getStudios(request)
 }
 
-@Serializable
-object GetArtistsHandler : RequestHandler<GetArtistsRequest> {
-    override fun prepare(
-        request: GetArtistsRequest,
-        startIndex: Int,
-        limit: Int,
-        enableTotalRecordCount: Boolean,
-    ): GetArtistsRequest =
-        request.copy(
-            startIndex = startIndex,
-            limit = limit,
-        )
-
-    override suspend fun execute(
-        api: ApiClient,
-        request: GetArtistsRequest,
-    ): Response<BaseItemDtoQueryResult> = api.artistsApi.getArtists((request))
-}
-
 val requestSerializersModule =
     SerializersModule {
         polymorphic(Any::class) {
@@ -353,6 +332,5 @@ val requestSerializersModule =
             subclass(GetGenresRequest::class)
             subclass(GetPersonsRequest::class)
             subclass(GetStudiosRequest::class)
-            subclass(GetArtistsHandler::class)
         }
     }

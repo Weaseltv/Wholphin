@@ -50,7 +50,6 @@ import com.github.damontecres.wholphin.services.DatePlayedService
 import com.github.damontecres.wholphin.services.DeviceProfileService
 import com.github.damontecres.wholphin.services.HomeFreshness
 import com.github.damontecres.wholphin.services.ImageUrlService
-import com.github.damontecres.wholphin.services.MusicService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.PlayRequestMapper
 import com.github.damontecres.wholphin.services.PlayerFactory
@@ -163,7 +162,6 @@ class PlaybackViewModel
         private val userPreferencesService: UserPreferencesService,
         private val imageUrlService: ImageUrlService,
         private val screensaverService: ScreensaverService,
-        private val musicService: MusicService,
         private val activePlaybackRegistry: ActivePlaybackRegistry,
         private val volumeService: VolumeService,
         private val kidContentGuard: KidContentGuard,
@@ -335,7 +333,6 @@ class PlaybackViewModel
          * Initialize from the UI to start playback
          */
         private suspend fun init() {
-            musicService.stop()
             _state.update { it.copy(nextUp = null) }
             this.preferences = userPreferencesService.getCurrent()
             if (preferences.appPreferences.playbackPreferences.refreshRateSwitching) {

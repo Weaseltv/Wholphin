@@ -32,7 +32,6 @@ import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.FavoriteWatchManager
 import com.github.damontecres.wholphin.services.JustWatchRowService
 import com.github.damontecres.wholphin.services.MediaManagementService
-import com.github.damontecres.wholphin.services.MusicService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.RecommendedRowsMemory
 import com.github.damontecres.wholphin.services.ServerReportService
@@ -49,7 +48,6 @@ import com.github.damontecres.wholphin.ui.data.ItemDetailsDialog
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialogInfo
 import com.github.damontecres.wholphin.ui.data.RowColumn
 import com.github.damontecres.wholphin.ui.detail.PlaylistDialog
-import com.github.damontecres.wholphin.ui.detail.music.addToQueue
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.main.HomePageContent
@@ -97,7 +95,6 @@ class RecommendedViewModel
         val navigationManager: NavigationManager,
         private val userPreferencesService: UserPreferencesService,
         private val favoriteWatchManager: FavoriteWatchManager,
-        private val musicService: MusicService,
         private val backdropService: BackdropService,
         private val mediaManagementService: MediaManagementService,
         private val suggestionService: SuggestionService,
@@ -436,11 +433,6 @@ class RecommendedViewModel
             item: BaseItem,
             appPreferences: AppPreferences,
         ): Boolean = mediaManagementService.canDelete(item, appPreferences)
-
-        fun addToQueue(
-            item: BaseItem,
-            index: Int,
-        ) = addToQueue(api, musicService, item, index)
 
         fun onClickViewMore(
             position: RowColumn,

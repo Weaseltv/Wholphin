@@ -28,8 +28,6 @@
     <string name="light_gray">Light grey</string>
     <string name="dark_gray">Dark grey</string>
     <string name="backdrop_style_dynamic">Image with dynamic colour</string>
-    <string name="show_visualizer">Show visualiser</string>
-    <string name="visualizer_rationale">Visualising the currently playing audio requires permission to record audio.</string>
     <string name="skip_behavior">Skip behaviour</string>
     <string name="display_toggles_summary">Customise which to display</string>
     <string name="continue_watching_click_behavior">Continue watching/Next up click behaviour</string>

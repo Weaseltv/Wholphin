@@ -77,7 +77,7 @@ class CollectionListLayoutTest {
                 }
             }
         }
-        for (kind in listOf(CollectionType.MOVIES, CollectionType.TVSHOWS, CollectionType.MUSIC, null)) {
+        for (kind in listOf(CollectionType.MOVIES, CollectionType.TVSHOWS, null)) {
             for (compact in listOf(false, true)) {
                 compose.runOnIdle {
                     type.value = kind

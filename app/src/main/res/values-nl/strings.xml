@@ -356,7 +356,6 @@
     <string name="up_to_age">Leeftijd tot %s</string>
     <string name="saturation">Verzadiging</string>
     <string name="guest_star">Gast hoofdrol</string>
-    <string name="remove_from_queue">Verwijder uit wachtrij</string>
     <string name="seerr_login">Login bij Seerr server</string>
     <string name="search_for">Zoek %s</string>
     <string name="actor">Acteur</string>
@@ -365,7 +364,6 @@
     <string name="writer">Auteur</string>
     <string name="for_episodes">Voor afleveringen</string>
     <string name="start_after">Start na</string>
-    <string name="add_to_queue">Aan wachtrij toevoegen</string>
     <string name="composer">Componist</string>
     <string name="display_preset_series_thumb">Serie thumbnails</string>
     <string name="delete_item">Weet u zeker dat u dit item wilt verwijderen?</string>
@@ -373,7 +371,6 @@
     <string name="continue_string">Ga door</string>
     <string name="music_videos">Muziekvideos</string>
     <string name="max_days_next_up">Max. aantal dagen in Volgende</string>
-    <string name="now_playing">Wordt nu afgespeeld</string>
     <string name="request">Aanvragen</string>
     <string name="play_trailer">Trailer afspelen</string>
     <string name="no_servers_found">Geen servers gevonden</string>
@@ -443,8 +440,6 @@
     <string name="no_more_images">Geen foto\'s meer</string>
     <string name="slideshow_duration">Duur diavoorstelling</string>
     <string name="play_videos_during_slideshow">Speel video\'s tijdens diavoorstelling</string>
-    <string name="artists">Artiesten</string>
-    <string name="songs">Nummers</string>
     <string name="increase_all_cards_size">Alle kaarten vergroten</string>
     <string name="decrease_all_cards_size">Alle kaarten verkleinen</string>
     <string name="use_thumb_images">Kleine afbeeldingen gebruiken</string>
@@ -506,17 +501,7 @@
     <string name="creator">Bedenker</string>
     <string name="artist">Artiest</string>
     <string name="album_artist">Album artiest</string>
-    <string name="popular_songs">Populaire nummers</string>
-    <string name="play_next">Volgende afspelen</string>
-    <string name="lyrics">Tekst</string>
-    <string name="hide_lyrics">Tekst verbergen</string>
-    <string name="show_lyrics">Tekst tonen</string>
-    <string name="song_has_lyrics">Nummer bevat tekst</string>
-    <string name="show_album_cover">Albumhoes tonen</string>
-    <string name="show_visualizer">Visualisatie tonen</string>
     <string name="show_backdrop">Achtergrond tonen</string>
-    <string name="play_as_type">Afspelen als?</string>
-    <string name="visualizer_rationale">Visualisatie van de huidig afspelende audio vereist toestemming voor opname.</string>
     <string name="prefer_logos">Titels als logo weergeven</string>
     <string name="select_all">Alles selecteren</string>
     <string name="separate_types">Afzonderlijke types</string>
@@ -570,8 +555,6 @@
     <string name="green">Groen</string>
     <string name="blue">Blauw</string>
     <string name="blur">Vervaging</string>
-    <string name="go_to_artist">Ga naar artiest</string>
-    <string name="go_to_album">Ga naar album</string>
     <string name="recently_released_in">Recent uitgebracht in %1$s</string>
     <string name="height">Hoogte</string>
     <string name="apply_all_rows">Op alle rijen toepassen</string>
@@ -619,8 +602,6 @@
     <string name="dolby_digital_plus">DD+</string>
     <string name="dts">DTS</string>
     <string name="url">URL</string>
-    <string name="albums">Albums</string>
-    <string name="instant_mix">Instant mix</string>
     <string name="genres_in">Genres in %1$s</string>
     <string name="magenta">Magenta</string>
     <string name="background_style_wrap">Wrap</string>

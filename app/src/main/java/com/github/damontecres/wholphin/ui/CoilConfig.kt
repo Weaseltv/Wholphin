@@ -124,8 +124,8 @@ fun CoilConfig(
  * out of date ([com.github.damontecres.wholphin.services.ImageUrlService] adds the tags and says what that relies on)
  *
  * The agreed rules (speed plan step 12): only an item's un-numbered images ([TAGGED_IMAGE]), so not chapter pictures
- * or the music player's numbered backdrops, whose tags the app pairs up itself, and not profile pictures; and only a
- * saved answer that was a success, so a failed image is asked for again
+ * or any other numbered image (eg a numbered backdrop), and not profile pictures; and only a saved answer that was a
+ * success, so a failed image is asked for again
  */
 @OptIn(ExperimentalCoilApi::class)
 private class WholphinCacheStrategy(

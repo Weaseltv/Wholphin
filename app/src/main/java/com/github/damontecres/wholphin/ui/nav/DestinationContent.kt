@@ -24,7 +24,6 @@ import com.github.damontecres.wholphin.ui.data.MovieSortOptions
 import com.github.damontecres.wholphin.ui.data.rememberSortOptions
 import com.github.damontecres.wholphin.ui.detail.CollectionFolderGeneric
 import com.github.damontecres.wholphin.ui.detail.CollectionFolderMovie
-import com.github.damontecres.wholphin.ui.detail.CollectionFolderMusic
 import com.github.damontecres.wholphin.ui.detail.CollectionFolderPhotoAlbum
 import com.github.damontecres.wholphin.ui.detail.CollectionFolderPlaylist
 import com.github.damontecres.wholphin.ui.detail.CollectionFolderTv
@@ -40,10 +39,6 @@ import com.github.damontecres.wholphin.ui.detail.discover.DiscoverPersonPage
 import com.github.damontecres.wholphin.ui.detail.discover.DiscoverSeriesDetails
 import com.github.damontecres.wholphin.ui.detail.episode.EpisodeDetails
 import com.github.damontecres.wholphin.ui.detail.movie.MovieDetails
-import com.github.damontecres.wholphin.ui.detail.music.AlbumDetailsPage
-import com.github.damontecres.wholphin.ui.detail.music.ArtistDetailsPage
-import com.github.damontecres.wholphin.ui.detail.music.NowPlayingPage
-import com.github.damontecres.wholphin.ui.detail.music.SongDetailsPage
 import com.github.damontecres.wholphin.ui.detail.series.SeriesDetails
 import com.github.damontecres.wholphin.ui.detail.series.SeriesOverview
 import com.github.damontecres.wholphin.ui.discover.DiscoverPage
@@ -274,34 +269,6 @@ fun DestinationContent(
                     )
                 }
 
-                BaseItemKind.MUSIC_ALBUM -> {
-                    LaunchedEffect(Unit) { onClearBackdrop.invoke() }
-                    AlbumDetailsPage(
-                        preferences = preferences,
-                        itemId = destination.itemId,
-                        initialSongId = destination.initialSongId,
-                        modifier = modifier,
-                    )
-                }
-
-                BaseItemKind.MUSIC_ARTIST -> {
-                    LaunchedEffect(Unit) { onClearBackdrop.invoke() }
-                    ArtistDetailsPage(
-                        preferences = preferences,
-                        itemId = destination.itemId,
-                        modifier = modifier,
-                    )
-                }
-
-                BaseItemKind.AUDIO -> {
-                    LaunchedEffect(Unit) { onClearBackdrop.invoke() }
-                    SongDetailsPage(
-                        preferences = preferences,
-                        itemId = destination.itemId,
-                        modifier = modifier,
-                    )
-                }
-
                 else -> {
                     Timber.w("Unsupported item type: ${destination.type}")
                     Text("Unsupported item type: ${destination.type}", modifier)
@@ -366,10 +333,6 @@ fun DestinationContent(
                     modifier = modifier,
                 )
             }
-        }
-
-        Destination.NowPlaying -> {
-            NowPlayingPage(modifier)
         }
 
         is Destination.UpdateApp -> {
@@ -498,14 +461,6 @@ fun CollectionFolder(
             )
         }
 
-        CollectionType.MUSIC -> {
-            CollectionFolderMusic(
-                preferences,
-                destination,
-                modifier,
-            )
-        }
-
         CollectionType.HOMEVIDEOS,
         CollectionType.PHOTOS,
         -> {
@@ -533,6 +488,7 @@ fun CollectionFolder(
         CollectionType.FOLDERS,
         CollectionType.TRAILERS,
         CollectionType.LIVETV,
+        CollectionType.MUSIC,
         CollectionType.UNKNOWN,
         null,
         -> {

@@ -60,7 +60,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.api.client.ApiClient
-import org.jellyfin.sdk.api.client.extensions.artistsApi
 import org.jellyfin.sdk.api.client.extensions.itemsApi
 import org.jellyfin.sdk.api.client.extensions.personsApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
@@ -281,16 +280,6 @@ class SearchViewModel
                         val indexed = indexMatchesAsync(query, indexTypes)
                         val items: List<BaseItem> =
                             when (type) {
-                                BaseItemKind.MUSIC_ARTIST -> {
-                                    api.artistsApi
-                                        .getArtists(
-                                            searchTerm = query,
-                                            fields = SlimItemFields,
-                                            limit = SEARCH_LIMIT,
-                                            enableTotalRecordCount = false,
-                                        ).toBaseItems(api, false)
-                                }
-
                                 BaseItemKind.PERSON -> {
                                     api.personsApi
                                         .getPersons(
@@ -716,9 +705,6 @@ private val allSearchableTypes =
         BaseItemKind.EPISODE,
         BaseItemKind.BOX_SET,
         BaseItemKind.PERSON,
-        BaseItemKind.MUSIC_ALBUM,
-        BaseItemKind.MUSIC_ARTIST,
-        BaseItemKind.AUDIO,
         BaseItemKind.MUSIC_VIDEO,
         BaseItemKind.PLAYLIST,
         BaseItemKind.VIDEO,
