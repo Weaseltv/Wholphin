@@ -36,8 +36,8 @@ import com.github.damontecres.wholphin.services.MusicService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.RecommendedRowsMemory
 import com.github.damontecres.wholphin.services.ServerReportService
-import com.github.damontecres.wholphin.services.StreamingCollections
 import com.github.damontecres.wholphin.services.StreamingOrderService
+import com.github.damontecres.wholphin.services.StreamingServicesCache
 import com.github.damontecres.wholphin.services.SuggestionService
 import com.github.damontecres.wholphin.services.SuggestionsResource
 import com.github.damontecres.wholphin.services.UserPreferencesService
@@ -103,6 +103,7 @@ class RecommendedViewModel
         private val suggestionService: SuggestionService,
         private val justWatchRowService: JustWatchRowService,
         private val streamingOrderService: StreamingOrderService,
+        private val streamingServices: StreamingServicesCache,
         private val rowsMemory: RecommendedRowsMemory,
         private val kidContentGuard: KidContentGuard,
         val serverReportService: ServerReportService,
@@ -301,8 +302,8 @@ class RecommendedViewModel
         private suspend fun streamingServices(): List<Pair<String, String>> =
             try {
                 val userId = userId()
-                // Only each service's id and name are used here, so ask the server for the light version
-                streamingOrderService.sort(userId, StreamingCollections.fetch(api, userId, namesOnly = true)).mapNotNull { service ->
+                // Only each service's id and name are used here: Home's recent answer does, or else the light version
+                streamingOrderService.sort(userId, streamingServices.get(api, userId, namesOnly = true)).mapNotNull { service ->
                     val name = service.name ?: return@mapNotNull null
                     val code = justWatchRowService.serviceLists(userId, service.id, name)?.code ?: return@mapNotNull null
                     code to name

@@ -121,6 +121,7 @@ class HomeSettingsService
         private val suggestionService: SuggestionService,
         private val displayPreferencesService: DisplayPreferencesService,
         private val streamingOrderService: StreamingOrderService,
+        private val streamingServices: StreamingServicesCache,
         private val justWatchRowService: JustWatchRowService,
         private val kidHomeCache: KidHomeCache,
     ) {
@@ -1695,7 +1696,7 @@ class HomeSettingsService
                         }
                     val items =
                         if (streaming) {
-                            streamingOrderService.sort(userDto.id, StreamingCollections.fetch(api, userDto.id)).map {
+                            streamingOrderService.sort(userDto.id, streamingServices.get(api, userDto.id)).map {
                                 // Collection unwatched counts include episodes; these tiles represent services.
                                 BaseItem(
                                     it.copy(

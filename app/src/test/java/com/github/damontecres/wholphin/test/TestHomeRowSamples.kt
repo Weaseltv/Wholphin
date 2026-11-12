@@ -139,6 +139,7 @@ class TestHomeRowSamples {
                 suggestionService = mockk(),
                 displayPreferencesService = mockk(),
                 streamingOrderService = mockk(),
+                streamingServices = mockk(),
                 justWatchRowService = mockk(),
                 kidHomeCache = mockk(),
             )

@@ -175,9 +175,9 @@ object StreamingCollections {
     }
 
     /**
-     * Fresh member-scoped discovery on every Home load; no persisted membership cache. Every
-     * collection tagged [TAG], in the server's sort-name order (the owner's row order), however
-     * many there are.
+     * Member-scoped discovery, never saved to disk. Every collection tagged [TAG], in the server's
+     * sort-name order (the owner's row order), however many there are. Home and the Recommended tabs ask
+     * through [StreamingServicesCache], which remembers an adult's answer for a few minutes.
      *
      * Asked without watched and favourite status (owner, 2026-11-12). Working that out for 23 large collections was
      * about two thirds of what this request cost the server (measured on a copy of it: 2.3-2.8 s with, 0.85-0.93 s
