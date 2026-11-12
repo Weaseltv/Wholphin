@@ -122,6 +122,10 @@ fun CoilConfig(
  * checks took 240 ms to 1 s as they queued up, which is why cards filled in one at a time on every return to a page.
  * The server gives an image a new tag when its recorded picture changes, so the saved copy of a tagged address is not
  * out of date ([com.github.damontecres.wholphin.services.ImageUrlService] adds the tags and says what that relies on)
+ *
+ * The agreed rules (speed plan step 12): only an item's un-numbered images ([TAGGED_IMAGE]), so not chapter pictures
+ * or the music player's numbered backdrops, whose tags the app pairs up itself, and not profile pictures; and only a
+ * saved answer that was a success, so a failed image is asked for again
  */
 @OptIn(ExperimentalCoilApi::class)
 private class WholphinCacheStrategy(
@@ -132,7 +136,9 @@ private class WholphinCacheStrategy(
         networkRequest: NetworkRequest,
         options: Options,
     ): CacheStrategy.ReadResult =
-        if (networkRequest.url.contains("/Trickplay/") || TAGGED_IMAGE.containsMatchIn(networkRequest.url)) {
+        if (networkRequest.url.contains("/Trickplay/") ||
+            (cacheResponse.isSuccess() && TAGGED_IMAGE.containsMatchIn(networkRequest.url))
+        ) {
             CacheStrategy.ReadResult(cacheResponse)
         } else {
             delegate.read(cacheResponse, networkRequest, options)
@@ -146,8 +152,15 @@ private class WholphinCacheStrategy(
     ): CacheStrategy.WriteResult = delegate.write(cacheResponse, networkRequest, networkResponse, options)
 }
 
-/** A server image address that names the picture's tag, eg /Items/<id>/Images/Primary?fillHeight=340&tag=abc */
-private val TAGGED_IMAGE = Regex("/Images/[^?]*\\?(?:.*&)?tag=[^&]")
+/**
+ * An item's un-numbered image address that names the picture's tag, eg /Items/<id>/Images/Primary?fillHeight=340&tag=abc.
+ * Not a numbered one such as /Items/<id>/Images/Backdrop/2?tag=abc
+ */
+private val TAGGED_IMAGE = Regex("/Items/[^/?]+/Images/[A-Za-z]+\\?(?:.*&)?tag=[^&]")
+
+/** A saved answer that held a picture: 2xx, or the 304 that confirmed an earlier one */
+@OptIn(ExperimentalCoilApi::class)
+private fun NetworkResponse.isSuccess() = code in 200..299 || code == 304
 
 /** The image type in a server image address, eg "Primary" in /Items/<id>/Images/Primary */
 private val IMAGE_KIND = Regex("/Images/([A-Za-z]+)")

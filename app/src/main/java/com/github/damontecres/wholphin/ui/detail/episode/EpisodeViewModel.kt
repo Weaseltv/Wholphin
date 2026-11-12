@@ -125,7 +125,9 @@ class EpisodeViewModel
                             chosenStreams = chosenStreams,
                         )
                     }
-                    backdropService.submit(item)
+                    // Speed plan step 4 (2026-11): the page no longer waits for the backdrop, which pauses 500 ms and then
+                    // works out its colours. It arrives on its own, as it does on Home
+                    viewModelScope.launchIO { backdropService.submit(item) }
                     if (kidPage && item.data.officialRating.isNullOrBlank()) loadSeriesRating(item)
                 } catch (ex: CancellationException) {
                     throw ex

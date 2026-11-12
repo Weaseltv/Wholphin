@@ -182,7 +182,9 @@ class SeriesViewModel
                         _state.update { it.copy(canDeleteSeries = canDelete) }
                     }
                 }
-                backdropService.submit(series)
+                // Speed plan step 4 (2026-11): the page no longer waits for the backdrop, which pauses 500 ms and then
+                // works out its colours. It arrives on its own, as it does on Home
+                viewModelScope.launchIO { backdropService.submit(series) }
 
                 val seasonsDeferred = getSeasons(series, seasonEpisodeIds?.seasonNumber)
 

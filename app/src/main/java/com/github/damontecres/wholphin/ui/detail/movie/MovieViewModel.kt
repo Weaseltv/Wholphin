@@ -138,7 +138,9 @@ class MovieViewModel
                         chapters = chapters,
                     )
                 }
-                backdropService.submit(movie)
+                // Speed plan step 4 (2026-11): the page no longer waits for the backdrop, which pauses 500 ms and then
+                // works out its colours. It arrives on its own, as it does on Home
+                viewModelScope.launchIO { backdropService.submit(movie) }
                 viewModelScope.launchIO {
                     trailerService.getLocalTrailers(movie).letNotEmpty { localTrailers ->
                         _state.update {

@@ -169,7 +169,9 @@ class CollectionViewModel
                             .getItem(itemId = itemId, userId = serverRepository.currentUser?.id)
                             .content
                             .let { BaseItem(it, false) }
-                    backdropService.submit(collection)
+                    // Speed plan step 4 (2026-11): the page no longer waits for the backdrop, which pauses 500 ms and then
+                    // works out its colours. It arrives on its own, as it does on Home
+                    viewModelScope.launchIO { backdropService.submit(collection) }
                     val logoImageUrl =
                         if (ImageType.LOGO in collection.data.imageTags.orEmpty()) {
                             imageUrlService.getItemImageUrl(collection, ImageType.LOGO)

@@ -104,7 +104,9 @@ class DiscoverMovieViewModel
                     val movie = seerrService.api.moviesApi.movieMovieIdGet(movieId = item.id)
                     _state.update { it.copy(movie = DataLoadingState.Success(movie)) }
                     val discoveredItem = seerrService.createDiscoverItem(movie)
-                    backdropService.submit(discoveredItem)
+                    // Speed plan step 4 (2026-11): the page no longer waits for the backdrop, which pauses 500 ms and then
+                    // works out its colours. It arrives on its own, as it does on Home
+                    viewModelScope.launchIO { backdropService.submit(discoveredItem) }
 
                     updateCanCancel()
 
