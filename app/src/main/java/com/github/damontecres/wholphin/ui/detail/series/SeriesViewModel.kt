@@ -67,7 +67,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -285,24 +284,8 @@ class SeriesViewModel
                             _state.update { it.copy(discovered = results) }
                         }
                     }
-                    viewModelScope.launchIO {
-                        seerrService.active.collectLatest { active ->
-                            val tv =
-                                if (active) {
-                                    try {
-                                        seerrService
-                                            .getTvSeries(series)
-                                            ?.let { seerrService.createDiscoverItem(it) }
-                                    } catch (ex: Exception) {
-                                        Timber.e(ex)
-                                        null
-                                    }
-                                } else {
-                                    null
-                                }
-                            _state.update { it.copy(discoverSeries = tv) }
-                        }
-                    }
+                    // Speed plan step 8 (2026-11): this used to ask Seerr about the show on every open, for a value
+                    // (discoverSeries) that no page shows. The request is gone; the value stays null
                 }
                 mediaManagementService.deletedItemFlow
                     .onEach { deletedItem ->
