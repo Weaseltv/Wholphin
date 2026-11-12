@@ -63,7 +63,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -102,6 +104,7 @@ import java.io.File
 import java.time.LocalDateTime
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -1214,7 +1217,73 @@ class HomeSettingsService
                 ResStringProvider(R.string.unknown)
             }
 
-        private val mediaLibraries = java.util.concurrent.ConcurrentHashMap<Pair<UUID, UUID>, UUID>()
+        /** A title's library (by member and the title's show, folder or self) and when it was looked up */
+        private class KnownLibrary(
+            val id: UUID,
+            val atMillis: Long,
+        ) {
+            fun saved() = SavedLibrary(id.toString(), atMillis)
+        }
+
+        private val mediaLibraries = java.util.concurrent.ConcurrentHashMap<Pair<UUID, UUID>, KnownLibrary>()
+
+        /**
+         * Speed plan step 13 (2026-11): the lookups above used to last only until the app closed, so the first Home
+         * after every start asked the server once per Continue Watching and Watchlist card. They are now also saved
+         * on the TV, one file per member (a member's id belongs to one server), and read back once per app start.
+         * A saved answer is used for [LIBRARY_KEEP]; after that the title is looked up again, in case it moved.
+         * The answer only sets a card's look and label: it never decides what a kid may see.
+         */
+        private val savedLibrariesRead =
+            java.util.concurrent.ConcurrentHashMap
+                .newKeySet<UUID>()
+        private val savedLibrariesLock = Mutex()
+
+        private fun savedLibrariesFile(userId: UUID) = File(File(context.cacheDir, "item-libraries"), "$userId.json")
+
+        private fun KnownLibrary.fresh() = clock() - atMillis in 0 until LIBRARY_KEEP.inWholeMilliseconds
+
+        private suspend fun readSavedLibraries(userId: UUID) {
+            if (userId in savedLibrariesRead) return
+            savedLibrariesLock.withLock {
+                if (!savedLibrariesRead.add(userId)) return
+                withContext(WholphinDispatchers.IO) {
+                    try {
+                        val file = savedLibrariesFile(userId)
+                        if (file.exists()) {
+                            jsonParser.decodeFromString<Map<String, SavedLibrary>>(file.readText()).forEach { (ancestorId, saved) ->
+                                val known = KnownLibrary(UUID.fromString(saved.library), saved.at)
+                                if (known.fresh()) mediaLibraries.putIfAbsent(userId to UUID.fromString(ancestorId), known)
+                            }
+                        }
+                    } catch (ex: Exception) {
+                        Timber.w(ex, "Couldn't read the saved item libraries")
+                    }
+                }
+            }
+        }
+
+        private suspend fun writeSavedLibraries(userId: UUID) {
+            savedLibrariesLock.withLock {
+                withContext(WholphinDispatchers.IO) {
+                    try {
+                        val entries =
+                            mediaLibraries.entries
+                                .filter { it.key.first == userId && it.value.fresh() }
+                                .sortedByDescending { it.value.atMillis }
+                                .take(MAX_SAVED_LIBRARIES)
+                                .associate { it.key.second.toString() to it.value.saved() }
+                        val file = savedLibrariesFile(userId)
+                        file.parentFile?.mkdirs()
+                        val temp = File(file.parentFile, file.name + ".tmp")
+                        temp.writeText(jsonParser.encodeToString(entries))
+                        if (!temp.renameTo(file)) temp.delete()
+                    } catch (ex: Exception) {
+                        Timber.w(ex, "Couldn't save the item libraries")
+                    }
+                }
+            }
+        }
 
         /** Resolve real library membership; media type alone cannot distinguish Sports or Comedy. */
         suspend fun resolveItemLibraries(
@@ -1224,6 +1293,10 @@ class HomeSettingsService
         ): List<BaseItem> {
             if (BuildConfig.FLAVOR != "weaselfin") return items
             val libraryIds = libraries.map { it.itemId }.toSet()
+            readSavedLibraries(userId)
+            val lookedUp =
+                java.util.concurrent.atomic
+                    .AtomicBoolean(false)
             return coroutineScope {
                 items
                     .map { item ->
@@ -1231,7 +1304,7 @@ class HomeSettingsService
                             val ancestorId = item.data.seriesId ?: item.data.parentId ?: item.id
                             val key = userId to ancestorId
                             val direct = listOfNotNull(item.data.parentId, ancestorId).firstOrNull { it in libraryIds }
-                            val cached = mediaLibraries[key]?.takeIf { it in libraryIds }
+                            val cached = mediaLibraries[key]?.takeIf { it.fresh() }?.id?.takeIf { it in libraryIds }
                             val libraryId =
                                 direct ?: cached ?: try {
                                     api.libraryApi
@@ -1239,7 +1312,10 @@ class HomeSettingsService
                                         .content
                                         .firstOrNull { it.id in libraryIds }
                                         ?.id
-                                        ?.also { mediaLibraries[key] = it }
+                                        ?.also {
+                                            mediaLibraries[key] = KnownLibrary(it, clock())
+                                            lookedUp.set(true)
+                                        }
                                 } catch (ex: CancellationException) {
                                     throw ex
                                 } catch (ex: Exception) {
@@ -1249,7 +1325,7 @@ class HomeSettingsService
                             item.copy(libraryId = libraryId)
                         }
                     }.awaitAll()
-            }
+            }.also { if (lookedUp.get()) writeSavedLibraries(userId) }
         }
 
         /**
@@ -1990,6 +2066,19 @@ data class HomeRowConfigDisplay(
 
 /** How long a kids Home load may show nothing before the loading picture goes anyway (PR #98 review rounds 1 and 2) */
 private val KID_LOAD_TIMEOUT = 30.seconds
+
+/** How long a saved "which library is this title in" answer is used before the title is looked up again */
+private val LIBRARY_KEEP = 7.days
+
+/** The most answers saved per member, newest first */
+private const val MAX_SAVED_LIBRARIES = 2000
+
+/** One saved answer of [HomeSettingsService.resolveItemLibraries]: the library's id and when it was looked up */
+@Serializable
+internal data class SavedLibrary(
+    val library: String,
+    val at: Long,
+)
 
 /** Nothing to show yet after [KID_LOAD_TIMEOUT]: the loading picture goes; rows still loading fill in when they arrive */
 class KidHomeSlow : IllegalStateException("Home is taking longer than usual to load.")
