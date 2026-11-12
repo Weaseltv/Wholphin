@@ -18,6 +18,7 @@ import com.github.damontecres.wholphin.data.model.SeerrPermission
 import com.github.damontecres.wholphin.data.model.Trailer
 import com.github.damontecres.wholphin.data.model.hasPermission
 import com.github.damontecres.wholphin.services.BackdropService
+import com.github.damontecres.wholphin.services.HomeFreshness
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.SeerrServerRepository
 import com.github.damontecres.wholphin.services.SeerrService
@@ -199,6 +200,8 @@ class DiscoverMovieViewModel
                 }
                 try {
                     val submittingScope = requestStatusRepository.state.value.scope
+                    // Home loads again after a request is made or changed (speed plan step 16)
+                    HomeFreshness.changed()
                     val created =
                         seerrService.api.requestApi.requestPost(
                             RequestPostRequest(
@@ -245,6 +248,7 @@ class DiscoverMovieViewModel
                         // TODO handle multiple requests? Or just delete self's request?
                         try {
                             val deletingScope = requestStatusRepository.state.value.scope
+                            HomeFreshness.changed()
                             seerrService.api.requestApi.requestRequestIdDelete(it.id.toString())
                             requestStatusRepository.forget(it.id, deletingScope)
                         } catch (ex: kotlinx.coroutines.CancellationException) {

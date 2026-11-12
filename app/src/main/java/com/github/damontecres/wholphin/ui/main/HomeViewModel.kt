@@ -12,6 +12,7 @@ import com.github.damontecres.wholphin.preferences.HomePagePreferences
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.DatePlayedService
 import com.github.damontecres.wholphin.services.FavoriteWatchManager
+import com.github.damontecres.wholphin.services.HomeFreshness
 import com.github.damontecres.wholphin.services.HomePageResolvedSettings
 import com.github.damontecres.wholphin.services.HomeRowConfigDisplay
 import com.github.damontecres.wholphin.services.HomeSettingsService
@@ -112,19 +113,60 @@ class HomeViewModel
 
         private var settingsWatch: Job? = null
 
-        fun init() {
+        /**
+         * Entering Home.
+         *
+         * @param reload false when it is only being returned to: an adult's Home that finished loading moments ago,
+         * with nothing changed since, is then left as it is ([shownIsFresh]). True after something Home itself did
+         */
+        fun init(reload: Boolean = false) {
             watchSettings()
             // Entering Home: the kids Home refreshes its rows in place (the collection list throttled)
             homeSettingsService.refreshKidHome()
-            requestLoad()
+            requestLoad(always = reload)
         }
 
-        private fun requestLoad() {
+        private fun requestLoad(always: Boolean = true) {
             reloadOnReconnect?.cancel()
             reloadOnReconnect = null
             viewModelScope.launchIO {
-                exclusive { load(it) }
+                exclusive { load(it, always) }
             }
+        }
+
+        /** Speed plan step 16 (2026-11): the adult load that last finished, and what it was a load of */
+        private class Loaded(
+            val generation: Long,
+            val settings: HomePageResolvedSettings,
+            val prefs: HomePagePreferences,
+            /** [HomeFreshness.mark] when the load began */
+            val changes: Long,
+            val finishedNanos: Long,
+        )
+
+        @Volatile
+        private var loaded: Loaded? = null
+
+        /**
+         * Whether what Home shows is the result of a load of exactly this ([generation], [settings], [prefs]) that
+         * finished within [FRESH_FOR], with nothing done since it began that Home might have to show.
+         */
+        private fun shownIsFresh(
+            generation: Long,
+            settings: HomePageResolvedSettings,
+            prefs: HomePagePreferences,
+        ): Boolean {
+            val last = loaded ?: return false
+            val shown = state.value
+            return shown.loadingState == LoadingState.Success &&
+                shown.refreshState == LoadingState.Success &&
+                shown.generation == generation &&
+                last.generation == generation &&
+                shown.settings == settings &&
+                last.settings == settings &&
+                last.prefs == prefs &&
+                last.changes == HomeFreshness.mark() &&
+                System.nanoTime() - last.finishedNanos < FRESH_FOR.inWholeNanoseconds
         }
 
         /** The load waiting for the network to come back after a failed one */
@@ -200,9 +242,13 @@ class HomeViewModel
             }
         }
 
-        private suspend fun load(generation: Long) {
+        private suspend fun load(
+            generation: Long,
+            always: Boolean,
+        ) {
             Timber.d("init HomeViewModel")
             val mark = networkAvailability.mark()
+            val changes = HomeFreshness.mark()
             try {
                 // Waking the Shield starts Home again before its network is back (owner 2026-10-25)
                 networkAvailability.awaitConnected()
@@ -216,6 +262,11 @@ class HomeViewModel
                 }
                 val preferences = userPreferencesService.getCurrent()
                 val prefs = preferences.appPreferences.homePagePreferences
+                // Adults only: a kids Home went its own way just above, exactly as before
+                if (!always && shownIsFresh(generation, settings, prefs)) {
+                    Timber.i("Home was loaded moments ago and nothing has changed since: not reloading")
+                    return
+                }
                 val libraries = navDrawerService.getAllUserLibraries(userDto.id, userDto.tvAccess)
                 val state = state.value
 
@@ -301,6 +352,7 @@ class HomeViewModel
                     }
                 }
                 Timber.d("Home page load complete")
+                loaded = Loaded(generation, settings, prefs, changes, System.nanoTime())
                 prefetchStreamingCollections(userDto.id)
             } catch (ex: CancellationException) {
                 throw ex
@@ -406,6 +458,7 @@ class HomeViewModel
         private fun invalidate() {
             _state.update { HomeState.EMPTY.copy(loadingState = LoadingState.Loading, generation = it.generation + 1) }
             loadingSettings = null
+            loaded = null
             running?.cancel()
             kidFollowing = null
             kidJob?.cancel()
@@ -503,7 +556,7 @@ class HomeViewModel
         ) = viewModelScope.launch(ExceptionHandler() + WholphinDispatchers.IO) {
             favoriteWatchManager.setWatched(itemId, played)
             withContext(WholphinDispatchers.Main) {
-                init()
+                init(reload = true)
             }
         }
 
@@ -513,7 +566,7 @@ class HomeViewModel
         ) = viewModelScope.launch(ExceptionHandler() + WholphinDispatchers.IO) {
             favoriteWatchManager.setFavorite(itemId, favorite)
             withContext(WholphinDispatchers.Main) {
-                init()
+                init(reload = true)
             }
         }
 
@@ -579,7 +632,7 @@ class HomeViewModel
         ) {
             viewModelScope.launchIO {
                 serverRepository.currentUser?.id?.let { streamingOrderService.reset(it) }
-                init()
+                init(reload = true)
             }
         }
 
@@ -610,7 +663,7 @@ class HomeViewModel
                 viewModelScope.launchDefault {
                     serverRepository.currentUser?.id?.let { userId ->
                         latestNextUpService.removeFromNextUp(userId, item)
-                        init()
+                        init(reload = true)
                     }
                 }
             } else {
@@ -649,6 +702,9 @@ private fun isWatchingRow(row: HomeRowConfig) =
 
 /** How long a Home load waits for settings made for the session before it shows an error (review round 3) */
 private val SESSION_WAIT = 30.seconds
+
+/** How long after a finished load a return to Home, with nothing changed, leaves it as it is (speed plan step 16) */
+private val FRESH_FOR = 30.seconds
 
 /** No settings for the session arrived in [SESSION_WAIT]; Home shows an error and tries again when they do */
 internal class HomeSessionTimeout : IllegalStateException("Home is still waiting for this profile. Please try again.")

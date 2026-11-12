@@ -48,6 +48,7 @@ import com.github.damontecres.wholphin.preferences.enabled
 import com.github.damontecres.wholphin.services.ActivePlaybackRegistry
 import com.github.damontecres.wholphin.services.DatePlayedService
 import com.github.damontecres.wholphin.services.DeviceProfileService
+import com.github.damontecres.wholphin.services.HomeFreshness
 import com.github.damontecres.wholphin.services.ImageUrlService
 import com.github.damontecres.wholphin.services.MusicService
 import com.github.damontecres.wholphin.services.NavigationManager
@@ -241,6 +242,9 @@ class PlaybackViewModel
         val initJob: Job
 
         init {
+            // Whatever is played, Home's Continue Watching has to load again afterwards (speed plan step 16)
+            HomeFreshness.changed()
+            addCloseable { HomeFreshness.changed() }
             initJob =
                 viewModelScope.launchIO {
                     addCloseable {
