@@ -30,6 +30,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -176,7 +177,13 @@ fun HomePage(
             var overviewDialog by remember { mutableStateOf<ItemDetailsDialogInfo?>(null) }
 
             val playlistState by playlistViewModel.playlistState.collectAsState()
-            var position by rememberPosition()
+            // Home starts at its top row whenever it's opened from the side menu or by backing out of another side menu
+            // page, and keeps its row and scroll place only when coming back from a title opened from one of its rows
+            // (owner, 2026-11-11). The place is saved under the visit number, so a new visit finds nothing saved.
+            // Read once per opening: it must not change while Home is on screen or on its way out
+            val homeVisit = remember { viewModel.navigationManager.homeVisit }
+            var position by key(homeVisit) { rememberPosition() }
+            val listState = key(homeVisit) { rememberLazyListState() }
             // Reordering the Streaming Services row: the row, the moving card and the order to restore on Back
             var reorderState by remember { mutableStateOf<ReorderState?>(null) }
             val currentHomeRows by rememberUpdatedState(homeRows)
@@ -298,6 +305,7 @@ fun HomePage(
                     splitHomeTitles = true,
                     rowKeys = rowKeys,
                     position = position,
+                    listState = listState,
                     onFocusPosition = onFocusPosition,
                     onClickItem = onClickItem,
                     onLongClickItem = onLongClickItem,

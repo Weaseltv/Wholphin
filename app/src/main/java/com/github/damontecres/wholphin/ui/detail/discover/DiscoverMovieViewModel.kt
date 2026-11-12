@@ -22,6 +22,7 @@ import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.SeerrServerRepository
 import com.github.damontecres.wholphin.services.SeerrService
 import com.github.damontecres.wholphin.services.SeerrUserConfig
+import com.github.damontecres.wholphin.ui.detail.ResumeReload
 import com.github.damontecres.wholphin.ui.equalsNotNull
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.launchDefault
@@ -76,9 +77,11 @@ class DiscoverMovieViewModel
         val request4kEnabled =
             seerrServerRepository.current.map { it?.request4kMovieEnabled ?: false }
 
-        init {
-            init()
-        }
+        private val resumeReload =
+            ResumeReload(viewModelScope, init(), failed = { state.value.movie is DataLoadingState.Error }) { init() }
+
+        /** The page resumed: reload, except on the resume that is the page opening ([ResumeReload]) */
+        fun onResume() = resumeReload.onResume()
 
         private fun fetchAndSetItem(): Deferred<MovieDetails?> =
             viewModelScope.async(WholphinDispatchers.IO) {

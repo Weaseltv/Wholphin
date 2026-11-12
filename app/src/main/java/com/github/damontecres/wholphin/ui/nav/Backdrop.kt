@@ -35,6 +35,7 @@ import coil3.request.ImageRequest
 import coil3.request.transitionFactory
 import com.github.damontecres.wholphin.preferences.BackdropStyle
 import com.github.damontecres.wholphin.services.BackdropResult
+import com.github.damontecres.wholphin.services.NavTiming
 import com.github.damontecres.wholphin.ui.CrossFadeFactory
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -163,6 +164,8 @@ fun Backdrop(
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 alignment = Alignment.TopEnd,
+                // Speed plan step 0: log line only
+                onSuccess = { NavTiming.mark("backdrop shown", once = true) },
                 modifier =
                     Modifier
                         .align(Alignment.TopEnd)

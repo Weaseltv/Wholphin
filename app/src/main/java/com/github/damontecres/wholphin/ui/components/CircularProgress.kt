@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -17,6 +18,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
+import com.github.damontecres.wholphin.services.NavTiming
 import com.github.damontecres.wholphin.ui.theme.NeonLoadingMark
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.tryRequestFocus
@@ -49,6 +51,7 @@ fun LoadingPage(
     if (focusEnabled) {
         LaunchedEffect(Unit) { focusRequester.tryRequestFocus() }
     }
+    LogLoadingPageGone()
     Box(
         contentAlignment = Alignment.Center,
         modifier =
@@ -89,6 +92,7 @@ fun DelayedLoadingPage(
         delay(delay)
         show = true
     }
+    LogLoadingPageGone()
     Box(
         contentAlignment = Alignment.Center,
         modifier =
@@ -110,5 +114,17 @@ fun DelayedLoadingPage(
                 )
             }
         }
+    }
+}
+
+/**
+ * Speed plan step 0: logs when this loading page went away, counted from the page change that showed it. Nothing is
+ * logged if the page was left instead.
+ */
+@Composable
+private fun LogLoadingPageGone() {
+    val trip = remember { NavTiming.current() }
+    DisposableEffect(trip) {
+        onDispose { NavTiming.mark("content after loading page", of = trip) }
     }
 }

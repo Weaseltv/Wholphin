@@ -29,6 +29,7 @@ import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.deleteItem
 import com.github.damontecres.wholphin.ui.ItemRowFields
 import com.github.damontecres.wholphin.ui.components.isKidOrUnknown
+import com.github.damontecres.wholphin.ui.detail.ResumeReload
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.letNotEmpty
@@ -86,8 +87,11 @@ class MovieViewModel
         /** The kid title page (owner mockup 2026-10-23) for a kid or unknown session (fail closed); adults keep theirs */
         val kidPage: Boolean = isKidOrUnknown(serverRepository.currentUser)
 
+        private val resumeReload: ResumeReload
+
         init {
-            init()
+            resumeReload =
+                ResumeReload(viewModelScope, init(), failed = { state.value.loading is DataLoadingState.Error }) { init() }
             viewModelScope.launchDefault {
                 mediaManagementService.collectCanDelete(state.map { it.movie }) { canDelete ->
                     _state.update {
@@ -96,6 +100,9 @@ class MovieViewModel
                 }
             }
         }
+
+        /** The page resumed: reload, except on the resume that is the page opening ([ResumeReload]) */
+        fun onResume() = resumeReload.onResume()
 
         private suspend fun getMovie(): BaseItem {
             val item =

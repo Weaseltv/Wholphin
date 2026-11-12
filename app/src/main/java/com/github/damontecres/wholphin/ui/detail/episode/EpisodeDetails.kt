@@ -74,7 +74,7 @@ fun EpisodeDetails(
     playlistViewModel: AddPlaylistViewModel = hiltViewModel(),
 ) {
     LifecycleResumeEffect(Unit) {
-        viewModel.init()
+        viewModel.onResume()
         onPauseOrDispose { }
     }
     val state by viewModel.state.collectAsState()

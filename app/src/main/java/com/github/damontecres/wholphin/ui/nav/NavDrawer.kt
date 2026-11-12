@@ -465,7 +465,17 @@ fun NavDrawer(
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(spacedBy),
-                    modifier = Modifier.fillMaxHeight().coachMarkTarget(CoachMarkIds.MENU),
+                    modifier =
+                        Modifier
+                            .fillMaxHeight()
+                            .coachMarkTarget(CoachMarkIds.MENU)
+                            // Coming into the menu from the page lands on the current page's button (owner,
+                            // 2026-11-11). The list below already does this for its own items, but the profile
+                            // button sits outside it: a new page's menu could take focus there for a moment while
+                            // the page loaded, the menu remembered that, and Left then went back to the profile.
+                            // Moving around inside the menu is not "coming in", so Up from Search still reaches it.
+                            .focusProperties { onEnter = { focusRequester.tryRequestFocus() } }
+                            .focusGroup(),
                 ) {
                     // Even though some must be clicked, focusing on it should clear other focused items
                     val interactionSource = remember { MutableInteractionSource() }

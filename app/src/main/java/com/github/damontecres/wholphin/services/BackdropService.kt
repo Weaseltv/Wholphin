@@ -131,6 +131,10 @@ class BackdropService
             request: Long,
         ) {
             delay(500)
+            // Speed plan step 3 (2026-11): callers do not cancel a request when the focus moves on, so by now a newer
+            // one may have replaced this. Its answer would be thrown away at the check below, so stop before the
+            // download and the colour work instead of after them
+            if (requestMutex.withLock { requestVersion != request }) return
             val backdropStyle =
                 preferences.data
                     .firstOrNull()

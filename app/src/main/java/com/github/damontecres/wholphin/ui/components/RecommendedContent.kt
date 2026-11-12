@@ -1,13 +1,19 @@
 package com.github.damontecres.wholphin.ui.components
 
 import android.content.Context
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -19,6 +25,7 @@ import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
+import com.github.damontecres.wholphin.kids.KidContentGuard
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.BackdropService
@@ -27,6 +34,7 @@ import com.github.damontecres.wholphin.services.JustWatchRowService
 import com.github.damontecres.wholphin.services.MediaManagementService
 import com.github.damontecres.wholphin.services.MusicService
 import com.github.damontecres.wholphin.services.NavigationManager
+import com.github.damontecres.wholphin.services.RecommendedRowsMemory
 import com.github.damontecres.wholphin.services.ServerReportService
 import com.github.damontecres.wholphin.services.StreamingCollections
 import com.github.damontecres.wholphin.services.StreamingOrderService
@@ -51,6 +59,7 @@ import com.github.damontecres.wholphin.ui.rememberPosition
 import com.github.damontecres.wholphin.ui.theme.LocalHomeCardAppearance
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.toBaseItems
+import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.ui.util.ResArgStringProvider
 import com.github.damontecres.wholphin.ui.util.ResStringProvider
 import com.github.damontecres.wholphin.util.ApiRequestPager
@@ -76,6 +85,7 @@ import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import timber.log.Timber
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 @HiltViewModel(assistedFactory = RecommendedViewModel.Factory::class)
 class RecommendedViewModel
@@ -93,6 +103,8 @@ class RecommendedViewModel
         private val suggestionService: SuggestionService,
         private val justWatchRowService: JustWatchRowService,
         private val streamingOrderService: StreamingOrderService,
+        private val rowsMemory: RecommendedRowsMemory,
+        private val kidContentGuard: KidContentGuard,
         val serverReportService: ServerReportService,
         @Assisted private val parentId: UUID,
         @Assisted("suggestionsType") private val suggestionsType: BaseItemKind,
@@ -118,8 +130,29 @@ class RecommendedViewModel
         /** The rows this library shows, before Suggestions. */
         private var shownRows: List<RecommendedRow<*>> = recommendedRows
 
+        /** Where [rowsMemory] keeps this page; null for a kid session, which is never remembered */
+        private var memoryKey: String? = null
+
+        /** Whether [shownRows] is Movies' and TV Shows' short list */
+        private var mainLibraryRows = false
+
+        /** Rows still showing what was loaded last time: each keeps that until its fresh answer arrives */
+        private val keptRows: MutableSet<Int> = ConcurrentHashMap.newKeySet()
+
         fun init() {
             viewModelScope.launchDefault {
+                // Show what this library showed last time at once; everything below then refreshes it in place
+                memoryKey = memoryKey()
+                val remembered = memoryKey?.let(rowsMemory::get)
+                if (remembered != null) {
+                    shownRows = mainRows(remembered.mainLibraryRows)
+                    remembered.rows.forEachIndexed { index, row ->
+                        if (row is HomeRowLoadingState.Success) keptRows.add(index)
+                    }
+                    _state.update { it.copy(loading = LoadingState.Success, rows = remembered.rows) }
+                } else {
+                    _state.update { it.copy(loading = LoadingState.Loading) }
+                }
                 val limit =
                     userPreferencesService.flow
                         .first()
@@ -127,18 +160,22 @@ class RecommendedViewModel
                 // WeaselPlex's Movies and TV Shows (owner, 2026-10-16): Just Released, Just Added, Your
                 // Suggestions, then each streaming service's Top 10. Stand Up Comedy and Sports keep every row.
                 val services = if (serviceTop10Type != null && isMainLibrary()) streamingServices() else null
-                val rows = if (services != null) recommendedRows.filter { it.title in MAIN_LIBRARY_ROWS } else recommendedRows
+                val rows = mainRows(services != null)
                 shownRows = rows
+                mainLibraryRows = services != null
                 val serviceTitles =
                     services.orEmpty().map { (_, name) -> ResArgStringProvider(R.string.recommended_title_on_service, name) }
-                _state.update {
-                    it.copy(
-                        loading = LoadingState.Loading,
-                        rows =
-                            rows.map { HomeRowLoadingState.Loading(ResStringProvider(it.title)) } +
-                                listOf(HomeRowLoadingState.Loading(ResStringProvider(R.string.suggestions))) +
-                                serviceTitles.map { HomeRowLoadingState.Loading(it) },
-                    )
+                val loadingRows =
+                    rows.map { HomeRowLoadingState.Loading(ResStringProvider(it.title)) } +
+                        listOf(HomeRowLoadingState.Loading(ResStringProvider(R.string.suggestions))) +
+                        serviceTitles.map { HomeRowLoadingState.Loading(it) }
+                // The remembered rows stay up only while the page still has the same rows in the same places
+                if (remembered == null ||
+                    remembered.mainLibraryRows != mainLibraryRows ||
+                    remembered.rows.map { it.title } != loadingRows.map { it.title }
+                ) {
+                    keptRows.clear()
+                    _state.update { it.copy(loading = LoadingState.Loading, rows = loadingRows) }
                 }
                 val jobs =
                     rows.mapIndexed { index, row ->
@@ -157,14 +194,7 @@ class RecommendedViewModel
                                     Timber.e(ex, "Exception fetching %s", title)
                                     HomeRowLoadingState.Error(title, null, ex)
                                 }
-                            _state.update {
-                                it.copy(
-                                    rows =
-                                        it.rows.toMutableList().apply {
-                                            set(index, result)
-                                        },
-                                )
-                            }
+                            setRow(index, result)
                         }
                     }
                 fetchSuggestions(rows.size)
@@ -181,14 +211,7 @@ class RecommendedViewModel
                                     Timber.e(ex, "Exception fetching the %s Top 10", code)
                                     HomeRowLoadingState.Error(title, null, ex)
                                 }
-                            _state.update {
-                                it.copy(
-                                    rows =
-                                        it.rows.toMutableList().apply {
-                                            set(rowIndex, result)
-                                        },
-                                )
-                            }
+                            setRow(rowIndex, result)
                         }
                     }
                 (jobs + serviceJobs).forEach { job ->
@@ -196,9 +219,66 @@ class RecommendedViewModel
                     if (state.value.rows.any { it is HomeRowLoadingState.Success && it.items.isNotEmpty() }) {
                         // Report loading success once the first non-empty row is ready
                         _state.update { it.copy(loading = LoadingState.Success) }
+                        remember()
                     }
                 }
             }
+        }
+
+        /** The library's own rows: Movies' and TV Shows' short list when [mainLibrary], else all of them */
+        private fun mainRows(mainLibrary: Boolean): List<RecommendedRow<*>> =
+            if (mainLibrary) recommendedRows.filter { it.title in MAIN_LIBRARY_ROWS } else recommendedRows
+
+        /** Adults only, like the saved Home in the speed plan: a kid's rows follow rules that can change between visits */
+        private suspend fun memoryKey(): String? =
+            try {
+                val server = serverRepository.currentServer
+                val user = serverRepository.currentUser
+                if (server == null || user == null || kidContentGuard.currentPolicy() != null) {
+                    null
+                } else {
+                    "${server.id}_${user.id}_$parentId"
+                }
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                Timber.w(ex, "Not remembering the rows of %s", parentId)
+                null
+            }
+
+        /** Put a row's answer in its place. A row showing last time's titles keeps them unless the answer has titles. */
+        private fun setRow(
+            index: Int,
+            result: HomeRowLoadingState,
+        ) {
+            if (result !is HomeRowLoadingState.Success && index in keptRows) return
+            keptRows.remove(index)
+            _state.update {
+                it.copy(
+                    rows =
+                        it.rows.toMutableList().apply {
+                            set(index, result)
+                        },
+                )
+            }
+            remember()
+        }
+
+        /** Keep the page as it is now for the next visit, once it is showing */
+        private fun remember() {
+            val key = memoryKey ?: return
+            val current = state.value
+            if (current.loading != LoadingState.Success) return
+            // A row that pages through the server lives only as long as this page, so it can't be shown again later
+            if (current.rows.any { it is HomeRowLoadingState.Success && it.items is ApiRequestPager<*> }) return
+            rowsMemory.put(
+                key,
+                RecommendedRowsMemory.Page(
+                    // A row that failed is asked for again next time instead of showing its error first
+                    rows = current.rows.map { if (it is HomeRowLoadingState.Error) HomeRowLoadingState.Loading(it.title) else it },
+                    mainLibraryRows = mainLibraryRows,
+                ),
+            )
         }
 
         private fun userId() = requireNotNull(serverRepository.currentUser).id
@@ -285,27 +365,13 @@ class RecommendedViewModel
                                         )
                                     }
                                 }
-                            _state.update {
-                                it.copy(
-                                    rows =
-                                        it.rows.toMutableList().apply {
-                                            set(index, result)
-                                        },
-                                )
-                            }
+                            setRow(index, result)
                         }
                 } catch (_: CancellationException) {
                     // no-op
                 } catch (ex: Exception) {
                     Timber.e(ex, "Failed to fetch suggestions")
-                    _state.update {
-                        it.copy(
-                            rows =
-                                it.rows.toMutableList().apply {
-                                    set(index, HomeRowLoadingState.Error(title, null, ex))
-                                },
-                        )
-                    }
+                    setRow(index, HomeRowLoadingState.Error(title, null, ex))
                 }
             }
         }
@@ -508,9 +574,15 @@ fun RecommendedContent(
             ErrorMessage(st, modifier)
         }
 
-        LoadingState.Loading,
-        LoadingState.Pending,
-        -> {
+        LoadingState.Pending -> {
+            // The few moments before it is known whether last time's rows can be shown: hold focus as the loading
+            // page does, without flashing the loading picture in front of rows that are about to appear
+            val focusRequester = remember { FocusRequester() }
+            LaunchedEffect(Unit) { focusRequester.tryRequestFocus() }
+            Box(modifier.fillMaxSize().focusRequester(focusRequester).focusable())
+        }
+
+        LoadingState.Loading -> {
             LoadingPage(modifier)
         }
 
