@@ -33,6 +33,14 @@ private val notes1244 =
 
 internal val WhatsNewNotes: Map<String, List<String>> =
     mapOf(
+        "1.2.48" to
+            listOf(
+                "Faster all around: pages change quicker, and movie, show and episode pages appear sooner.",
+                "Home always opens at the top row, and coming back to Home no longer reloads everything.",
+                "Posters you've seen before appear right away, and backdrops load faster.",
+                "Streaming service pages open faster.",
+                "Streaming service tiles no longer show a heart or watched mark.",
+            ),
         "1.2.47" to
             listOf(
                 "Fixed playback that kept stopping to load on some TVs while video was downloading ahead.",
