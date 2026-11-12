@@ -231,6 +231,7 @@ fun HomePage(
                                     ),
                                 canRemoveContinueWatching = canRemoveContinueWatching,
                                 canRemoveNextUp = canRemoveNextUp,
+                                showWatchedAndFavorite = row?.rowType?.let(StreamingCollections::isStreamingRow) != true,
                                 actions =
                                     ContextMenuActions(
                                         navigateTo = viewModel.navigationManager::navigateTo,

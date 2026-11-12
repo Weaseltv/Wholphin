@@ -301,7 +301,8 @@ class RecommendedViewModel
         private suspend fun streamingServices(): List<Pair<String, String>> =
             try {
                 val userId = userId()
-                streamingOrderService.sort(userId, StreamingCollections.fetch(api, userId)).mapNotNull { service ->
+                // Only each service's id and name are used here, so ask the server for the light version
+                streamingOrderService.sort(userId, StreamingCollections.fetch(api, userId, namesOnly = true)).mapNotNull { service ->
                     val name = service.name ?: return@mapNotNull null
                     val code = justWatchRowService.serviceLists(userId, service.id, name)?.code ?: return@mapNotNull null
                     code to name

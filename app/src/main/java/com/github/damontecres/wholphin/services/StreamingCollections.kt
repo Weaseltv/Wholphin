@@ -178,13 +178,27 @@ object StreamingCollections {
      * Fresh member-scoped discovery on every Home load; no persisted membership cache. Every
      * collection tagged [TAG], in the server's sort-name order (the owner's row order), however
      * many there are.
+     *
+     * Asked without watched and favourite status (owner, 2026-11-12). Working that out for 23 large collections was
+     * about two thirds of what this request cost the server (measured on a copy of it: 2.3-2.8 s with, 0.85-0.93 s
+     * without), and no member had a favourite service. So service tiles show no heart or watched tick, and their
+     * long-press menu has no "Mark watched" or "Add favourite". The child count still comes back, so empty services
+     * are hidden the same way.
+     *
+     * @param namesOnly for a caller that reads only each service's id and name: also leave out the description and tags
      */
     suspend fun fetch(
         api: ApiClient,
         userId: UUID,
+        namesOnly: Boolean = false,
     ): List<BaseItemDto> {
-        val collections =
-            GetItemsRequestHandler.execute(api, row.getItems.copy(userId = userId)).content.items
+        val request =
+            row.getItems.copy(
+                userId = userId,
+                enableUserData = false,
+                fields = if (namesOnly) listOf(ItemFields.CHILD_COUNT) else row.getItems.fields,
+            )
+        val collections = GetItemsRequestHandler.execute(api, request).content.items
         val visible =
             collections.filter { collection ->
                 // ChildCount may be absent on some servers. Probe with the same member scope.

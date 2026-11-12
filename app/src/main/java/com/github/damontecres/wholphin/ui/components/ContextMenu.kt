@@ -50,6 +50,12 @@ sealed interface ContextMenu {
         val canRemoveNextUp: Boolean,
         val actions: ContextMenuActions,
         val showRemoveFromPlaylist: Boolean = false,
+        /**
+         * False for Home's streaming service tiles, which are fetched without watched and favourite status
+         * (see [com.github.damontecres.wholphin.services.StreamingCollections.fetch]), so the entries couldn't show
+         * their state; "Mark watched" there would also mark every title on the service (owner, 2026-11-12)
+         */
+        val showWatchedAndFavorite: Boolean = true,
     ) : ContextMenu
 
     data class ForPerson(
@@ -548,25 +554,27 @@ private fun buildContextMenuItems(
                 },
             )
         }
-        add(
-            DialogItem(
-                text = if (watched) R.string.mark_unwatched else R.string.mark_watched,
-                iconStringRes = if (watched) R.string.fa_eye else R.string.fa_eye_slash,
-                dismissOnClick = true,
-            ) {
-                actions.onClickWatch.invoke(item.id, !watched)
-            },
-        )
-        add(
-            DialogItem(
-                text = if (favorite) R.string.remove_favorite else R.string.add_favorite,
-                iconStringRes = R.string.fa_heart,
-                iconColor = if (favorite) Color.Red else Color.Unspecified,
-                dismissOnClick = true,
-            ) {
-                actions.onClickFavorite.invoke(item.id, !favorite)
-            },
-        )
+        if (contextMenu.showWatchedAndFavorite) {
+            add(
+                DialogItem(
+                    text = if (watched) R.string.mark_unwatched else R.string.mark_watched,
+                    iconStringRes = if (watched) R.string.fa_eye else R.string.fa_eye_slash,
+                    dismissOnClick = true,
+                ) {
+                    actions.onClickWatch.invoke(item.id, !watched)
+                },
+            )
+            add(
+                DialogItem(
+                    text = if (favorite) R.string.remove_favorite else R.string.add_favorite,
+                    iconStringRes = R.string.fa_heart,
+                    iconColor = if (favorite) Color.Red else Color.Unspecified,
+                    dismissOnClick = true,
+                ) {
+                    actions.onClickFavorite.invoke(item.id, !favorite)
+                },
+            )
+        }
         item.data.albumId?.let { albumId ->
             add(
                 DialogItem(
