@@ -164,6 +164,10 @@ class SeriesViewModel
             viewModelScope.launchIO {
                 Timber.v("Start")
                 addCloseable { themeSongPlayer.stop() }
+                // Speed plan step 7 (2026-11): the seasons need only the show's id, so for adults they are asked for
+                // together with the show instead of after it. A kid page keeps the old order: the kid content rules
+                // look the show up themselves when its seasons are asked for first, which would add a request
+                val early = if (kidPage) null else startSeasonsAndEpisodes()
                 val series =
                     try {
                         api.userLibraryApi
@@ -174,6 +178,8 @@ class SeriesViewModel
                         throw ex
                     } catch (ex: Exception) {
                         Timber.e(ex, "Error fetching series %s", seriesId)
+                        early?.first?.cancel()
+                        early?.second?.cancel()
                         _state.update { it.copy(series = DataLoadingState.Error(ex)) }
                         return@launchIO
                     }
@@ -187,32 +193,7 @@ class SeriesViewModel
                 // Step 5: and without the half-second pause meant for moving across cards
                 viewModelScope.launchIO { backdropService.submit(series, pauseFirst = false) }
 
-                val seasonsDeferred = getSeasons(series, seasonEpisodeIds?.seasonNumber)
-
-                val episodeListDeferred =
-                    if (seriesPageType == SeriesPageType.OVERVIEW) {
-                        viewModelScope.async(WholphinDispatchers.IO) {
-                            if (seasonEpisodeIds != null) {
-                                loadEpisodesInternal(
-                                    seasonEpisodeIds.seasonId,
-                                    seasonEpisodeIds.seasonNumber,
-                                    seasonEpisodeIds.episodeId,
-                                    seasonEpisodeIds.episodeNumber,
-                                )
-                            } else {
-                                seasonsDeferred.await().firstOrNull()?.let {
-                                    loadEpisodesInternal(
-                                        it.id,
-                                        it.indexNumber,
-                                        null,
-                                        null,
-                                    )
-                                } ?: EpisodeList.Error(message = "Could not determine season")
-                            }
-                        }
-                    } else {
-                        CompletableDeferred(value = EpisodeList.Loading)
-                    }
+                val (seasonsDeferred, episodeListDeferred) = early ?: startSeasonsAndEpisodes()
                 val (seasons, episodes) =
                     try {
                         val seasons = seasonsDeferred.await()
@@ -331,7 +312,7 @@ class SeriesViewModel
                                 deletedItem.item.id,
                                 seriesId,
                             )
-                            val seasons = getSeasons(series, seasonEpisodeIds?.seasonNumber).await()
+                            val seasons = getSeasons(seasonEpisodeIds?.seasonNumber).await()
                             _state.update { it.copy(seasons = seasons) }
                         }
                     }.catch { ex ->
@@ -363,15 +344,45 @@ class SeriesViewModel
             themeSongPlayer.stop()
         }
 
-        private fun getSeasons(
-            series: BaseItem,
-            seasonNum: Int?,
-        ): Deferred<List<BaseItem?>> =
+        /**
+         * Start the seasons request and, on the season page, the episodes: of the season the page was opened on, or
+         * else of the first season once the seasons are known.
+         */
+        private fun startSeasonsAndEpisodes(): Pair<Deferred<List<BaseItem?>>, Deferred<EpisodeList>> {
+            val seasonsDeferred = getSeasons(seasonEpisodeIds?.seasonNumber)
+            val episodeListDeferred =
+                if (seriesPageType == SeriesPageType.OVERVIEW) {
+                    viewModelScope.async(WholphinDispatchers.IO) {
+                        if (seasonEpisodeIds != null) {
+                            loadEpisodesInternal(
+                                seasonEpisodeIds.seasonId,
+                                seasonEpisodeIds.seasonNumber,
+                                seasonEpisodeIds.episodeId,
+                                seasonEpisodeIds.episodeNumber,
+                            )
+                        } else {
+                            seasonsDeferred.await().firstOrNull()?.let {
+                                loadEpisodesInternal(
+                                    it.id,
+                                    it.indexNumber,
+                                    null,
+                                    null,
+                                )
+                            } ?: EpisodeList.Error(message = "Could not determine season")
+                        }
+                    }
+                } else {
+                    CompletableDeferred(value = EpisodeList.Loading)
+                }
+            return seasonsDeferred to episodeListDeferred
+        }
+
+        private fun getSeasons(seasonNum: Int?): Deferred<List<BaseItem?>> =
             viewModelScope.async(WholphinDispatchers.IO) {
-                Timber.v("getSeasons for %s", series.id)
+                Timber.v("getSeasons for %s", seriesId)
                 val request =
                     GetItemsRequest(
-                        parentId = series.id,
+                        parentId = seriesId,
                         recursive = false,
                         includeItemTypes = listOf(BaseItemKind.SEASON),
                         sortBy = listOf(ItemSortBy.INDEX_NUMBER),
@@ -504,7 +515,7 @@ class SeriesViewModel
                         _state.update { it.copy(people = people) }
                     }
                     viewModelScope.launchIO {
-                        val seasons = getSeasons(series, null).await()
+                        val seasons = getSeasons(null).await()
                         _state.update { it.copy(seasons = seasons) }
                     }
                 } catch (ex: Exception) {
@@ -727,7 +738,7 @@ class SeriesViewModel
                         navigationManager.goBack()
                     } else if (seriesPageType == SeriesPageType.DETAILS) {
                         state.value.series.successValue?.let { series ->
-                            val seasons = getSeasons(series, null).await()
+                            val seasons = getSeasons(null).await()
                             if (seasons.isEmpty()) {
                                 navigationManager.goBack()
                             } else {
