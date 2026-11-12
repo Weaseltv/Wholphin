@@ -5,6 +5,7 @@
 - Notion MCP: Claude is Connected on T3 workers. Codex needs a one-time `codex mcp login notion` on that machine (OAuth is machine-local).
 - Do not invent new Products from chat folders. Link work to existing Products rows.
 - No production secrets in the repo.
+- Live TV and Music were deleted from this app on 2026-11-12 (v1.2.48): the owner will never use them. Leave them out of audits, plans and reviews, and if an upstream merge brings their code back, remove it again. Theme songs, music videos and playlists are kept.
 
 ## Machines: work on the machine the thread was opened on (owner, 2026-10-12)
 
@@ -47,7 +48,8 @@ On 2026-10-12 the ThinkCentre's copy was four weeks old.
 - All three machines sign Alpha builds with the same non-production debug key
   (`~/.android/debug.keystore`, mode 0600; synced 2026-10-12, copied to t3-ovh
   2026-10-31 with the owner's approval), so an Alpha from any of them installs
-  over the others'. Never commit it or copy the release key.
+  over the others'. Never commit it. The release key is separate: see
+  "Stable releases" for where it is and how it may be used.
 
 ### Sending files to the owner's Windows PC: Taildrop
 
@@ -155,7 +157,13 @@ Official publish = merge to `weaselfin` -> tag that merge commit -> signed APK f
 
 Ship branch is **`weaselfin`** (not upstream `main`). All WeaselPlex release tags (`v1.1.x`, etc.) are on `weaselfin`. Do not publish from `main` unless the owner explicitly changes that policy.
 
-Release signing: release builds need the WeaselFin signing keystore (same key as prior installs). Unsigned APKs will not upgrade over existing installs. Prefer building the signed release on a host that already has the keystore; do not commit keystore files or passwords.
+Release signing: release builds need the WeaselFin signing keystore (same key as prior installs). Unsigned APKs will not upgrade over existing installs.
+
+- The release key is on all three machines: the VPS, the ThinkCentre and t3-ovh. The t3-ovh copy was made on 2026-11-12 at the owner's request, from the VPS. So a release is built and signed on the thread's own machine, like everything else.
+- On each machine: `~/keystores/weaselfin-release.jks` (directory 0700, file 0600), its signing settings in `~/keystores/weaselfin-release.properties` (0600), and the same settings installed as the gitignored `local.properties` (0600) in the main checkout `~/work/weaselfin/Wholphin`.
+- To build in any other checkout or worktree, copy that `.properties` file in as `local.properties` (mode 0600) and delete it when the build is done.
+- Never print, log or commit the key, the settings file or their values. To inspect the settings, show names only. The file has Windows line endings, which Gradle reads correctly; do not rewrite it. A shell check of the key path must strip the `\r` first (`tr -d '\r'`).
+- Do not copy the key to any other machine, or anywhere else on these three, unless the owner asks.
 
 versionCode: the `weaselfin` flavor takes it from the release tag (`v1.2.6` -> `10206`), so tag first, then build from the tag. `assembleWeaselfinRelease` refuses to run if the code is not above 74, the last release numbered by tag count. Android refuses an update whose versionCode is lower than the installed one ("App not installed"); v1.2.5 first shipped that way on 2026-10-01.
 
@@ -183,7 +191,7 @@ unzip -l <new-arm64-v8a>.apk | grep libffmpegJNI.so                  # native pl
   1. GitHub release `vX.Y.Z` exists with those asset names and is the repo **Latest** release.
   2. `curl -sI https://theweasel.tv/fin` redirects to that release's `WeaselFin-release.apk` (via `.../releases/latest/download/...`).
   3. In-app updater can see `vX.Y.Z` (plain title).
-- Do not use the removed GitHub Actions Create release workflow; build/sign on VPS or ThinkCentre (with WholphinExtensions / ffmpeg packages wired).
+- Do not use the removed GitHub Actions Create release workflow; build and sign on the thread's machine (VPS, ThinkCentre or t3-ovh, each with the release key and the WholphinExtensions / ffmpeg packages wired).
 - Do not tell the owner a "VPS website APK still needs refreshing" after a correct Latest GitHub publish — `/fin` already tracks Latest.
 
 ## Close builds when you finish: memory (owner, 2026-10-22)
