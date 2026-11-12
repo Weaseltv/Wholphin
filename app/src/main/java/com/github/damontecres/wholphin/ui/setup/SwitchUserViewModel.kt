@@ -191,8 +191,16 @@ class SwitchUserViewModel
                 val mark = networkAvailability.mark()
                 _state.update { it.copy(loading = LoadingState.Loading) }
                 try {
+                    // Speed plan, app start (2026-11): the profiles and the server version don't depend on each other,
+                    // so they are asked for together instead of one after the other
                     val (serverUsers, version) =
-                        networkAvailability.whenConnected { getUsers() to checkServerVersion() }
+                        networkAvailability.whenConnected {
+                            coroutineScope {
+                                val users = async { getUsers() }
+                                val version = async { checkServerVersion() }
+                                users.await() to version.await()
+                            }
+                        }
                     val (serverVersion, supported) = version
                     _state.update {
                         it.copy(

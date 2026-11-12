@@ -22,9 +22,12 @@ import com.github.damontecres.wholphin.services.tvprovider.LauncherRows
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -231,14 +234,24 @@ class ServerRepository
                         apiClient.deviceInfo,
                         apiClient.httpClientOptions,
                     )
-                val userDto by scopedApi.userApi.getCurrentUser()
-                val updatedServer =
-                    try {
-                        val sysInfo by scopedApi.systemApi.getPublicSystemInfo()
-                        server.copy(name = sysInfo.serverName, version = sysInfo.version)
-                    } catch (ex: Exception) {
-                        Timber.w(ex, "Exception fetching public system info")
-                        server
+                // Speed plan, app start (2026-11): the server's name and version are asked for alongside the profile's
+                // own details instead of after them. Entry still waits for both; only the profile's details decide anything
+                val (userDto, updatedServer) =
+                    coroutineScope {
+                        val serverInfo =
+                            async {
+                                try {
+                                    val sysInfo by scopedApi.systemApi.getPublicSystemInfo()
+                                    server.copy(name = sysInfo.serverName, version = sysInfo.version)
+                                } catch (ex: CancellationException) {
+                                    throw ex
+                                } catch (ex: Exception) {
+                                    Timber.w(ex, "Exception fetching public system info")
+                                    server
+                                }
+                            }
+                        val userDto by scopedApi.userApi.getCurrentUser()
+                        userDto to serverInfo.await()
                     }
                 val fetchedUser =
                     user
