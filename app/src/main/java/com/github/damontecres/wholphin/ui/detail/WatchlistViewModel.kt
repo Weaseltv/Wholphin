@@ -43,6 +43,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -152,21 +154,32 @@ class WatchlistViewModel
             val items =
                 try {
                     val user = serverRepository.currentUserDto
-                    val libraries = user?.let { navDrawerService.getAllUserLibraries(it.id) }.orEmpty()
-                    _libraries.value = libraries
+                    // Speed plan 18c (2026-11): the library list was asked for again before every fetch, and the titles
+                    // only after it. A refresh of a list already showing reuses the libraries it has, and the first
+                    // load asks for the libraries and the titles together
+                    val known = _libraries.value.takeIf { inPlace && it.isNotEmpty() }
                     val pager =
-                        ApiRequestPager(
-                            api,
-                            createRequest(filter, sortAndDirection),
-                            GetItemsRequestHandler,
-                            viewModelScope,
-                            pageSize = 50,
-                            // Episodes show their show's poster so the grid stays uniform
-                            useSeriesForPrimary = true,
-                            transformItems = { page ->
-                                if (user != null) homeSettingsService.resolveItemLibraries(page, user.id, libraries) else page
-                            },
-                        ).init()
+                        coroutineScope {
+                            val libraries =
+                                async {
+                                    known ?: user
+                                        ?.let { navDrawerService.getAllUserLibraries(it.id) }
+                                        .orEmpty()
+                                        .also { _libraries.value = it }
+                                }
+                            ApiRequestPager(
+                                api,
+                                createRequest(filter, sortAndDirection),
+                                GetItemsRequestHandler,
+                                viewModelScope,
+                                pageSize = 50,
+                                // Episodes show their show's poster so the grid stays uniform
+                                useSeriesForPrimary = true,
+                                transformItems = { page ->
+                                    if (user != null) homeSettingsService.resolveItemLibraries(page, user.id, libraries.await()) else page
+                                },
+                            ).init().also { libraries.await() }
+                        }
                     DataLoadingState.Success(pager)
                 } catch (ex: CancellationException) {
                     throw ex

@@ -381,7 +381,7 @@ fun SwitchUserContent(
                             },
                     )
                 }
-                when (state.serverVersionSupported) {
+                when (if (state.serverVersionPending) ServerVersionSupported.SUPPORTED else state.serverVersionSupported) {
                     ServerVersionSupported.SUPPORTED -> {}
 
                     ServerVersionSupported.NOT_SUPPORTED,

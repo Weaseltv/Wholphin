@@ -23,6 +23,7 @@ import com.github.damontecres.wholphin.services.MediaManagementService
 import com.github.damontecres.wholphin.services.NavDrawerService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.NetworkAvailability
+import com.github.damontecres.wholphin.services.SavedHome
 import com.github.damontecres.wholphin.services.ServerReportService
 import com.github.damontecres.wholphin.services.StreamingCollections
 import com.github.damontecres.wholphin.services.StreamingOrderService
@@ -90,6 +91,7 @@ class HomeViewModel
         private val streamingOrderService: StreamingOrderService,
         private val quickListService: StreamingQuickListService,
         private val networkAvailability: NetworkAvailability,
+        private val savedHome: SavedHome,
     ) : ViewModel() {
         private val _state = MutableStateFlow(HomeState.EMPTY)
         val state: StateFlow<HomeState> = _state
@@ -258,6 +260,8 @@ class HomeViewModel
                 val (settings, userDto) =
                     withTimeoutOrNull(SESSION_WAIT) { currentSession() } ?: throw HomeSessionTimeout()
                 if (settings.owner?.kid == true) {
+                    // A kid's profile never has an adult's saved Home, eg one left from before it was made a kid's
+                    serverRepository.currentUser?.takeIf { it.id == userDto.id }?.let { savedHome.delete(it.serverId, it.id) }
                     followKidHome(generation, settings, userDto)
                     return
                 }
@@ -268,6 +272,10 @@ class HomeViewModel
                     Timber.i("Home was loaded moments ago and nothing has changed since: not reloading")
                     return
                 }
+                // Speed plan step 17 (2026-11): with nothing of this Home on screen yet, show it as it was last time
+                // and let the load below refresh the rows in place, as it does when Home is returned to
+                val layout = SavedHome.layoutKey(settings, prefs)
+                val painted = showSavedHome(generation, settings, userDto, layout)
                 val libraries = navDrawerService.getAllUserLibraries(userDto.id)
                 val state = state.value
 
@@ -306,7 +314,8 @@ class HomeViewModel
                         settings.rows
                             .map { row ->
                                 async(WholphinDispatchers.IO) {
-                                    semaphore.withPermit { fetchRow(row, prefs, userDto, libraries, refresh) }
+                                    // A saved Home on screen doesn't make this a refresh for the rows' own requests
+                                    semaphore.withPermit { fetchRow(row, prefs, userDto, libraries, refresh && !painted) }
                                 }
                             }
 
@@ -354,6 +363,7 @@ class HomeViewModel
                 }
                 Timber.d("Home page load complete")
                 loaded = Loaded(generation, settings, prefs, changes, System.nanoTime())
+                saveHome(generation, settings, userDto, layout, libraries)
                 prefetchStreamingCollections(userDto.id)
             } catch (ex: CancellationException) {
                 throw ex
@@ -376,6 +386,81 @@ class HomeViewModel
                     }
                 }
                 if (state.value.generation == generation && ex.isNetworkFailure()) reloadWhenOnline(mark)
+            }
+        }
+
+        /**
+         * Speed plan step 17: put the adult's saved Home on screen, if there is one for exactly this profile and
+         * [layout] and nothing of this Home is showing yet. True when it was shown. Through [update], so only under
+         * [generation] and while [settings] are still the session's.
+         */
+        private suspend fun showSavedHome(
+            generation: Long,
+            settings: HomePageResolvedSettings,
+            userDto: UserDto,
+            layout: String,
+        ): Boolean {
+            val shown = state.value
+            if (shown.loadingState == LoadingState.Success && shown.settings == settings) return false
+            return try {
+                val user = serverRepository.currentUser?.takeIf { it.id == userDto.id } ?: return false
+                if (!savedHome.adultSession()) return false
+                val saved = savedHome.read(user, layout)?.takeIf { it.rows.size == settings.rows.size } ?: return false
+                val rows = saved.rows.map { it.toRow() }
+                update(generation, settings) {
+                    it.copy(
+                        loadingState = LoadingState.Success,
+                        refreshState = LoadingState.Loading,
+                        settings = settings,
+                        libraries = saved.libraries,
+                        homeRows = rows,
+                    )
+                }.also { if (it) Timber.i("Home: showing the saved copy while the rows load") }
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                Timber.w(ex, "Couldn't show the saved Home")
+                false
+            }
+        }
+
+        /** Speed plan step 17: keep the Home just loaded for next time, if it is an adult's and every row loaded */
+        private suspend fun saveHome(
+            generation: Long,
+            settings: HomePageResolvedSettings,
+            userDto: UserDto,
+            layout: String,
+            libraries: List<Library>,
+        ) {
+            try {
+                val shown = state.value
+                if (shown.generation != generation || shown.settings != settings ||
+                    shown.loadingState != LoadingState.Success || shown.refreshState != LoadingState.Success
+                ) {
+                    return
+                }
+                val user = serverRepository.currentUser?.takeIf { it.id == userDto.id } ?: return
+                if (!savedHome.adultSession()) return
+                val rows = savedHome.rowsToSave(shown.homeRows)?.takeIf { it.size == settings.rows.size } ?: return
+                savedHome.write(
+                    SavedHome.Saved(
+                        serverId = user.serverId.toString(),
+                        userId = user.id.toString(),
+                        profileRowId = user.rowId,
+                        layout = layout,
+                        savedAt = System.currentTimeMillis(),
+                        libraries = libraries,
+                        rows = rows,
+                    ),
+                ) {
+                    // Still this session's Home, and still this profile
+                    state.value.generation == generation && homeSettingsService.isCurrent(settings) &&
+                        serverRepository.currentUser?.let { it.id == user.id && it.rowId == user.rowId } == true
+                }
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                Timber.w(ex, "Couldn't save Home")
             }
         }
 

@@ -89,7 +89,20 @@ class GenreViewModel
         private val _state = MutableStateFlow(GenreGridState())
         val state: StateFlow<GenreGridState> = _state
 
+        /** The card width the tab was last loaded for; see [init] */
+        private var loadedFor: Int? = null
+
+        /**
+         * Load the tab.
+         *
+         * Speed plan 18f (2026-11): a tab's content leaves the screen when another tab is chosen, and coming back to it
+         * ran this again: the loading picture and every request once more. What is already loaded (or loading) for
+         * this card width is now kept. A failed load still loads again.
+         */
         fun init(cardWidthPx: Int) {
+            val item = state.value.item
+            if (loadedFor == cardWidthPx && (item is DataLoadingState.Success || item is DataLoadingState.Loading)) return
+            loadedFor = cardWidthPx
             _state.update { it.copy(item = DataLoadingState.Loading) }
             viewModelScope.launchIO {
                 try {

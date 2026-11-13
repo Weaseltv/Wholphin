@@ -33,6 +33,13 @@ private val notes1244 =
 
 internal val WhatsNewNotes: Map<String, List<String>> =
     mapOf(
+        "1.2.49" to
+            listOf(
+                "Home appears right away when you open WeaselPlex, then its rows update.",
+                "Your profiles show up right away when the app starts.",
+                "The Genres and Studios tabs stay as you left them when you switch tabs.",
+                "The WeaselPlex tour no longer starts by itself. Run it anytime from Settings → Help.",
+            ),
         "1.2.48" to
             listOf(
                 "Faster all around: pages change quicker, and movie, show and episode pages appear sooner.",

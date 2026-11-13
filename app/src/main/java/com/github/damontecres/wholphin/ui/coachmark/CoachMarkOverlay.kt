@@ -98,8 +98,8 @@ fun CoachMarkOverlay(
 ) {
     DisposableEffect(tour) { onDispose { tour.end() } }
 
-    // Started from Settings or by a new account: wait for Home, then for it to focus the starting row, and for the move
-    // there to settle. Home not coming up within a minute (still signing in, or gone elsewhere) drops it.
+    // Started from Settings: wait for Home, then for it to focus the starting row, and for the move there to settle.
+    // Home not coming up within a minute (gone elsewhere) drops it.
     if (tour.pending) {
         LaunchedEffect(Unit) {
             val home =

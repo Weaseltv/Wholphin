@@ -17,6 +17,7 @@ import com.github.damontecres.wholphin.kids.profileCeiling
 import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.services.KidHomeCache
+import com.github.damontecres.wholphin.services.SavedHome
 import com.github.damontecres.wholphin.services.hilt.IoDispatcher
 import com.github.damontecres.wholphin.services.tvprovider.LauncherRows
 import com.github.damontecres.wholphin.ui.toServerString
@@ -29,9 +30,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
@@ -81,11 +80,6 @@ class ServerRepository
 
         private var _current = MutableStateFlow<CurrentUser?>(null)
         val current: StateFlow<CurrentUser?> = _current
-
-        private val _newAccounts = MutableSharedFlow<CurrentUser>(extraBufferCapacity = 1)
-
-        /** Adults signed in on this TV for the first time (not a saved account signing in again), as they're entered */
-        val newAccounts: SharedFlow<CurrentUser> = _newAccounts
 
         private val _sessionEpoch = MutableStateFlow(0L)
 
@@ -740,7 +734,6 @@ class ServerRepository
                         }
                     if (user != null) {
                         return@withContext switchUser(server, user, beforePublish, authorize, entryOwner, newPin, displayName)
-                            .also { if (savedUser == null && it.user.profileKind == ProfileKind.ADULT) _newAccounts.tryEmit(it) }
                     } else {
                         throw IllegalArgumentException("Authentication result's user was null")
                     }
@@ -750,6 +743,15 @@ class ServerRepository
             } else {
                 throw IllegalArgumentException("Authentication result's access token was null")
             }
+        }
+
+        /** The saved Homes of a profile removed from this TV, the kid's and the adult's */
+        private fun purgeSavedHomes(
+            serverId: UUID,
+            userId: UUID,
+        ) {
+            KidHomeCache.purgeUser(context, serverId, userId)
+            SavedHome.purgeUser(context, serverId, userId)
         }
 
         /**
@@ -771,7 +773,7 @@ class ServerRepository
             }
             withContext(ioDispatcher) {
                 serverDao.deleteUser(user.serverId, user.id)
-                KidHomeCache.purgeUser(context, user.serverId, user.id)
+                purgeSavedHomes(user.serverId, user.id)
             }
         }
 
@@ -789,7 +791,7 @@ class ServerRepository
                 if (inUse) return@withLock false
                 withContext(ioDispatcher) {
                     (serverDao.deleteKidWithToken(kid.rowId, token) > 0).also { removed ->
-                        if (removed) KidHomeCache.purgeUser(context, kid.serverId, kid.id)
+                        if (removed) purgeSavedHomes(kid.serverId, kid.id)
                     }
                 }
             }
@@ -818,7 +820,7 @@ class ServerRepository
                 val policyState = if (adultOnly) PolicyState.ADULT.dbValue else null
                 withContext(ioDispatcher) {
                     (serverDao.deletePinlessUser(user.rowId, policyState) > 0).also { removed ->
-                        if (removed) KidHomeCache.purgeUser(context, user.serverId, user.id)
+                        if (removed) purgeSavedHomes(user.serverId, user.id)
                     }
                 }
             }
@@ -846,6 +848,7 @@ class ServerRepository
             withContext(ioDispatcher) {
                 serverDao.deleteServer(server.id)
                 KidHomeCache.purgeServer(context, server.id)
+                SavedHome.purgeServer(context, server.id)
             }
         }
 
