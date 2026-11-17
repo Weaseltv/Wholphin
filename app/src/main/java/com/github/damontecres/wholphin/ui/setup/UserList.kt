@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -58,6 +59,8 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
+import coil3.request.ImageRequest
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.services.versionedUserImageUrl
@@ -79,6 +82,7 @@ import com.github.damontecres.wholphin.ui.theme.neonSurfaceGlow
 import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Display a list of users plus option to add a new one or switch servers (when
@@ -337,7 +341,7 @@ private fun UserIconCard(
             ) {
                 if (imageUrl.isNotNullOrBlank() && !imageError) {
                     AsyncImage(
-                        model = imageUrl,
+                        model = rememberAvatarRequest(user.user.id, imageUrl),
                         contentDescription = user.user.name,
                         contentScale = ContentScale.Crop,
                         onError = { imageError = true },
@@ -389,6 +393,37 @@ private fun UserIconCard(
     }
 }
 
+/** The last picture each profile showed on screen, by address */
+private val lastShownAvatar = ConcurrentHashMap<UUID, String>()
+
+/**
+ * A profile picture's request, shared by the side menu's avatar and the Select User tiles (owner, 2026-11-17: the
+ * avatar blinked out and back in on Select User).
+ *
+ * The chooser builds a profile's address more than once as it loads (first without the picture's tag, then with it),
+ * and a new address started from blank. Now the picture last shown for that profile stays up while a new address
+ * loads. Both places also decode it at the chooser's tile size, so the tile can reuse the side menu's copy at once.
+ */
+@Composable
+private fun rememberAvatarRequest(
+    userId: UUID,
+    imageUrl: String,
+): ImageRequest {
+    val context = LocalPlatformContext.current
+    // The largest tile, focused (1.2x on the stock theme, 1.06x on Neon)
+    val sizePx = with(LocalDensity.current) { (maxOf(NeonBoard.Size.UserTile, Cards.serverUserCircle) * 1.2f).roundToPx() }
+    return remember(context, userId, imageUrl, sizePx) {
+        ImageRequest
+            .Builder(context)
+            .data(imageUrl)
+            .size(sizePx)
+            .memoryCacheKey(imageUrl)
+            .placeholderMemoryCacheKey(lastShownAvatar[userId] ?: imageUrl)
+            .listener(onSuccess = { _, _ -> lastShownAvatar[userId] = imageUrl })
+            .build()
+    }
+}
+
 @Composable
 fun UserIconCardImage(
     id: UUID,
@@ -413,7 +448,7 @@ fun UserIconCardImage(
     ) {
         if (imageUrl.isNotNullOrBlank() && !imageError) {
             AsyncImage(
-                model = imageUrl,
+                model = rememberAvatarRequest(id, imageUrl),
                 contentDescription = name,
                 contentScale = ContentScale.Crop,
                 onError = { imageError = true },
