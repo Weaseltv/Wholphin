@@ -227,7 +227,8 @@ class MainActivity : AppCompatActivity() {
         viewModel.serverRepository.currentUserFlow
             .onEach { user ->
                 withContext(WholphinDispatchers.Main) {
-                    if (user?.hasPin == true) {
+                    // The user-guide capture build (Alpha only) never blocks screen capture.
+                    if (user?.hasPin == true && !BuildConfig.GUIDE_CAPTURE) {
                         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
                     } else {
                         window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)

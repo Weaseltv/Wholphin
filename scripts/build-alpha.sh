@@ -3,17 +3,21 @@ set -euo pipefail
 
 usage() {
     cat <<'EOF'
-Usage: scripts/build-alpha.sh [--abi ABI] [--install ADB_SERIAL]
+Usage: scripts/build-alpha.sh [--abi ABI] [--install ADB_SERIAL] [--guide-capture]
 
 Build WeaselPlex Alpha for your Shield without tagging or publishing a release.
 Defaults to arm64-v8a. Supported ABIs: arm64-v8a, armeabi-v7a, x86_64.
 --install connects to a network ADB target and replaces the Alpha app.
 No tests, lint, device launch or visual checks are run.
+--guide-capture builds the user-guide capture build: an Alpha that never blocks
+screen capture (no FLAG_SECURE on PIN profiles). It is only for the spare
+capture Shield and refuses to install on the household Shield.
 EOF
 }
 
 alpha_abi=arm64-v8a
 alpha_device=
+guide_capture=false
 while (($#)); do
     case "$1" in
         --abi|--install)
@@ -24,6 +28,7 @@ while (($#)); do
             if [[ "$1" == --abi ]]; then alpha_abi=$2; else alpha_device=$2; fi
             shift 2
             ;;
+        --guide-capture) guide_capture=true; shift ;;
         --help|-h) usage; exit 0 ;;
         *) usage >&2; exit 2 ;;
     esac
@@ -51,9 +56,18 @@ command -v python3 >/dev/null || { echo "python3 is required to read APK metadat
 if [[ -n "$alpha_device" ]]; then
     command -v adb >/dev/null || { echo "adb must be on PATH for --install" >&2; exit 1; }
 fi
+if [[ "$guide_capture" == true ]]; then
+    case "$alpha_device" in
+        100.105.135.30*|shield.taildbfaa7.ts.net*)
+            echo "The guide capture build never goes on the household Shield." >&2
+            exit 2
+            ;;
+    esac
+fi
 
 # Keep Gradle's incremental outputs between iterations; don't run clean here.
-./gradlew :app:assembleWeaselfinAlpha "-PWeaselPlexTargetAbi=$alpha_abi"
+./gradlew :app:assembleWeaselfinAlpha "-PWeaselPlexTargetAbi=$alpha_abi" \
+    "-PWeaselPlexGuideCapture=$guide_capture"
 alpha_dir="$alpha_root/app/build/outputs/apk/weaselfin/alpha"
 alpha_source=$(python3 - "$alpha_dir/output-metadata.json" "$alpha_abi" <<'PY'
 import json
@@ -75,13 +89,18 @@ if matches[0]['versionCode'] < 2:
 print(metadata_path.parent / matches[0]['outputFile'])
 PY
 )
-alpha_apk="$alpha_dir/WeaselPlex-alpha-$alpha_abi.apk"
+if [[ "$guide_capture" == true ]]; then
+    alpha_apk="$alpha_dir/WeaselPlex-alpha-guide-capture-$alpha_abi.apk"
+else
+    alpha_apk="$alpha_dir/WeaselPlex-alpha-$alpha_abi.apk"
+fi
 cp -- "$alpha_source" "$alpha_apk"
 {
     printf 'commit=%s\n' "$(git rev-parse HEAD)"
     printf 'branch=%s\n' "$(git branch --show-current)"
     printf 'built_at=%s\n' "$(date -u +%FT%TZ)"
     printf 'abi=%s\n' "$alpha_abi"
+    printf 'guide_capture=%s\n' "$guide_capture"
     printf 'working_tree_status:\n'
     git status --short
 } > "$alpha_apk.build.txt"
