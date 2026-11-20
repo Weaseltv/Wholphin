@@ -178,6 +178,8 @@ $BT/apksigner verify --print-certs <new>.apk | grep SHA-256          # must star
 unzip -l <new-arm64-v8a>.apk | grep libffmpegJNI.so                  # native playback extensions
 ```
 
+Guide: in `weaseltv-guides` (`~/work/weaseltv/weaseltv-guides`), run `tools/release.py <previous tag> <new tag>` and open the guide PR it prepares; text updates land in the same release cycle.
+
 
 ## Distribution (WeaselPlex Android TV)
 
