@@ -99,6 +99,20 @@ for. Taildrop files *from* the PC arrive with `tailscale file get <dir>`.
 - Asking to merge a PR does not authorize a customer release either. Merge the
   code without creating a release tag or publishing APKs unless separately asked.
 
+### User-guide capture Shield (owner, 2026-11-12 and 2026-11-20)
+
+- The no-launch/no-input/no-screen-capture rules under "Fast Alpha iteration" below are about
+  the household Shield and the owner's own verification. They do not apply to the owner's
+  **spare capture Shield** (`192.168.0.113:5555`), which exists for the WeaselPlex user guide
+  (`Weaseltv/weaseltv-guides`). There, agents may install, reboot, drive the app and capture.
+- Reach the spare Shield only over ADB from the ThinkCentre (`ssh thinkcentre`), not over
+  Tailscale (owner, 2026-11-20). Build on the thread's machine and copy the APK to the
+  ThinkCentre under `~/work/`.
+- The guide capture build (`scripts/build-alpha.sh --guide-capture`, which never sets
+  `FLAG_SECURE`) goes only on the spare Shield. It is never installed on the household Shield
+  (`100.105.135.30`), never published and never built as a release (Gradle refuses).
+- Leave other apps on the spare Shield alone; they are not part of the guide.
+
 ### Fast Alpha iteration (owner policy, 2026-10-07)
 
 - Optimize routine Alpha tweaks for turnaround: make the change, build only the
