@@ -53,8 +53,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -393,6 +400,11 @@ fun NavDrawer(
 
     val focusRequester = remember { FocusRequester() }
 
+    // The page beside the menu. Right in the menu goes back to it (owner, 2026-11-17)
+    val pageFocusRequester = remember { FocusRequester() }
+    val layoutDirection = LocalLayoutDirection.current
+    val focusManager = LocalFocusManager.current
+
     // If the user presses back while on the home page, open the nav drawer, another back press will quit the app
     BackHandler(enabled = (drawerState.currentValue == DrawerValue.Closed && destination is Destination.Home)) {
         drawerState.setValue(DrawerValue.Open)
@@ -465,7 +477,20 @@ fun NavDrawer(
                             // the page loaded, the menu remembered that, and Left then went back to the profile.
                             // Moving around inside the menu is not "coming in", so Up from Search still reaches it.
                             .focusProperties { onEnter = { focusRequester.tryRequestFocus() } }
-                            .focusGroup(),
+                            // Right (Left in right-to-left languages) leaves the menu for the page you are on, back to
+                            // the item you were on there; only OK opens a different page (owner, 2026-11-17). The page
+                            // restores its own last focused item when entered. The usual move found nothing to the right.
+                            .onPreviewKeyEvent { event ->
+                                val towardPage =
+                                    if (layoutDirection == LayoutDirection.Ltr) Key.DirectionRight else Key.DirectionLeft
+                                if (event.key != towardPage) return@onPreviewKeyEvent false
+                                if (event.type == KeyEventType.KeyDown && !pageFocusRequester.tryRequestFocus()) {
+                                    focusManager.moveFocus(
+                                        if (layoutDirection == LayoutDirection.Ltr) FocusDirection.Right else FocusDirection.Left,
+                                    )
+                                }
+                                true
+                            }.focusGroup(),
                 ) {
                     // Even though some must be clicked, focusing on it should clear other focused items
                     val interactionSource = remember { MutableInteractionSource() }
@@ -661,7 +686,13 @@ fun NavDrawer(
         },
     ) {
         Box(
-            modifier = Modifier.fillMaxSize().rememberRequestFocus(),
+            // A focus group of its own, so the page's restorer has a group to save and restore its last item in
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .focusRequester(pageFocusRequester)
+                    .rememberRequestFocus()
+                    .focusGroup(),
         ) {
             // Page labels and cards keep their gutters; section rules extend to the rail and screen edge.
             // The page takes the SECTION accent of the rail item it belongs to; details
