@@ -375,6 +375,7 @@ class RequestProgressRepository
             var rev: Long = -1,
             var snapshot: Boolean = false,
             var paused: Boolean = false,
+            var restart: Boolean = false,
         )
 
         private fun capture(): Capture? {
@@ -503,7 +504,13 @@ class RequestProgressRepository
                 if (current(c, token)) rows.forEach(onRecord)
                 return false
             }
-            if (!cursor.snapshot || e.boot != cursor.boot || e.rev <= cursor.rev) return false
+            if (cursor.snapshot && e.boot != cursor.boot) {
+                // The service restarted and its revisions start over. Reopen the stream, which starts with a
+                // fresh snapshot: there is no longer a once-a-second read to repair the cursor.
+                cursor.restart = true
+                return false
+            }
+            if (!cursor.snapshot || e.rev <= cursor.rev) return false
             cursor.rev = e.rev
             when (type) {
                 "status" -> {
@@ -583,8 +590,6 @@ class RequestProgressRepository
                 // the shared cursor without an older queued stream event overwriting it.
                 val messages = Channel<StreamMessage>(64)
                 val cursor = Cursor()
-                var auditFailures = 0
-                var nextAuditAt = 0L
 
                 fun offer(message: StreamMessage) {
                     if (!messages.trySend(message).isSuccess) messages.close()
@@ -631,44 +636,18 @@ class RequestProgressRepository
                     )
                 try {
                     while (currentCoroutineContext().isActive && current(c, token)) {
-                        val wait =
+                        val incoming =
                             if (!cursor.snapshot) {
-                                15_000L
+                                // The stream's snapshot (the first one, or the one after an auth "ok") gets 15 s;
+                                // without it, reconnect.
+                                withTimeoutOrNull(15_000L) { messages.receiveCatching() } ?: return@withContext Result()
                             } else {
-                                maxOf(
-                                    PROGRESS_REFRESH_INTERVAL_MS,
-                                    nextAuditAt - SystemClock.uptimeMillis(),
-                                )
+                                // A healthy stream pushes every change within about a second, so there are no
+                                // extra snapshot reads while it is open (owner 2026-11-21: the TV had read
+                                // /snapshot about once a second on a quiet stream). A dead socket still ends
+                                // through the 40-s read timeout; the service pings every 15 s.
+                                messages.receiveCatching()
                             }
-                        val incoming = withTimeoutOrNull(wait) { messages.receiveCatching() }
-                        if (incoming == null) {
-                            if (!cursor.snapshot) return@withContext Result()
-                            // Heartbeats prove only that the socket is open. On a quiet stream,
-                            // check the service's shared JSON cache at a one-second cadence.
-                            val auditCursor = Cursor()
-                            val result = snapshot(c, token, onRecord, onDeleted, auditCursor, ProgressMode.LIVE)
-                            if (result.code in setOf(401, 403)) return@withContext result
-                            if (result.code != 200) {
-                                // A failed backup read does not mean the live socket failed.
-                                // Back off audits while continuing to receive live messages.
-                                auditFailures = (auditFailures + 1).coerceAtMost(6)
-                                nextAuditAt =
-                                    SystemClock.uptimeMillis() +
-                                    maxOf(backoff(auditFailures), result.retry, if (result.unsupported) 60_000L else 0L)
-                                publish(c, token) { it.copy(transportStale = true) }
-                                continue
-                            }
-                            auditFailures = 0
-                            nextAuditAt = 0
-                            if (!auditCursor.snapshot) continue
-                            cursor.boot = auditCursor.boot
-                            cursor.rev = auditCursor.rev
-                            cursor.snapshot = true
-                            cursor.paused = false
-                            // A snapshot can win a normal race with the next live event. Keep
-                            // the socket open; the advanced cursor rejects older queued events.
-                            continue
-                        }
                         val message = incoming.getOrNull() ?: return@withContext Result()
                         when (message) {
                             is StreamMessage.End -> {
@@ -691,6 +670,7 @@ class RequestProgressRepository
                                         ) {
                                             return@withContext Result(code = 401)
                                         }
+                                        if (cursor.restart) return@withContext Result()
                                     } catch (ex: Exception) {
                                         // Never log the body, cookie, account identity or parser exception text.
                                         Timber.w("Request progress: rejected %s event (%s)", message.type, ex.javaClass.simpleName)
