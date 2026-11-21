@@ -481,12 +481,13 @@ private fun activityRow(
 }
 
 // Sizes for the 1080p reference frame (owner mockups 2026-11-03; mockup px / 2). The table
-// spans the content width, and its five columns share it in these proportions.
-private const val TITLE_WEIGHT = 4.7f
+// spans the content width, and its five columns share it in these proportions. The action column
+// took .25 from the title so the "Watch now" button fits (owner, 2026-11-20: it showed only "Watch").
+private const val TITLE_WEIGHT = 4.45f
 private const val TYPE_WEIGHT = .85f
 private const val STATUS_WEIGHT = 1.95f
 private const val PROGRESS_WEIGHT = 1.45f
-private const val ACTION_WEIGHT = 1.35f
+private const val ACTION_WEIGHT = 1.6f
 private val PosterWidth = 28.dp
 private val PosterHeight = 42.dp
 private val PosterGap = 11.dp
@@ -1168,6 +1169,8 @@ private fun WatchNowPill(
         Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = content, modifier = Modifier.size(13.dp))
         Text(
             "Watch now",
+            // On one line: a narrow column wrapped it at the space and the one-line limit hid "now"
+            softWrap = false,
             style =
                 TextStyle(
                     fontFamily = fonts.body,
