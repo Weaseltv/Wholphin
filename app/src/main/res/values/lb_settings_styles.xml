@@ -13,6 +13,7 @@
         <item name="switchPreferenceCompatStyle">@style/lb_settings_Preference_Switch</item>
         <item name="preferenceFragmentListStyle">@style/lb_settings_List</item>
         <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="defaultBrandColor">@android:color/transparent</item>
         <item name="android:listPreferredItemPaddingStart">16dp</item>
         <item name="android:listPreferredItemPaddingEnd">16dp</item>
         <item name="android:textColorPrimary">#F2F5F9</item>

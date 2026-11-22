@@ -46,6 +46,19 @@ internal object SettingsLook {
         return compositeOver(withAlpha(palette.primary, alpha), palette.surface)
     }
 
+    /**
+     * `MaterialTheme.colorScheme.surfaceColorAtElevation` under the page accent: on the WeaselTV theme the colour
+     * scheme's primary is the section accent (`ProvideNeonAccent`), elsewhere the theme primary.
+     */
+    fun tonalSurface(
+        elevationDp: Float,
+        accent: Int,
+    ): Int {
+        val palette = AppTheme.palette
+        val alpha = ((4.5f * ln(elevationDp + 1f)) + 2f) / 100f
+        return compositeOver(withAlpha(if (neon) accent else palette.primary, alpha), palette.surface)
+    }
+
     /** The settings panel background: Neon `stage`, otherwise the surface at 1dp elevation */
     val panelBackground: Int get() = if (neon) NeonColors.STAGE else surfaceAt(1f)
 
@@ -150,6 +163,24 @@ internal object SettingsLook {
         val fontHeight = paint.getFontMetricsInt(null)
         if (px.toInt() != fontHeight) setLineSpacing(px - fontHeight, 1f)
     }
+
+    /** [title] after a Font Awesome [glyph] (the leading icons of the old rows) */
+    fun glyphTitle(
+        context: Context,
+        glyph: CharSequence,
+        title: CharSequence,
+        glyphVisible: Boolean = true,
+    ): CharSequence =
+        android.text.SpannableStringBuilder().apply {
+            append(glyph)
+            setSpan(GlyphSpan(AppFonts.icons(context)), 0, length, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            if (!glyphVisible) {
+                // Keeps its width so the titles line up (an unselected choice's check)
+                setSpan(android.text.style.ForegroundColorSpan(0), 0, length, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+            append("   ")
+            append(title)
+        }
 
     /** The section accent's paired glow colour (`neonGlowAccent`) */
     fun glowFor(accent: Int): Int = NeonSections.glowFor(accent)
@@ -286,11 +317,19 @@ internal class SettingsRowBackground(
  */
 internal class SettingsRuleView(
     context: Context,
-    private val accent: Int,
+    accent: Int,
 ) : View(context) {
     private val linePaint = Paint().apply { color = accent }
     private val glowPaint = Paint()
     private val thickness = context.dpF(ApprovedHomeLayout.DIVIDER_THICKNESS_DP.toFloat())
+
+    var accent: Int = accent
+        set(value) {
+            field = value
+            linePaint.color = value
+            updateGlow(height)
+            invalidate()
+        }
 
     override fun onMeasure(
         widthMeasureSpec: Int,
@@ -307,7 +346,10 @@ internal class SettingsRuleView(
         h: Int,
         oldw: Int,
         oldh: Int,
-    ) {
+    ) = updateGlow(h)
+
+    private fun updateGlow(h: Int) {
+        if (h <= 0) return
         val strength = ApprovedHomeLayout.DIVIDER_GLOW_STRENGTH / 100f
         glowPaint.shader =
             LinearGradient(
@@ -325,5 +367,18 @@ internal class SettingsRuleView(
         if (!SettingsLook.neon) return
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), glowPaint)
         canvas.drawRect(0f, height - thickness, width.toFloat(), height.toFloat(), linePaint)
+    }
+}
+
+/** Draws its text in [typeface] (a `TypefaceSpan(Typeface)` that works below API 28) */
+internal class GlyphSpan(
+    private val typeface: android.graphics.Typeface,
+) : android.text.style.MetricAffectingSpan() {
+    override fun updateDrawState(paint: android.text.TextPaint) {
+        paint.typeface = typeface
+    }
+
+    override fun updateMeasureState(paint: android.text.TextPaint) {
+        paint.typeface = typeface
     }
 }

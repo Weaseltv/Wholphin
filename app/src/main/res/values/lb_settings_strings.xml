@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Font Awesome glyphs for the settings rows that showed Material icons in the Compose UI (no-Compose UI) -->
+    <string name="lb_settings_fa_trash" translatable="false">&#xf1f8;</string>
+    <string name="lb_settings_fa_plus" translatable="false">&#xf067;</string>
+    <string name="lb_settings_fa_gear" translatable="false">&#xf013;</string>
+    <string name="lb_settings_fa_chevron_up" translatable="false">&#xf077;</string>
+    <string name="lb_settings_fa_chevron_down" translatable="false">&#xf078;</string>
+</resources>

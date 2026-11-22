@@ -28,18 +28,33 @@ import java.util.Locale
 internal class SettingsPanelHeader(
     context: Context,
     accent: Int,
+    /** Home settings' plain `titleLarge` heading (the old `TitleText`) instead of the panel heading */
+    private val plain: Boolean = false,
 ) : LinearLayout(context) {
     private val titleView: TextView
-    private val neon = SettingsLook.neon
+    private val neon = SettingsLook.neon && !plain
+    private var rule: SettingsRuleView? = null
+
+    /** The page accent (the rule) */
+    var accent: Int = accent
+        set(value) {
+            field = value
+            rule?.accent = value
+        }
 
     init {
         orientation = VERTICAL
-        val vertical = context.dp(8)
-        setPadding(0, vertical, 0, vertical)
+        if (plain) setPadding(0, context.dp(8), 0, context.dp(4)) else setPadding(0, context.dp(8), 0, context.dp(8))
         clipChildren = false
         clipToPadding = false
         titleView =
-            if (neon) {
+            if (plain) {
+                AppCompatTextView(context).apply {
+                    applyTextRole(TextRole.TITLE_LARGE)
+                    setTextColor(AppTheme.palette.onSurface)
+                    setPadding(context.dp(8), 0, context.dp(8), 0)
+                }
+            } else if (neon) {
                 FittedTitleView(context).apply {
                     setPadding(context.dp(32), 0, context.dp(32), 0)
                 }
@@ -52,7 +67,7 @@ internal class SettingsPanelHeader(
             }
         addView(titleView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
         if (neon) {
-            val rule = SettingsRuleView(context, accent)
+            val rule = SettingsRuleView(context, accent).also { this.rule = it }
             addView(
                 rule,
                 LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
