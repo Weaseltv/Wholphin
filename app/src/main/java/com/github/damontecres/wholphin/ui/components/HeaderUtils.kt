@@ -1,6 +1,5 @@
 package com.github.damontecres.wholphin.ui.components
 
-import android.content.Context
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -9,9 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
-import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
-import org.jellyfin.sdk.model.api.BaseItemKind
 
 object HeaderUtils {
     val topPadding = 48.dp
@@ -72,19 +69,4 @@ fun TextStyle.scaled(scale: Float) =
             fontSize = if (fontSize.isSpecified) fontSize * scale else fontSize,
             lineHeight = if (lineHeight.isSpecified) lineHeight * scale else lineHeight,
         )
-    }
-
-/** A short, localized label for an item kind, used by eyebrows and card badges. */
-fun itemKindLabel(
-    context: Context,
-    kind: BaseItemKind?,
-): String? =
-    when (kind) {
-        BaseItemKind.MOVIE -> context.getString(R.string.kind_movie)
-        BaseItemKind.SERIES -> context.getString(R.string.show)
-        BaseItemKind.SEASON -> context.getString(R.string.kind_season)
-        BaseItemKind.EPISODE -> context.getString(R.string.kind_episode)
-        BaseItemKind.BOX_SET -> context.getString(R.string.collection)
-        BaseItemKind.PLAYLIST -> context.getString(R.string.playlist)
-        else -> null
     }

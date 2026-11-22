@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Window of the CONTROLS dialogs (leanback.widget.dialog.AppDialog): a floating, untitled, transparent window
+        that wraps its panel and dims what is behind it, as the Compose Dialog window did. No window animation:
+        Compose dialogs appeared at once.
+    -->
+    <style name="lb_widget_ctl_dialog" parent="android:Theme.Material.Dialog.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowMinWidthMajor">0%</item>
+        <item name="android:windowMinWidthMinor">0%</item>
+        <item name="android:windowElevation">0dp</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.6</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation</item>
+        <item name="android:windowSoftInputMode">adjustResize|stateUnspecified</item>
+    </style>
+</resources>

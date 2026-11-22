@@ -26,34 +26,17 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
-import com.github.damontecres.wholphin.services.ServerReportService
-import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonUpper
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.LoadingState
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
-import javax.inject.Inject
-
-@HiltViewModel
-class ErrorViewModel
-    @Inject
-    constructor(
-        private val serverReportService: ServerReportService,
-    ) : ViewModel() {
-        fun sendLogs() {
-            viewModelScope.launchIO { serverReportService.sendAppLogs() }
-        }
-    }
 
 /**
  * Displays an error message and/or exception

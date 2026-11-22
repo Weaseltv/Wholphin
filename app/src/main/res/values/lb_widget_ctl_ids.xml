@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- No-Compose CONTROLS widgets (leanback.widget.control / dialog / text) -->
+    <item name="lb_widget_ctl_neon_scope" type="id" />
+    <item name="lb_widget_ctl_dialog_root" type="id" />
+    <item name="lb_widget_ctl_menu_list" type="id" />
+    <item name="lb_widget_ctl_button_label" type="id" />
+    <item name="lb_widget_ctl_button_icon" type="id" />
+</resources>
