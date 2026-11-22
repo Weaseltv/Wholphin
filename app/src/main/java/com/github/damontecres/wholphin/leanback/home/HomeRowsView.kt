@@ -586,7 +586,16 @@ class HomeRowsView(
     // Rows -------------------------------------------------------------------------------------------------------------
 
     private inner class RowsAdapter : RecyclerView.Adapter<RowHolder>() {
+        private val ids = HashMap<Any, Long>()
+
+        init {
+            // Rows keep their views (and focus) through updates and rebinds
+            setHasStableIds(true)
+        }
+
         override fun getItemCount(): Int = rows.size
+
+        override fun getItemId(position: Int): Long = ids.getOrPut(rowKey(position)) { ids.size.toLong() }
 
         override fun getItemViewType(position: Int): Int =
             when (val row = rows[position]) {

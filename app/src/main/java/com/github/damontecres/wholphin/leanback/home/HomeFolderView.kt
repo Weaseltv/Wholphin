@@ -11,6 +11,7 @@ import android.widget.LinearLayout
 import androidx.leanback.widget.VerticalGridView
 import androidx.recyclerview.widget.RecyclerView
 import coil3.load
+import coil3.request.crossfade
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.filter.ItemFilterBy
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
@@ -115,7 +116,6 @@ class FolderContentView(
             grid?.refresh()
         }
 
-    private val context = fragment.requireContext()
     private val neon = AppTheme.isNeon
     private val column =
         LinearLayout(context).apply {
@@ -616,7 +616,7 @@ class FolderContentView(
             PreferenceOptionsDialog(
                 context = context,
                 value = st.viewOptions,
-                options = options,
+                prefs = options,
                 onChange = actions::saveViewOptions,
                 onReset = { actions.saveViewOptions(defaultViewOptions) },
                 accent = pageStyle.sectionAccent,

@@ -57,12 +57,15 @@ import com.github.damontecres.wholphin.leanback.widget.dialog.AppDialog
 import com.github.damontecres.wholphin.leanback.widget.dialog.DialogOptions
 import com.github.damontecres.wholphin.leanback.widget.dialog.MenuDialog
 import com.github.damontecres.wholphin.leanback.widget.dialog.MenuItem
+import com.github.damontecres.wholphin.leanback.widget.text.FILLED_STAR_COLOR
+import com.github.damontecres.wholphin.leanback.widget.text.appendIcon
 import com.github.damontecres.wholphin.preferences.AppChoicePreference
 import com.github.damontecres.wholphin.preferences.AppClickablePreference
 import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.AppSliderPreference
 import com.github.damontecres.wholphin.preferences.AppSwitchPreference
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
+import com.github.damontecres.wholphin.ui.data.flip
 import com.github.damontecres.wholphin.ui.data.getStringRes
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.ItemSortBy
@@ -311,7 +314,7 @@ internal class FilterButton(
         menu.addView(column)
         var values: List<FilterValueOption>? = null
 
-        fun build() {
+        fun build(focusValue: FilterValueOption? = null) {
             column.removeAllViews()
             column.addView(
                 TextView(context).apply {
@@ -354,12 +357,10 @@ internal class FilterButton(
                         val selected = isSelected(filterOption, currentValue, value)
                         val row = DropdownMenuItemView(context, elevationDp = 8f)
                         if (filterOption == CommunityRatingFilter) {
+                            // SimpleStarRating: "N+" and a filled star
                             row.setText(
-                                SpannableStringBuilder("${value.name}+ ").apply {
-                                    val star = context.getString(R.string.fa_star)
-                                    val start = length
-                                    append(star)
-                                    setSpan(IconFontSpan(AppFonts.icons(context)), start, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                                SpannableStringBuilder("${value.name}+").apply {
+                                    appendIcon(context, R.drawable.lb_widget_ctl_ic_star, FILLED_STAR_COLOR)
                                 },
                             )
                         } else {
@@ -373,15 +374,17 @@ internal class FilterButton(
                             if (!filterOption.supportMultiple) {
                                 menu.dismiss()
                             } else {
-                                build()
-                                column.getChildAt(column.indexOfChildFocusable(value))?.requestFocus()
+                                build(focusValue = value)
                             }
                         }
                         row.tag = value
                         column.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
                         if (first == null) first = row
                     }
-                    first?.requestFocus()
+                    if (menu.isShowing) {
+                        val target = focusValue?.let { v -> column.getChildAt(column.indexOfChildFocusable(v)) } ?: first
+                        target?.requestFocus()
+                    }
                 }
             }
         }
@@ -391,6 +394,8 @@ internal class FilterButton(
             showMain()
         }
         menu.show()
+        // Before the values arrive, Remove (when the filter is set) has focus
+        (0 until column.childCount).map { column.getChildAt(it) }.firstOrNull { it.isFocusable }?.requestFocus()
         owner.lifecycleScope.launch {
             values = getPossibleValues(filterOption)
             if (menu.isShowing) build()
@@ -465,7 +470,7 @@ internal class FilterButton(
 internal class PreferenceOptionsDialog<P : Any>(
     context: Context,
     private var value: P,
-    private val options: List<AppPreference<P, *>>,
+    private val prefs: List<AppPreference<P, *>>,
     private val onChange: (P) -> Unit,
     private val onReset: () -> Unit,
     accent: Int,
@@ -526,7 +531,7 @@ internal class PreferenceOptionsDialog<P : Any>(
     @Suppress("UNCHECKED_CAST")
     private fun build() {
         list.removeAllViews()
-        options.forEach { pref ->
+        prefs.forEach { pref ->
             val row: View =
                 when (pref) {
                     is AppChoicePreference<P, *> -> choiceRow(pref as AppChoicePreference<P, Any?>)
@@ -600,8 +605,9 @@ internal class PreferenceOptionsDialog<P : Any>(
                 this.value = current
                 onChange = { newValue ->
                     label.text = "${context.getString(pref.title)}: ${pref.summary(context, newValue) ?: newValue}"
-                    value = pref.setter(value, newValue)
-                    onChange(value)
+                    val dialog = this@PreferenceOptionsDialog
+                    dialog.value = pref.setter(dialog.value, newValue)
+                    dialog.onChange(dialog.value)
                 }
             }
         column.addView(slider, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, context.dp(24)).apply { topMargin = context.dp(4) })
