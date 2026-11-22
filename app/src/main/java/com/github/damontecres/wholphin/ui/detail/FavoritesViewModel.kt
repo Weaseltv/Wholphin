@@ -2,8 +2,6 @@ package com.github.damontecres.wholphin.ui.detail
 
 import android.content.Context
 import androidx.annotation.VisibleForTesting
-import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.damontecres.wholphin.data.LibraryDisplayInfoDao
@@ -30,7 +28,8 @@ import com.github.damontecres.wholphin.ui.collectLatestIn
 import com.github.damontecres.wholphin.ui.components.CollectionFolderState
 import com.github.damontecres.wholphin.ui.components.CollectionFolderViewActions
 import com.github.damontecres.wholphin.ui.components.ContextMenuProvider
-import com.github.damontecres.wholphin.ui.components.TabDetails
+import com.github.damontecres.wholphin.ui.util.ResStringProvider
+import com.github.damontecres.wholphin.ui.util.StringProvider
 import com.github.damontecres.wholphin.ui.components.ViewOptions
 import com.github.damontecres.wholphin.ui.components.baseItemKinds
 import com.github.damontecres.wholphin.ui.components.defaultViewOptions
@@ -247,7 +246,7 @@ class FavoritesViewModel
                             backgroundLoading = LoadingState.Loading,
                             viewOptions = ViewOptions(),
                         )
-                    _state.value.favorites[type] = collectionState
+                    setFavorites(type, collectionState)
 
                     val libraryDisplayInfo =
                         serverRepository.currentUser?.let { user ->
@@ -284,10 +283,11 @@ class FavoritesViewModel
                     backgroundLoading = LoadingState.Loading,
                     viewOptions = ViewOptions(),
                 )
-            _state.value.favorites[type] = collectionState
+            setFavorites(type, collectionState)
             try {
                 val pager = createPager(type, filter, sortAndDirection)
-                _state.value.favorites[type] =
+                setFavorites(
+                    type,
                     collectionState.copy(
                         item = DataLoadingState.Success(null),
                         items = DataLoadingState.Success(pager),
@@ -295,13 +295,14 @@ class FavoritesViewModel
                         sortAndDirection = sortAndDirection,
                         filter = filter,
                         viewOptions = viewOptions,
-                    )
+                    ),
+                )
                 Timber.v("Got %s favorites for %s", pager.size, type)
                 _state.update {
                     val newTabs =
                         it.createMap {
                             if (pager.isNotEmpty()) {
-                                put(type, TabDetails(formatTypeName(type)))
+                                put(type, ResStringProvider(formatTypeName(type)))
                             } else {
                                 remove(type)
                             }
@@ -328,7 +329,7 @@ class FavoritesViewModel
         ) {
             _state.update {
                 // Want to store the error for the tab
-                _state.value.favorites[type] =
+                val errorState =
                     CollectionFolderState(
                         item = DataLoadingState.Success(null),
                         items = DataLoadingState.Error(ex),
@@ -338,9 +339,9 @@ class FavoritesViewModel
                 // And make sure the tab is included
                 val newTabs =
                     it.createMap {
-                        put(type, TabDetails(formatTypeName(type)))
+                        put(type, ResStringProvider(formatTypeName(type)))
                     }
-                it.copy(tabs = newTabs)
+                it.copy(favorites = it.favorites + (type to errorState), tabs = newTabs)
             }
         }
 
@@ -403,6 +404,14 @@ class FavoritesViewModel
         }
 
         private fun collectionStateFor(type: BaseItemKind): CollectionFolderState? = state.value.favorites[type]
+
+        /** Store the state of [type]'s tab (an immutable map in the state flow, so observers see every change) */
+        private fun setFavorites(
+            type: BaseItemKind,
+            collectionState: CollectionFolderState,
+        ) {
+            _state.update { it.copy(favorites = it.favorites + (type to collectionState)) }
+        }
 
         fun updateSelectedTabKey(newKey: BaseItemKind) {
             viewModelScope.launchDefault { backdropService.clearBackdrop() }
@@ -499,10 +508,12 @@ class FavoritesViewModel
                         newSort = collectionState.sortAndDirection,
                         viewOptions = viewOptions,
                     )
-                    state.value.favorites[type] =
+                    setFavorites(
+                        type,
                         collectionState.copy(
                             viewOptions = viewOptions,
-                        )
+                        ),
+                    )
                     if (!viewOptions.showBackdrop) {
                         backdropService.clearBackdrop()
                     }
@@ -515,7 +526,6 @@ class FavoritesViewModel
         /**
          * This provides context menu actions and other actions on a per [BaseItemKind] basis
          */
-        @Immutable
         inner class TypedProvider(
             val type: BaseItemKind,
         ) : ContextMenuProvider,
@@ -592,11 +602,13 @@ class FavoritesViewModel
                             newSort = sortAndDirection,
                             viewOptions = collectionState.viewOptions,
                         )
-                        state.value.favorites[type] =
+                        setFavorites(
+                            type,
                             collectionState.copy(
                                 filter = filter,
                                 sortAndDirection = sortAndDirection,
-                            )
+                            ),
+                        )
                         fetchType(type, sortAndDirection, filter, collectionState.viewOptions)
                     }
                 }
@@ -615,10 +627,12 @@ class FavoritesViewModel
                             newSort = collectionState.sortAndDirection,
                             viewOptions = collectionState.viewOptions,
                         )
-                        state.value.favorites[type] =
+                        setFavorites(
+                            type,
                             collectionState.copy(
                                 filter = newFilter,
-                            )
+                            ),
+                        )
                         fetchType(
                             type,
                             collectionState.sortAndDirection,
@@ -688,8 +702,10 @@ class FavoritesViewModel
 data class FavoritesPageState(
     val loadingState: FavoritesLoadingState = FavoritesLoadingState.Pending,
     val favoriteTypeOptions: List<BaseItemKind> = emptyList(),
-    val favorites: SnapshotStateMap<BaseItemKind, CollectionFolderState> = SnapshotStateMap(),
-    val tabs: SortedMap<BaseItemKind, TabDetails> = TreeMap(compareBy { favoriteOptions.indexOf(it) }),
+    /** Each tab's grid state (immutable: a change is a new state) */
+    val favorites: Map<BaseItemKind, CollectionFolderState> = emptyMap(),
+    /** The tabs shown, in [favoriteOptions] order, with their titles */
+    val tabs: SortedMap<BaseItemKind, StringProvider> = TreeMap(compareBy { favoriteOptions.indexOf(it) }),
     val tabKey: BaseItemKind = favoriteOptions.first(),
     val isShowClock: Boolean = true,
 )
@@ -736,8 +752,8 @@ val favoriteOptions =
 /**
  * Creates a new tab map from the current state applying the supplied block which can contain mutations
  */
-private inline fun FavoritesPageState.createMap(block: TreeMap<BaseItemKind, TabDetails>.() -> Unit) =
-    TreeMap<BaseItemKind, TabDetails>(compareBy { favoriteOptions.indexOf(it) })
+private inline fun FavoritesPageState.createMap(block: TreeMap<BaseItemKind, StringProvider>.() -> Unit) =
+    TreeMap<BaseItemKind, StringProvider>(compareBy { favoriteOptions.indexOf(it) })
         .apply {
             putAll(this@createMap.tabs)
             block.invoke(this)
