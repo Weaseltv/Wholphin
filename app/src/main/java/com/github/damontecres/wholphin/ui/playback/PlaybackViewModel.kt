@@ -67,7 +67,7 @@ import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.onMain
-import com.github.damontecres.wholphin.ui.preferences.subtitle.SubtitleSettings.applyToMpv
+import com.github.damontecres.wholphin.ui.preferences.subtitle.applyToMpv
 import com.github.damontecres.wholphin.ui.seekBack
 import com.github.damontecres.wholphin.ui.seekForward
 import com.github.damontecres.wholphin.ui.showToast

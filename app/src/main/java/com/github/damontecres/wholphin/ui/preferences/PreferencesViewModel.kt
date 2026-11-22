@@ -4,8 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
+import android.graphics.Bitmap
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
 import androidx.datastore.core.DataStore
@@ -337,7 +336,7 @@ class PreferencesViewModel
 
 data class ExternalPlayerApp(
     val name: String,
-    val icon: ImageBitmap?,
+    val icon: Bitmap?,
     val identifier: String,
 )
 
@@ -361,8 +360,7 @@ fun getExternalPlayers(context: Context): List<ExternalPlayerApp> {
                     icon =
                         it
                             .loadIcon(context.packageManager)
-                            .toBitmap()
-                            .asImageBitmap(),
+                            .toBitmap(),
                     identifier = component.flattenToString(),
                 )
             }

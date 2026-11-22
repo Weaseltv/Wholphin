@@ -64,22 +64,6 @@ fun LicenseInfo(modifier: Modifier = Modifier) {
     }
 }
 
-data class DependencyLicense(
-    val name: String,
-    val content: String?,
-    val url: String?,
-)
-
-data class DependencyAttribution(
-    val id: String,
-    val name: String,
-    val version: String?,
-    val authors: String,
-    val description: String?,
-    val website: String?,
-    val licenses: List<DependencyLicense>,
-)
-
 @Composable
 fun LicenseInfoContent(
     libraries: List<DependencyAttribution>,

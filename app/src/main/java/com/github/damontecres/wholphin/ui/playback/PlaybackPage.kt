@@ -90,7 +90,7 @@ import com.github.damontecres.wholphin.ui.playback.overlay.SkipIndicator
 import com.github.damontecres.wholphin.ui.playback.overlay.SkipSegmentButton
 import com.github.damontecres.wholphin.ui.playback.overlay.rememberSeekBarState
 import com.github.damontecres.wholphin.ui.preferences.subtitle.SubtitleSettings.applyTo
-import com.github.damontecres.wholphin.ui.preferences.subtitle.SubtitleSettings.calculateEdgeSize
+import com.github.damontecres.wholphin.ui.preferences.subtitle.calculateEdgeSize
 import com.github.damontecres.wholphin.ui.seasonEpisode
 import com.github.damontecres.wholphin.ui.theme.ProvideNeonAccent
 import com.github.damontecres.wholphin.ui.theme.neonAccentFor

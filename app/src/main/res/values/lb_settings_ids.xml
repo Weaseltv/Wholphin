@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The settings panel container of a settings page (no-Compose UI); stable so the panel's fragments restore -->
+    <item name="lb_settings_panel" type="id" />
+    <item name="lb_settings_side" type="id" />
+</resources>

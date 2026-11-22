@@ -12,5 +12,15 @@ object SettingsScreens {
     fun create(
         destination: Destination,
         preferences: UserPreferences,
-    ): DestinationFragment? = null
+    ): DestinationFragment? =
+        when (destination) {
+            is Destination.Settings -> AppSettingsFragment()
+            is Destination.SubtitleSettings -> SubtitleSettingsFragment()
+            Destination.UserAppPreferences -> UserPreferencesFragment()
+            Destination.HomeSettings -> HomeSettingsFragment()
+            Destination.License -> LicenseFragment()
+            Destination.Debug -> DebugFragment()
+            is Destination.UpdateApp -> UpdateFragment()
+            else -> null
+        }
 }

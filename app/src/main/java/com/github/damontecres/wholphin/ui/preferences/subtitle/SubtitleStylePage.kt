@@ -42,8 +42,8 @@ import com.github.damontecres.wholphin.preferences.resetSubtitles
 import com.github.damontecres.wholphin.preferences.updateInterfacePreferences
 import com.github.damontecres.wholphin.ui.findActivity
 import com.github.damontecres.wholphin.ui.preferences.PreferencesViewModel
-import com.github.damontecres.wholphin.ui.preferences.subtitle.SubtitleSettings.calculateEdgeSize
 import com.github.damontecres.wholphin.ui.preferences.subtitle.SubtitleSettings.toSubtitleStyle
+import com.github.damontecres.wholphin.ui.preferences.subtitle.calculateEdgeSize
 import com.github.damontecres.wholphin.util.Media3SubtitleOverride
 import timber.log.Timber
 

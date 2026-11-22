@@ -45,11 +45,6 @@ import com.github.damontecres.wholphin.ui.rememberInt
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import kotlinx.coroutines.launch
 
-enum class MoveDirection {
-    UP,
-    DOWN,
-}
-
 @Composable
 fun HomeSettingsRowList(
     state: HomePageSettingsState,
