@@ -65,13 +65,6 @@ import com.github.damontecres.wholphin.ui.theme.neonSurfaceShape
 import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.LoadingState
 
-data class RequestSeason(
-    val season: Season,
-    val status: RequestStatus,
-    val availability: SeerrAvailability,
-    val editable: Boolean,
-)
-
 @Composable
 fun RequestSeasons(
     id: Int,

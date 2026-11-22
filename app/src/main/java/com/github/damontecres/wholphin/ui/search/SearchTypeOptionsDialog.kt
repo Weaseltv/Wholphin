@@ -144,8 +144,6 @@ fun SearchTypeOptionsDialogContent(
     }
 }
 
-/** Primary search filters stay visible; optional Collections/Requests remain in View options. */
-val PrimarySearchTypes = listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES, BaseItemKind.EPISODE, BaseItemKind.PERSON)
 
 @Composable
 fun SearchTypeToggleRow(

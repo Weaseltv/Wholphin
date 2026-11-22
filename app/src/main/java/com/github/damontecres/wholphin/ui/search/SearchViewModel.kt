@@ -1,7 +1,6 @@
 package com.github.damontecres.wholphin.ui.search
 
 import android.content.Context
-import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.datastore.core.DataStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -173,10 +172,7 @@ class SearchViewModel
                             it.copy(
                                 includedSearchableTypes = searchableTypes,
                                 possibleSearchableTypes = possibleSearchableTypes,
-                                results =
-                                    SnapshotStateMap<BaseItemKind, SearchResult>().apply {
-                                        searchableTypes.forEach { type -> put(type, it.results[type] ?: SearchResult.NoQuery) }
-                                    },
+                                results = searchableTypes.associateWith { type -> it.results[type] ?: SearchResult.NoQuery },
                             )
                         }
                         warmIndex(searchableTypes)
@@ -218,12 +214,7 @@ class SearchViewModel
             if (query.isNotNullOrBlank()) {
                 _state.update {
                     it.copy(
-                        results =
-                            SnapshotStateMap<BaseItemKind, SearchResult>().apply {
-                                it.includedSearchableTypes.forEach {
-                                    put(it, SearchResult.Searching)
-                                }
-                            },
+                        results = it.includedSearchableTypes.associateWith { SearchResult.Searching },
                         combinedResults = SearchResult.Searching,
                     )
                 }
@@ -238,12 +229,7 @@ class SearchViewModel
             } else {
                 _state.update {
                     it.copy(
-                        results =
-                            SnapshotStateMap<BaseItemKind, SearchResult>().apply {
-                                it.includedSearchableTypes.forEach {
-                                    put(it, SearchResult.NoQuery)
-                                }
-                            },
+                        results = it.includedSearchableTypes.associateWith { SearchResult.NoQuery },
                         combinedResults = SearchResult.NoQuery,
                         // Its request may just have been dropped mid-flight, which would leave it "searching"
                         seerrResults = SearchResult.NoQuery,
@@ -309,13 +295,13 @@ class SearchViewModel
                         val results = indexed?.let { FuzzySearch.merge(it.await(), sorted) { item -> item.id } } ?: sorted
                         Timber.v("Search finished for %s, %s results", type, results.size)
                         ensureActive()
-                        _state.value.results[type] = SearchResult.Success(results)
+                        setResult(type, SearchResult.Success(results))
                         if (indexed == null) addIndexMatchesLater(type, query, indexTypes, sorted)
                     } catch (ex: CancellationException) {
                         throw ex
                     } catch (ex: Exception) {
                         Timber.e(ex, "Exception searching for $type")
-                        _state.value.results[type] = SearchResult.Error(ex)
+                        setResult(type, SearchResult.Error(ex))
                     }
                 }.ofThisSearch()
         }
@@ -458,10 +444,18 @@ class SearchViewModel
                     val result = SearchResult.Success(FuzzySearch.merge(indexed, section.items) { it.id })
                     when {
                         section.type == null -> if (combinedMode) _state.update { it.copy(combinedResults = result) }
-                        !combinedMode -> _state.value.results[section.type] = result
+                        !combinedMode -> setResult(section.type, result)
                     }
                 }
             }
+        }
+
+        /** One section's results (the Compose UI changed a snapshot map in place; this replaces the state) */
+        private fun setResult(
+            type: BaseItemKind,
+            result: SearchResult,
+        ) {
+            _state.update { it.copy(results = it.results + (type to result)) }
         }
 
         fun setCombinedResults(enabled: Boolean) {
@@ -560,7 +554,7 @@ class SearchViewModel
                         }
                     } else {
                         state.value.includedSearchableTypes.getOrNull(position.row)?.let { type ->
-                            state.value.results[type] = newList
+                            setResult(type, newList)
                         }
                     }
                 }
@@ -689,7 +683,7 @@ sealed interface SearchResult {
 }
 
 data class SearchState(
-    val results: SnapshotStateMap<BaseItemKind, SearchResult> = SnapshotStateMap(),
+    val results: Map<BaseItemKind, SearchResult> = emptyMap(),
     val seerrResults: SearchResult = SearchResult.NoQuery,
     val combinedResults: SearchResult = SearchResult.NoQuery,
     val possibleSearchableTypes: List<BaseItemKind> = emptyList(),
