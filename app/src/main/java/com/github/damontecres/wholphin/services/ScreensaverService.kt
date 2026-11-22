@@ -1,9 +1,6 @@
 package com.github.damontecres.wholphin.services
 
 import android.content.Context
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import coil3.imageLoader
 import coil3.request.ImageRequest
 import com.github.damontecres.wholphin.services.hilt.DefaultCoroutineScope
@@ -296,8 +293,11 @@ class ScreensaverService
         }
 
         companion object {
-            val enterAnimation = fadeIn(animationSpec = tween(durationMillis = 1000))
-            val exitAnimation = fadeOut(animationSpec = tween(durationMillis = 500))
+            /** The in-app screensaver and its dim fade in over this long (ms) */
+            const val ENTER_MS = 1000L
+
+            /** ...and out over this long (ms) */
+            const val EXIT_MS = 500L
         }
     }
 
