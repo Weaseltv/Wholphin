@@ -6,11 +6,6 @@ import android.os.Build
 import android.view.Display
 import androidx.annotation.Dimension
 import androidx.annotation.OptIn
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.SubtitleView
@@ -30,10 +25,17 @@ import com.github.damontecres.wholphin.ui.indexOfFirstOrNull
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.preferences.ConditionalPreferences
 import com.github.damontecres.wholphin.ui.preferences.PreferenceGroup
-import com.github.damontecres.wholphin.util.mpv.setPropertyColor
 import timber.log.Timber
 
+/**
+ * The subtitle style preferences and how they apply to ExoPlayer and MPV. Compose-free since the no-Compose rewrite
+ * (2026-11-22): colours are plain ARGB ints, densities are plain floats (`displayMetrics.density`).
+ */
 object SubtitleSettings {
+    /** Compose `Color.White` etc. as ARGB ints, in the order of `R.array.font_colors` */
+    private const val WHITE = 0xFFFFFFFF.toInt()
+    private const val BLACK = 0xFF000000.toInt()
+    private const val TRANSPARENT = 0x00000000
     val FontSize =
         AppSliderPreference<SubtitlePreferences>(
             title = R.string.font_size,
@@ -52,31 +54,31 @@ object SubtitleSettings {
 
     private val colorList =
         listOf(
-            Color.White,
-            Color.Black,
-            Color.LightGray,
-            Color.DarkGray,
-            Color.Red,
-            Color.Yellow,
-            Color.Green,
-            Color.Cyan,
-            Color.Blue,
-            Color.Magenta,
+            WHITE,
+            BLACK,
+            0xFFCCCCCC.toInt(),
+            0xFF444444.toInt(),
+            0xFFFF0000.toInt(),
+            0xFFFFFF00.toInt(),
+            0xFF00FF00.toInt(),
+            0xFF00FFFF.toInt(),
+            0xFF0000FF.toInt(),
+            0xFFFF00FF.toInt(),
         )
 
     val FontColor =
-        AppChoicePreference<SubtitlePreferences, Color>(
+        AppChoicePreference<SubtitlePreferences, Int>(
             title = R.string.font_color,
-            defaultValue = Color.White,
-            getter = { Color(it.fontColor) },
+            defaultValue = WHITE,
+            getter = { it.fontColor },
             setter = { prefs, value ->
-                prefs.update { fontColor = value.toArgb().and(0x00FFFFFF) }
+                prefs.update { fontColor = value.and(0x00FFFFFF) }
             },
             displayValues = R.array.font_colors,
-            indexToValue = { colorList.getOrNull(it) ?: Color.White },
+            indexToValue = { colorList.getOrNull(it) ?: WHITE },
             valueToIndex = { value ->
-                val color = value.toArgb().and(0x00FFFFFF)
-                colorList.indexOfFirstOrNull { color == it.toArgb().and(0x00FFFFFF) } ?: 0
+                val color = value.and(0x00FFFFFF)
+                colorList.indexOfFirstOrNull { color == it.and(0x00FFFFFF) } ?: 0
             },
         )
 
@@ -131,18 +133,18 @@ object SubtitleSettings {
         )
 
     val EdgeColor =
-        AppChoicePreference<SubtitlePreferences, Color>(
+        AppChoicePreference<SubtitlePreferences, Int>(
             title = R.string.edge_color,
-            defaultValue = Color.Black,
-            getter = { Color(it.edgeColor) },
+            defaultValue = BLACK,
+            getter = { it.edgeColor },
             setter = { prefs, value ->
-                prefs.update { edgeColor = value.toArgb().and(0x00FFFFFF) }
+                prefs.update { edgeColor = value.and(0x00FFFFFF) }
             },
             displayValues = R.array.font_colors,
-            indexToValue = { colorList.getOrNull(it) ?: Color.White },
+            indexToValue = { colorList.getOrNull(it) ?: WHITE },
             valueToIndex = { value ->
-                val color = value.toArgb().and(0x00FFFFFF)
-                colorList.indexOfFirstOrNull { color == it.toArgb().and(0x00FFFFFF) } ?: 0
+                val color = value.and(0x00FFFFFF)
+                colorList.indexOfFirstOrNull { color == it.and(0x00FFFFFF) } ?: 0
             },
         )
 
@@ -164,18 +166,18 @@ object SubtitleSettings {
         )
 
     val BackgroundColor =
-        AppChoicePreference<SubtitlePreferences, Color>(
+        AppChoicePreference<SubtitlePreferences, Int>(
             title = R.string.background_color,
-            defaultValue = Color.Transparent,
-            getter = { Color(it.backgroundColor) },
+            defaultValue = TRANSPARENT,
+            getter = { it.backgroundColor },
             setter = { prefs, value ->
-                prefs.update { backgroundColor = value.toArgb().and(0x00FFFFFF) }
+                prefs.update { backgroundColor = value.and(0x00FFFFFF) }
             },
             displayValues = R.array.font_colors,
-            indexToValue = { colorList.getOrNull(it) ?: Color.White },
+            indexToValue = { colorList.getOrNull(it) ?: WHITE },
             valueToIndex = { value ->
-                val color = value.toArgb().and(0x00FFFFFF)
-                colorList.indexOfFirstOrNull { color == it.toArgb().and(0x00FFFFFF) } ?: 0
+                val color = value.and(0x00FFFFFF)
+                colorList.indexOfFirstOrNull { color == it.and(0x00FFFFFF) } ?: 0
             },
         )
 
@@ -362,24 +364,31 @@ object SubtitleSettings {
         view.setBottomPaddingFraction(margin.toFloat() / 100f)
     }
 
-    fun SubtitlePreferences.calculateEdgeSize(density: Density): Float = with(density) { (edgeThickness / 2f).dp.toPx() }
+    /**
+     * The edge (outline) size in px for a display with [density] px per dp (`displayMetrics.density`).
+     */
+    fun SubtitlePreferences.calculateEdgeSize(density: Float): Float = (edgeThickness / 2f) * density
 
+    /**
+     * Applies this style to MPV. [density] is px per dp and [fontScale] the system font scale
+     * (`displayMetrics.density`, `configuration.fontScale`), as the Compose `Density` gave them.
+     */
     fun SubtitlePreferences.applyToMpv(
         configuration: Configuration,
-        density: Density,
+        density: Float,
+        fontScale: Float = configuration.fontScale,
     ) {
-        val fo = (fontOpacity / 100.0 * 255).toInt().shl(24)
-        val fc = Color(combine(fontColor, fontOpacity))
-        val bg = Color(combine(backgroundColor, backgroundOpacity))
-        val edge = Color(combine(edgeColor, fontOpacity))
+        val fc = combine(fontColor, fontOpacity)
+        val bg = combine(backgroundColor, backgroundOpacity)
+        val edge = combine(edgeColor, fontOpacity)
 
         // TODO weird, but seems to get the size to be very close to matching sizes between renderers
-        val fontSizePx = with(density) { fontSize.sp.toPx() * .8 }.toInt()
+        val fontSizePx = (fontSize * fontScale * density * .8).toInt()
         MPVLib.setPropertyInt("sub-font-size", fontSizePx)
-        MPVLib.setPropertyColor("sub-color", fc)
-        MPVLib.setPropertyColor("sub-outline-color", edge)
+        setMpvColor("sub-color", fc)
+        setMpvColor("sub-outline-color", edge)
 
-        val heightInPx = with(density) { configuration.screenHeightDp.dp.toPx() }
+        val heightInPx = configuration.screenHeightDp * density
         val margin = (heightInPx * (margin.toFloat() / 100f) * .8).toInt()
         MPVLib.setPropertyInt("sub-margin-y", margin)
         Timber.d("MPV subtitles: fontSizePx=%s, margin=$margin", fontSizePx, margin)
@@ -413,7 +422,7 @@ object SubtitleSettings {
         MPVLib.setPropertyBoolean("sub-bold", fontBold)
         MPVLib.setPropertyBoolean("sub-italic", fontItalic)
 
-        MPVLib.setPropertyColor("sub-back-color", bg)
+        setMpvColor("sub-back-color", bg)
         val borderStyle =
             when (backgroundStyle) {
                 BackgroundStyle.UNRECOGNIZED,
@@ -426,6 +435,15 @@ object SubtitleSettings {
             }
         MPVLib.setPropertyString("sub-border-style", borderStyle)
     }
+}
+
+/** MPV's "r/g/b/a" colour format with 0..1 channels, as `util/mpv/Utils.kt` formats a Compose `Color` */
+private fun setMpvColor(
+    property: String,
+    argb: Int,
+) {
+    fun channel(shift: Int): Float = ((argb shr shift) and 0xFF) / 255f
+    MPVLib.setPropertyString(property, "${channel(16)}/${channel(8)}/${channel(0)}/${channel(24)}")
 }
 
 inline fun SubtitlePreferences.update(block: SubtitlePreferences.Builder.() -> Unit): SubtitlePreferences = toBuilder().apply(block).build()

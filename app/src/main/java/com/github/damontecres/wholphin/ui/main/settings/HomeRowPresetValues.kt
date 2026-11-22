@@ -1,0 +1,221 @@
+package com.github.damontecres.wholphin.ui.main.settings
+
+import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
+import com.github.damontecres.wholphin.data.model.HomeRowViewOptions.Companion.genreDefault
+import com.github.damontecres.wholphin.preferences.PrefContentScale
+import com.github.damontecres.wholphin.ui.AspectRatio
+import com.github.damontecres.wholphin.ui.components.ViewOptionImageType
+import org.jellyfin.sdk.model.api.BaseItemKind
+import org.jellyfin.sdk.model.api.CollectionType
+
+/** Display presets for every Home row (Compose-free, moved from HomeRowPresets.kt 2026-11-22) */
+data class HomeRowPresets(
+    val continueWatching: HomeRowViewOptions,
+    val movieLibrary: HomeRowViewOptions,
+    val tvLibrary: HomeRowViewOptions,
+    val videoLibrary: HomeRowViewOptions,
+    val photoLibrary: HomeRowViewOptions,
+    val playlist: HomeRowViewOptions,
+    val genreSize: Int,
+) {
+    fun getByCollectionType(collectionType: CollectionType): HomeRowViewOptions =
+        when (collectionType) {
+            CollectionType.MOVIES -> movieLibrary
+
+            CollectionType.TVSHOWS -> tvLibrary
+
+            CollectionType.MUSICVIDEOS -> videoLibrary
+
+            CollectionType.TRAILERS -> videoLibrary
+
+            CollectionType.HOMEVIDEOS -> videoLibrary
+
+            CollectionType.BOXSETS -> movieLibrary
+
+            CollectionType.PHOTOS -> photoLibrary
+
+            CollectionType.UNKNOWN,
+            CollectionType.BOOKS,
+            CollectionType.PLAYLISTS,
+            CollectionType.FOLDERS,
+            CollectionType.LIVETV,
+            CollectionType.MUSIC,
+            -> HomeRowViewOptions()
+        }
+
+    fun getByItemType(type: BaseItemKind): HomeRowViewOptions =
+        when (type) {
+            BaseItemKind.MOVIE,
+            BaseItemKind.BOX_SET,
+            -> movieLibrary
+
+            BaseItemKind.SERIES,
+            BaseItemKind.SEASON,
+            -> tvLibrary
+
+            BaseItemKind.EPISODE -> continueWatching
+
+            BaseItemKind.VIDEO,
+            BaseItemKind.MUSIC_VIDEO,
+            BaseItemKind.PHOTO,
+            BaseItemKind.PHOTO_ALBUM,
+            -> videoLibrary
+
+            BaseItemKind.PLAYLIST -> playlist
+
+            BaseItemKind.PERSON -> movieLibrary
+
+            BaseItemKind.GENRE,
+            BaseItemKind.STUDIO,
+            -> genreDefault.copy(heightDp = genreSize)
+
+            else -> movieLibrary
+        }
+
+    companion object {
+        val WholphinDefault by lazy {
+            HomeRowPresets(
+                continueWatching = HomeRowViewOptions(),
+                movieLibrary = HomeRowViewOptions(),
+                tvLibrary = HomeRowViewOptions(),
+                videoLibrary =
+                    HomeRowViewOptions(
+                        aspectRatio = AspectRatio.WIDE,
+                    ),
+                photoLibrary =
+                    HomeRowViewOptions(
+                        aspectRatio = AspectRatio.WIDE,
+                        contentScale = PrefContentScale.CROP,
+                    ),
+                playlist =
+                    HomeRowViewOptions(
+                        aspectRatio = AspectRatio.SQUARE,
+                        contentScale = PrefContentScale.FIT,
+                    ),
+                genreSize = HomeRowViewOptions.genreDefault.heightDp,
+            )
+        }
+
+        val WholphinCompact by lazy {
+            val height = 148
+            val epHeight = 100
+            HomeRowPresets(
+                continueWatching =
+                    HomeRowViewOptions(
+                        heightDp = height,
+                    ),
+                movieLibrary =
+                    HomeRowViewOptions(
+                        heightDp = height,
+                    ),
+                tvLibrary =
+                    HomeRowViewOptions(
+                        heightDp = height,
+                    ),
+                videoLibrary =
+                    HomeRowViewOptions(
+                        heightDp = epHeight,
+                        aspectRatio = AspectRatio.WIDE,
+                    ),
+                photoLibrary =
+                    HomeRowViewOptions(
+                        heightDp = epHeight,
+                        aspectRatio = AspectRatio.WIDE,
+                        contentScale = PrefContentScale.CROP,
+                    ),
+                playlist =
+                    HomeRowViewOptions(
+                        heightDp = epHeight,
+                        aspectRatio = AspectRatio.SQUARE,
+                        contentScale = PrefContentScale.FIT,
+                    ),
+                genreSize = epHeight,
+            )
+        }
+
+        val SeriesThumbs by lazy {
+            val height = 148
+            val epHeight = 100
+            HomeRowPresets(
+                continueWatching =
+                    HomeRowViewOptions(
+                        heightDp = epHeight,
+                        imageType = ViewOptionImageType.THUMB,
+                        aspectRatio = AspectRatio.WIDE,
+                        useSeries = true,
+                        episodeImageType = ViewOptionImageType.THUMB,
+                        episodeAspectRatio = AspectRatio.WIDE,
+                    ),
+                movieLibrary =
+                    HomeRowViewOptions(
+                        heightDp = height,
+                    ),
+                tvLibrary =
+                    HomeRowViewOptions(
+                        heightDp = height,
+                    ),
+                videoLibrary =
+                    HomeRowViewOptions(
+                        heightDp = epHeight,
+                        aspectRatio = AspectRatio.WIDE,
+                    ),
+                photoLibrary =
+                    HomeRowViewOptions(
+                        heightDp = epHeight,
+                        aspectRatio = AspectRatio.WIDE,
+                        contentScale = PrefContentScale.CROP,
+                    ),
+                playlist =
+                    HomeRowViewOptions(
+                        heightDp = epHeight,
+                        aspectRatio = AspectRatio.SQUARE,
+                        contentScale = PrefContentScale.FIT,
+                    ),
+                genreSize = epHeight,
+            )
+        }
+
+        val EpisodeThumbnails by lazy {
+            val height = 148
+            val epHeight = 100
+            HomeRowPresets(
+                continueWatching =
+                    HomeRowViewOptions(
+                        heightDp = epHeight,
+                        imageType = ViewOptionImageType.THUMB,
+                        aspectRatio = AspectRatio.WIDE,
+                        showTitles = true,
+                        useSeries = false,
+                        episodeImageType = ViewOptionImageType.PRIMARY,
+                        episodeAspectRatio = AspectRatio.WIDE,
+                    ),
+                movieLibrary =
+                    HomeRowViewOptions(
+                        heightDp = height,
+                    ),
+                tvLibrary =
+                    HomeRowViewOptions(
+                        heightDp = height,
+                    ),
+                videoLibrary =
+                    HomeRowViewOptions(
+                        heightDp = epHeight,
+                        aspectRatio = AspectRatio.WIDE,
+                    ),
+                photoLibrary =
+                    HomeRowViewOptions(
+                        heightDp = epHeight,
+                        aspectRatio = AspectRatio.WIDE,
+                        contentScale = PrefContentScale.CROP,
+                    ),
+                playlist =
+                    HomeRowViewOptions(
+                        heightDp = epHeight,
+                        aspectRatio = AspectRatio.SQUARE,
+                        contentScale = PrefContentScale.FIT,
+                    ),
+                genreSize = epHeight,
+            )
+        }
+    }
+}

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings on AndroidX Leanback Preference (no-Compose UI, 2026-11-22). The preference theme of every settings
+         panel, on top of the Leanback overlay: our row and heading layouts, a list without dividers whose rows may
+         draw their focus glow outside themselves. Colours and fonts follow the app theme at run time
+         (leanback/settings/SettingsLook.kt), since the nine themes and the page accents are not static resources. -->
+    <style name="lb_settings_PreferenceTheme" parent="PreferenceThemeOverlayLeanback">
+        <item name="preferenceStyle">@style/lb_settings_Preference</item>
+        <item name="preferenceCategoryStyle">@style/lb_settings_Preference_Category</item>
+        <item name="preferenceScreenStyle">@style/lb_settings_Preference</item>
+        <item name="dialogPreferenceStyle">@style/lb_settings_Preference</item>
+        <item name="editTextPreferenceStyle">@style/lb_settings_Preference</item>
+        <item name="switchPreferenceCompatStyle">@style/lb_settings_Preference_Switch</item>
+        <item name="preferenceFragmentListStyle">@style/lb_settings_List</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:listPreferredItemPaddingStart">16dp</item>
+        <item name="android:listPreferredItemPaddingEnd">16dp</item>
+        <item name="android:textColorPrimary">#F2F5F9</item>
+        <item name="android:textColorSecondary">#8B95A5</item>
+    </style>
+
+    <style name="lb_settings_Preference" parent="LeanbackPreference">
+        <item name="android:layout">@layout/lb_settings_row</item>
+        <item name="iconSpaceReserved">false</item>
+        <item name="singleLineTitle">false</item>
+    </style>
+
+    <style name="lb_settings_Preference_Category" parent="LeanbackPreference.Category">
+        <item name="android:layout">@layout/lb_settings_category</item>
+        <item name="iconSpaceReserved">false</item>
+    </style>
+
+    <style name="lb_settings_Preference_Switch" parent="LeanbackPreference.SwitchPreferenceCompat">
+        <item name="android:layout">@layout/lb_settings_row</item>
+        <item name="android:widgetLayout">@layout/lb_settings_widget_switch</item>
+        <item name="iconSpaceReserved">false</item>
+        <item name="singleLineTitle">false</item>
+    </style>
+
+    <style name="lb_settings_List" parent="PreferenceFragmentList.Leanback">
+        <item name="android:clipChildren">false</item>
+        <item name="android:clipToPadding">false</item>
+        <item name="android:paddingTop">20dp</item>
+        <item name="android:paddingBottom">20dp</item>
+    </style>
+</resources>
