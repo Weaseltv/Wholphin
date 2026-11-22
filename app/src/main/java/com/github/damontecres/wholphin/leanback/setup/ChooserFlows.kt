@@ -135,7 +135,10 @@ internal class ChangePictureFlow(
         KidPanelDialog(context, 620f, onDismissRequest = { finish() }).apply {
             content.addView(context.kidTitle(context.getString(R.string.change_picture)), wrap(Gravity.CENTER_HORIZONTAL))
             content.addView(context.gap(10f))
-            content.addView(context.kidSubtitle(context.getString(R.string.kid_ask_parent, row.shownName.orEmpty())), wrap(Gravity.CENTER_HORIZONTAL))
+            content.addView(
+                context.kidSubtitle(context.getString(R.string.kid_ask_parent, row.shownName.orEmpty())),
+                wrap(Gravity.CENTER_HORIZONTAL),
+            )
             content.addView(context.gap(24f))
             parents.forEachIndexed { index, candidate ->
                 val item =
@@ -324,9 +327,15 @@ internal class RemovePinFlow(
         if (kidsPanel != null) return
         kidsPanel =
             KidPanelDialog(context, 620f, onDismissRequest = onDone).apply {
-                content.addView(context.kidTitle(context.getString(R.string.pin_cant_be_removed, user.shownName.orEmpty())), wrap(Gravity.CENTER_HORIZONTAL))
+                content.addView(
+                    context.kidTitle(context.getString(R.string.pin_cant_be_removed, user.shownName.orEmpty())),
+                    wrap(Gravity.CENTER_HORIZONTAL),
+                )
                 content.addView(context.gap(10f))
-                content.addView(context.kidSubtitle(context.getString(R.string.pin_cant_be_removed_subtitle)), wrap(Gravity.CENTER_HORIZONTAL))
+                content.addView(
+                    context.kidSubtitle(context.getString(R.string.pin_cant_be_removed_subtitle)),
+                    wrap(Gravity.CENTER_HORIZONTAL),
+                )
                 content.addView(context.gap(28f))
                 val ok = context.kidButton(context.getString(R.string.pin_ok), minWidthDp = 180f) { onDone() }
                 content.addView(ok, KidButtonView.params(context).apply { gravity = Gravity.CENTER_HORIZONTAL })

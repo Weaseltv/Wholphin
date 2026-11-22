@@ -23,8 +23,9 @@ import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.kids.PinRules
 import com.github.damontecres.wholphin.kids.ProfileKind
-import com.github.damontecres.wholphin.leanback.theme.AppTheme
+import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.leanback.theme.AppFonts
+import com.github.damontecres.wholphin.leanback.theme.AppTheme
 import com.github.damontecres.wholphin.leanback.theme.TextRole
 import com.github.damontecres.wholphin.leanback.theme.applyTextRole
 import com.github.damontecres.wholphin.leanback.theme.dp
@@ -212,8 +213,9 @@ class UserListFragment : SetupFragment() {
     }
 
     private fun hideAddUserDialog() {
+        // The typed username is kept per profile being signed in (`remember(addUser)`)
+        if (addUser != null) username = ""
         addUser = null
-        username = ""
         showAddUser = false
         refresh()
     }
@@ -234,13 +236,22 @@ class UserListFragment : SetupFragment() {
 
     private fun onSwitchUser(user: JellyfinUser) {
         when {
-            user.accessToken == null || user.requireLogin -> showAddUserDialog(user)
-            BuildConfig.KID_PROFILES_ENABLED -> viewModel.onProfileSelected(user)
+            user.accessToken == null || user.requireLogin -> {
+                showAddUserDialog(user)
+            }
+
+            BuildConfig.KID_PROFILES_ENABLED -> {
+                viewModel.onProfileSelected(user)
+            }
+
             user.hasPin -> {
                 switchUserWithPin = user
                 refresh()
             }
-            else -> trySwitchUser(user)
+
+            else -> {
+                trySwitchUser(user)
+            }
         }
     }
 
@@ -267,7 +278,7 @@ class UserListFragment : SetupFragment() {
     private fun renderPage() {
         val context = requireContext()
         val kind =
-            when (val st = state.loading) {
+            when (state.loading) {
                 is LoadingState.Error -> 2
                 LoadingState.Loading, LoadingState.Pending -> 0
                 LoadingState.Success -> if (connectOnly && state.users.isEmpty()) 3 else 1
@@ -284,7 +295,12 @@ class UserListFragment : SetupFragment() {
                 2 -> {
                     // It also loads again by itself when the network comes back
                     root.addView(
-                        context.errorMessageView(error?.message, error?.exception, { errorViewModel.sendLogs() }, onRetry = { viewModel.loadUsers() }),
+                        context.errorMessageView(
+                            error?.message,
+                            error?.exception,
+                            { errorViewModel.sendLogs() },
+                            onRetry = { viewModel.loadUsers() },
+                        ),
                         frame(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT),
                     )
                 }
@@ -559,11 +575,15 @@ class UserListFragment : SetupFragment() {
                         lockedUntilMillis = prompt.lockedUntilMillis,
                         title =
                             when (prompt.purpose) {
-                                PinPurpose.SWITCH -> prompt.target.shownName ?: context.getString(R.string.enter_pin)
-                                PinPurpose.DELETE ->
+                                PinPurpose.SWITCH -> {
+                                    prompt.target.shownName ?: context.getString(R.string.enter_pin)
+                                }
+
+                                PinPurpose.DELETE -> {
                                     context.getString(
                                         if (prompt.target.profileKind == ProfileKind.KID) R.string.remove_from_this_tv else R.string.delete,
                                     )
+                                }
                             },
                         prompt = context.pinPromptFor(prompt.pinOwner.shownName),
                         message = prompt.message,
@@ -645,7 +665,11 @@ class UserListFragment : SetupFragment() {
                 }
             content.addView(first)
             content.addView(context.gap(12f))
-            content.addView(context.kidListRow(context.getString(R.string.remove_from_this_tv), context.getString(R.string.fa_xmark)) { viewModel.askRemoveNeedsPin() })
+            content.addView(
+                context.kidListRow(context.getString(R.string.remove_from_this_tv), context.getString(R.string.fa_xmark)) {
+                    viewModel.askRemoveNeedsPin()
+                },
+            )
         }
         content.addView(context.gap(24f))
         content.addView(context.okBackHints(), wrap(Gravity.CENTER_HORIZONTAL))
@@ -673,7 +697,10 @@ class UserListFragment : SetupFragment() {
             prompt.parents.forEach { parent ->
                 if (first != null) content.addView(context.gap(12f))
                 val row =
-                    context.kidListRow(context.getString(R.string.kid_parent_pin_title, parent.shownName.orEmpty()), context.getString(R.string.fa_user)) {
+                    context.kidListRow(
+                        context.getString(R.string.kid_parent_pin_title, parent.shownName.orEmpty()),
+                        context.getString(R.string.fa_user),
+                    ) {
                         viewModel.pickParent(parent)
                     }
                 content.addView(row)
@@ -703,9 +730,16 @@ class UserListFragment : SetupFragment() {
         val u = user.user
         val items =
             buildList {
-                add(MenuItem(context.getString(R.string.switch_user), glyph = context.getString(R.string.fa_arrow_left_arrow_right)) { onSwitchUser(u) })
+                add(
+                    MenuItem(
+                        context.getString(R.string.switch_user),
+                        glyph = context.getString(R.string.fa_arrow_left_arrow_right),
+                    ) { onSwitchUser(u) },
+                )
                 // Contract 11: every saved profile with its own token (the change is saved with it)
-                if (profilePicturesEnabled && user.known && u.accessToken != null && kidViewModel.canChangePicture(u, savedUsers, deviceProtected)) {
+                if (profilePicturesEnabled && user.known && u.accessToken != null &&
+                    kidViewModel.canChangePicture(u, savedUsers, deviceProtected)
+                ) {
                     add(
                         MenuItem(context.getString(R.string.change_picture), icon = R.drawable.lb_setup_ic_create) {
                             if (kidViewModel.canChangePicture(u, savedUsers, deviceProtected)) {
@@ -779,12 +813,21 @@ class UserListFragment : SetupFragment() {
         private val row = TileRow(context, 24f)
         private val adapter = UserAdapter()
         private val switchServers =
-            SetupButton(context, context.getString(R.string.switch_servers), context.getString(R.string.fa_arrow_left_arrow_right), textButton = false).apply {
+            SetupButton(
+                context,
+                context.getString(R.string.switch_servers),
+                context.getString(R.string.fa_arrow_left_arrow_right),
+                textButton = false,
+            ).apply {
                 setOnClickListener { viewModel.setupNavigationManager.navigateTo(SetupDestination.ServerList) }
             }
         private val switchServersBox = FrameLayout(context).apply { noClip() }
         private val versionText =
-            context.setupText(color = AppTheme.palette.error, gravity = Gravity.CENTER, maxLines = 2) { applyTextRole(TextRole.BODY_MEDIUM) }
+            context.setupText(
+                color = AppTheme.palette.error,
+                gravity = Gravity.CENTER,
+                maxLines = 2,
+            ) { applyTextRole(TextRole.BODY_MEDIUM) }
         private var focusedOnce = false
 
         init {
@@ -812,7 +855,12 @@ class UserListFragment : SetupFragment() {
                 )
                 addHeader(NeonRuleView(context), LinearLayout.LayoutParams(context.dp(320), ViewGroup.LayoutParams.WRAP_CONTENT))
             } else {
-                addHeader(context.setupText(context.getString(R.string.select_user), gravity = Gravity.CENTER) { applyTextRole(TextRole.DISPLAY_SMALL) })
+                addHeader(
+                    context.setupText(
+                        context.getString(R.string.select_user),
+                        gravity = Gravity.CENTER,
+                    ) { applyTextRole(TextRole.DISPLAY_SMALL) },
+                )
                 addHeader(context.setupText(server.name ?: server.url, gravity = Gravity.CENTER) { applyTextRole(TextRole.TITLE_LARGE) })
             }
             column.addView(header, wrap(Gravity.CENTER_HORIZONTAL))
@@ -842,10 +890,11 @@ class UserListFragment : SetupFragment() {
                 } else {
                     getString(R.string.server_version_not_supported) + ": " + getString(R.string.unknown)
                 }
-            if (!focusedOnce && state.users.isNotEmpty()) {
+            if (!focusedOnce) {
                 focusedOnce = true
+                // The first profile (Add user when there is none) once the row is laid out
                 row.resetFocusMemory()
-                row.requestFocus()
+                row.focusWhenLaidOut()
             }
         }
 
@@ -1042,9 +1091,10 @@ class UserListFragment : SetupFragment() {
                 wrap(Gravity.CENTER_HORIZONTAL),
             )
             troubleBox.addView(
-                context.setupButton(R.string.show_debug_info) {
-                    viewModel.navigationManager.navigateTo(com.github.damontecres.wholphin.ui.nav.Destination.Debug)
-                }.apply { (layoutParams as LinearLayout.LayoutParams).topMargin = context.dp(8) },
+                context
+                    .setupButton(R.string.show_debug_info) {
+                        viewModel.navigationManager.navigateTo(com.github.damontecres.wholphin.ui.nav.Destination.Debug)
+                    }.apply { (layoutParams as LinearLayout.LayoutParams).topMargin = context.dp(8) },
             )
             content.addView(troubleBox, matchWidth().apply { topMargin = context.dp(8) })
             viewModel.clearSwitchUserState()
@@ -1083,7 +1133,12 @@ class UserListFragment : SetupFragment() {
                         minimumHeight = context.dp(32)
                         addView(context.circularProgress(20f))
                         addView(context.hGap(8f))
-                        addView(context.setupText("Waiting for Quick Connect code...", gravity = Gravity.CENTER) { applyTextRole(TextRole.TITLE_MEDIUM) })
+                        addView(
+                            context.setupText(
+                                "Waiting for Quick Connect code...",
+                                gravity = Gravity.CENTER,
+                            ) { applyTextRole(TextRole.TITLE_MEDIUM) },
+                        )
                     },
                 )
             } else if (status != null) {
@@ -1092,22 +1147,41 @@ class UserListFragment : SetupFragment() {
                     // WeaselFin: the phone scans this, signs in with the website account and approves the code
                     addTo(
                         modeBox,
-                        context.setupText(context.getString(R.string.quick_connect_scan_hint, BuildConfig.QUICK_CONNECT_APPROVE_LABEL), gravity = Gravity.CENTER) {
+                        context.setupText(
+                            context.getString(R.string.quick_connect_scan_hint, BuildConfig.QUICK_CONNECT_APPROVE_LABEL),
+                            gravity = Gravity.CENTER,
+                        ) {
                             applyTextRole(TextRole.TITLE_MEDIUM)
                         },
                         matchWidth(),
                     )
-                    addTo(modeBox, context.qrCode(approveUrl), LinearLayout.LayoutParams(context.dp(200), context.dp(200)).apply { gravity = Gravity.CENTER_HORIZONTAL })
+                    addTo(
+                        modeBox,
+                        context.qrCode(approveUrl),
+                        LinearLayout.LayoutParams(context.dp(200), context.dp(200)).apply {
+                            gravity =
+                                Gravity.CENTER_HORIZONTAL
+                        },
+                    )
                 } else {
                     addTo(
                         modeBox,
-                        context.setupText("Use Quick Connect on your device to authenticate to ${server.name ?: server.url}", gravity = Gravity.CENTER) {
+                        context.setupText(
+                            "Use Quick Connect on your device to authenticate to ${server.name ?: server.url}",
+                            gravity = Gravity.CENTER,
+                        ) {
                             applyTextRole(TextRole.TITLE_MEDIUM)
                         },
                         matchWidth(),
                     )
                 }
-                addTo(modeBox, context.setupText(status.code ?: "Failed to get code", gravity = Gravity.CENTER) { applyTextRole(TextRole.DISPLAY_MEDIUM) })
+                addTo(
+                    modeBox,
+                    context.setupText(
+                        status.code ?: "Failed to get code",
+                        gravity = Gravity.CENTER,
+                    ) { applyTextRole(TextRole.DISPLAY_MEDIUM) },
+                )
             }
             addTo(modeBox, errorBox, matchWidth())
             if (!connectOnly) {
@@ -1174,7 +1248,13 @@ class UserListFragment : SetupFragment() {
                 modeBox,
                 horizontal(context).apply {
                     gravity = Gravity.CENTER_VERTICAL
-                    addView(context.setupText(context.getString(R.string.username), style = labelStyle).apply { setPadding(0, 0, context.dp(8), 0) })
+                    addView(
+                        context
+                            .setupText(
+                                context.getString(R.string.username),
+                                style = labelStyle,
+                            ).apply { setPadding(0, 0, context.dp(8), 0) },
+                    )
                     addView(user)
                 },
             )
@@ -1182,7 +1262,13 @@ class UserListFragment : SetupFragment() {
                 modeBox,
                 horizontal(context).apply {
                     gravity = Gravity.CENTER_VERTICAL
-                    addView(context.setupText(context.getString(R.string.password), style = labelStyle).apply { setPadding(0, 0, context.dp(8), 0) })
+                    addView(
+                        context
+                            .setupText(
+                                context.getString(R.string.password),
+                                style = labelStyle,
+                            ).apply { setPadding(0, 0, context.dp(8), 0) },
+                    )
                     addView(password)
                 },
             )
@@ -1339,7 +1425,10 @@ class UserListFragment : SetupFragment() {
             }
             if (AppTheme.isNeon) add(context.neonBrandRow())
             add(
-                context.setupText(context.getString(R.string.connect_account_intro), gravity = Gravity.CENTER) { applyTextRole(TextRole.TITLE_LARGE) },
+                context.setupText(
+                    context.getString(R.string.connect_account_intro),
+                    gravity = Gravity.CENTER,
+                ) { applyTextRole(TextRole.TITLE_LARGE) },
                 matchWidth(),
             )
             if (error != null) {
@@ -1361,12 +1450,21 @@ class UserListFragment : SetupFragment() {
                 )
             } else {
                 add(
-                    context.setupText(context.getString(R.string.quick_connect_scan_hint, BuildConfig.QUICK_CONNECT_APPROVE_LABEL), gravity = Gravity.CENTER) {
+                    context.setupText(
+                        context.getString(R.string.quick_connect_scan_hint, BuildConfig.QUICK_CONNECT_APPROVE_LABEL),
+                        gravity = Gravity.CENTER,
+                    ) {
                         applyTextRole(TextRole.TITLE_MEDIUM)
                     },
                     matchWidth(),
                 )
-                add(context.qrCode(approveUrl), LinearLayout.LayoutParams(context.dp(200), context.dp(200)).apply { gravity = Gravity.CENTER_HORIZONTAL })
+                add(
+                    context.qrCode(approveUrl),
+                    LinearLayout.LayoutParams(context.dp(200), context.dp(200)).apply {
+                        gravity =
+                            Gravity.CENTER_HORIZONTAL
+                    },
+                )
                 add(context.setupText(status.code, gravity = Gravity.CENTER) { applyTextRole(TextRole.DISPLAY_MEDIUM) })
             }
             val wasScrolling = scrollMode

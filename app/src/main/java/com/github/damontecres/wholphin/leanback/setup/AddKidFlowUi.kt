@@ -71,8 +71,9 @@ internal class AddKidFlowUi(
     private var formErrorHolder: LinearLayout? = null
     private var levelCards: Map<KidLevel, KidOptionCardView> = emptyMap()
     private var picker: AvatarPickerView? = null
-    private var knownKids: Set<String> = emptySet()
-    private var knownAdults: Set<Int> = emptySet()
+    // Who was first in the list last time: one moving into first place takes focus (`initialFocus(index == 0)`)
+    private var firstKid: String? = null
+    private var firstAdult: Int? = null
 
     init {
         viewModel.start(server, users)
@@ -245,10 +246,10 @@ internal class AddKidFlowUi(
                     if (index > 0) column.addView(context.gap(14f))
                     val (row, create) = adultPinRow(adult, step)
                     column.addView(row, matchWidth())
-                    // The first adult's Create PIN takes focus when that adult first shows
-                    if (index == 0 && adult.rowId !in knownAdults) initial = create
+                    // The first adult's Create PIN takes focus when that adult becomes first
+                    if (index == 0 && (!sameKind || adult.rowId != firstAdult)) initial = create
                 }
-                knownAdults = step.adults.map { it.rowId }.toSet()
+                firstAdult = step.adults.firstOrNull()?.rowId
                 add(column, matchWidth())
                 add(context.gap(24f))
                 add(context.okBackHints())
@@ -277,13 +278,19 @@ internal class AddKidFlowUi(
             }
 
             is AddKidStep.Pairing -> {
-                initial = buildPairing(step, content)
+                initial = buildPairing(step, content, sameKind)
             }
 
             AddKidStep.PairingRefused -> {
                 add(context.kidEyebrow(title))
                 add(context.gap(22f))
-                add(context.setupText(context.getString(R.string.pair_refused), KidPalette.TEXT, Gravity.CENTER) { kidBody(22f, WEIGHT_BOLD) })
+                add(
+                    context.setupText(
+                        context.getString(R.string.pair_refused),
+                        KidPalette.TEXT,
+                        Gravity.CENTER,
+                    ) { kidBody(22f, WEIGHT_BOLD) },
+                )
                 add(context.gap(28f))
                 val newCode = context.kidButton(context.getString(R.string.pair_new_code), minWidthDp = 200f) { viewModel.addExisting() }
                 add(
@@ -329,7 +336,11 @@ internal class AddKidFlowUi(
                         Work.Creating -> context.getString(R.string.creating_kid, step.kidName)
                         Work.Connecting -> context.getString(R.string.adding_kid_to_tv, step.kidName)
                     }
-                add(context.setupText(context.emphasise(line, step.kidName, KidPalette.LIME), KidPalette.TEXT, Gravity.CENTER) { kidBody(26f, WEIGHT_BOLD) })
+                add(
+                    context.setupText(context.emphasise(line, step.kidName, KidPalette.LIME), KidPalette.TEXT, Gravity.CENTER) {
+                        kidBody(26f, WEIGHT_BOLD)
+                    },
+                )
                 add(context.gap(10f))
                 add(context.kidSubtitle(context.getString(R.string.kid_takes_a_moment)))
                 add(context.gap(12f))
@@ -355,13 +366,15 @@ internal class AddKidFlowUi(
                 add(context.okBackHints())
             }
         }
-        // A refreshed step keeps the focus on the same item; otherwise its first item takes focus once
-        if (!focusTagged(dialog.root, focusedTag)) {
-            val target = initial
-            if (target != null && (!sameKind || dialog.root.findFocus() == null || step is AddKidStep.Pairing || step is AddKidStep.AdultPins)) {
-                dialog.initialFocus = target
-                target.requestFocus()
-            }
+        // A new step's first item takes focus once, as does a kid or adult that became first; a refreshed step otherwise
+        // keeps the focus on the same item
+        val target = initial
+        val newFirst = sameKind && (step is AddKidStep.Pairing || step is AddKidStep.AdultPins) && target != null
+        if (target != null && (newFirst || (!focusTagged(dialog.root, focusedTag) && (!sameKind || dialog.root.findFocus() == null)))) {
+            dialog.initialFocus = target
+            target.requestFocus()
+        } else if (target == null) {
+            focusTagged(dialog.root, focusedTag)
         }
     }
 
@@ -425,9 +438,17 @@ internal class AddKidFlowUi(
                 }
             }
 
-            is PinError.LockedOut -> context.getString(R.string.pin_locked_out, secondsUntil(error.retryAtMillis))
-            PinError.CheckFailed -> context.getString(R.string.kids_error_generic)
-            null -> null
+            is PinError.LockedOut -> {
+                context.getString(R.string.pin_locked_out, secondsUntil(error.retryAtMillis))
+            }
+
+            PinError.CheckFailed -> {
+                context.getString(R.string.kids_error_generic)
+            }
+
+            null -> {
+                null
+            }
         }
 
     private fun secondsUntil(atMillis: Long) = ((atMillis - System.currentTimeMillis() + 999) / 1000).toInt().coerceAtLeast(0)
@@ -439,7 +460,12 @@ internal class AddKidFlowUi(
     ): Pair<View, View> {
         val name = adult.shownName ?: adult.id.toString()
         val row = horizontal(context).apply { gravity = Gravity.CENTER_VERTICAL }
-        row.addView(KidAvatarView(context, 26f).apply { bind(name, imageUrls[adult.id]) }, LinearLayout.LayoutParams(context.dp(56), context.dp(56)))
+        row.addView(
+            KidAvatarView(context, 26f).apply {
+                bind(name, imageUrls[adult.id])
+            },
+            LinearLayout.LayoutParams(context.dp(56), context.dp(56)),
+        )
         row.addView(context.hGap(16f))
         row.addView(
             context.setupText(name, KidPalette.TEXT, maxLines = 1) { kidBody(19f, 600) },
@@ -459,11 +485,12 @@ internal class AddKidFlowUi(
     /**
      * Contract 12.3 "Add an existing kid profile": the pairing code, big, with where to enter it and a QR code for the
      * website's Kids profiles page, then this account's own kids that aren't on this TV yet. Returns the item that takes
-     * focus (the first kid, when it first shows).
+     * focus (the first kid, when it becomes first).
      */
     private fun buildPairing(
         step: AddKidStep.Pairing,
         content: LinearLayout,
+        sameKind: Boolean,
     ): View? {
         content.addView(context.kidEyebrow(title), wrap(Gravity.CENTER_HORIZONTAL))
         content.addView(context.gap(12f))
@@ -484,7 +511,10 @@ internal class AddKidFlowUi(
         column.addView(context.gap(12f))
         val site = forgotPinUrl()?.removePrefix("https://")?.removePrefix("http://").orEmpty()
         column.addView(
-            context.setupText(context.emphasise(context.getString(R.string.pair_code_instructions, site), site, KidPalette.LIME), KidPalette.TEXT) {
+            context.setupText(
+                context.emphasise(context.getString(R.string.pair_code_instructions, site), site, KidPalette.LIME),
+                KidPalette.TEXT,
+            ) {
                 kidBody(17f)
             },
         )
@@ -504,15 +534,18 @@ internal class AddKidFlowUi(
             step.kids.forEachIndexed { index, kid: KidProfile ->
                 if (index > 0) content.addView(context.gap(10f))
                 val item =
-                    context.kidListRow(context.getString(R.string.sign_in_kid_on_tv, kid.displayName), context.getString(R.string.fa_user)) {
+                    context.kidListRow(
+                        context.getString(R.string.sign_in_kid_on_tv, kid.displayName),
+                        context.getString(R.string.fa_user),
+                    ) {
                         viewModel.signInExisting(kid)
                     }
                 item.tag = "kid:${kid.id}"
                 content.addView(item)
-                if (index == 0 && kid.id !in knownKids) focus = item
+                if (index == 0 && (!sameKind || kid.id != firstKid)) focus = item
             }
         }
-        knownKids = step.kids.map { it.id }.toSet()
+        firstKid = step.kids.firstOrNull()?.id
         content.addView(context.gap(22f))
         content.addView(context.okBackHints(), wrap(Gravity.CENTER_HORIZONTAL))
         return focus
@@ -705,20 +738,49 @@ internal class AddKidFlowUi(
 
     private fun errorText(error: AddKidError): String =
         when (error) {
-            AddKidError.NoParent -> context.getString(R.string.kids_error_no_parent)
-            AddKidError.NotAvailable -> context.getString(R.string.kids_error_unavailable)
-            AddKidError.LimitReached -> context.getString(R.string.kids_error_limit)
-            AddKidError.NameTaken -> context.getString(R.string.kid_name_taken)
-            AddKidError.PickLevel -> context.getString(R.string.kid_pick_level)
-            AddKidError.AccessInactive -> context.getString(R.string.kids_error_access)
-            AddKidError.SignInAgain -> context.getString(R.string.kids_error_sign_in_again)
-            AddKidError.KidNotActive -> context.getString(R.string.kids_error_kid_not_active)
+            AddKidError.NoParent -> {
+                context.getString(R.string.kids_error_no_parent)
+            }
+
+            AddKidError.NotAvailable -> {
+                context.getString(R.string.kids_error_unavailable)
+            }
+
+            AddKidError.LimitReached -> {
+                context.getString(R.string.kids_error_limit)
+            }
+
+            AddKidError.NameTaken -> {
+                context.getString(R.string.kid_name_taken)
+            }
+
+            AddKidError.PickLevel -> {
+                context.getString(R.string.kid_pick_level)
+            }
+
+            AddKidError.AccessInactive -> {
+                context.getString(R.string.kids_error_access)
+            }
+
+            AddKidError.SignInAgain -> {
+                context.getString(R.string.kids_error_sign_in_again)
+            }
+
+            AddKidError.KidNotActive -> {
+                context.getString(R.string.kids_error_kid_not_active)
+            }
+
             is AddKidError.RateLimited -> {
                 error.minutes?.let { context.getString(R.string.kids_error_rate_limited, it) }
                     ?: context.getString(R.string.kids_error_rate_limited_unknown)
             }
 
-            AddKidError.Network -> context.getString(R.string.kids_error_network)
-            AddKidError.Generic -> context.getString(R.string.kids_error_generic)
+            AddKidError.Network -> {
+                context.getString(R.string.kids_error_network)
+            }
+
+            AddKidError.Generic -> {
+                context.getString(R.string.kids_error_generic)
+            }
         }
 }

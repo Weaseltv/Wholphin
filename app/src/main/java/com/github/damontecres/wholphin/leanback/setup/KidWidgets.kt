@@ -104,8 +104,7 @@ internal class KidPanelView(
 internal fun Context.kidTitle(
     text: String,
     maxLines: Int = Int.MAX_VALUE,
-): TextView =
-    setupText(text, KidPalette.TEXT, Gravity.CENTER, maxLines) { kidDisplay(if (text.length > 22) 24f else 32f) }
+): TextView = setupText(text, KidPalette.TEXT, Gravity.CENTER, maxLines) { kidDisplay(if (text.length > 22) 24f else 32f) }
 
 /** Small, spaced, uppercase lime label above a dialog's content (`KidEyebrow`) */
 internal fun Context.kidEyebrow(text: String): TextView =
@@ -330,7 +329,13 @@ internal class KidTileView(
         labelView =
             label?.let {
                 context.setupText(it, KidPalette.TEXT, Gravity.CENTER, 1) { kidBody(18f, WEIGHT_BOLD) }.also { tv ->
-                    addView(tv, LayoutParams(context.dp(sizeDp + 24), ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(14) })
+                    addView(
+                        tv,
+                        LayoutParams(context.dp(sizeDp + 24), ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                            topMargin =
+                                context.dp(14)
+                        },
+                    )
                 }
             }
         caption?.let {
@@ -442,7 +447,8 @@ internal class KidButtonView(
 
     companion object {
         /** Layout params at the button's 50dp height */
-        fun params(context: Context): LinearLayout.LayoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, context.dp(50))
+        fun params(context: Context): LinearLayout.LayoutParams =
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, context.dp(50))
     }
 }
 
@@ -554,7 +560,12 @@ internal class KidOptionCardView(
                     horizontal(context).apply {
                         gravity = Gravity.TOP
                         addView(
-                            context.setupText(title, KidPalette.TEXT) { kidBody(21f, WEIGHT_BOLD) }.apply { setPadding(0, context.dp(4), 0, 0) },
+                            context
+                                .setupText(
+                                    title,
+                                    KidPalette.TEXT,
+                                ) { kidBody(21f, WEIGHT_BOLD) }
+                                .apply { setPadding(0, context.dp(4), 0, 0) },
                             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
                         )
                         addView(radio, LinearLayout.LayoutParams(context.dp(23), context.dp(23)))
@@ -568,13 +579,13 @@ internal class KidOptionCardView(
 
     fun setSelectedOption(selected: Boolean) {
         selectedState = selected
-        radio.selected = selected
+        radio.checked = selected
     }
 
     private class RadioDot(
         context: Context,
     ) : View(context) {
-        var selected = false
+        var checked = false
             set(value) {
                 field = value
                 invalidate()
@@ -587,10 +598,10 @@ internal class KidOptionCardView(
         private val dot = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = KidPalette.LIME }
 
         override fun onDraw(canvas: Canvas) {
-            ring.color = if (selected) KidPalette.LIME else KidPalette.MUTED
+            ring.color = if (checked) KidPalette.LIME else KidPalette.MUTED
             val r = min(width, height) / 2f
             canvas.drawCircle(width / 2f, height / 2f, r - ring.strokeWidth / 2, ring)
-            if (selected) canvas.drawCircle(width / 2f, height / 2f, context.dpF(13f) / 2, dot)
+            if (checked) canvas.drawCircle(width / 2f, height / 2f, context.dpF(13f) / 2, dot)
         }
     }
 }
@@ -621,10 +632,11 @@ internal class KidTextFieldView(
         setPadding(context.dp(18), 0, context.dp(18), 0)
         minHeight = context.dp(54)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            textCursorDrawable = android.graphics.drawable.GradientDrawable().apply {
-                setColor(KidPalette.LIME)
-                setSize(context.dp(2), context.dp(26))
-            }
+            textCursorDrawable =
+                android.graphics.drawable.GradientDrawable().apply {
+                    setColor(KidPalette.LIME)
+                    setSize(context.dp(2), context.dp(26))
+                }
         }
         layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, context.dp(54))
     }

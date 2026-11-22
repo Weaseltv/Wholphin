@@ -159,12 +159,10 @@ internal fun Context.emphasise(
 }
 
 /** A vertical gap of [heightDp] (`KidGap`, `Spacer`) */
-internal fun Context.gap(heightDp: Float): View =
-    View(this).apply { layoutParams = LinearLayout.LayoutParams(1, dp(heightDp)) }
+internal fun Context.gap(heightDp: Float): View = View(this).apply { layoutParams = LinearLayout.LayoutParams(1, dp(heightDp)) }
 
 /** A horizontal gap of [widthDp] */
-internal fun Context.hGap(widthDp: Float): View =
-    View(this).apply { layoutParams = LinearLayout.LayoutParams(dp(widthDp), 1) }
+internal fun Context.hGap(widthDp: Float): View = View(this).apply { layoutParams = LinearLayout.LayoutParams(dp(widthDp), 1) }
 
 internal fun vertical(context: Context): LinearLayout =
     LinearLayout(context).apply {
@@ -183,8 +181,7 @@ internal fun horizontal(context: Context): LinearLayout =
 internal fun wrap(
     gravity: Int = Gravity.NO_GRAVITY,
     width: Int = ViewGroup.LayoutParams.WRAP_CONTENT,
-): LinearLayout.LayoutParams =
-    LinearLayout.LayoutParams(width, ViewGroup.LayoutParams.WRAP_CONTENT).apply { this.gravity = gravity }
+): LinearLayout.LayoutParams = LinearLayout.LayoutParams(width, ViewGroup.LayoutParams.WRAP_CONTENT).apply { this.gravity = gravity }
 
 internal fun matchWidth(): LinearLayout.LayoutParams =
     LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)

@@ -45,7 +45,10 @@ internal class ProfilePictureBinder(
         AvatarPickerView(
             context = context,
             title = context.getString(R.string.change_picture),
-            subtitle = viewModel.state.value.target?.name?.let { context.getString(R.string.pick_a_picture_for, it) },
+            subtitle =
+                viewModel.state.value.target
+                    ?.name
+                    ?.let { context.getString(R.string.pick_a_picture_for, it) },
             onPick = { viewModel.pick(it) },
             onRemove = { viewModel.remove() },
         )
@@ -61,7 +64,12 @@ internal class ProfilePictureBinder(
             picker.footer.removeAllViews()
             when (state.status) {
                 PictureStatus.Saving -> {
-                    picker.footer.addView(context.kidSpinner(28f, 3f).apply { layoutParams = frame(context.dp(28), context.dp(28), Gravity.CENTER) })
+                    picker.footer.addView(
+                        context.kidSpinner(28f, 3f).apply {
+                            layoutParams =
+                                frame(context.dp(28), context.dp(28), Gravity.CENTER)
+                        },
+                    )
                 }
 
                 PictureStatus.Failed -> {
@@ -175,7 +183,9 @@ internal class FirstAvatarDialog(
             view.bind(avatars, pending.chosen?.id, enabled = pending.status != FirstAvatarStatus.SAVING)
             view.footer.removeAllViews()
             if (pending.status == FirstAvatarStatus.SAVING) {
-                view.footer.addView(context.kidSpinner(28f, 3f).apply { layoutParams = frame(context.dp(28), context.dp(28), Gravity.CENTER) })
+                view.footer.addView(
+                    context.kidSpinner(28f, 3f).apply { layoutParams = frame(context.dp(28), context.dp(28), Gravity.CENTER) },
+                )
             }
         }
     }
@@ -204,7 +214,10 @@ class ProfilePictureFragment : DestinationFragment() {
             }
         val panel = KidPanelView(context, scrollable = true)
         val binder = ProfilePictureBinder(context, viewModel) { navigationManager.goBack() }
-        panel.content.addView(binder.picker, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        panel.content.addView(
+            binder.picker,
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT),
+        )
         root.addView(panel, frame(context.dp(750), ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         root.tag = binder
         return root

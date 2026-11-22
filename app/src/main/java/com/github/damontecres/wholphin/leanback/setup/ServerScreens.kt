@@ -167,7 +167,10 @@ class ServerListFragment : SetupFragment() {
                     title = server.name ?: server.url,
                     items =
                         listOf(
-                            MenuItem(context.getString(R.string.switch_servers), glyph = context.getString(R.string.fa_arrow_left_arrow_right)) {
+                            MenuItem(
+                                context.getString(R.string.switch_servers),
+                                glyph = context.getString(R.string.fa_arrow_left_arrow_right),
+                            ) {
                                 viewModel.switchServer(server)
                             },
                             MenuItem(
@@ -254,7 +257,12 @@ class ServerListFragment : SetupFragment() {
                 )
                 addHeader(NeonRuleView(context), LinearLayout.LayoutParams(context.dp(320), ViewGroup.LayoutParams.WRAP_CONTENT))
             } else {
-                addHeader(context.setupText(context.getString(R.string.select_server), gravity = Gravity.CENTER) { applyTextRole(TextRole.DISPLAY_SMALL) })
+                addHeader(
+                    context.setupText(
+                        context.getString(R.string.select_server),
+                        gravity = Gravity.CENTER,
+                    ) { applyTextRole(TextRole.DISPLAY_SMALL) },
+                )
                 // Invisible subtitle placeholder to mirror the server name line on the Select User screen
                 addHeader(
                     context.setupText("Server placeholder", color = 0, gravity = Gravity.CENTER) { applyTextRole(TextRole.TITLE_LARGE) },
@@ -267,7 +275,13 @@ class ServerListFragment : SetupFragment() {
             rowBox.addView(row, frame(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL))
             column.addView(rowBox, matchWidth().apply { topMargin = context.dp(24) })
             // Non-focusable spacer mirroring the "Switch servers" button on the Select User screen
-            column.addView(View(context), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, context.dp(56)).apply { topMargin = context.dp(24) })
+            column.addView(
+                View(context),
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, context.dp(56)).apply {
+                    topMargin =
+                        context.dp(24)
+                },
+            )
             page.addView(column, frame(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
             view.addView(page, frame())
             errorText.setPadding(context.dp(32), 0, context.dp(32), context.dp(32))
@@ -282,7 +296,7 @@ class ServerListFragment : SetupFragment() {
                 focusedOnce = true
                 // The first server (or Add Server when there is none) once the row is laid out
                 row.resetFocusMemory()
-                row.requestFocus()
+                row.focusWhenLaidOut()
             }
         }
 
@@ -299,7 +313,11 @@ class ServerListFragment : SetupFragment() {
                 errorText.text = message ?: ""
                 // Slides up into place, as the old AnimatedContent did
                 errorText.translationY = errorText.height / 2f
-                errorText.animate().translationY(0f).setDuration(220).start()
+                errorText
+                    .animate()
+                    .translationY(0f)
+                    .setDuration(220)
+                    .start()
             }
         }
 
@@ -356,9 +374,15 @@ class ServerListFragment : SetupFragment() {
                 tile.surface.contentDescription = server.server.name ?: server.server.url
                 tile.surface.setOnClickListener {
                     when (server.status) {
-                        is ServerConnectionStatus.Success -> viewModel.switchServer(server.server)
+                        is ServerConnectionStatus.Success -> {
+                            viewModel.switchServer(server.server)
+                        }
+
                         ServerConnectionStatus.Pending -> {}
-                        is ServerConnectionStatus.Error -> viewModel.testServer(server.server)
+
+                        is ServerConnectionStatus.Error -> {
+                            viewModel.testServer(server.server)
+                        }
                     }
                 }
                 tile.surface.setOnLongClickListener {
@@ -401,7 +425,10 @@ class ServerListFragment : SetupFragment() {
                             wrap(Gravity.CENTER_HORIZONTAL).apply { topMargin = context.dp(4) },
                         )
                     }
-                tile.surface.addView(column, frame(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+                tile.surface.addView(
+                    column,
+                    frame(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER),
+                )
             }
 
             status is ServerConnectionStatus.Success -> {
@@ -662,7 +689,13 @@ class PinnedServerFragment : SetupFragment() {
             add(retry, wrap(Gravity.CENTER_HORIZONTAL))
             retry.requestFocus()
         } else {
-            add(context.circularProgress(64f), LinearLayout.LayoutParams(context.dp(64), context.dp(64)).apply { gravity = Gravity.CENTER_HORIZONTAL })
+            add(
+                context.circularProgress(64f),
+                LinearLayout.LayoutParams(context.dp(64), context.dp(64)).apply {
+                    gravity =
+                        Gravity.CENTER_HORIZONTAL
+                },
+            )
         }
     }
 }

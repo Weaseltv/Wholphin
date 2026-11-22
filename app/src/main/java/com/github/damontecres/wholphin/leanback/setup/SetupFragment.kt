@@ -10,6 +10,7 @@ import android.os.Build
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.core.view.doOnNextLayout
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -158,10 +159,17 @@ internal class TileRow(
     override fun onRequestFocusInDescendants(
         direction: Int,
         previouslyFocusedRect: Rect?,
-    ): Boolean = restoreTarget()?.requestFocus(direction, previouslyFocusedRect) ?: super.onRequestFocusInDescendants(direction, previouslyFocusedRect)
+    ): Boolean =
+        restoreTarget()?.requestFocus(direction, previouslyFocusedRect)
+            ?: super.onRequestFocusInDescendants(direction, previouslyFocusedRect)
 
     /** Restarts focus memory at the first tile */
     fun resetFocusMemory() {
         lastFocused = 0
     }
+}
+
+/** One focus request once this view has laid out its children (a row whose tiles were just set) */
+internal fun View.focusWhenLaidOut() {
+    if (isLaidOut && !isLayoutRequested) requestFocus() else doOnNextLayout { it.requestFocus() }
 }
