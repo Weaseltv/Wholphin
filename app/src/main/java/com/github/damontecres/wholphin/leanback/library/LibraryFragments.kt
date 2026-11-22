@@ -9,9 +9,6 @@ import android.widget.LinearLayout
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.github.damontecres.wholphin.preferences.AppThemeColors
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.Flow
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.filter.DefaultFilterOptions
 import com.github.damontecres.wholphin.data.filter.DefaultTvFilterOptions
@@ -32,6 +29,7 @@ import com.github.damontecres.wholphin.leanback.widget.control.ErrorView
 import com.github.damontecres.wholphin.leanback.widget.control.LoadingPageView
 import com.github.damontecres.wholphin.leanback.widget.dialog.ContextMenuHelper
 import com.github.damontecres.wholphin.leanback.widget.text.HeaderDimens
+import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.StreamingCollections
 import com.github.damontecres.wholphin.ui.components.CollectionFolderViewModel
@@ -52,6 +50,8 @@ import com.github.damontecres.wholphin.ui.toServerString
 import com.github.damontecres.wholphin.util.DataLoadingState
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.lifecycle.withCreationCallback
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
 import org.jellyfin.sdk.model.api.ItemSortBy
