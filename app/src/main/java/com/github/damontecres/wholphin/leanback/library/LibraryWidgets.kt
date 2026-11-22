@@ -297,7 +297,7 @@ internal fun SortAndDirection.label(
  * uppercase label always shows (4dp side padding, label 2dp / 8dp); otherwise the titleSmall label appears only while
  * focused. [collapsed]: only the glyph until focused, then the uppercase label.
  */
-internal fun expandableFaButton(
+fun expandableFaButton(
     context: Context,
     @StringRes title: Int,
     @StringRes glyph: Int,
@@ -401,7 +401,7 @@ class FilterButtonView(
  * `ExpandableSortButton`: the sort direction glyph in a 40dp square, the uppercase sort name while focused. Long press
  * reverses the sort (handled by the caller).
  */
-internal class SortGlyphButtonView(
+class SortGlyphButtonView(
     context: Context,
     private val compact: Boolean = false,
 ) : AppButton(context) {
@@ -436,7 +436,7 @@ internal class SortGlyphButtonView(
  * `TypeFilterButton`: an outlined ALL / MOVIES / SHOWS filter in its type colour (1dp outline at rest, the accent border,
  * fill and glow when focused), the uppercase label in the accent.
  */
-internal fun typeFilterButton(
+fun typeFilterButton(
     context: Context,
     option: TypeFilterOption,
     compact: Boolean = false,
@@ -470,7 +470,7 @@ internal fun typeFilterButton(
  * ([isChipSelected]) and when focused, a grey outline at rest ([restOutline], or `line2`), 2dp accent outline when
  * selected, white label turning the accent when focused, and an optional small spinner while loading.
  */
-internal class QuickListButtonView(
+class QuickListButtonView(
     context: Context,
     heightDp: Float,
     horizontalPaddingDp: Float,

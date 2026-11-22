@@ -184,6 +184,8 @@ class LibraryItemHeaderView(
             compact.visibility = VISIBLE
             compactEyebrow.visibility = if (eyebrowText != null) VISIBLE else GONE
             eyebrowText?.let { compactEyebrow.applyNeonEyebrow(it, accent) }
+            // spacedBy(2): no gap above the title row without the eyebrow
+            (compactRow.layoutParams as LinearLayout.LayoutParams).topMargin = if (eyebrowText != null) context.dp(2) else 0
             if (showLogo && logoUrl != null) {
                 compactLogoView.visibility = VISIBLE
                 compactTitle.visibility = GONE
@@ -199,6 +201,9 @@ class LibraryItemHeaderView(
             }
             compactEpisode.visibility = if (subtitle != null) VISIBLE else GONE
             compactEpisode.text = subtitle.orEmpty()
+            // spacedBy(12) only between shown pieces
+            (compactTitle.layoutParams as LinearLayout.LayoutParams).marginEnd = if (subtitle != null) context.dp(12) else 0
+            (compactLogoView.layoutParams as LinearLayout.LayoutParams).marginEnd = if (subtitle != null) context.dp(12) else 0
             compactQuick.bind(item?.ui?.quickDetailsText, item?.timeRemainingOrRuntime, dto?.endDate, toggles)
             val overviewText = dto?.overview
             compactOverview.visibility = if (overviewText.isNotNullOrBlank()) VISIBLE else GONE
@@ -213,6 +218,8 @@ class LibraryItemHeaderView(
         normal.visibility = VISIBLE
         eyebrow.visibility = if (neon && eyebrowText != null) VISIBLE else GONE
         eyebrowText?.let { eyebrow.applyNeonEyebrow(it, accent) }
+        // spacedBy(4): no gap above the title without the eyebrow
+        (titleBox.layoutParams as LinearLayout.LayoutParams).topMargin = if (eyebrow.visibility == VISIBLE) context.dp(4) else 0
         titleOrLogo.bind(item?.title, logoUrl, showLogo)
         titleBox.maxHeightPx = if (compactLogo && showLogo && logoUrl != null) context.dp(40) else null
         episodeName.visibility = if (subtitle != null) VISIBLE else GONE

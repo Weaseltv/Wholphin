@@ -104,7 +104,11 @@ abstract class NameCardGridContentView(
     }
 
     override fun onShown(firstTime: Boolean) {
-        if (!firstTime && kind == KIND_SUCCESS && fragment.isTopScreen) grid.grid.requestFocus()
+        // The old tab content started over at its first card when selected again (initialPosition = 0)
+        if (!firstTime && kind == KIND_SUCCESS && fragment.isTopScreen) {
+            grid.grid.selectedPosition = 0
+            grid.grid.requestFocus()
+        }
     }
 
     override fun onBackPressed(): Boolean = grid.onBackPressed()

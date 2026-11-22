@@ -210,7 +210,8 @@ class RecommendedContentView(
     override fun onShown(firstTime: Boolean) {
         // OneTimeLaunchedEffect { viewModel.init() }: every time the tab's content appears
         viewModel.init()
-        if (!firstTime) rowsView?.focusRows()
+        // The old tab content started over when selected again: focus on the first row with cards, rows at their start
+        if (!firstTime) rowsView?.startOver()
     }
 
     override fun onPageShownAgain() {
@@ -352,12 +353,15 @@ class RecommendedContentView(
             if (!list.hasFocus()) list.requestFocus()
         }
 
-        /** Focus the rows at the last focused row (the tab was shown again) */
-        fun focusRows() {
-            if (!fragment.isTopScreen || !isShown) return
-            if (rows.isEmpty()) return
-            val index = if (position.row >= 0) position.row.coerceIn(0, rows.lastIndex) else firstContentRow()
-            if (index >= 0) focusRow(index)
+        /** The tab was selected again: like a new composition, the rows start over and the first one takes focus */
+        fun startOver() {
+            position = RowColumn(-1, -1)
+            firstFocused = false
+            rowSelections.clear()
+            for (i in 0 until list.childCount) (list.getChildAt(i) as? CardRowView)?.strip?.selectedPosition = 0
+            headerShown = null
+            updateFocusedItem()
+            takeFirstFocus()
         }
 
         private fun onCardFocused(
