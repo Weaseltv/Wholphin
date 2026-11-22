@@ -1,7 +1,6 @@
 package com.github.damontecres.wholphin.ui.playback
 
 import android.widget.Toast
-import androidx.compose.ui.text.intl.Locale
 import androidx.lifecycle.viewModelScope
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
@@ -54,7 +53,7 @@ fun PlaybackViewModel.searchForSubtitles(language: String? = null) {
                 .currentUserDto
                 ?.configuration,
         )?.takeIf { it.isNotNullOrBlank() }
-            ?: Locale.current.language
+            ?: java.util.Locale.getDefault().language
 
     subtitleSearchState.update {
         it.copy(

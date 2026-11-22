@@ -168,7 +168,7 @@ fun PlaybackPageContent(
     val prefs = preferences.appPreferences.playbackPreferences
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
-    LaunchedEffect(density) { viewModel.updateDensity(density) }
+    LaunchedEffect(density) { viewModel.updateDensity(density.density, density.fontScale) }
     val userDto by viewModel.currentUserDto.collectAsState()
 
     var showDebugInfo by remember { mutableStateOf(prefs.showDebugInfo) }
@@ -215,9 +215,10 @@ fun PlaybackPageContent(
         focusRequester.tryRequestFocus()
     }
     val controllerViewState = remember { viewModel.controllerViewState }
+    val controlsShown = controllerViewState.collectVisible()
 
     var skipIndicatorDuration by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(controllerViewState.controlsVisible) {
+    LaunchedEffect(controlsShown) {
         // If controller shows/hides, immediately cancel the skip indicator
         skipIndicatorDuration = 0L
     }
@@ -327,7 +328,7 @@ fun PlaybackPageContent(
 
     val showSegment =
         state.currentSegment?.interacted == false &&
-            state.nextUp == null && !controllerViewState.controlsVisible && skipIndicatorDuration == 0L
+            state.nextUp == null && !controlsShown && skipIndicatorDuration == 0L
     BackHandler(showSegment) {
         viewModel.updateSegment(state.currentSegment?.segment?.id, true)
     }
@@ -383,7 +384,7 @@ fun PlaybackPageContent(
 
                 AnimatedVisibility(
                     visible =
-                        !controllerViewState.controlsVisible &&
+                        !controlsShown &&
                             skipIndicatorDuration != 0L &&
                             prefs.dpadSeekMode == DpadSeekMode.SEEKBAR_TRICKPLAY,
                     enter = fadeIn() + slideInVertically { it / 2 },
@@ -414,7 +415,7 @@ fun PlaybackPageContent(
                 }
 
                 // If D-pad skipping, show the amount skipped in an animation
-                if (!controllerViewState.controlsVisible && skipIndicatorDuration != 0L &&
+                if (!controlsShown && skipIndicatorDuration != 0L &&
                     prefs.dpadSeekMode != DpadSeekMode.SEEKBAR_TRICKPLAY
                 ) {
                     // Skip time mode: show seek distance indicator
@@ -452,8 +453,8 @@ fun PlaybackPageContent(
                 }
 
                 val controlsVisible =
-                    remember(controllerViewState.controlsVisible, playbackDialog, subtitleSearchState) {
-                        controllerViewState.controlsVisible ||
+                    remember(controlsShown, playbackDialog, subtitleSearchState) {
+                        controlsShown ||
                             playbackDialog != null ||
                             subtitleSearchState.status != SubtitleSearchStatus.Inactive
                     }
@@ -515,7 +516,7 @@ fun PlaybackPageContent(
                     remember(subtitleSettings) { subtitleSettings.imageSubtitleOpacity / 100f }
 
                 // Subtitles
-                val subtitleMaxSize by animateFloatAsState(if (controllerViewState.controlsVisible) .7f else 1f)
+                val subtitleMaxSize by animateFloatAsState(if (controlsShown) .7f else 1f)
                 val isImageSubtitles =
                     remember(state.subtitleCues) { state.subtitleCues.firstOrNull()?.bitmap != null }
 

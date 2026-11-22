@@ -78,6 +78,7 @@ import com.github.damontecres.wholphin.ui.formatDuration
 import com.github.damontecres.wholphin.ui.indexOfFirstOrNull
 import com.github.damontecres.wholphin.ui.playback.ControllerViewState
 import com.github.damontecres.wholphin.ui.playback.PlaybackDialogType
+import com.github.damontecres.wholphin.ui.playback.collectVisible
 import com.github.damontecres.wholphin.ui.seekBack
 import com.github.damontecres.wholphin.ui.seekForward
 import com.github.damontecres.wholphin.ui.skipStringRes
@@ -162,6 +163,7 @@ fun PlaybackControls(
     seekBarInteractionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) {
     val scope = rememberCoroutineScope()
+    val controlsShown = controllerViewState.collectVisible()
 
     val bringIntoViewRequester = remember { BringIntoViewRequester() }
     val onControllerInteraction = {
@@ -170,8 +172,8 @@ fun PlaybackControls(
         }
         controllerViewState.pulseControls()
     }
-    LaunchedEffect(controllerViewState.controlsVisible) {
-        if (controllerViewState.controlsVisible) {
+    LaunchedEffect(controlsShown) {
+        if (controlsShown) {
             initialFocusRequester.tryRequestFocus()
         }
     }

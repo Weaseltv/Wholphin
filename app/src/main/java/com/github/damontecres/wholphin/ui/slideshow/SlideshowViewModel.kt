@@ -2,7 +2,6 @@ package com.github.damontecres.wholphin.ui.slideshow
 
 import android.content.Context
 import android.widget.Toast
-import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Player
@@ -492,7 +491,6 @@ sealed class ImageLoadingState {
     ) : ImageLoadingState()
 }
 
-@Stable
 data class ImageState(
     val image: BaseItem,
     val url: String,

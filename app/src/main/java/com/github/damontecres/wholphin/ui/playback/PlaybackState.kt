@@ -1,6 +1,5 @@
 package com.github.damontecres.wholphin.ui.playback
 
-import androidx.compose.ui.text.intl.Locale
 import androidx.media3.common.Player
 import androidx.media3.common.text.Cue
 import com.github.damontecres.wholphin.data.model.BaseItem
@@ -56,5 +55,5 @@ data class AnalyticsState(
 
 data class SubtitleSearchState(
     val status: SubtitleSearchStatus = SubtitleSearchStatus.Inactive,
-    val language: String = Locale.current.language,
+    val language: String = java.util.Locale.getDefault().language,
 )
