@@ -275,8 +275,13 @@ class DiscoverFragment : DestinationFragment() {
             return
         }
         when {
+            // Opened for a request (a new request or a notification): its row, once it is in the queue
+            queueBox.visibility == View.VISIBLE && queue.focusPendingRequest() -> Unit
+
             position >= 0 && results.showsGrid -> results.grid.grid.requestFocus()
+
             voiceButtonVisible && voiceButton?.isShown == true && voiceButton?.requestFocus() == true -> Unit
+
             else -> field.box.editText.requestFocus()
         }
     }

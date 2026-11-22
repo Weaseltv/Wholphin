@@ -313,6 +313,20 @@ internal class RequestsQueueView(
         if (!list.hasFocus()) list.scrollToPosition(0)
     }
 
+    /**
+     * The page became the top page: focus the request it was opened for, if that row is here and has not been focused
+     * yet. Returns whether it will take focus.
+     */
+    fun focusPendingRequest(): Boolean {
+        if (focusHandled || table.visibility != VISIBLE) return false
+        val index = rows.indexOfFirst { it.row.request.id == focusRequestId }
+        if (index < 0) return false
+        focusHandled = true
+        (list.layoutManager as LinearLayoutManager).scrollToPositionWithOffset(index, 0)
+        focusPosition(index)
+        return true
+    }
+
     /** Focus the row at [index] once it is laid out */
     private fun focusPosition(index: Int) {
         if (!canTakeFocus()) return

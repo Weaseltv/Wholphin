@@ -721,7 +721,6 @@ class DiscoverMoreFragment : DestinationFragment() {
         viewModel.state.collectWhileStarted { state ->
             sortButton.visibility = if (state.sortOptions.isNotEmpty()) View.VISIBLE else View.GONE
             filterButton.visibility = if (state.filterOptions.isNotEmpty()) View.VISIBLE else View.GONE
-            buttonsRow.visibility = if (state.sortOptions.isNotEmpty() || state.filterOptions.isNotEmpty()) View.VISIBLE else View.GONE
             sortButton.bind(state.sortOptions, state.sortAndDirection)
             filterButton.bind(state.filterOptions, state.filter)
             renderBody(state.loading, state.startIndex)
@@ -786,7 +785,7 @@ class DiscoverMoreFragment : DestinationFragment() {
                     cards.observeChanges(viewLifecycleOwner, it.changes)
                 }
                 // The old grid took focus once it had loaded
-                cards.grid.requestFocus()
+                if (isTopScreen) cards.grid.requestFocus()
             }
         }
     }
