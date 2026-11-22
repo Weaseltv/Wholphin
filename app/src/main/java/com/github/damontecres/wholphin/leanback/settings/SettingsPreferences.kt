@@ -1,12 +1,10 @@
 package com.github.damontecres.wholphin.leanback.settings
 
 import android.content.Context
-import android.content.res.ColorStateList
 import android.text.InputType
 import android.view.KeyEvent
 import android.view.View
 import android.widget.TextView
-import androidx.appcompat.widget.SwitchCompat
 import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.MultiSelectListPreference
@@ -126,7 +124,7 @@ internal open class SettingsClickPreference(
     }
 }
 
-/** An on/off row with a trailing switch (the old `SwitchPreference`) */
+/** An on/off row with a trailing switch ([SettingsSwitchView], the old `SwitchPreference`) */
 internal class SettingsSwitchPreference(
     context: Context,
 ) : SwitchPreferenceCompat(context),
@@ -143,20 +141,20 @@ internal class SettingsSwitchPreference(
     override fun onBindViewHolder(holder: PreferenceViewHolder) {
         super.onBindViewHolder(holder)
         holder.bindSettingsRow(this)
-        (holder.findViewById(androidx.preference.R.id.switchWidget) as? SwitchCompat)?.let { styleSwitch(it, accent) }
+        (holder.findViewById(androidx.preference.R.id.switchWidget) as? SettingsSwitchView)?.let { styleSwitch(it, accent) }
     }
 }
 
 /**
  * The switch colours of the old `SwitchColors()`: Neon tracks `line2` / accent with `mid` / `onAccent` knobs,
- * stock colours elsewhere (the Material 3 thumbs in `onPrimary` on the GREEN to BROWN themes).
+ * stock colours elsewhere (the Material 3 thumbs in `onPrimary` on the GREEN to BROWN themes). The outline of an off
+ * switch is the off track colour on the Neon theme and the theme `border` colour elsewhere (tv-material3 defaults).
  */
 internal fun styleSwitch(
-    switch: SwitchCompat,
+    switch: SettingsSwitchView,
     accent: Int,
 ) {
     val palette = AppTheme.palette
-    val states = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
     val (thumbOn, thumbOff, trackOn, trackOff) =
         when (AppTheme.theme) {
             AppThemeColors.WEASELTV -> {
@@ -173,8 +171,12 @@ internal fun styleSwitch(
                 listOf(palette.onPrimary, palette.onSurfaceVariant, palette.primary, palette.surfaceVariant)
             }
         }
-    switch.thumbTintList = ColorStateList(states, intArrayOf(thumbOn, thumbOff))
-    switch.trackTintList = ColorStateList(states, intArrayOf(trackOn, trackOff))
+    switch.thumbOn = thumbOn
+    switch.thumbOff = thumbOff
+    switch.trackOn = trackOn
+    switch.trackOff = trackOff
+    switch.outlineOff = if (AppTheme.theme == AppThemeColors.WEASELTV) NeonColors.LINE2 else palette.border
+    switch.invalidate()
 }
 
 /** A single choice row; the choices open in Leanback's list panel (the old `ChoicePreference` dialog) */
