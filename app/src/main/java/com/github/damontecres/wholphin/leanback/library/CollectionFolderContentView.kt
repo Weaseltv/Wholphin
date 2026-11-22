@@ -450,9 +450,12 @@ class CollectionFolderContentView(
         }
     }
 
-    /** One focus request on the right view, only while this is the visible top page (the old LaunchedEffect) */
+    /**
+     * One focus request on the right view, only while this content shows on the visible top page (the old
+     * LaunchedEffect ran only for the composed tab of the shown page)
+     */
     private fun takeFocus(request: () -> Boolean) {
-        if (fragment.isTopScreen && fragment.view?.isShown == true) request()
+        if (fragment.isTopScreen && isShown) request()
     }
 
     private fun focusHeader(): Boolean {
