@@ -6,6 +6,7 @@ import com.github.damontecres.wholphin.leanback.library.LibraryScreens
 import com.github.damontecres.wholphin.leanback.playback.PlaybackScreens
 import com.github.damontecres.wholphin.leanback.search.SearchScreens
 import com.github.damontecres.wholphin.leanback.settings.SettingsScreens
+import com.github.damontecres.wholphin.leanback.setup.AccountScreens
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.ui.nav.Destination
 
@@ -25,4 +26,5 @@ object ScreenFactory {
             ?: SearchScreens.create(destination, preferences)
             ?: SettingsScreens.create(destination, preferences)
             ?: PlaybackScreens.create(destination, preferences)
+            ?: AccountScreens.create(destination, preferences)
 }

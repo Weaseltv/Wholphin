@@ -5,7 +5,7 @@ import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.ui.nav.Destination
 
 /**
- * Screens of this area for the shell's ScreenFactory (no-Compose UI). Owns: Settings, SubtitleSettings, UserAppPreferences, ProfilePicture, HomeSettings, License, Debug and UpdateApp.
+ * Screens of this area for the shell's ScreenFactory (no-Compose UI). Owns: Settings, SubtitleSettings, UserAppPreferences, HomeSettings, License, Debug and UpdateApp.
  * Return null for any destination this area does not own.
  */
 object SettingsScreens {

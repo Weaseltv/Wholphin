@@ -7,7 +7,7 @@ Android focus. No hybrid: when the rewrite is finished the app has no Compose UI
 Compose compiler plugin. Non-UI layers (Jellyfin SDK, Room, DataStore, Hilt services, playback engines, data
 models, ViewModels) stay; only the presentation layer is replaced, keeping today's behaviour and look.
 
-This page is the contract between the orchestrator, the SHELL and WIDGETS agents and the area agents. Read it
+This page is the contract between the orchestrator, the SHELL, CARDS and CONTROLS agents and the area agents. Read it
 completely before writing code. The reference for a TV app that already did this is the WeaselTV TV app
 (`~/work/weaseltv/weaseltv-apps`, branch `origin/tv/no-compose`, `docs/tv-rebuild/NO_COMPOSE_SHELL.md`); it is a
 different app, so copy patterns, not code.
@@ -19,11 +19,12 @@ All new UI code is under `app/src/main/java/com/github/damontecres/wholphin/lean
 | Package | Owner | Contents |
 |---|---|---|
 | `leanback.shell` | SHELL | `MainActivity` content, `NavHost` (fragment back stack), side menu (nav drawer), backdrop, setup layer host, overlays (screensaver, dim, coach marks, update / What's New prompts, request chips), `ScreenFactory`, `DestinationFragment` |
-| `leanback.theme` | WIDGETS (orchestrator wrote the start) | `AppTheme`, `AppPalette`, `NeonColors`, `NeonSections`, `TextRole`, `AppFonts`, focus/glow drawables |
-| `leanback.widget` | WIDGETS | cards, card rows, card grids, buttons, chips, tabs, dialogs, context menu, loading/error views, text widgets, image loading helpers. Documented in `runbooks/no-compose/WIDGETS.md` |
+| `leanback.theme` | orchestrator (start), CARDS, CONTROLS | `AppTheme`, `AppPalette`, `NeonColors`, `NeonSections`, `TextRole`, `AppFonts`, `Accents.kt`/`PageStyle`; CARDS adds `NeonCards.kt` (card focus/glow/badge/progress drawables), CONTROLS adds `NeonControls.kt` (button/surface/list-item/chip recipes) |
+| `leanback.widget.card` | CARDS | every card type, card rows, card grids (adapters/presenters), image loading helpers, loading row, view-more card. Documented in `runbooks/no-compose/WIDGETS-CARDS.md` |
+| `leanback.widget.control`, `.dialog`, `.text` | CONTROLS | buttons, chips, tabs, inputs, dropdowns, dialogs, context menu, item info dialog, loading/error views, text widgets. Documented in `runbooks/no-compose/WIDGETS-CONTROLS.md` |
 | `leanback.settings` | SETTINGS | every settings/preference screen on Leanback Preference |
 | `leanback.playback` | PLAYBACK | player page, overlays, player dialogs, next up, external player, slideshow |
-| `leanback.setup` | SETUP | server list, pinned-server sign-in, profile chooser, PIN entry, Quick Connect, Seerr server, kids flows |
+| `leanback.setup` | SETUP | server list, pinned-server sign-in, profile chooser, PIN entry, Quick Connect, Seerr server, kids flows, avatar picker and the ProfilePicture page (`AccountScreens`) |
 | `leanback.home` | HOME | Home, Watchlist (Favorites destination), More (MoreHomeRow) |
 | `leanback.detail` | DETAILS | movie, series, season/episode overview, episode, collection (box set), playlist, person |
 | `leanback.library` | LIBRARY | library/collection folders, filters/sort/view options, genre/studio grids, item grids |
@@ -49,17 +50,20 @@ behaviour, BACK behaviour, dialogs and actions, built as Views/fragments in the 
   `RequestNotificationCard.kt`, `RequestUiState.kt`, `ui/CoilConfig.kt` (becomes a Coil `SingletonImageLoader`
   set up for Views), `ui/CrossFadeFactory.kt`, `ui/util/*`, the Compose bits of `services/BackdropService.kt`,
   `services/ScreensaverService.kt`, `services/ImageUrlService.kt`, `kids/KidPageGuardViewModel` use.
-- **WIDGETS**: `ui/cards/*`, `ui/theme/*` (Neon helpers become View drawables/helpers), `ui/detail/CardGrid.kt`,
-  `ui/data/ItemDetailsDialogInfo.kt`, and the shared parts of `ui/components/`: Button, CircularProgress,
-  Dialogs, ContextMenu, ContextMenuUtils, ErrorMessage, LoadingRow, FocusableItemRow, ListItemWrapper,
-  SelectedLeadingContent, TabRow, EditTextBox, SwitchWithLabel, SliderBar, AppDropdownMenu, TvDropdownMenuItem,
-  HeaderUtils, GenreText, OverviewText, TitleValueText, QuickDetails, Rating, TimeDisplay, TitleOrLogo,
-  FittedCardLabel, HiddenFocusBox, Optional, TableRow, ViewportLayout.
+- **CARDS**: `ui/cards/*`, the card/row/badge/progress parts of `ui/theme/*` (Neon card helpers become View
+  drawables/helpers, `CollectionCardStyle`, `MediaCardStyle`), `ui/detail/CardGrid.kt`, and from
+  `ui/components/`: LoadingRow, FocusableItemRow, FittedCardLabel, HiddenFocusBox.
+- **CONTROLS**: the surface/button/list-item/chip/rule/eyebrow parts of `ui/theme/*` (and `ThemePreview` if it is
+  UI), `ui/data/ItemDetailsDialogInfo.kt`, and from `ui/components/`: Button, CircularProgress, Dialogs,
+  ContextMenu, ContextMenuUtils, ErrorMessage, ListItemWrapper, SelectedLeadingContent, TabRow, EditTextBox,
+  SwitchWithLabel, SliderBar, AppDropdownMenu, TvDropdownMenuItem, HeaderUtils, GenreText, OverviewText,
+  TitleValueText, QuickDetails, Rating, TimeDisplay, TitleOrLogo, Optional, TableRow, ViewportLayout.
 - **SETTINGS**: `ui/preferences/**`, `ui/main/settings/**` (Home settings), `ui/components/LicenseInfo.kt`,
-  `ui/detail/DebugPage.kt`, `ui/setup/InstallUpdatePage.kt`, `ui/avatars/*` (profile picture page/picker).
+  `ui/detail/DebugPage.kt`, `ui/setup/InstallUpdatePage.kt`.
 - **PLAYBACK**: `ui/playback/**`, `ui/slideshow/**`, `util/mpv/Utils.kt`.
 - **SETUP**: `ui/setup/{PinEntry,PinnedServerContent,QuickConnectQrCode,ServerList,SwitchServerContent,
-  SwitchUserContent,UserList}.kt`, `ui/setup/seerr/*`, `ui/kids/*`.
+  SwitchUserContent,UserList}.kt`, `ui/setup/seerr/*`, `ui/kids/*`, `ui/avatars/*` (avatar picker, first-avatar
+  dialog, ProfilePicture page).
 - **HOME**: `ui/main/HomePage.kt`, `ui/detail/HomeRowGrid.kt`, `ui/detail/FavoritesPage.kt`,
   `ui/detail/WatchlistPage.kt`.
 - **DETAILS**: `ui/detail/{movie,series,episode,collection}/*`, `ui/detail/{PlaylistDetails,PlaylistList,
@@ -113,8 +117,8 @@ The old Compose files are deleted in one step at integration, after every area i
 - `DestinationFragment.showsNavDrawer` (from `Destination.fullScreen`) tells the shell whether the side menu sits
   next to the page. Non-fullscreen pages are laid out for the space right of the collapsed side menu, exactly as
   the Compose `NavDrawer` content area was.
-- Dialogs: use the WIDGETS dialog helpers (they are `Dialog`/`DialogFragment`s, so the platform returns focus to
-  the view that opened them). Until WIDGETS lands, Phase 1 areas may use their own `Dialog` subclasses.
+- Dialogs: use the CONTROLS dialog helpers (they are `Dialog`/`DialogFragment`s, so the platform returns focus to
+  the view that opened them). Until CONTROLS lands, Phase 1 areas may use their own `Dialog` subclasses.
 - Setup-layer screens (SETUP) are plain fragments returned by `leanback/setup/SetupScreens.kt`.
 
 ## 4. Look and feel: same as today
