@@ -2,13 +2,6 @@ package com.github.damontecres.wholphin.ui.components
 
 import androidx.annotation.StringRes
 import com.github.damontecres.wholphin.R
-import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
-import com.github.damontecres.wholphin.ui.theme.LocalNeonOutlineRest
-import com.github.damontecres.wholphin.ui.theme.NeonBoard
-import com.github.damontecres.wholphin.ui.theme.neonOutlineColors
-import com.github.damontecres.wholphin.ui.theme.neonSurfaceBorder
-import com.github.damontecres.wholphin.ui.theme.neonSurfaceGlow
-import com.github.damontecres.wholphin.ui.theme.typeAccent
 import org.jellyfin.sdk.model.api.BaseItemKind
 
 /*

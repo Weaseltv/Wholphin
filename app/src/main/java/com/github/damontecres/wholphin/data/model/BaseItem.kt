@@ -1,17 +1,11 @@
 package com.github.damontecres.wholphin.data.model
 
-import androidx.compose.foundation.text.appendInlineContent
-import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.Stable
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.buildAnnotatedString
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.WholphinApplication
 import com.github.damontecres.wholphin.ui.abbreviateNumber
 import com.github.damontecres.wholphin.ui.detail.CardGridItem
 import com.github.damontecres.wholphin.ui.detail.series.SeasonEpisodeIds
-import com.github.damontecres.wholphin.ui.dot
 import com.github.damontecres.wholphin.ui.formatDateTime
 import com.github.damontecres.wholphin.ui.formatDuration
 import com.github.damontecres.wholphin.ui.formatEpisodeNumber
@@ -41,7 +35,6 @@ import kotlin.time.Duration
  * Wrapper for [BaseItemDto] with shortcuts for various UI elements
  */
 @Serializable
-@Stable
 data class BaseItem(
     val data: BaseItemDto,
     val useSeriesForPrimary: Boolean = false,
@@ -145,46 +138,6 @@ data class BaseItem(
                     officialRating = data.officialRating,
                     communityRating = data.communityRating,
                     criticRating = data.criticRating,
-                ),
-            quickDetails =
-                QuickDetailsData(
-                    basic =
-                        buildAnnotatedString {
-                            val details = quickDetailParts()
-                            details.forEachIndexed { index, string ->
-                                append(string)
-                                if (index != details.lastIndex) {
-                                    dot()
-                                }
-                            }
-                        },
-                    officialRating =
-                        data.officialRating?.let {
-                            buildAnnotatedString {
-                                dot()
-                                append(it)
-                            }
-                        },
-                    communityRating =
-                        data.communityRating?.let {
-                            buildAnnotatedString {
-                                dot()
-                                append(String.format(Locale.getDefault(), "%.1f", it))
-                                appendInlineContent(id = "star")
-                            }
-                        },
-                    criticRating =
-                        data.criticRating?.let {
-                            buildAnnotatedString {
-                                dot()
-                                append("${it.toInt()}%")
-                                if (it >= 60f) {
-                                    appendInlineContent(id = "fresh")
-                                } else {
-                                    appendInlineContent(id = "rotten")
-                                }
-                            }
-                        },
                 ),
         )
 
@@ -299,18 +252,16 @@ val BaseItemDto.aspectRatioFloat: Float? get() = width?.let { w -> height?.let {
 /** The server strips leading articles (eg "The ") from [BaseItemDto.sortName]. */
 val BaseItemDto.alphabetSortName: String get() = sortName ?: name ?: ""
 
-@Immutable
 data class BaseItemUi(
     val episodeCornerText: String?,
     val episodeUnplayedCornerText: String?,
-    val quickDetails: QuickDetailsData,
     val quickDetailsText: QuickDetailsText,
 )
 
 /**
  * The quick details line without Compose (no-Compose UI): the View widget joins [parts] with " • " and appends the
  * official rating, the community rating with a star and the critic rating with a fresh/rotten icon, as
- * [QuickDetailsData] did with inline content.
+ * the old Compose quick details did with inline content.
  */
 data class QuickDetailsText(
     val parts: List<String>,
@@ -319,12 +270,6 @@ data class QuickDetailsText(
     val criticRating: Float? = null,
 )
 
-data class QuickDetailsData(
-    val basic: AnnotatedString,
-    val officialRating: AnnotatedString? = null,
-    val criticRating: AnnotatedString? = null,
-    val communityRating: AnnotatedString? = null,
-)
 
 /**
  * Create the special [Destination.FilteredCollection] for the given genre information

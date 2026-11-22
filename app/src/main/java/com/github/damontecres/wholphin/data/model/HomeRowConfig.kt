@@ -2,10 +2,10 @@
 
 package com.github.damontecres.wholphin.data.model
 
+import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.preferences.PrefContentScale
 import com.github.damontecres.wholphin.ui.AspectRatio
-import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.components.ViewOptionImageType
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
 import kotlinx.serialization.SerialName

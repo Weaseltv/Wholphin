@@ -8,13 +8,9 @@ import com.github.damontecres.wholphin.data.model.alphabetSortName
 import com.github.damontecres.wholphin.data.model.createStudioDestination
 import com.github.damontecres.wholphin.services.ImageUrlService
 import com.github.damontecres.wholphin.services.NavigationManager
-import com.github.damontecres.wholphin.ui.OneTimeLaunchedEffect
 import com.github.damontecres.wholphin.ui.SlimItemFields
-import com.github.damontecres.wholphin.ui.cards.StudioCard
-import com.github.damontecres.wholphin.ui.detail.CardGrid
 import com.github.damontecres.wholphin.ui.detail.CardGridItem
 import com.github.damontecres.wholphin.ui.launchIO
-import com.github.damontecres.wholphin.ui.tryRequestFocus
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.GetStudiosRequestHandler
 import com.github.damontecres.wholphin.util.WholphinDispatchers

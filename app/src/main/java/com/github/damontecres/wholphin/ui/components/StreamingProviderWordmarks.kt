@@ -4,11 +4,6 @@ import coil3.request.ImageRequest
 import coil3.svg.SvgDecoder
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
-import com.github.damontecres.wholphin.ui.theme.LocalNeonAccent
-import com.github.damontecres.wholphin.ui.theme.NeonEyebrow
-import com.github.damontecres.wholphin.ui.theme.NeonSectionPalette
-import com.github.damontecres.wholphin.ui.theme.NeonType
-import com.github.damontecres.wholphin.ui.theme.streamingProviderAccent
 import java.util.Locale
 
 /*

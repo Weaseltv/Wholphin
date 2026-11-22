@@ -1,8 +1,6 @@
 package com.github.damontecres.wholphin.ui.data
 
 import androidx.annotation.StringRes
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import com.github.damontecres.wholphin.R
 import kotlinx.serialization.Serializable
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -157,9 +155,6 @@ fun getStringRes(sort: ItemSortBy): Int =
         else -> throw IllegalArgumentException("Unsupported sort option: $sort")
     }
 
-@Composable
-fun rememberSortOptions(collectionType: CollectionType): List<ItemSortBy> = remember(collectionType) { sortOptionsFor(collectionType) }
-
 /** The sort options a library of [collectionType] offers (no-Compose UI) */
 fun sortOptionsFor(collectionType: CollectionType): List<ItemSortBy> =
     when (collectionType) {
@@ -168,9 +163,6 @@ fun sortOptionsFor(collectionType: CollectionType): List<ItemSortBy> =
         CollectionType.BOXSETS -> BoxSetSortOptions
         else -> VideoSortOptions
     }
-
-@Composable
-fun rememberSortOptions(type: BaseItemKind): List<ItemSortBy> = remember(type) { sortOptionsFor(type) }
 
 /** The sort options a page of [type] items offers (no-Compose UI) */
 fun sortOptionsFor(type: BaseItemKind): List<ItemSortBy> =

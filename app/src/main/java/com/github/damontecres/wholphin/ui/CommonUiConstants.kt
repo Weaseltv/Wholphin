@@ -67,3 +67,9 @@ enum class AspectRatio(
     FOUR_THREE(AspectRatios.FOUR_THREE),
     SQUARE(AspectRatios.SQUARE),
 }
+
+/** Card heights in dp shared by the home row settings (the old Compose `Cards` object's constants) */
+object Cards {
+    const val HEIGHT_2X3_DP = 172
+    const val HEIGHT_EPISODE = 128
+}

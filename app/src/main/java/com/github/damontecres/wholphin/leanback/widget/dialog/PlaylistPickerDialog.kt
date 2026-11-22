@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.leanback.widget.dialog
 
+import com.github.damontecres.wholphin.ui.detail.PlaylistLoadingState
 import android.content.Context
 import android.os.Build
 import android.view.Gravity
@@ -23,7 +24,6 @@ import com.github.damontecres.wholphin.leanback.widget.control.EditTextBox
 import com.github.damontecres.wholphin.leanback.widget.control.ErrorView
 import com.github.damontecres.wholphin.leanback.widget.control.ListLeading
 import com.github.damontecres.wholphin.leanback.widget.control.SearchEditTextBox
-import com.github.damontecres.wholphin.ui.detail.PlaylistLoadingState
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

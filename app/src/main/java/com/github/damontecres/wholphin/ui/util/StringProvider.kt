@@ -2,9 +2,6 @@ package com.github.damontecres.wholphin.ui.util
 
 import android.content.Context
 import androidx.annotation.StringRes
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.NonRestartableComposable
-import androidx.compose.ui.res.stringResource
 import kotlinx.serialization.Serializable
 
 /**
@@ -12,10 +9,6 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 sealed interface StringProvider {
-    @Composable
-    @NonRestartableComposable
-    fun getString(): String
-
     /** The string without Compose (no-Compose UI) */
     fun getString(context: Context): String
 }
@@ -27,10 +20,6 @@ sealed interface StringProvider {
 data class StringStringProvider(
     val str: String,
 ) : StringProvider {
-    @Composable
-    @NonRestartableComposable
-    override fun getString(): String = str
-
     override fun getString(context: Context): String = str
 }
 
@@ -39,29 +28,21 @@ data class StringStringProvider(
  */
 @Serializable
 data object EmptyStringProvider : StringProvider {
-    @Composable
-    @NonRestartableComposable
-    override fun getString(): String = ""
-
     override fun getString(context: Context): String = ""
 }
 
 /**
- * Provides a string resource using [stringResource]
+ * Provides a string resource from resources
  */
 @Serializable
 data class ResStringProvider(
     @param:StringRes val stringResId: Int,
 ) : StringProvider {
-    @Composable
-    @NonRestartableComposable
-    override fun getString() = stringResource(stringResId)
-
     override fun getString(context: Context): String = context.getString(stringResId)
 }
 
 /**
- * Provides a string resource with format arguments using [stringResource]
+ * Provides a string resource with format arguments from resources
  */
 @Serializable
 data class ResArgStringProvider(
@@ -69,10 +50,6 @@ data class ResArgStringProvider(
     val args: Array<String>,
 ) : StringProvider {
     constructor(stringResId: Int, arg: String) : this(stringResId, arrayOf(arg))
-
-    @Composable
-    @NonRestartableComposable
-    override fun getString() = stringResource(stringResId, *args)
 
     override fun getString(context: Context): String = context.getString(stringResId, *args)
 
@@ -94,17 +71,13 @@ data class ResArgStringProvider(
 }
 
 /**
- * Provides a string resource with another [StringProvider] format argument using [stringResource]
+ * Provides a string resource with another [StringProvider] format argument from resources
  */
 @Serializable
 data class ResProviderStringProvider(
     @param:StringRes val stringResId: Int,
     val argProvider: StringProvider,
 ) : StringProvider {
-    @Composable
-    @NonRestartableComposable
-    override fun getString(): String = stringResource(stringResId, argProvider.getString())
-
     override fun getString(context: Context): String = context.getString(stringResId, argProvider.getString(context))
 }
 
@@ -113,9 +86,5 @@ data class ConcatStringProvider(
     val separator: String,
     val providers: List<StringProvider>,
 ) : StringProvider {
-    @Composable
-    @NonRestartableComposable
-    override fun getString(): String = providers.map { it.getString() }.joinToString(separator)
-
     override fun getString(context: Context): String = providers.joinToString(separator) { it.getString(context) }
 }

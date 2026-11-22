@@ -1,4 +1,4 @@
-package com.github.damontecres.wholphin.ui.theme
+package com.github.damontecres.wholphin.leanback.theme
 
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.nav.NavDrawerItem
@@ -35,36 +35,38 @@ class NeonAccentTest {
                 sectionAccent(library("Stand Up Comedy", CollectionType.MOVIES)),
                 sectionAccent(library("Sports", CollectionType.MOVIES)),
                 sectionAccent(library("Collections", CollectionType.BOXSETS)),
-                RailAccents.Search,
-                RailAccents.Home,
-                RailAccents.Settings,
+                RailAccents.SEARCH,
+                RailAccents.HOME,
+                RailAccents.SETTINGS,
             )
         assertEquals(accents.size, accents.toSet().size)
     }
 
     @Test
     fun `4K libraries share their regular counterpart's colour`() {
-        assertEquals(NeonSectionPalette.Movies.border, sectionAccent(library("4K Movies (LAN)", CollectionType.MOVIES)))
-        assertEquals(NeonSectionPalette.TvShows.border, sectionAccent(library("4K TV Shows (LAN)", CollectionType.TVSHOWS)))
-        assertEquals(NeonBoard.Volt, sectionAccent(library("Photos", CollectionType.PHOTOS)))
+        assertEquals(NeonSections.Movies.border, sectionAccent(library("4K Movies (LAN)", CollectionType.MOVIES)))
+        assertEquals(NeonSections.TvShows.border, sectionAccent(library("4K TV Shows (LAN)", CollectionType.TVSHOWS)))
+        assertEquals(NeonColors.VOLT, sectionAccent(library("Photos", CollectionType.PHOTOS)))
         assertEquals(sectionAccent(library("ufc", CollectionType.MOVIES)), sectionAccent(library("  UFC ", CollectionType.TVSHOWS)))
     }
 
     @Test
     fun `items carry their type color`() {
-        assertEquals(NeonSectionPalette.Movies.border, typeAccent(BaseItemKind.MOVIE))
-        assertEquals(NeonSectionPalette.TvShows.border, typeAccent(BaseItemKind.SERIES))
-        assertEquals(NeonSectionPalette.TvShows.border, typeAccent(BaseItemKind.SEASON))
-        assertEquals(NeonSectionPalette.TvShows.border, typeAccent(BaseItemKind.EPISODE))
-        assertEquals(NeonBoard.Volt, typeAccent(BaseItemKind.PHOTO))
-        assertEquals(NeonBoard.Volt, typeAccent(null))
+        assertEquals(NeonSections.Movies.border, typeAccent(BaseItemKind.MOVIE))
+        assertEquals(NeonSections.TvShows.border, typeAccent(BaseItemKind.SERIES))
+        assertEquals(NeonSections.TvShows.border, typeAccent(BaseItemKind.SEASON))
+        assertEquals(NeonSections.TvShows.border, typeAccent(BaseItemKind.EPISODE))
+        assertEquals(NeonColors.VOLT, typeAccent(BaseItemKind.PHOTO))
+        assertEquals(NeonColors.VOLT, typeAccent(null))
     }
 
     @Test
     fun `tints composite the accent over the panel colors`() {
-        val chip = NeonBoard.chipOn(NeonBoard.Volt)
-        assertEquals(1f, chip.alpha)
+        val chip = NeonColors.chipOn(NeonColors.VOLT)
+        assertEquals(0xFF, chip ushr 24)
+
+        fun green(color: Int) = (color shr 8) and 0xFF
         // A 14 % volt over card is brighter than card but nowhere near the accent.
-        assert(chip.green > NeonBoard.Card.green && chip.green < NeonBoard.Volt.green)
+        assert(green(chip) > green(NeonColors.CARD) && green(chip) < green(NeonColors.VOLT))
     }
 }

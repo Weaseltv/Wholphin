@@ -1,7 +1,5 @@
 package com.github.damontecres.wholphin.util
 
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import com.github.damontecres.wholphin.ui.DEFAULT_PAGE_SIZE
 import com.google.common.cache.CacheBuilder
 import kotlinx.coroutines.CoroutineScope
@@ -20,7 +18,7 @@ import java.util.function.Predicate
  * Handles paging for an API request. You must call [init] prior to use.
  *
  * Initially, items returned will be null, but requesting the items triggers API calls in the given [CoroutineScope].
- * Since the items are stored in [androidx.compose.runtime.MutableState], it will automatically trigger recompositions when the items are ultimately fetched.
+ * Views observe [changes], which goes up whenever the size or a loaded page changes.
  *
  * Finally, items are cached allow for backward and forward scrolling.
  */
@@ -30,27 +28,27 @@ abstract class RequestPager<T>(
     cacheSize: Long = 8,
 ) : AbstractList<T?>(),
     BlockingList<T?> {
-    private val totalCountState = mutableIntStateOf(-1)
-    private val itemsState = mutableStateOf(ItemList<T>(0, pageSize, mapOf()))
+    @Volatile private var totalCountState = -1
+
+    @Volatile private var itemsState = ItemList<T>(0, pageSize, mapOf())
     private val _changes = MutableStateFlow(0)
 
     /**
-     * Goes up every time the size or a loaded page changes (no-Compose UI): a View adapter collects it and refreshes,
-     * as the Compose UI recomposed from the state reads.
+     * Goes up every time the size or a loaded page changes: a View adapter collects it and refreshes.
      */
     val changes: StateFlow<Int> = _changes.asStateFlow()
 
     protected var totalCount: Int
-        get() = totalCountState.intValue
+        get() = totalCountState
         set(value) {
-            totalCountState.intValue = value
+            totalCountState = value
             _changes.update { it + 1 }
         }
 
     protected var items: ItemList<T>
-        get() = itemsState.value
+        get() = itemsState
         set(value) {
-            itemsState.value = value
+            itemsState = value
             _changes.update { it + 1 }
         }
     protected val mutex = Mutex()
