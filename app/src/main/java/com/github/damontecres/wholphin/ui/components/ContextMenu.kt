@@ -17,87 +17,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.tv.material3.Text
 import com.github.damontecres.wholphin.R
-import com.github.damontecres.wholphin.data.ChosenStreams
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.ItemPlayback
-import com.github.damontecres.wholphin.data.model.Person
 import com.github.damontecres.wholphin.preferences.PlayerBackend
-import com.github.damontecres.wholphin.ui.letNotEmpty
+import com.github.damontecres.wholphin.ui.FontAwesome
 import com.github.damontecres.wholphin.ui.nav.Destination
-import com.github.damontecres.wholphin.util.supportedPlayableTypes
-import com.github.damontecres.wholphin.util.supportedShufflableTypes
 import org.jellyfin.sdk.model.UUID
 import org.jellyfin.sdk.model.api.BaseItemDto
-import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.MediaSourceInfo
 import org.jellyfin.sdk.model.api.MediaStreamType
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
-import kotlin.time.Duration
-
-sealed interface ContextMenu {
-    data class ForBaseItem(
-        val fromLongClick: Boolean,
-        val item: BaseItem,
-        val index: Int = UNSPECIFIED_INDEX,
-        val chosenStreams: ChosenStreams?,
-        val showGoTo: Boolean,
-        val showStreamChoices: Boolean,
-        val canDelete: Boolean,
-        val canRemoveContinueWatching: Boolean,
-        val canRemoveNextUp: Boolean,
-        val actions: ContextMenuActions,
-        val showRemoveFromPlaylist: Boolean = false,
-        /**
-         * False for Home's streaming service tiles, which are fetched without watched and favourite status
-         * (see [com.github.damontecres.wholphin.services.StreamingCollections.fetch]), so the entries couldn't show
-         * their state; "Mark watched" there would also mark every title on the service (owner, 2026-11-12)
-         */
-        val showWatchedAndFavorite: Boolean = true,
-    ) : ContextMenu
-
-    data class ForPerson(
-        val fromLongClick: Boolean,
-        val person: Person,
-        val actions: PersonContextActions,
-    ) : ContextMenu
-
-    companion object {
-        const val UNSPECIFIED_INDEX = -12
-    }
-}
-
-data class ContextMenuActions(
-    val navigateTo: (Destination) -> Unit,
-    val onShowOverview: (BaseItem) -> Unit,
-    val onClickWatch: (UUID, Boolean) -> Unit,
-    val onClickFavorite: (UUID, Boolean) -> Unit,
-    val onClickAddPlaylist: (UUID) -> Unit,
-    val onSendMediaInfo: (UUID) -> Unit,
-    val onDeleteItem: (BaseItem) -> Unit,
-    val onChooseVersion: (BaseItem, MediaSourceInfo) -> Unit,
-    val onChooseTracks: (ChosenTrackResult) -> Unit,
-    val onClearChosenStreams: (ChosenStreams?) -> Unit,
-    val onClickGoTo: (BaseItem) -> Unit = { navigateTo(it.destination()) },
-    val onClickRemoveFromNextUp: (BaseItem) -> Unit = {},
-    val onRemoveFromPlaylist: (Int, UUID) -> Unit = { _, _ -> },
-    /** Set where the item's row can be reordered, e.g. Home's Streaming Services row. */
-    val onReorder: ((BaseItem) -> Unit)? = null,
-    /** With [onReorder], puts the row back in its default order. */
-    val onResetOrder: (() -> Unit)? = null,
-)
-
-data class PersonContextActions(
-    val navigateTo: (Destination) -> Unit,
-    val onClickFavorite: (UUID, Boolean) -> Unit,
-)
-
-data class ChosenTrackResult(
-    val item: BaseItem,
-    val streamType: MediaStreamType,
-    val trackIndex: Int,
-    val itemPlayback: ItemPlayback?,
-)
 
 @Composable
 fun ContextMenuDialog(
@@ -265,6 +196,49 @@ fun ContextMenu(
     }
 }
 
+/** The Compose rows for the shared, presentation-free [ContextMenuEntry] list (logic in ContextMenuModel.kt) */
+private fun List<ContextMenuEntry>.toDialogItems(): List<DialogItem> = map { it.toDialogItem() }
+
+private fun ContextMenuEntry.toDialogItem(): DialogItem =
+    when (val icon = icon) {
+        is MenuEntryIcon.Material -> {
+            DialogItem(
+                text = text,
+                icon =
+                    when (icon.icon) {
+                        MenuIcon.ARROW_FORWARD -> Icons.Default.ArrowForward
+                        MenuIcon.ARROW_FORWARD_MIRRORED -> Icons.AutoMirrored.Filled.ArrowForward
+                        MenuIcon.PLAY -> Icons.Default.PlayArrow
+                        MenuIcon.REFRESH -> Icons.Default.Refresh
+                        MenuIcon.DELETE -> Icons.Default.Delete
+                        MenuIcon.INFO -> Icons.Default.Info
+                    },
+                iconColor = iconColor?.let { Color(it) },
+                dismissOnClick = dismissOnClick,
+                onClick = onClick,
+            )
+        }
+
+        is MenuEntryIcon.FontAwesome -> {
+            DialogItem(
+                headlineContent = { Text(text = text) },
+                leadingContent = {
+                    Text(
+                        text = stringResource(id = icon.glyph),
+                        fontFamily = FontAwesome,
+                        color = iconColor?.let { Color(it) } ?: Color.Unspecified,
+                    )
+                },
+                onClick = onClick,
+                dismissOnClick = dismissOnClick,
+            )
+        }
+
+        null -> {
+            DialogItem(text = text, dismissOnClick = dismissOnClick, onClick = onClick)
+        }
+    }
+
 private fun buildContextMenuItems(
     resources: Resources,
     contextMenu: ContextMenu.ForBaseItem,
@@ -282,320 +256,34 @@ private fun buildContextMenuItems(
     onClickDelete: () -> Unit,
     onClickPlayWith: () -> Unit,
 ): List<DialogItem> =
-    buildList {
-        if (contextMenu.showGoTo) {
-            add(
-                DialogItem(
-                    resources.getString(R.string.go_to),
-                    Icons.Default.ArrowForward,
-                    dismissOnClick = true,
-                ) {
-                    actions.onClickGoTo(item)
-                },
-            )
-        }
-        actions.onReorder?.let { onReorder ->
-            add(
-                DialogItem(
-                    text = R.string.reorder,
-                    iconStringRes = R.string.fa_arrow_left_arrow_right,
-                    dismissOnClick = true,
-                ) {
-                    onReorder(item)
-                },
-            )
-        }
-        if (item.type in supportedPlayableTypes) {
-            if (item.playbackPosition > Duration.ZERO) {
-                add(
-                    DialogItem(
-                        resources.getString(R.string.resume),
-                        Icons.Default.PlayArrow,
-                        dismissOnClick = true,
-                    ) {
-                        actions.navigateTo(
-                            Destination.Playback(
-                                item.id,
-                                item.playbackPosition.inWholeMilliseconds,
-                            ),
-                        )
-                    },
-                )
-                add(
-                    DialogItem(
-                        resources.getString(R.string.restart),
-                        Icons.Default.Refresh,
-                        dismissOnClick = true,
-                    ) {
-                        actions.navigateTo(
-                            Destination.Playback(
-                                item.id,
-                                0L,
-                            ),
-                        )
-                    },
-                )
-            } else {
-                add(
-                    DialogItem(
-                        resources.getString(R.string.play),
-                        Icons.Default.PlayArrow,
-                        dismissOnClick = true,
-                    ) {
-                        actions.navigateTo(
-                            Destination.Playback(
-                                item.id,
-                                0L,
-                            ),
-                        )
-                    },
-                )
-            }
-        }
-        if (item.type in supportedShufflableTypes) {
-            add(
-                DialogItem(
-                    resources.getString(R.string.shuffle),
-                    R.string.fa_shuffle,
-                    dismissOnClick = true,
-                ) {
-                    actions.navigateTo(
-                        Destination.PlaybackList(
-                            itemId = item.id,
-                            shuffle = true,
-                        ),
-                    )
-                },
-            )
-        }
-        if (contextMenu.showStreamChoices) {
-            item.data.mediaSources?.letNotEmpty { sources ->
-                val source =
-                    sourceId?.let { sources.firstOrNull { it.id?.toUUIDOrNull() == sourceId } }
-                        ?: sources.firstOrNull()
-                source?.mediaStreams?.letNotEmpty { streams ->
-                    val audioCount = streams.count { it.type == MediaStreamType.AUDIO }
-                    val subtitleCount = streams.count { it.type == MediaStreamType.SUBTITLE }
-                    if (audioCount > 1) {
-                        add(
-                            DialogItem(
-                                resources.getString(
-                                    R.string.choose_stream,
-                                    resources.getString(R.string.audio),
-                                ),
-                                R.string.fa_volume_low,
-                                dismissOnClick = false,
-                            ) {
-                                onChooseTracks.invoke(MediaStreamType.AUDIO)
-                            },
-                        )
-                    }
-                    if (subtitleCount > 0) {
-                        add(
-                            DialogItem(
-                                resources.getString(
-                                    R.string.choose_stream,
-                                    resources.getString(R.string.subtitles),
-                                ),
-                                R.string.fa_closed_captioning,
-                                dismissOnClick = false,
-                            ) {
-                                onChooseTracks.invoke(MediaStreamType.SUBTITLE)
-                            },
-                        )
-                    }
-                }
-                if (sources.size > 1) {
-                    add(
-                        DialogItem(
-                            resources.getString(
-                                R.string.choose_stream,
-                                resources.getString(R.string.version),
-                            ),
-                            R.string.fa_file_video,
-                            dismissOnClick = false,
-                        ) {
-                            onChooseVersion.invoke()
-                        },
-                    )
-                }
-            }
-        }
-        if (contextMenu.showRemoveFromPlaylist) {
-            add(
-                DialogItem(
-                    text = R.string.remove_from_playlist,
-                    iconStringRes = R.string.fa_circle_xmark,
-                    dismissOnClick = true,
-                ) {
-                    actions.onRemoveFromPlaylist.invoke(contextMenu.index, item.id)
-                },
-            )
-        }
-        add(
-            DialogItem(
-                text = R.string.add_to_playlist,
-                iconStringRes = R.string.fa_list_ul,
-                dismissOnClick = true,
-            ) {
-                actions.onClickAddPlaylist.invoke(item.id)
-            },
-        )
-        if (contextMenu.canDelete) {
-            add(
-                DialogItem(
-                    resources.getString(R.string.delete),
-                    Icons.Default.Delete,
-                    iconColor = Color.Red.copy(alpha = .8f),
-                    dismissOnClick = false,
-                ) {
-                    onClickDelete.invoke()
-                },
-            )
-        }
-        if (contextMenu.canRemoveContinueWatching && !watched && item.playbackPosition > Duration.ZERO) {
-            add(
-                DialogItem(
-                    text = R.string.remove_continue_watching,
-                    iconStringRes = R.string.fa_eye,
-                    dismissOnClick = true,
-                ) {
-                    actions.onClickWatch.invoke(item.id, false)
-                },
-            )
-        }
-        if (contextMenu.canRemoveNextUp && item.type == BaseItemKind.EPISODE && item.data.seriesId != null) {
-            add(
-                DialogItem(
-                    text = R.string.remove_next_up,
-                    iconStringRes = R.string.fa_tag,
-                    dismissOnClick = true,
-                ) {
-                    actions.onClickRemoveFromNextUp.invoke(item)
-                },
-            )
-        }
-        if (contextMenu.showWatchedAndFavorite) {
-            add(
-                DialogItem(
-                    text = if (watched) R.string.mark_unwatched else R.string.mark_watched,
-                    iconStringRes = if (watched) R.string.fa_eye else R.string.fa_eye_slash,
-                    dismissOnClick = true,
-                ) {
-                    actions.onClickWatch.invoke(item.id, !watched)
-                },
-            )
-            add(
-                DialogItem(
-                    text = if (favorite) R.string.remove_favorite else R.string.add_favorite,
-                    iconStringRes = R.string.fa_heart,
-                    iconColor = if (favorite) Color.Red else Color.Unspecified,
-                    dismissOnClick = true,
-                ) {
-                    actions.onClickFavorite.invoke(item.id, !favorite)
-                },
-            )
-        }
-        seriesId?.let {
-            add(
-                DialogItem(
-                    resources.getString(R.string.go_to_series),
-                    Icons.AutoMirrored.Filled.ArrowForward,
-                    dismissOnClick = true,
-                ) {
-                    actions.navigateTo(
-                        Destination.MediaItem(
-                            seriesId,
-                            BaseItemKind.SERIES,
-                            null,
-                        ),
-                    )
-                },
-            )
-        }
-        if (item.data.mediaSources?.isNotEmpty() == true) {
-            add(
-                DialogItem(
-                    resources.getString(R.string.media_information),
-                    Icons.Default.Info,
-                    dismissOnClick = true,
-                ) {
-                    onShowOverview.invoke()
-                },
-            )
-        }
-        if (contextMenu.showStreamChoices && canClearChosenStreams) {
-            add(
-                DialogItem(
-                    resources.getString(R.string.clear_track_choices),
-                    Icons.Default.Delete,
-                    dismissOnClick = true,
-                ) {
-                    onClearChosenStreams()
-                },
-            )
-        }
-        if (item.type in supportedPlayableTypes) {
-            add(
-                DialogItem(
-                    resources.getString(R.string.play_with),
-                    Icons.Default.PlayArrow,
-                    dismissOnClick = false,
-                    onClick = onClickPlayWith,
-                ),
-            )
-        }
-        if (item.data.mediaSources?.isNotEmpty() == true) {
-            add(
-                DialogItem(
-                    text = R.string.send_media_info_log_to_server,
-                    iconStringRes = R.string.fa_file_video,
-                    dismissOnClick = true,
-                ) {
-                    actions.onSendMediaInfo.invoke(item.id)
-                },
-            )
-        }
-        actions.onResetOrder?.let { onResetOrder ->
-            add(
-                DialogItem(
-                    text = R.string.reset_order,
-                    iconStringRes = R.string.fa_arrows_rotate,
-                    dismissOnClick = true,
-                ) {
-                    onResetOrder()
-                },
-            )
-        }
-    }
+    buildContextMenuEntries(
+        resources = resources,
+        contextMenu = contextMenu,
+        item = item,
+        seriesId = seriesId,
+        sourceId = sourceId,
+        watched = watched,
+        favorite = favorite,
+        canClearChosenStreams = canClearChosenStreams,
+        actions = actions,
+        onChooseVersion = onChooseVersion,
+        onChooseTracks = onChooseTracks,
+        onShowOverview = onShowOverview,
+        onClearChosenStreams = onClearChosenStreams,
+        onClickDelete = onClickDelete,
+        onClickPlayWith = onClickPlayWith,
+    ).toDialogItems()
 
 private fun buildPlayWith(
     resources: Resources,
     onClick: (Boolean, PlayerBackend?) -> Unit,
-) = buildList {
-    val entries =
-        PlayerBackend.entries
-            .filterNot { it == PlayerBackend.UNRECOGNIZED }
-            .zip(resources.getStringArray(R.array.player_backend_options))
-            .filterNot { it.first == PlayerBackend.PREFER_MPV }
-    entries.forEach { (backend, title) ->
-        add(
-            DialogItem(
-                title,
-                dismissOnClick = true,
-            ) {
-                onClick.invoke(false, backend)
-            },
-        )
+) = playWithChoices(resources).map { choice ->
+    DialogItem(
+        choice.title,
+        dismissOnClick = true,
+    ) {
+        onClick.invoke(choice.transcode, choice.backend)
     }
-    add(
-        DialogItem(
-            resources.getString(R.string.transcoding),
-            dismissOnClick = true,
-        ) {
-            onClick.invoke(true, null)
-        },
-    )
 }
 
 @Composable
@@ -605,27 +293,8 @@ fun ContextMenu(
     actions: PersonContextActions,
 ) {
     val person = item.person
-    val dialogItems =
-        buildList {
-            val itemId = person.id
-            add(
-                DialogItem(
-                    stringResource(R.string.go_to),
-                    Icons.Default.ArrowForward,
-                ) {
-                    actions.navigateTo(Destination.MediaItem(itemId, BaseItemKind.PERSON, null))
-                },
-            )
-            add(
-                DialogItem(
-                    text = if (person.favorite) R.string.remove_favorite else R.string.add_favorite,
-                    iconStringRes = R.string.fa_heart,
-                    iconColor = if (person.favorite) Color.Red else Color.Unspecified,
-                ) {
-                    actions.onClickFavorite.invoke(itemId, !person.favorite)
-                },
-            )
-        }
+    val resources = LocalResources.current
+    val dialogItems = buildPersonContextMenuEntries(resources, person, actions).toDialogItems()
     DialogPopup(
         showDialog = true,
         title = person.name ?: "",

@@ -11,7 +11,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
-import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.ui.data.AddPlaylistViewModel
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialog
@@ -132,34 +131,4 @@ class ContextMenuUtils(
             )
         }
     }
-}
-
-interface ContextMenuProvider {
-    fun isAdministrator(): Boolean
-
-    fun navigateTo(destination: Destination)
-
-    fun canDelete(
-        item: BaseItem,
-        appPreferences: AppPreferences,
-    ): Boolean
-
-    fun deleteItem(
-        index: Int,
-        item: BaseItem,
-    )
-
-    fun setWatched(
-        position: Int,
-        itemId: UUID,
-        played: Boolean,
-    )
-
-    fun setFavorite(
-        position: Int,
-        itemId: UUID,
-        favorite: Boolean,
-    )
-
-    fun sendReportFor(itemId: UUID)
 }

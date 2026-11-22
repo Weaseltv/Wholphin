@@ -736,17 +736,6 @@ fun chooseVersionParams(
             },
     )
 
-@StringRes
-fun resourceFor(type: MediaStreamType): Int =
-    when (type) {
-        MediaStreamType.AUDIO -> R.string.audio
-        MediaStreamType.VIDEO -> R.string.video
-        MediaStreamType.SUBTITLE -> R.string.subtitles
-        MediaStreamType.EMBEDDED_IMAGE -> 0
-        MediaStreamType.DATA -> 0
-        MediaStreamType.LYRIC -> 0
-    }
-
 fun chooseStream(
     resources: Resources,
     streams: List<MediaStream>,
