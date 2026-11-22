@@ -92,38 +92,3 @@ fun CollectionViewOptionsDialog(
     }
 }
 
-@Serializable
-data class CollectionViewOptions(
-    val separateTypes: Boolean = false,
-    val cardViewOptions: ViewOptions =
-        ViewOptions(
-            showTitles = true,
-        ),
-) {
-    companion object {
-        val SeparateTypes =
-            AppSwitchPreference<CollectionViewOptions>(
-                title = R.string.separate_types,
-                defaultValue = false,
-                getter = { it.separateTypes },
-                setter = { vo, value -> vo.copy(separateTypes = value) },
-            )
-
-        val MixedOptions =
-            listOf(
-                ViewOptionsImageType,
-                ViewOptionsAspectRatio,
-                ViewOptionsShowTitles,
-                ViewOptionsColumns,
-                ViewOptionsSpacing,
-                ViewOptionsContentScale,
-                ViewOptionsReset,
-            )
-
-        val SeparateOptions =
-            listOf(
-                ViewOptionsShowTitles,
-                ViewOptionsReset,
-            )
-    }
-}
