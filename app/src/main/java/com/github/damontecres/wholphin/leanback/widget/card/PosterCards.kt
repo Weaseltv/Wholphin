@@ -95,6 +95,13 @@ class GridCardView(
             style,
         )
         caption.visibility = if (showTitle) View.VISIBLE else View.GONE
+        // Every grid card is as tall as one with a two-line title and a subtitle. Leanback's multi-column grid places
+        // each card in its shortest column, so cards of different heights drifted out of their rows and UP/DOWN (which
+        // moves by index, one row = one column count) landed on the wrong card; the Compose grid kept strict rows.
+        if (showTitle) {
+            val captionHeight = PosterCaptionView.heightPx(context, 2)
+            (caption.layoutParams as? LinearLayout.LayoutParams)?.let { if (it.height != captionHeight) it.height = captionHeight }
+        }
         caption.bind(item?.title, item?.subtitle)
         caption.setCardFocused(frame.isFocused, animate = false)
     }
@@ -515,6 +522,9 @@ class DiscoverItemCardView(
         val showPill = showOverlay && !neon && pill != null
         kindPill.visibility = if (showPill) View.VISIBLE else View.GONE
         if (showPill) kindPill.bind(context.resources.getQuantityString(pill!!.first, 1), (pill.second and 0x00FFFFFF) or (0xCC shl 24))
+        // As tall as a two-line title and a subtitle, so cards keep their rows in multi-column grids (see GridCardView)
+        val captionHeight = PosterCaptionView.heightPx(context, 2)
+        (caption.layoutParams as? LinearLayout.LayoutParams)?.let { if (it.height != captionHeight) it.height = captionHeight }
         caption.bind(item?.title, item?.releaseDate?.year?.toString())
         caption.setCardFocused(frame.isFocused, animate = false)
     }
