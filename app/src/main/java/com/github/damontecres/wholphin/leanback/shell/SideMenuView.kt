@@ -622,7 +622,9 @@ internal class RailScrollView(
         return desired - scrollY
     }
 
-    override fun computeScrollDeltaToGetChildRectOnScreen(rect: Rect): Int = if (suppress) 0 else pivotDelta(rect)
+    // ScrollView passes content coordinates (the list starts below the top padding)
+    override fun computeScrollDeltaToGetChildRectOnScreen(rect: Rect): Int =
+        if (suppress) 0 else pivotDelta(Rect(rect).apply { offset(0, -paddingTop) })
 
     override fun requestChildFocus(
         child: View?,
