@@ -127,6 +127,8 @@ class HomeFragment : DestinationFragment() {
                 rows.resetToTop(focusNow = true)
                 return
             }
+            // Rows still loading: they open on the top row when they arrive
+            carriedPosition = null
         }
         if (!restoring && rows != null && rows.parent != null && rows.focusCurrentRow()) return
         super.onScreenFocus(restoring)
