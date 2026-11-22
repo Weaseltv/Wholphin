@@ -302,14 +302,9 @@ class PlaybackFragment : DestinationFragment() {
         private var state: PlaybackState = PlaybackState()
         private var accent: Int = pageStyle.accentFor(null)
         private var showDebugInfo = playback.showDebugInfo
+        // MPV scales the video itself, so its surface always fills the box
         private var videoScale: VideoScale =
-            if (instance.backend ==
-                PlayerBackend.MPV
-            ) {
-                VideoScale.FILL
-            } else {
-                VideoScale.from(playback.globalContentScale)
-            }
+            if (instance.backend == PlayerBackend.MPV) VideoScale.FILL else VideoScale.from(playback.globalContentScale)
         private var playbackSpeed = 1.0f
         private var controlsVisible = false
         private var skipIndicatorDuration = 0L
@@ -339,6 +334,7 @@ class PlaybackFragment : DestinationFragment() {
         private var countdownJob: Job? = null
         private var playerFraction = 1f
         private var playerAnimator: android.animation.ValueAnimator? = null
+        private var nextUpFocusPending = false
 
         // Segment prompt
         private var segmentShownId: java.util.UUID? = null
@@ -958,7 +954,8 @@ class PlaybackFragment : DestinationFragment() {
                     .setDuration(300L)
                     .start()
                 animatePlayer(.6f)
-                v.card.requestFocus()
+                // Focus the card once it has a size (it grows from nothing as the player shrinks)
+                nextUpFocusPending = true
                 if (autoPlayEnabled) {
                     countdownJob =
                         viewLifecycleOwner.lifecycleScope.launch {
@@ -1016,6 +1013,10 @@ class PlaybackFragment : DestinationFragment() {
                 lp.height = h
                 lp.bottomMargin = m
                 v.layoutParams = lp
+            }
+            if (nextUpFocusPending && h > 0 && nextUpItem != null) {
+                nextUpFocusPending = false
+                v.card.requestFocus()
             }
         }
 
