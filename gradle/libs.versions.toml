@@ -12,6 +12,13 @@ kotlin = "2.4.20"
 ksp = "2.3.9"
 coreKtx = "1.19.0"
 appcompat = "1.8.0"
+leanback = "1.2.0"
+leanbackPreference = "1.2.0"
+leanbackGrid = "1.0.0"
+preference = "1.2.1"
+recyclerview = "1.4.0"
+constraintlayout = "2.2.1"
+fragmentKtx = "1.8.9"
 composeBom = "2026.09.00"
 mockk = "1.14.11"
 robolectric = "4.16.1"
@@ -67,6 +74,14 @@ acra-http = { module = "ch.acra:acra-http", version.ref = "acra" }
 acra-limiter = { module = "ch.acra:acra-limiter", version.ref = "acra" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+androidx-leanback = { group = "androidx.leanback", name = "leanback", version.ref = "leanback" }
+androidx-leanback-grid = { group = "androidx.leanback", name = "leanback-grid", version.ref = "leanbackGrid" }
+androidx-leanback-preference = { group = "androidx.leanback", name = "leanback-preference", version.ref = "leanbackPreference" }
+androidx-preference = { group = "androidx.preference", name = "preference", version.ref = "preference" }
+androidx-recyclerview = { group = "androidx.recyclerview", name = "recyclerview", version.ref = "recyclerview" }
+androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
+androidx-fragment-ktx = { group = "androidx.fragment", name = "fragment-ktx", version.ref = "fragmentKtx" }
+coil-view = { module = "io.coil-kt.coil3:coil", version.ref = "coil" }
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
 androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }

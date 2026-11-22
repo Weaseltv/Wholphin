@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.ui.util
 
+import android.content.Context
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.NonRestartableComposable
@@ -14,6 +15,9 @@ sealed interface StringProvider {
     @Composable
     @NonRestartableComposable
     fun getString(): String
+
+    /** The string without Compose (no-Compose UI) */
+    fun getString(context: Context): String
 }
 
 /**
@@ -26,6 +30,8 @@ data class StringStringProvider(
     @Composable
     @NonRestartableComposable
     override fun getString(): String = str
+
+    override fun getString(context: Context): String = str
 }
 
 /**
@@ -36,6 +42,8 @@ data object EmptyStringProvider : StringProvider {
     @Composable
     @NonRestartableComposable
     override fun getString(): String = ""
+
+    override fun getString(context: Context): String = ""
 }
 
 /**
@@ -48,6 +56,8 @@ data class ResStringProvider(
     @Composable
     @NonRestartableComposable
     override fun getString() = stringResource(stringResId)
+
+    override fun getString(context: Context): String = context.getString(stringResId)
 }
 
 /**
@@ -63,6 +73,8 @@ data class ResArgStringProvider(
     @Composable
     @NonRestartableComposable
     override fun getString() = stringResource(stringResId, *args)
+
+    override fun getString(context: Context): String = context.getString(stringResId, *args)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -92,6 +104,8 @@ data class ResProviderStringProvider(
     @Composable
     @NonRestartableComposable
     override fun getString(): String = stringResource(stringResId, argProvider.getString())
+
+    override fun getString(context: Context): String = context.getString(stringResId, argProvider.getString(context))
 }
 
 @Serializable
@@ -102,4 +116,6 @@ data class ConcatStringProvider(
     @Composable
     @NonRestartableComposable
     override fun getString(): String = providers.map { it.getString() }.joinToString(separator)
+
+    override fun getString(context: Context): String = providers.joinToString(separator) { it.getString(context) }
 }

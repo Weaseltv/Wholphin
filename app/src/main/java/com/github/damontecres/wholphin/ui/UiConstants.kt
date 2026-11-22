@@ -11,9 +11,6 @@ import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.services.ImageUrlService
-import org.jellyfin.sdk.model.api.ItemFields
-
-// This file is for constants used for the UI
 
 val FontAwesome = FontFamily(Font(resId = R.font.fa_solid_900))
 
@@ -44,52 +41,6 @@ object AppColors {
     }
 }
 
-const val DEFAULT_PAGE_SIZE = 100
-
-/**
- * The [ItemFields] to fetch for detailed paged and playback
- */
-val DetailItemFields =
-    listOf(
-        ItemFields.OVERVIEW,
-        ItemFields.TRICKPLAY,
-        ItemFields.SORT_NAME,
-        ItemFields.CHAPTERS,
-        ItemFields.MEDIA_SOURCES,
-        ItemFields.MEDIA_SOURCE_COUNT,
-        ItemFields.CAN_DELETE,
-        ItemFields.PRIMARY_IMAGE_ASPECT_RATIO,
-    )
-
-/**
- * [ItemFields] for higher level displays such as grids or rows
- */
-val SlimItemFields =
-    listOf(
-        ItemFields.OVERVIEW,
-        ItemFields.SORT_NAME,
-        ItemFields.MEDIA_SOURCE_COUNT,
-        ItemFields.CAN_DELETE,
-    )
-
-/**
- * ItemFields for displaying items in rows such as in a [com.github.damontecres.wholphin.ui.cards.ItemRow] with [com.github.damontecres.wholphin.ui.cards.SeasonCard]
- */
-val ItemRowFields = SlimItemFields + ItemFields.PRIMARY_IMAGE_ASPECT_RATIO
-
-val HomeItemFields =
-    listOf(
-        ItemFields.OVERVIEW,
-        ItemFields.CAN_DELETE,
-    )
-
-val PhotoItemFields =
-    DetailItemFields +
-        listOf(
-            ItemFields.WIDTH,
-            ItemFields.HEIGHT,
-        )
-
 object Cards {
     const val HEIGHT_2X3_DP = 172
     val height2x3 = (if (BuildConfig.FLAVOR == "weaselfin") ApprovedHomeLayout.CARD_HEIGHT_DP else HEIGHT_2X3_DP).dp
@@ -97,24 +48,6 @@ object Cards {
     val heightEpisode = HEIGHT_EPISODE.dp
     val playedPercentHeight = 6.dp
     val serverUserCircle = height2x3 * .75f
-}
-
-object AspectRatios {
-    const val WIDE = 16f / 9f
-    const val FOUR_THREE = 4f / 3f
-    const val TALL = 2f / 3f
-    const val SQUARE = 1f
-
-    const val MIN = TALL
-}
-
-enum class AspectRatio(
-    val ratio: Float,
-) {
-    TALL(AspectRatios.TALL),
-    WIDE(AspectRatios.WIDE),
-    FOUR_THREE(AspectRatios.FOUR_THREE),
-    SQUARE(AspectRatios.SQUARE),
 }
 
 @Preview(

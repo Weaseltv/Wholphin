@@ -139,46 +139,18 @@ data class BaseItem(
                 } else {
                     null
                 },
+            quickDetailsText =
+                QuickDetailsText(
+                    parts = quickDetailParts(),
+                    officialRating = data.officialRating,
+                    communityRating = data.communityRating,
+                    criticRating = data.criticRating,
+                ),
             quickDetails =
                 QuickDetailsData(
                     basic =
                         buildAnnotatedString {
-                            val details =
-                                buildList {
-                                    if (type == BaseItemKind.EPISODE) {
-                                        data.seasonEpisode?.let(::add)
-                                        data.premiereDate?.let { add(getDateFormatter().format(it)) }
-                                    } else if (type == BaseItemKind.SERIES) {
-                                        data.seriesProductionYears?.let(::add)
-                                    } else if (type == BaseItemKind.PHOTO) {
-                                        if (data.productionYear != null) {
-                                            add(data.productionYear!!.toString())
-                                        } else if (data.premiereDate != null) {
-                                            add(data.premiereDate!!.toLocalDate().toString())
-                                        }
-                                    } else if (type == BaseItemKind.BOX_SET) {
-                                        data.productionYear?.let { add(it.toString()) }
-                                        data.childCount?.let { add("$it items") }
-                                    } else {
-                                        data.productionYear?.let { add(it.toString()) }
-                                    }
-                                    data.runTimeTicks
-                                        ?.ticks
-                                        ?.roundMinutes
-                                        ?.takeIf { it > Duration.ZERO }
-                                        ?.let { add(WholphinApplication.instance.resources.formatDuration(it)) }
-                                    data.timeRemaining
-                                        ?.roundMinutes
-                                        ?.let {
-                                            val resources = WholphinApplication.instance.resources
-                                            add(
-                                                resources.getString(
-                                                    R.string.time_left,
-                                                    resources.formatDuration(it),
-                                                ),
-                                            )
-                                        }
-                                }
+                            val details = quickDetailParts()
                             details.forEachIndexed { index, string ->
                                 append(string)
                                 if (index != details.lastIndex) {
@@ -215,6 +187,44 @@ data class BaseItem(
                         },
                 ),
         )
+
+    /** The plain parts of the quick details line (year, runtime, time left...), shared by the Compose and View UIs */
+    private fun quickDetailParts(): List<String> =
+        buildList {
+            if (type == BaseItemKind.EPISODE) {
+                data.seasonEpisode?.let(::add)
+                data.premiereDate?.let { add(getDateFormatter().format(it)) }
+            } else if (type == BaseItemKind.SERIES) {
+                data.seriesProductionYears?.let(::add)
+            } else if (type == BaseItemKind.PHOTO) {
+                if (data.productionYear != null) {
+                    add(data.productionYear!!.toString())
+                } else if (data.premiereDate != null) {
+                    add(data.premiereDate!!.toLocalDate().toString())
+                }
+            } else if (type == BaseItemKind.BOX_SET) {
+                data.productionYear?.let { add(it.toString()) }
+                data.childCount?.let { add("$it items") }
+            } else {
+                data.productionYear?.let { add(it.toString()) }
+            }
+            data.runTimeTicks
+                ?.ticks
+                ?.roundMinutes
+                ?.takeIf { it > Duration.ZERO }
+                ?.let { add(WholphinApplication.instance.resources.formatDuration(it)) }
+            data.timeRemaining
+                ?.roundMinutes
+                ?.let {
+                    val resources = WholphinApplication.instance.resources
+                    add(
+                        resources.getString(
+                            R.string.time_left,
+                            resources.formatDuration(it),
+                        ),
+                    )
+                }
+        }
 
     private fun dateAsIndex(): Int? =
         data.premiereDate
@@ -294,6 +304,19 @@ data class BaseItemUi(
     val episodeCornerText: String?,
     val episodeUnplayedCornerText: String?,
     val quickDetails: QuickDetailsData,
+    val quickDetailsText: QuickDetailsText,
+)
+
+/**
+ * The quick details line without Compose (no-Compose UI): the View widget joins [parts] with " • " and appends the
+ * official rating, the community rating with a star and the critic rating with a fresh/rotten icon, as
+ * [QuickDetailsData] did with inline content.
+ */
+data class QuickDetailsText(
+    val parts: List<String>,
+    val officialRating: String? = null,
+    val communityRating: Float? = null,
+    val criticRating: Float? = null,
 )
 
 data class QuickDetailsData(

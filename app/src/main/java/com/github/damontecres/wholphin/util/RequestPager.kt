@@ -1,13 +1,15 @@
 package com.github.damontecres.wholphin.util
 
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import com.github.damontecres.wholphin.ui.DEFAULT_PAGE_SIZE
 import com.google.common.cache.CacheBuilder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -28,8 +30,29 @@ abstract class RequestPager<T>(
     cacheSize: Long = 8,
 ) : AbstractList<T?>(),
     BlockingList<T?> {
-    protected var totalCount by mutableIntStateOf(-1)
-    protected var items by mutableStateOf(ItemList<T>(0, pageSize, mapOf()))
+    private val totalCountState = mutableIntStateOf(-1)
+    private val itemsState = mutableStateOf(ItemList<T>(0, pageSize, mapOf()))
+    private val _changes = MutableStateFlow(0)
+
+    /**
+     * Goes up every time the size or a loaded page changes (no-Compose UI): a View adapter collects it and refreshes,
+     * as the Compose UI recomposed from the state reads.
+     */
+    val changes: StateFlow<Int> = _changes.asStateFlow()
+
+    protected var totalCount: Int
+        get() = totalCountState.intValue
+        set(value) {
+            totalCountState.intValue = value
+            _changes.update { it + 1 }
+        }
+
+    protected var items: ItemList<T>
+        get() = itemsState.value
+        set(value) {
+            itemsState.value = value
+            _changes.update { it + 1 }
+        }
     protected val mutex = Mutex()
 
     /**

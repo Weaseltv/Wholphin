@@ -158,25 +158,27 @@ fun getStringRes(sort: ItemSortBy): Int =
     }
 
 @Composable
-fun rememberSortOptions(collectionType: CollectionType): List<ItemSortBy> =
-    remember(collectionType) {
-        when (collectionType) {
-            CollectionType.MOVIES -> MovieSortOptions
-            CollectionType.TVSHOWS -> SeriesSortOptions
-            CollectionType.BOXSETS -> BoxSetSortOptions
-            else -> VideoSortOptions
-        }
+fun rememberSortOptions(collectionType: CollectionType): List<ItemSortBy> = remember(collectionType) { sortOptionsFor(collectionType) }
+
+/** The sort options a library of [collectionType] offers (no-Compose UI) */
+fun sortOptionsFor(collectionType: CollectionType): List<ItemSortBy> =
+    when (collectionType) {
+        CollectionType.MOVIES -> MovieSortOptions
+        CollectionType.TVSHOWS -> SeriesSortOptions
+        CollectionType.BOXSETS -> BoxSetSortOptions
+        else -> VideoSortOptions
     }
 
 @Composable
-fun rememberSortOptions(type: BaseItemKind): List<ItemSortBy> =
-    remember(type) {
-        when (type) {
-            BaseItemKind.MOVIE -> MovieSortOptions
-            BaseItemKind.SERIES -> SeriesSortOptions
-            BaseItemKind.SEASON -> SeriesSortOptions
-            BaseItemKind.EPISODE -> EpisodeSortOptions
-            BaseItemKind.BOX_SET -> BoxSetSortOptions
-            else -> VideoSortOptions
-        }
+fun rememberSortOptions(type: BaseItemKind): List<ItemSortBy> = remember(type) { sortOptionsFor(type) }
+
+/** The sort options a page of [type] items offers (no-Compose UI) */
+fun sortOptionsFor(type: BaseItemKind): List<ItemSortBy> =
+    when (type) {
+        BaseItemKind.MOVIE -> MovieSortOptions
+        BaseItemKind.SERIES -> SeriesSortOptions
+        BaseItemKind.SEASON -> SeriesSortOptions
+        BaseItemKind.EPISODE -> EpisodeSortOptions
+        BaseItemKind.BOX_SET -> BoxSetSortOptions
+        else -> VideoSortOptions
     }

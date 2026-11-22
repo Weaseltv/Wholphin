@@ -522,6 +522,15 @@ tasks.matching { it.name == "preWeaselfinAlphaBuild" }.configureEach {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
+    // No-Compose UI (2026-11-22): Leanback / RecyclerView / Views, Settings on Leanback Preference
+    implementation(libs.androidx.leanback)
+    implementation(libs.androidx.leanback.grid)
+    implementation(libs.androidx.leanback.preference)
+    implementation(libs.androidx.preference)
+    implementation(libs.androidx.recyclerview)
+    implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.fragment.ktx)
+    implementation(libs.coil.view)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
