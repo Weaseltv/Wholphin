@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.leanback.shell
 
+import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import android.animation.TimeInterpolator
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
@@ -602,10 +603,11 @@ internal class RailScrollView(
     init {
         isVerticalScrollBarEnabled = false
         overScrollMode = OVER_SCROLL_NEVER
+        clipToPadding = false
+        clipChildren = false
         // Rows' glow may use the padding at both ends, but scrolled rows must not draw outside the list (over the
         // profile row or the brand), as the Compose LazyColumn clipped its content
-        clipToPadding = false
-        clipChildren = true
+        clipToOwnHeight()
         isSmoothScrollingEnabled = true
         isFocusable = false
         descendantFocusability = FOCUS_AFTER_DESCENDANTS

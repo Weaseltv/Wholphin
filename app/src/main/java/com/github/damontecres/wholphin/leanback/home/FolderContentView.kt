@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.leanback.home
 
+import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import android.annotation.SuppressLint
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
@@ -505,6 +506,7 @@ class FolderContentView(
             orientation = HORIZONTAL
             clipChildren = false
             clipToPadding = false
+            grid.clipToOwnHeight()
             setPadding(0, context.dp(8), 0, context.dp(16))
             details.orientation = VERTICAL
             details.gravity = Gravity.CENTER_HORIZONTAL

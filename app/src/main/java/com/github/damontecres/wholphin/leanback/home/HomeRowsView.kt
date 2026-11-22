@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.leanback.home
 
+import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import android.annotation.SuppressLint
 import android.content.Context
 import android.view.Gravity
@@ -863,6 +864,8 @@ class HomeRowsView(
             itemAlignmentOffset = 0
             isItemAlignmentOffsetWithPadding = false
             setPadding(0, 0, 0, context.dp(CardDimens.HEIGHT_2X3_DP))
+            // Rows scrolled up must not draw over the header (the Compose LazyColumn clipped them)
+            clipToOwnHeight()
         }
 
         override fun requestChildFocus(

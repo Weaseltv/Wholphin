@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.leanback.settings
 
+import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.drawable.GradientDrawable
@@ -55,6 +56,7 @@ internal class HomeSettingsPreview(
         grid.adapter = adapter
         grid.clipChildren = false
         grid.clipToPadding = false
+        grid.clipToOwnHeight()
         grid.setPadding(context.dp(8), context.dp(24), context.dp(24), context.dp(24))
         grid.windowAlignment = BaseGridView.WINDOW_ALIGN_LOW_EDGE
         grid.windowAlignmentOffsetPercent = 0f
