@@ -2,7 +2,6 @@ package com.github.damontecres.wholphin.ui.main.settings
 
 import android.content.Context
 import android.widget.Toast
-import androidx.compose.runtime.Immutable
 import androidx.datastore.core.DataStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -841,7 +840,6 @@ data class HomePageSettingsState(
     }
 }
 
-@Immutable
 @Serializable
 data class Library(
     @Serializable(UUIDSerializer::class) val itemId: UUID,

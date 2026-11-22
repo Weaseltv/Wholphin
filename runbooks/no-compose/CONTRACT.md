@@ -122,6 +122,13 @@ The old Compose files are deleted in one step at integration, after every area i
 - Colours: `AppTheme.palette` (the `MaterialTheme.colorScheme` roles, per theme) and `NeonColors`/`NeonSections`
   (the Neon Board tokens). `AppTheme.isNeon` replaces `isWeaselTv()`. All nine themes must keep working; the
   weaselfin default is WEASELTV (Neon Board).
+- Page accents and card appearance: every `DestinationFragment` has a `pageStyle` (`leanback/theme/Accents.kt`
+  `PageStyle`), set by the shell, holding what the Compose tree provided through CompositionLocals
+  (`LocalNeonSectionAccent`, `LocalHomeCardAppearance`, `LocalHomeMediaSettings`, `LocalPosterCountAppearance`,
+  `LocalHomeRowAccent`...). `pageStyle.accentFor(item)` replaces `neonAccentFor(item)`. The plain accent logic
+  (`navigationSectionAccent`, `typeAccent`, `libraryAccent`, `streamingProviderAccent`, `homeMediaAppearanceView`,
+  `PageStyle.forWatchlistItem`...) is already ported to ARGB ints there; use it, do not port it again.
+- Side-menu item types (`NavDrawerItem`, `ServerNavDrawerItem`) are in the Compose-free `ui/nav/NavDrawerItem.kt`.
 - Text: `TextView.applyTextRole(TextRole.TITLE_MEDIUM)` replaces `MaterialTheme.typography.titleMedium`
   (Exo 2 / Audiowide in the weaselfin flavor). Sizes in dp/sp exactly as the old code.
 - Keep every size, padding, corner radius, focus scale, border, glow, badge, progress bar, scrim and animation

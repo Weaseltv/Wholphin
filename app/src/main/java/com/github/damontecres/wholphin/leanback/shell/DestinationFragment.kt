@@ -7,6 +7,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.github.damontecres.wholphin.leanback.theme.PageStyle
 import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.ui.nav.Destination
 import kotlinx.coroutines.CoroutineScope
@@ -58,6 +59,22 @@ abstract class DestinationFragment : Fragment() {
 
     val preferencesFlow: Flow<UserPreferences>
         get() = screenHost.userPreferences.filterNotNull()
+
+    /**
+     * The page's section accent and card appearance (what the Compose tree provided through CompositionLocals:
+     * `LocalNeonSectionAccent`, `LocalHomeCardAppearance`, `LocalHomeMediaSettings`, `LocalPosterCountAppearance`).
+     * Set by the shell before the screen is shown and updated when the side menu or Home settings change;
+     * [onPageStyleChanged] is called after an update.
+     */
+    var pageStyle: PageStyle = PageStyle()
+        set(value) {
+            val changed = field != value
+            field = value
+            if (changed && view != null) onPageStyleChanged(value)
+        }
+
+    /** Re-bind visible cards when [pageStyle] changed (default: nothing) */
+    open fun onPageStyleChanged(style: PageStyle) {}
 
     /** The view that had focus when this screen was hidden, restored by [onScreenFocus] */
     internal var lastFocused: View? = null
