@@ -20,6 +20,8 @@ import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.CollectionFolderFilter
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
+import com.github.damontecres.wholphin.leanback.settings.PreferencePanel
+import com.github.damontecres.wholphin.leanback.settings.viewOptionsPanel
 import com.github.damontecres.wholphin.leanback.shell.DestinationFragment
 import com.github.damontecres.wholphin.leanback.theme.AppTheme
 import com.github.damontecres.wholphin.leanback.theme.ApprovedCollectionCardAppearanceView
@@ -169,7 +171,7 @@ class FolderContentView(
     private var clickedRandom = false
     private var filterOpen = false
     private var changesJob: Job? = null
-    private var viewOptionsDialog: PreferenceOptionsDialog<ViewOptions>? = null
+    private var optionsPanel: PreferencePanel<ViewOptions>? = null
     private var shownItems: List<BaseItem?>? = null
 
     /** The values every saved Picks row held when it was retired, so collection posters look the same */
@@ -214,7 +216,7 @@ class FolderContentView(
         val old = this.state
         this.state = state
         bindHeader(state)
-        viewOptionsDialog?.takeIf { it.isShowing }?.update(state.viewOptions)
+        optionsPanel?.takeIf { it.isShowing }?.update(state.viewOptions)
         when (val items = state.items) {
             is DataLoadingState.Error -> {
                 if (contentKind != KIND_ERROR) {
@@ -635,26 +637,15 @@ class FolderContentView(
 
     private fun showViewOptions() {
         val st = state ?: return
-        val options =
-            when (st.viewOptions.type) {
-                ViewOptionsType.GRID -> ViewOptions.GRID_OPTIONS
-                ViewOptionsType.LIST, ViewOptionsType.DENSE_LIST -> ViewOptions.LIST_OPTIONS
-            }
-        viewOptionsDialog =
-            PreferenceOptionsDialog(
-                context = context,
+        optionsPanel =
+            viewOptionsPanel(
                 value = st.viewOptions,
-                prefs = options,
-                onChange = actions::saveViewOptions,
-                onReset = { actions.saveViewOptions(defaultViewOptions) },
+                defaults = defaultViewOptions,
                 accent = pageStyle.sectionAccent,
-            ).also { dialog ->
-                dialog.onDismissRequest = {
-                    viewOptionsDialog = null
-                    state?.let { actions.saveViewOptions(it.viewOptions) }
-                }
-                dialog.setOnDismissListener { viewOptionsDialog = null }
-                dialog.show()
+                onChange = actions::saveViewOptions,
+            ).also { panel ->
+                panel.onDismissRequest = { state?.let { actions.saveViewOptions(it.viewOptions) } }
+                panel.show(fragment.childFragmentManager)
             }
     }
 

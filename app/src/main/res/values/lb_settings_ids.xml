@@ -3,4 +3,6 @@
     <!-- The settings panel container of a settings page (no-Compose UI); stable so the panel's fragments restore -->
     <item name="lb_settings_panel" type="id" />
     <item name="lb_settings_side" type="id" />
+    <!-- The container of a view options side panel's levels (PreferencePanelDialogFragment) -->
+    <item name="lb_settings_options_panel" type="id" />
 </resources>

@@ -14,13 +14,51 @@ import androidx.leanback.widget.BaseGridView
 import androidx.leanback.widget.VerticalGridView
 import androidx.preference.PreferenceGroupAdapter
 import androidx.preference.PreferenceManager
+import androidx.preference.PreferenceScreen
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.leanback.theme.dp
 
 /**
+ * What a [SettingsListFragment] needs from the fragment that hosts it: a settings page ([SettingsPageFragment]) or a
+ * view options side panel ([PreferencePanelDialogFragment]).
+ */
+interface SettingsListHost {
+    /** The section accent (Neon focus border, values, rule) */
+    val accent: Int
+
+    /** Plain `titleLarge` level headings (Home settings) instead of the panel heading */
+    val plainHeadings: Boolean
+
+    /** UP on the first row goes to the last and DOWN on the last to the first */
+    val wrapAroundRows: Boolean
+
+    /** Horizontal padding of the rows (the old list content padding) */
+    val listHorizontalPaddingDp: Int
+
+    /** Horizontal padding of the choices in Leanback's list panel ([SettingsListDialogFragment]) */
+    val choiceListHorizontalPaddingDp: Int get() = if (SettingsLook.neon) 32 else 16
+
+    /** Adds the rows of the level [key] to [screen]; register refreshes with [SettingsListFragment.onRefresh] */
+    fun buildScreen(
+        fragment: SettingsListFragment,
+        key: String,
+        screen: PreferenceScreen,
+    )
+
+    /** The panel title of the level [key] */
+    fun screenTitle(key: String): CharSequence
+
+    /** Called when a level's list exists (eg to observe its selection) */
+    fun onListViewCreated(
+        fragment: SettingsListFragment,
+        grid: VerticalGridView,
+    ) {}
+}
+
+/**
  * One settings panel level: a Leanback Preference list (`BaseLeanbackPreferenceFragmentCompat`, Leanback's
- * VerticalGridView and preference adapter) under the panel heading. Its rows are built by the page that hosts it
- * ([SettingsPageFragment.buildScreen]) for [screenKey], and refreshed from the page's state ([refresh]).
+ * VerticalGridView and preference adapter) under the panel heading. Its rows are built by the page or panel that hosts
+ * it ([SettingsListHost.buildScreen]) for [screenKey], and refreshed from the host's state ([refresh]).
  *
  * Like the old preference lists, UP on the first row wraps to the last and DOWN on the last wraps to the first.
  */
@@ -32,7 +70,7 @@ class SettingsListFragment : BaseLeanbackPreferenceFragmentCompat() {
     /** The key of the screen this level shows, given to [SettingsPageFragment.buildScreen] */
     val screenKey: String get() = requireArguments().getString(ARG_SCREEN).orEmpty()
 
-    private val page: SettingsPageFragment get() = requireParentFragment() as SettingsPageFragment
+    private val page: SettingsListHost get() = requireParentFragment() as SettingsListHost
 
     /** The panel title shown above the rows */
     var title: CharSequence = ""

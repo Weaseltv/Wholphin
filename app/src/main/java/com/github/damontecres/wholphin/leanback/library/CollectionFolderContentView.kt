@@ -17,6 +17,8 @@ import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.CollectionFolderFilter
 import com.github.damontecres.wholphin.data.model.HomeCardAppearance
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
+import com.github.damontecres.wholphin.leanback.settings.PreferencePanel
+import com.github.damontecres.wholphin.leanback.settings.viewOptionsPanel
 import com.github.damontecres.wholphin.leanback.shell.DestinationFragment
 import com.github.damontecres.wholphin.leanback.theme.AppTheme
 import com.github.damontecres.wholphin.leanback.theme.ApprovedCollectionCardAppearanceView
@@ -162,7 +164,7 @@ class CollectionFolderContentView(
     private val randomButton: AppButton
     private var groupButtons: List<Pair<String?, QuickListButtonView>> = emptyList()
     private var shownGroups: List<String>? = null
-    private var viewOptionsDialog: LibraryViewOptionsDialog? = null
+    private var optionsPanel: PreferencePanel<ViewOptions>? = null
 
     init {
         clipChildren = false
@@ -283,7 +285,7 @@ class CollectionFolderContentView(
                 if (entered) showOverlay(null)
             }
         }
-        viewOptionsDialog?.takeIf { it.isShowing }?.update(state.viewOptions)
+        optionsPanel?.takeIf { it.isShowing }?.update(state.viewOptions)
     }
 
     private fun showOverlay(view: View?) {
@@ -649,20 +651,16 @@ class CollectionFolderContentView(
 
     private fun showViewOptions() {
         val st = state ?: return
-        val dialog =
-            LibraryViewOptionsDialog(
-                context = context,
-                viewOptions = st.viewOptions,
-                defaultViewOptions = config.defaultViewOptions,
+        optionsPanel =
+            viewOptionsPanel(
+                value = st.viewOptions,
+                defaults = config.defaultViewOptions,
                 accent = pageStyle.sectionAccent,
-                onViewOptionsChange = viewActions::saveViewOptions,
-                onDismiss = {
-                    viewOptionsDialog = null
-                    state?.let { viewActions.saveViewOptions(it.viewOptions) }
-                },
-            )
-        viewOptionsDialog = dialog
-        dialog.show()
+                onChange = viewActions::saveViewOptions,
+            ).also { panel ->
+                panel.onDismissRequest = { state?.let { viewActions.saveViewOptions(it.viewOptions) } }
+                panel.show(fragment.childFragmentManager)
+            }
     }
 
     /** The page was shown again (BACK from a later page): the old page's one-shot focus flags start over */
@@ -679,8 +677,8 @@ class CollectionFolderContentView(
 
     override fun onDetachedFromWindow() {
         changesJob?.cancel()
-        viewOptionsDialog?.dismiss()
-        viewOptionsDialog = null
+        optionsPanel?.dismiss()
+        optionsPanel = null
         super.onDetachedFromWindow()
     }
 
