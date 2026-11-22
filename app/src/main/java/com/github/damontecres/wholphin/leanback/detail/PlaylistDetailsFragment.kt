@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.leanback.detail
 
+import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import android.content.Context
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -446,6 +447,7 @@ class PlaylistDetailsFragment : DetailPageFragment() {
                 setPadding(h, v, h, v)
                 windowAlignment = BaseGridView.WINDOW_ALIGN_BOTH_EDGE
                 focusScrollStrategy = BaseGridView.FOCUS_SCROLL_ITEM
+                clipToOwnHeight()
             }
 
             override fun focusSearch(
