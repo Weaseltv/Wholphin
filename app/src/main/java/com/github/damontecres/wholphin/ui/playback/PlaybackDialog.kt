@@ -63,16 +63,6 @@ import com.github.damontecres.wholphin.ui.tryRequestFocus
 import kotlinx.coroutines.launch
 import kotlin.time.Duration
 
-enum class PlaybackDialogType {
-    DEBUG,
-    CAPTIONS,
-    SETTINGS,
-    AUDIO,
-    PLAYBACK_SPEED,
-    VIDEO_SCALE,
-    SUBTITLE_DELAY,
-}
-
 data class PlaybackSettings(
     val showDebugInfo: Boolean,
     val audioIndex: Int?,

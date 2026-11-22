@@ -5,7 +5,6 @@ import android.media.MediaCodecList
 import android.os.Build
 import android.widget.Toast
 import androidx.annotation.OptIn
-import androidx.compose.ui.unit.Density
 import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -38,6 +37,7 @@ import com.github.damontecres.wholphin.data.model.Playlist
 import com.github.damontecres.wholphin.data.model.PlaylistItem
 import com.github.damontecres.wholphin.data.model.TrackIndex
 import com.github.damontecres.wholphin.kids.KidContentGuard
+import com.github.damontecres.wholphin.leanback.playback.PlaybackSubtitleStyle
 import com.github.damontecres.wholphin.mpv.MpvPlayer
 import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.PlayerBackend
@@ -67,7 +67,6 @@ import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.onMain
-import com.github.damontecres.wholphin.ui.preferences.subtitle.applyToMpv
 import com.github.damontecres.wholphin.ui.seekBack
 import com.github.damontecres.wholphin.ui.seekForward
 import com.github.damontecres.wholphin.ui.showToast
@@ -1825,25 +1824,31 @@ class PlaybackViewModel
                 Timber.i("Applying subtitle config to MPV")
                 viewModelScope.launchDefault {
                     val configuration = context.resources.configuration
-                    val density = Density(context.resources.displayMetrics.density)
-                    preferences.appPreferences.interfacePreferences.subtitlesPreferences.applyToMpv(
+                    PlaybackSubtitleStyle.applyToMpv(
+                        preferences.appPreferences.interfacePreferences.subtitlesPreferences,
                         configuration,
-                        density,
+                        context.resources.displayMetrics.density,
                     )
                 }
             }
         }
 
-        fun updateDensity(density: Density) {
+        /** The screen density (and font scale) the subtitles are sized for changed */
+        fun updateDensity(
+            density: Float,
+            fontScale: Float,
+        ) {
             Timber.d("Density changed")
             viewModelScope.launchDefault {
                 val availableCommands = onMain { player.availableCommands }
                 if (availableCommands.contains(Player.COMMAND_PREPARE) && player is MpvPlayer) {
                     Timber.i("Applying density change for subtitle config to MPV")
                     val configuration = context.resources.configuration
-                    preferences.appPreferences.interfacePreferences.subtitlesPreferences.applyToMpv(
+                    PlaybackSubtitleStyle.applyToMpv(
+                        preferences.appPreferences.interfacePreferences.subtitlesPreferences,
                         configuration,
                         density,
+                        fontScale,
                     )
                 }
             }
