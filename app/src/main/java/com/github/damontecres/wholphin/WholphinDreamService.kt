@@ -1,47 +1,36 @@
 package com.github.damontecres.wholphin
 
 import android.service.dreams.DreamService
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.ComposeView
+import android.view.View
+import android.widget.FrameLayout
 import androidx.datastore.core.DataStore
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
-import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.github.damontecres.wholphin.data.ServerRepository
+import com.github.damontecres.wholphin.leanback.shell.ScreensaverView
+import com.github.damontecres.wholphin.leanback.theme.AppTheme
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.services.RemotePlaybackService
 import com.github.damontecres.wholphin.services.ScreensaverService
 import com.github.damontecres.wholphin.services.hilt.AuthOkHttpClient
 import com.github.damontecres.wholphin.ui.CoilConfig
-import com.github.damontecres.wholphin.ui.components.AppScreensaverContent
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.showToast
-import com.github.damontecres.wholphin.ui.theme.WholphinTheme
-import com.github.damontecres.wholphin.ui.util.ProvideLocalClock
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import org.jellyfin.sdk.api.client.ApiClient
@@ -106,52 +95,60 @@ class WholphinDreamService :
         super.onAttachedToWindow()
         Timber.d("onAttachedToWindow")
         val itemFlow = screensaverService.createItemFlow(lifecycleScope)
-        setContentView(
-            ComposeView(this).apply {
-                setViewTreeLifecycleOwner(this@WholphinDreamService)
-                setViewTreeSavedStateRegistryOwner(this@WholphinDreamService)
-                setContent {
-                    val user by serverRepository.currentUserFlow.collectAsState(null)
-                    if (user != null) {
-                        var prefs by remember { mutableStateOf<AppPreferences?>(null) }
-                        LaunchedEffect(Unit) {
-                            preferencesDataStore.data.collectLatest { prefs = it }
-                        }
-                        prefs?.let { prefs ->
-                            CoilConfig(
+        // The same View as the in-app screensaver (no-Compose UI, 2026-11-22), with its dim on top
+        val root = FrameLayout(this)
+        setContentView(root)
+        lifecycleScope.launch(WholphinDispatchers.Main) {
+            serverRepository.currentUserFlow.collectLatest { user ->
+                root.removeAllViews()
+                if (user == null) return@collectLatest
+                var view: ScreensaverView? = null
+                val dim = View(this@WholphinDreamService).apply { setBackgroundColor(0xFF000000.toInt()) }
+                try {
+                    coroutineScope {
+                        val userScope = this
+                        preferencesDataStore.data.collect { prefs ->
+                            CoilConfig.install(
                                 prefs = prefs,
                                 okHttpClient = okHttpClient,
                                 debugLogging = false,
                                 enableCache = true,
                             )
-                            WholphinTheme(appThemeColors = prefs.interfacePreferences.appThemeColors) {
-                                ProvideLocalClock {
-                                    val screensaverPrefs = prefs.interfacePreferences.screensaverPreference
-                                    val currentItem by itemFlow.collectAsState(null)
-                                    Box(Modifier.fillMaxSize()) {
-                                        AppScreensaverContent(
-                                            currentItem = currentItem,
-                                            showClock = screensaverPrefs.showClock,
-                                            duration = screensaverPrefs.duration.milliseconds,
-                                            animate = screensaverPrefs.animate,
-                                            modifier = Modifier.fillMaxSize(),
-                                        )
-                                        if (screensaverPrefs.dimEnabled) {
-                                            val alpha = screensaverPrefs.dimPercent / 100f
-                                            Box(
-                                                Modifier
-                                                    .fillMaxSize()
-                                                    .background(Color.Black.copy(alpha = alpha)),
-                                            )
-                                        }
-                                    }
+                            AppTheme.update(prefs.interfacePreferences.appThemeColors)
+                            val screensaverPrefs = prefs.interfacePreferences.screensaverPreference
+                            val v =
+                                view ?: ScreensaverView(this@WholphinDreamService).also {
+                                    view = it
+                                    root.addView(
+                                        it,
+                                        FrameLayout.LayoutParams(
+                                            FrameLayout.LayoutParams.MATCH_PARENT,
+                                            FrameLayout.LayoutParams.MATCH_PARENT,
+                                        ),
+                                    )
+                                    root.addView(
+                                        dim,
+                                        FrameLayout.LayoutParams(
+                                            FrameLayout.LayoutParams.MATCH_PARENT,
+                                            FrameLayout.LayoutParams.MATCH_PARENT,
+                                        ),
+                                    )
+                                    it.start(userScope, itemFlow)
                                 }
-                            }
+                            v.configure(
+                                showClock = screensaverPrefs.showClock,
+                                duration = screensaverPrefs.duration.milliseconds,
+                                animate = screensaverPrefs.animate,
+                            )
+                            dim.visibility = if (screensaverPrefs.dimEnabled) View.VISIBLE else View.GONE
+                            dim.alpha = screensaverPrefs.dimPercent / 100f
                         }
                     }
+                } finally {
+                    view?.stop()
                 }
-            },
-        )
+            }
+        }
     }
 
     override fun onDreamingStarted() {

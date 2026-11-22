@@ -7,46 +7,37 @@ import android.os.Bundle
 import android.view.KeyEvent
 import android.view.WindowManager
 import android.widget.Toast
-import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.datastore.core.DataStore
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentFactory
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewModelScope
-import androidx.navigation3.runtime.NavBackStack
-import androidx.tv.material3.ExperimentalTvMaterial3Api
-import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.Surface
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.kids.KidSessionGateImpl
 import com.github.damontecres.wholphin.kids.ProfileChooserLock
-import com.github.damontecres.wholphin.kids.ProfileKind
-import com.github.damontecres.wholphin.kids.profileKind
+import com.github.damontecres.wholphin.leanback.shell.AppShell
+import com.github.damontecres.wholphin.leanback.shell.DestinationFragment
+import com.github.damontecres.wholphin.leanback.shell.NavHost
+import com.github.damontecres.wholphin.leanback.shell.NavHostState
+import com.github.damontecres.wholphin.leanback.shell.OrphanPageFragment
+import com.github.damontecres.wholphin.leanback.shell.ScreenHost
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.PlayerBackend
+import com.github.damontecres.wholphin.preferences.UserPreferences
 import com.github.damontecres.wholphin.services.AppUpgradeHandler
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.DatePlayedInvalidationService
 import com.github.damontecres.wholphin.services.DeviceProfileService
-import com.github.damontecres.wholphin.services.ImageUrlService
+import com.github.damontecres.wholphin.services.HomeSettingsService
 import com.github.damontecres.wholphin.services.IntentResult
 import com.github.damontecres.wholphin.services.IntentService
 import com.github.damontecres.wholphin.services.LatestNextUpSchedulerService
+import com.github.damontecres.wholphin.services.NavDrawerService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.PlaybackLifecycleObserver
 import com.github.damontecres.wholphin.services.RefreshRateService
@@ -62,21 +53,13 @@ import com.github.damontecres.wholphin.services.WhatsNewService
 import com.github.damontecres.wholphin.services.hilt.AuthOkHttpClient
 import com.github.damontecres.wholphin.services.tvprovider.TvProviderSchedulerService
 import com.github.damontecres.wholphin.ui.CoilConfig
-import com.github.damontecres.wholphin.ui.LocalImageUrlService
 import com.github.damontecres.wholphin.ui.coachmark.CoachMarkTour
 import com.github.damontecres.wholphin.ui.collectLatestIn
-import com.github.damontecres.wholphin.ui.components.LoadingPage
 import com.github.damontecres.wholphin.ui.launchDefault
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.playback.PlayExternalViewModel
 import com.github.damontecres.wholphin.ui.showToast
-import com.github.damontecres.wholphin.ui.theme.LoadingArtworkRotation
-import com.github.damontecres.wholphin.ui.theme.LocalKidsLoadingArtwork
-import com.github.damontecres.wholphin.ui.theme.WholphinTheme
-import com.github.damontecres.wholphin.ui.theme.colors.PurpleThemeColors
-import com.github.damontecres.wholphin.ui.util.ProvideLocalClock
-import com.github.damontecres.wholphin.util.DebugLogTree
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import com.github.damontecres.wholphin.util.requestSerializersModule
@@ -85,6 +68,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
@@ -101,10 +87,15 @@ import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.hours
-import kotlin.time.Duration.Companion.milliseconds
 
+/**
+ * The app's single activity. No-Compose UI (2026-11-22): its content is the View frame of `leanback.shell.AppShell`
+ * (setup layer, side menu, pages, backdrop, overlays); it implements [ScreenHost] for the pages.
+ */
 @AndroidEntryPoint
-class MainActivity : AppCompatActivity() {
+class MainActivity :
+    AppCompatActivity(),
+    ScreenHost {
     private val viewModel: MainActivityViewModel by viewModels()
     private val playExternalViewModel: PlayExternalViewModel by viewModels()
 
@@ -137,9 +128,6 @@ class MainActivity : AppCompatActivity() {
     lateinit var playbackLifecycleObserver: PlaybackLifecycleObserver
 
     @Inject
-    lateinit var imageUrlService: ImageUrlService
-
-    @Inject
     lateinit var refreshRateService: RefreshRateService
 
     @Inject
@@ -156,6 +144,12 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var backdropService: BackdropService
+
+    @Inject
+    lateinit var navDrawerService: NavDrawerService
+
+    @Inject
+    lateinit var homeSettingsService: HomeSettingsService
 
     // Note: unused but injected to ensure it is created
     @Inject
@@ -178,7 +172,7 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var profileChooserLock: ProfileChooserLock
 
-    private var signInAuto = true
+    private var signInAutomatically = true
     private var playerBackend: PlayerBackend? = null
 
     private val json =
@@ -187,9 +181,21 @@ class MainActivity : AppCompatActivity() {
             serializersModule = requestSerializersModule
         }
 
-    @OptIn(ExperimentalTvMaterial3Api::class)
+    private val fragmentFactory = ShellFragmentFactory()
+    private lateinit var shell: AppShell
+
+    /** The signed-in user's preferences for the pages (null until first read) */
+    private val preferencesState = MutableStateFlow(lastPreferences)
+    override val userPreferences: StateFlow<UserPreferences?> = preferencesState.asStateFlow()
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Pages a recreated activity restores keep their destinations through NavHostState; after the process was
+        // killed those are gone, so stand-ins are restored instead and the shell builds the pages again
+        val savedKeys = savedInstanceState?.getStringArrayList(KEY_PAGE_KEYS)
+        fragmentFactory.dropPages = savedInstanceState != null && (savedKeys == null || savedKeys.any { !NavHostState.has(it) })
+        supportFragmentManager.fragmentFactory = fragmentFactory
         super.onCreate(savedInstanceState)
+        fragmentFactory.dropPages = false
         instance = this
         Timber.i("MainActivity.onCreate: savedInstanceState is null=${savedInstanceState == null}")
         lifecycle.addObserver(playbackLifecycleObserver)
@@ -219,9 +225,9 @@ class MainActivity : AppCompatActivity() {
                     backStack = backStack.toMutableList().apply { removeAt(lastIndex) }
                 }
             }
-            navigationManager.backStack = NavBackStack(*backStack.toTypedArray())
+            navigationManager.backStack = backStack.toMutableList()
         } else {
-            navigationManager.backStack = NavBackStack(Destination.Home())
+            navigationManager.backStack = mutableListOf(Destination.Home())
         }
 
         viewModel.serverRepository.currentUserFlow
@@ -252,82 +258,50 @@ class MainActivity : AppCompatActivity() {
             }.launchIn(lifecycleScope)
 
         userPreferencesDataStore.data.collectLatestIn(lifecycleScope) { prefs ->
-            signInAuto = prefs.signInAutomatically
+            signInAutomatically = prefs.signInAutomatically
             playerBackend = prefs.playbackPreferences.playerBackend
         }
 
-        viewModel.appStart(intent)
-        setContent {
-            MaterialTheme(colorScheme = PurpleThemeColors.darkScheme) {
-                Surface(Modifier.fillMaxSize()) {
-                    val userPreferences by userPreferencesService.flow.collectAsState(null)
-                    if (userPreferences == null) {
-                        // Show loading page if it is taking a while to get app preferences
-                        var showLoading by remember { mutableStateOf(false) }
-                        LaunchedEffect(Unit) {
-                            delay(500.milliseconds)
-                            Timber.i("Showing loading page")
-                            showLoading = true
-                        }
-                        if (showLoading) {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .fillMaxSize()
-                                        .background(Color.Black),
-                            ) {
-                                LoadingPage()
-                            }
-                        }
-                    } else {
-                        userPreferences?.let { userPreferences ->
-                            val appPreferences = userPreferences.appPreferences
-                            CoilConfig(
-                                prefs = appPreferences,
-                                okHttpClient = okHttpClient,
-                                debugLogging = false,
-                                enableCache = true,
-                            )
-                            LaunchedEffect(appPreferences.debugLogging) {
-                                DebugLogTree.INSTANCE.enabled = appPreferences.debugLogging
-                            }
-                            // Kids profiles get their own loading artwork; remembered for the next app start
-                            val current by viewModel.serverRepository.current.collectAsState()
-                            val kidsArtwork =
-                                current?.user?.let { BuildConfig.KID_PROFILES_ENABLED && it.profileKind == ProfileKind.KID }
-                            LaunchedEffect(kidsArtwork) {
-                                kidsArtwork?.let { LoadingArtworkRotation.rememberProfile(this@MainActivity, it) }
-                            }
-                            CompositionLocalProvider(
-                                LocalImageUrlService provides imageUrlService,
-                                LocalKidsLoadingArtwork provides kidsArtwork,
-                            ) {
-                                WholphinTheme(
-                                    true,
-                                    appThemeColors = appPreferences.interfacePreferences.appThemeColors,
-                                ) {
-                                    ProvideLocalClock {
-                                        MainContent(
-                                            hideContentOnStop = ::hideContentOnStop,
-                                            backStack = setupNavigationManager.backStack,
-                                            navigationManager = navigationManager,
-                                            userPreferences = userPreferences,
-                                            backdropService = backdropService,
-                                            screensaverService = screensaverService,
-                                            updateChecker = updateChecker,
-                                            requestStatusRepository = requestStatusRepository,
-                                            coachMarkTour = coachMarkTour,
-                                            whatsNewService = whatsNewService,
-                                            modifier = Modifier.fillMaxSize(),
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+        lifecycleScope.launch {
+            userPreferencesService.flow.collect {
+                lastPreferences = it
+                preferencesState.value = it
             }
         }
+
+        viewModel.appStart(intent)
+
+        AppShell.dropRestoredSetup(this)
+        shell =
+            AppShell(
+                this,
+                AppShell.Deps(
+                    navigationManager = navigationManager,
+                    setupNavigationManager = setupNavigationManager,
+                    backdropService = backdropService,
+                    screensaverService = screensaverService,
+                    updateChecker = updateChecker,
+                    requestStatusRepository = requestStatusRepository,
+                    coachMarkTour = coachMarkTour,
+                    whatsNewService = whatsNewService,
+                    navDrawerService = navDrawerService,
+                    homeSettingsService = homeSettingsService,
+                    serverRepository = viewModel.serverRepository,
+                    userPreferences = userPreferences,
+                    hideContentOnStop = ::hideContentOnStop,
+                    installImageLoader = { prefs ->
+                        CoilConfig.install(
+                            prefs = prefs.appPreferences,
+                            okHttpClient = okHttpClient,
+                            debugLogging = false,
+                            enableCache = true,
+                        )
+                    },
+                ),
+            )
+        setContentView(shell.root)
+        onBackPressedDispatcher.addCallback(this, shell.backCallback)
+        shell.start()
     }
 
     /**
@@ -340,6 +314,10 @@ class MainActivity : AppCompatActivity() {
             profileChooserLock.multiProfile.value &&
             !playExternalViewModel.launched.value &&
             !profileChooserLock.transientLaunchPending
+
+    override fun clearBackdrop() = shell.clearBackdrop()
+
+    override fun focusNavDrawer(): Boolean = shell.focusNavDrawer()
 
     override fun startActivityForResult(
         intent: Intent,
@@ -368,8 +346,15 @@ class MainActivity : AppCompatActivity() {
             screensaverService.pulse()
             // The coach-mark tour takes the remote while it runs, so nothing moves underneath it
             if (coachMarkTour.onKey(event)) return true
+            // Then the top page's own key handling (the old page-level onPreviewKeyEvent), then normal dispatch
+            if (::shell.isInitialized && shell.dispatchPreviewKey(event)) return true
             return super.dispatchKeyEvent(event)
         }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (::shell.isInitialized) shell.onWindowFocusChanged()
     }
 
     override fun onResume() {
@@ -380,6 +365,7 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launchDefault {
             screensaverService.pulse()
         }
+        if (::shell.isInitialized) shell.onWindowFocusChanged()
     }
 
     override fun onRestart() {
@@ -408,6 +394,7 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         Timber.d("onPause")
+        if (::shell.isInitialized) shell.onWindowFocusChanged()
     }
 
     override fun onStart() {
@@ -462,6 +449,10 @@ class MainActivity : AppCompatActivity() {
             // the back stack rather than crashing in onSaveInstanceState.
             Timber.w(ex, "Could not persist back stack; skipping")
         }
+        outState.putStringArrayList(
+            KEY_PAGE_KEYS,
+            ArrayList(supportFragmentManager.fragments.mapNotNull { it.tag?.takeIf { tag -> tag.startsWith(NavHost.TAG_PREFIX) } }),
+        )
         outState.putBoolean(KEY_EXTERNAL_PLAYER, playerBackend == PlayerBackend.EXTERNAL_PLAYER)
     }
 
@@ -504,10 +495,30 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** Restores a stand-in for pages whose destinations were lost with the process (see [onCreate]) */
+    private class ShellFragmentFactory : FragmentFactory() {
+        var dropPages = false
+
+        override fun instantiate(
+            classLoader: ClassLoader,
+            className: String,
+        ): Fragment {
+            if (dropPages && DestinationFragment::class.java.isAssignableFrom(loadFragmentClass(classLoader, className))) {
+                return OrphanPageFragment()
+            }
+            return super.instantiate(classLoader, className)
+        }
+    }
+
     companion object {
         private const val KEY_BACK_STACK = "backStack"
+        private const val KEY_PAGE_KEYS = "lbShellPages"
         private val UPDATE_CHECK_INTERVAL = 1.hours
         private const val KEY_EXTERNAL_PLAYER = "extPlayer"
+
+        /** The last preferences read in this process, so pages a recreated activity restores can read them at once */
+        @Volatile
+        private var lastPreferences: UserPreferences? = null
 
         lateinit var instance: MainActivity
             private set

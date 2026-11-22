@@ -1,7 +1,9 @@
 package com.github.damontecres.wholphin.services
 
-import androidx.navigation3.runtime.NavBackStack
 import com.github.damontecres.wholphin.ui.nav.Destination
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import org.acra.ACRA
 import timber.log.Timber
 import javax.inject.Inject
@@ -9,12 +11,31 @@ import javax.inject.Singleton
 
 /**
  * Manages navigating between pages and manages the app's back stack
+ *
+ * No-Compose UI (2026-11-22): [backStack] is an [ObservableBackStack]; the shell's NavHost follows [backStackFlow].
  */
 @Singleton
 class NavigationManager
     @Inject
     constructor() {
-        var backStack: MutableList<Destination> = NavBackStack(Destination.Home())
+        private val _backStackFlow = MutableStateFlow<List<Destination>>(listOf(Destination.Home()))
+
+        /** The back stack after every change, for the shell (a copy; never empty in practice) */
+        val backStackFlow: StateFlow<List<Destination>> = _backStackFlow.asStateFlow()
+
+        /**
+         * The pages, Home first. Assigning a list (eg the restored one in MainActivity) copies it into a new observable
+         * back stack.
+         */
+        var backStack: MutableList<Destination> = observable(listOf(Destination.Home()))
+            set(value) {
+                val list = observable(value.toList())
+                field = list
+                _backStackFlow.value = list.snapshot()
+            }
+
+        private fun observable(initial: Collection<Destination>): ObservableBackStack<Destination> =
+            ObservableBackStack(initial) { _backStackFlow.value = it }
 
         /**
          * Goes up each time the app is sent back to Home ([goToHome]): from the side menu, or on the way to another

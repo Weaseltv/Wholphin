@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- No-Compose shell containers -->
+    <item name="lb_shell_root" type="id" />
+    <item name="lb_shell_pages" type="id" />
+    <item name="lb_shell_setup" type="id" />
+</resources>
