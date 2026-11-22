@@ -13,12 +13,10 @@ import android.text.Spanned
 import android.text.TextPaint
 import android.text.style.MetricAffectingSpan
 import android.util.TypedValue
-import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import androidx.annotation.StringRes
 import androidx.lifecycle.LifecycleOwner
@@ -47,23 +45,10 @@ import com.github.damontecres.wholphin.leanback.theme.surfaceAtElevation
 import com.github.damontecres.wholphin.leanback.theme.withAlpha
 import com.github.damontecres.wholphin.leanback.widget.control.AppButton
 import com.github.damontecres.wholphin.leanback.widget.control.AppDropdownMenu
-import com.github.damontecres.wholphin.leanback.widget.control.AppListItem
 import com.github.damontecres.wholphin.leanback.widget.control.CircularProgressView
 import com.github.damontecres.wholphin.leanback.widget.control.DropdownMenuItemView
-import com.github.damontecres.wholphin.leanback.widget.control.ListLeading
-import com.github.damontecres.wholphin.leanback.widget.control.SliderBarView
-import com.github.damontecres.wholphin.leanback.widget.control.TvSwitchView
-import com.github.damontecres.wholphin.leanback.widget.dialog.AppDialog
-import com.github.damontecres.wholphin.leanback.widget.dialog.DialogOptions
-import com.github.damontecres.wholphin.leanback.widget.dialog.MenuDialog
-import com.github.damontecres.wholphin.leanback.widget.dialog.MenuItem
 import com.github.damontecres.wholphin.leanback.widget.text.FILLED_STAR_COLOR
 import com.github.damontecres.wholphin.leanback.widget.text.appendIcon
-import com.github.damontecres.wholphin.preferences.AppChoicePreference
-import com.github.damontecres.wholphin.preferences.AppClickablePreference
-import com.github.damontecres.wholphin.preferences.AppPreference
-import com.github.damontecres.wholphin.preferences.AppSliderPreference
-import com.github.damontecres.wholphin.preferences.AppSwitchPreference
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
 import com.github.damontecres.wholphin.ui.data.flip
 import com.github.damontecres.wholphin.ui.data.getStringRes
@@ -73,8 +58,9 @@ import org.jellyfin.sdk.model.api.SortOrder
 import java.util.UUID
 
 /*
- * The sort, filter and view options controls of this area's folder pages (Watchlist, Favorites): private versions of
- * LIBRARY's `SortByButton`, `FilterByButton` and `ViewOptionsDialog` (runbooks/no-compose/CONTRACT.md section 1).
+ * The sort and filter controls of this area's folder pages (Watchlist, Favorites): private versions of LIBRARY's
+ * `SortByButton` and `FilterByButton` (runbooks/no-compose/CONTRACT.md section 1). The view options are the shared
+ * Leanback Preference panel (leanback/settings/ViewOptionsPanels.kt).
  */
 
 /** A Font Awesome glyph as a drawable (for dropdown rows' leading slot); it follows the row's tint */
@@ -483,176 +469,5 @@ internal class FilterButton(
                 option.set(value.value as? Int, current)
             }
         }
-    }
-}
-
-/**
- * `PreferenceOptionsDialog` with the view options (`ViewOptionsDialog`): a 320dp panel at the right of the screen
- * (no dim), at most 480dp tall, titled "View options", listing [options] for [value]: choices (OK picks from a list),
- * switches, sliders (LEFT / RIGHT change the value) and Reset ([onReset]). Every change goes to [onChange] at once.
- */
-internal class PreferenceOptionsDialog<P : Any>(
-    context: Context,
-    private var value: P,
-    private val prefs: List<AppPreference<P, *>>,
-    private val onChange: (P) -> Unit,
-    private val onReset: () -> Unit,
-    accent: Int,
-) : AppDialog(
-        context,
-        DialogOptions(usePlatformDefaultWidth = false, gravity = Gravity.END),
-        accent,
-    ) {
-    private val list =
-        LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            clipChildren = false
-            clipToPadding = false
-            val edge = context.dp(MenuDialog.DIALOG_LIST_EDGE_DP)
-            setPadding(context.dp(16), edge, context.dp(16), edge)
-        }
-
-    init {
-        val column =
-            LinearLayout(context).apply {
-                orientation = LinearLayout.VERTICAL
-                clipChildren = false
-            }
-        column.addView(
-            TextView(context).apply {
-                applyTextRole(TextRole.TITLE_LARGE)
-                setTextColor(AppTheme.palette.onSurface)
-                text = context.getString(R.string.view_options).let { if (AppTheme.isNeon) it.uppercase() else it }
-                setPadding(context.dp(24), context.dp(24), context.dp(24), context.dp(8))
-            },
-        )
-        val scroller =
-            object : ScrollView(context) {
-                override fun onMeasure(
-                    widthMeasureSpec: Int,
-                    heightMeasureSpec: Int,
-                ) {
-                    super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(context.dp(420), MeasureSpec.AT_MOST))
-                }
-            }
-        scroller.isVerticalScrollBarEnabled = false
-        scroller.clipChildren = false
-        scroller.addView(list)
-        column.addView(scroller, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        setPanelContent(column, FrameLayout.LayoutParams(context.dp(320), ViewGroup.LayoutParams.WRAP_CONTENT))
-        build()
-        window?.setDimAmount(0f)
-    }
-
-    /** Show [newValue] (the saved options changed, eg the layout switched the option list) */
-    fun update(newValue: P) {
-        val focusedIndex = (0 until list.childCount).firstOrNull { list.getChildAt(it).hasFocus() }
-        value = newValue
-        build()
-        focusedIndex?.let { list.getChildAt(it.coerceAtMost(list.childCount - 1))?.requestFocus() }
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    private fun build() {
-        list.removeAllViews()
-        prefs.forEach { pref ->
-            val row: View =
-                when (pref) {
-                    is AppChoicePreference<P, *> -> choiceRow(pref as AppChoicePreference<P, Any?>)
-                    is AppSwitchPreference<P> -> switchRow(pref)
-                    is AppSliderPreference<P> -> sliderRow(pref)
-                    is AppClickablePreference<P> -> clickRow(pref)
-                    else -> return@forEach
-                }
-            list.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        }
-        if (list.childCount > 0 && list.findFocus() == null) list.getChildAt(0).requestFocus()
-    }
-
-    private fun choiceRow(pref: AppChoicePreference<P, Any?>): View {
-        val names = context.resources.getStringArray(pref.displayValues)
-        val current = pref.getter(value)
-        val index = pref.valueToIndex(current)
-        return AppListItem(context).apply {
-            setHeadline(context.getString(pref.title))
-            setSupporting(names.getOrNull(index))
-            setOnClickListener {
-                MenuDialog
-                    .show(
-                        context,
-                        context.getString(pref.title),
-                        names.mapIndexed { i, name ->
-                            MenuItem(
-                                headline = name,
-                                leading = ListLeading.SelectedDot(i == index),
-                                dismissOnClick = true,
-                                onClick = { change(pref.setter(value, pref.indexToValue(i))) },
-                            )
-                        },
-                        opener = this,
-                    )
-            }
-        }
-    }
-
-    private fun switchRow(pref: AppSwitchPreference<P>): View {
-        val checked = pref.getter(value)
-        val switch = TvSwitchView(context).apply { this.checked = checked }
-        return AppListItem(context).apply {
-            setHeadline(context.getString(pref.title))
-            pref.summary(context, checked)?.let { setSupporting(it) }
-            setTrailingView(switch)
-            setOnClickListener { change(pref.setter(value, !checked)) }
-        }
-    }
-
-    private fun sliderRow(pref: AppSliderPreference<P>): View {
-        val current = pref.getter(value)
-        val column =
-            LinearLayout(context).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(context.dp(16), context.dp(8), context.dp(16), context.dp(8))
-                clipChildren = false
-            }
-        val label =
-            TextView(context).apply {
-                applyTextRole(TextRole.TITLE_MEDIUM)
-                setTextColor(AppTheme.palette.onSurface)
-                text = "${context.getString(pref.title)}: ${pref.summary(context, current) ?: current}"
-            }
-        column.addView(label)
-        val slider =
-            SliderBarView(context).apply {
-                min = pref.min
-                max = pref.max
-                interval = pref.interval
-                this.value = current
-                onChange = { newValue ->
-                    label.text = "${context.getString(pref.title)}: ${pref.summary(context, newValue) ?: newValue}"
-                    val dialog = this@PreferenceOptionsDialog
-                    dialog.value = pref.setter(dialog.value, newValue)
-                    dialog.onChange(dialog.value)
-                }
-            }
-        column.addView(
-            slider,
-            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, context.dp(24)).apply {
-                topMargin =
-                    context.dp(4)
-            },
-        )
-        return column
-    }
-
-    private fun clickRow(pref: AppClickablePreference<P>): View =
-        AppListItem(context).apply {
-            setHeadline(context.getString(pref.title))
-            setOnClickListener { onReset() }
-        }
-
-    private fun change(newValue: P) {
-        value = newValue
-        onChange(newValue)
-        update(newValue)
     }
 }

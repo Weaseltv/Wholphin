@@ -34,7 +34,7 @@ interface SettingsBackHandler {
     fun handleBack(): Boolean
 }
 
-private fun Fragment.settingsAccent(): Int = (parentFragment as? SettingsPageFragment)?.accent ?: RailAccents.SETTINGS
+private fun Fragment.settingsAccent(): Int = (parentFragment as? SettingsListHost)?.accent ?: RailAccents.SETTINGS
 
 private fun Fragment.themedInflater(inflater: LayoutInflater): LayoutInflater =
     inflater.cloneInContext(ContextThemeWrapper(requireActivity(), R.style.lb_settings_PreferenceTheme))
@@ -65,7 +65,8 @@ class SettingsListDialogFragment : LeanbackListPreferenceDialogFragmentCompat() 
         frame.addView(header, 0, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         view.findViewById<TextView>(android.R.id.message)?.let { SettingsLook.styleBody(it) }
         val grid = view.findViewById<VerticalGridView>(android.R.id.list) ?: return
-        val horizontal = view.context.dp(if (SettingsLook.neon) 32 else 16)
+        val horizontal =
+            view.context.dp((parentFragment as? SettingsListHost)?.choiceListHorizontalPaddingDp ?: if (SettingsLook.neon) 32 else 16)
         val vertical = view.context.dp(SettingsLook.LIST_EDGE_DP)
         grid.setPadding(horizontal, vertical, horizontal, vertical)
         grid.clipToPadding = false

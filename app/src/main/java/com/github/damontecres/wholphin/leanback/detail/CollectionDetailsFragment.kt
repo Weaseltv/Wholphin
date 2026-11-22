@@ -2,7 +2,6 @@ package com.github.damontecres.wholphin.leanback.detail
 
 import android.content.Context
 import android.os.Bundle
-import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
@@ -14,6 +13,7 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.leanback.home.HomeHeaderView
+import com.github.damontecres.wholphin.leanback.settings.collectionViewOptionsPanel
 import com.github.damontecres.wholphin.leanback.theme.AppTheme
 import com.github.damontecres.wholphin.leanback.theme.CardDimens
 import com.github.damontecres.wholphin.leanback.theme.NeonSections
@@ -694,15 +694,11 @@ class CollectionDetailsFragment : DetailPageFragment() {
 
         private fun showViewOptions() {
             val s = state ?: return
-            CollectionViewOptionsDialog(
-                context = requireContext(),
-                initial = s.viewOptions,
+            collectionViewOptionsPanel(
+                value = s.viewOptions,
                 accent = pageStyle.sectionAccent,
-                onViewOptionsChange = viewModel::changeViewOptions,
-            ).show()
+                onChange = viewModel::changeViewOptions,
+            ).show(childFragmentManager)
         }
     }
 }
-
-/** Gravity of the view options panel: the end of the screen */
-internal const val VIEW_OPTIONS_GRAVITY = Gravity.END

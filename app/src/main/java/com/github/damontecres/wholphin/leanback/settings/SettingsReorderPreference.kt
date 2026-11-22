@@ -10,7 +10,6 @@ import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.widget.AppCompatTextView
-import androidx.appcompat.widget.SwitchCompat
 import androidx.preference.Preference
 import androidx.preference.PreferenceViewHolder
 import com.github.damontecres.wholphin.R
@@ -95,10 +94,8 @@ internal class SettingsReorderPreference(
         frame.visibility = View.VISIBLE
         checked?.let { isChecked ->
             val switch =
-                SwitchCompat(ctx).apply {
-                    this.isChecked = isChecked
-                    isFocusable = false
-                    isClickable = false
+                SettingsSwitchView(ctx).apply {
+                    setChecked(isChecked)
                     isDuplicateParentStateEnabled = false
                 }
             styleSwitch(switch, accent)

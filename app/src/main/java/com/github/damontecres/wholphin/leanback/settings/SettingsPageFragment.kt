@@ -34,9 +34,10 @@ import kotlinx.coroutines.CoroutineScope
  */
 abstract class SettingsPageFragment :
     DestinationFragment(),
-    PreferenceFragmentCompat.OnPreferenceDisplayDialogCallback {
+    PreferenceFragmentCompat.OnPreferenceDisplayDialogCallback,
+    SettingsListHost {
     /** The section accent of this page (Neon focus border, values, rule) */
-    val accent: Int get() = pageStyle.sectionAccent
+    override val accent: Int get() = pageStyle.sectionAccent
 
     protected lateinit var root: ViewGroup
         private set
@@ -62,26 +63,26 @@ abstract class SettingsPageFragment :
     protected open val panelStripe: Boolean = true
 
     /** Plain `titleLarge` level headings (Home settings) instead of the panel heading */
-    open val plainHeadings: Boolean = false
+    override val plainHeadings: Boolean = false
 
     /** UP on the first row goes to the last and DOWN on the last to the first (the main and subtitle lists did) */
-    open val wrapAroundRows: Boolean = false
+    override val wrapAroundRows: Boolean = false
 
     /** Horizontal padding of the rows inside the panel (the old list content padding) */
-    open val listHorizontalPaddingDp: Int get() = if (SettingsLook.neon) 32 else 16
+    override val listHorizontalPaddingDp: Int get() = if (SettingsLook.neon) 32 else 16
 
     /** The key of the first level */
     abstract val rootScreenKey: String
 
     /** Adds the rows of the level [key] to [screen]; register refreshes with [SettingsListFragment.onRefresh] */
-    abstract fun buildScreen(
+    abstract override fun buildScreen(
         fragment: SettingsListFragment,
         key: String,
         screen: PreferenceScreen,
     )
 
     /** The panel title of the level [key] */
-    abstract fun screenTitle(key: String): CharSequence
+    abstract override fun screenTitle(key: String): CharSequence
 
     /** The section accent changed while the page is up: repaint the panel and the rows */
     override fun onPageStyleChanged(style: com.github.damontecres.wholphin.leanback.theme.PageStyle) {
@@ -90,7 +91,7 @@ abstract class SettingsPageFragment :
     }
 
     /** Called when a level's list exists (eg to observe its selection) */
-    open fun onListViewCreated(
+    override fun onListViewCreated(
         fragment: SettingsListFragment,
         grid: VerticalGridView,
     ) {}
