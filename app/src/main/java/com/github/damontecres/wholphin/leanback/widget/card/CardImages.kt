@@ -6,8 +6,9 @@ import android.graphics.drawable.Drawable
 import android.widget.ImageView
 import androidx.appcompat.widget.AppCompatImageView
 import coil3.dispose
-import coil3.load as coilLoad
+import coil3.request.Disposable
 import coil3.request.crossfade
+import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.preferences.PrefContentScale
 import com.github.damontecres.wholphin.services.ImageUrlService
 import com.github.damontecres.wholphin.ui.logCoilError
@@ -15,6 +16,8 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
+import org.jellyfin.sdk.model.api.ImageType
+import coil3.load as coilLoad
 
 /** Gives Views the app's [ImageUrlService] (the Compose UI read it from `LocalImageUrlService`) */
 @EntryPoint
@@ -34,6 +37,55 @@ object CardImages {
             .fromApplication(context.applicationContext, CardImagesEntryPoint::class.java)
             .imageUrlService()
             .also { service = it }
+
+    /**
+     * An item image URL sized like the old cards' (`fillWidth` / `fillHeight` in px; pass the image box's size, as the
+     * composables passed `Dp.roundToPx()`), with the item's own series-primary choice unless [useSeriesForPrimary].
+     */
+    fun itemImageUrl(
+        context: Context,
+        item: BaseItem?,
+        imageType: ImageType = ImageType.PRIMARY,
+        fillWidthPx: Int? = null,
+        fillHeightPx: Int? = null,
+        useSeriesForPrimary: Boolean? = null,
+    ): String? =
+        imageUrlService(context).getItemImageUrl(
+            item,
+            imageType,
+            fillWidth = fillWidthPx,
+            fillHeight = fillHeightPx,
+            useSeriesForPrimary = useSeriesForPrimary,
+        )
+}
+
+/**
+ * Load [url] into any ImageView with the app's Coil `ImageLoader`, as `AsyncImage` did: sized from the view, no
+ * placeholder, crossfade only when asked (the loader's default is off), failures logged with [logCoilError] and
+ * reported to [onError]; [onSuccess] when shown. A null or blank [url] clears the view. Returns the request so callers
+ * can cancel it (or call `coil3.dispose` on the view).
+ */
+fun ImageView.loadImageUrl(
+    url: String?,
+    crossfade: Boolean = false,
+    onError: (() -> Unit)? = null,
+    onSuccess: (() -> Unit)? = null,
+): Disposable? {
+    if (url.isNullOrBlank()) {
+        dispose()
+        setImageDrawable(null)
+        return null
+    }
+    return coilLoad(url) {
+        if (crossfade) crossfade(true)
+        listener(
+            onError = { _, result ->
+                logCoilError(url, result)
+                onError?.invoke()
+            },
+            onSuccess = { _, _ -> onSuccess?.invoke() },
+        )
+    }
 }
 
 /** How an image fills its box: the Compose `ContentScale` values the cards used, all centred (`Alignment.Center`) */

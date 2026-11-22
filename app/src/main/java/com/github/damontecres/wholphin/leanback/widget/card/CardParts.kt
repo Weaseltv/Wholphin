@@ -15,14 +15,15 @@ import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.DrawableCompat
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator
 import com.github.damontecres.wholphin.R
+import com.github.damontecres.wholphin.data.model.CollectionBadgeAppearance
 import com.github.damontecres.wholphin.data.model.HomeCardAppearance
 import com.github.damontecres.wholphin.leanback.theme.AppFonts
 import com.github.damontecres.wholphin.leanback.theme.AppTheme
 import com.github.damontecres.wholphin.leanback.theme.CardDimens
+import com.github.damontecres.wholphin.leanback.theme.NeonBadgePainter
 import com.github.damontecres.wholphin.leanback.theme.NeonColors
 import com.github.damontecres.wholphin.leanback.theme.NeonRulePainter
 import com.github.damontecres.wholphin.leanback.theme.TextRole
-import com.github.damontecres.wholphin.leanback.theme.NeonBadgePainter
 import com.github.damontecres.wholphin.leanback.theme.dp
 import com.github.damontecres.wholphin.leanback.theme.dpF
 import com.github.damontecres.wholphin.leanback.theme.watchedIconBackground
@@ -57,7 +58,11 @@ open class CardCaptionView(
         val target = if (focused) slidePx else 0f
         animate().cancel()
         if (animate) {
-            animate().translationY(target).setDuration(SLIDE_MS).setInterpolator(FastOutSlowInInterpolator()).start()
+            animate()
+                .translationY(target)
+                .setDuration(SLIDE_MS)
+                .setInterpolator(FastOutSlowInInterpolator())
+                .start()
         } else {
             translationY = target
         }
@@ -356,5 +361,87 @@ class CardProgressView(
     companion object {
         /** Neon: the 8dp glow box ending in the 3dp bar; otherwise the 6dp bar */
         fun heightPx(context: Context): Int = if (AppTheme.isNeon) context.dp(8) else context.dp(CardDimens.PLAYED_PERCENT_HEIGHT_DP)
+    }
+}
+
+/**
+ * `CollectionTypeBadge`: the COLLECTION label tuned by [CollectionBadgeAppearance] (text size / opacity, background,
+ * border, glow, padding, tracking, corners) in [accent]. The old UI defined it but no card shows it today; it is here so
+ * the appearance setting has a View when a screen adopts it.
+ */
+class CollectionTypeBadgeView(
+    context: Context,
+) : AppCompatTextView(context) {
+    private val glowPaint = Paint()
+    private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    private val rect = RectF()
+    private var appearance = CollectionBadgeAppearance()
+    private var accent = NeonColors.VOLT
+
+    init {
+        maxLines = 1
+        isSingleLine = true
+    }
+
+    fun bind(
+        text: String,
+        accent: Int,
+        appearance: CollectionBadgeAppearance,
+    ) {
+        this.accent = accent
+        this.appearance = appearance
+        val padH = context.dp(appearance.horizontalPaddingDp)
+        val padV = context.dp(appearance.verticalPaddingDp)
+        setPaddingRelative(padH, 0, padH, 0)
+        val size = appearance.textSizeSp.toFloat()
+        val base = roleSpec(TextRole.LABEL_SMALL)
+        applySpec(
+            base.copy(
+                sizeSp = size,
+                lineHeightSp = size * 1.2f,
+                trackingEm =
+                    if (size >
+                        0
+                    ) {
+                        appearance.letterSpacingTenthsSp / 10f / size
+                    } else {
+                        0f
+                    },
+            ),
+        )
+        setPadding(paddingLeft, paddingTop + padV, paddingRight, paddingBottom + padV)
+        this.text = text.uppercase()
+        setTextColor(withAlpha(accent, appearance.textOpacityPercent / 100f))
+        invalidate()
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        val w = width.toFloat()
+        val h = height.toFloat()
+        val glow = context.dpF(appearance.glowSpreadDp.toFloat())
+        val alpha = appearance.glowOpacityPercent / 100f
+        if (glow > 0f && alpha > 0f) {
+            glowPaint.shader =
+                android.graphics.RadialGradient(
+                    w / 2,
+                    h / 2,
+                    maxOf(w, h) / 2 + glow,
+                    withAlpha(accent, alpha * .5f),
+                    0,
+                    android.graphics.Shader.TileMode.CLAMP,
+                )
+            canvas.drawRect(-glow, -glow, w + glow, h + glow, glowPaint)
+        }
+        val radius = context.dpF(appearance.cornerRadiusDp.toFloat())
+        rect.set(0f, 0f, w, h)
+        fillPaint.color = withAlpha(NeonColors.CARD, appearance.backgroundOpacityPercent / 100f)
+        canvas.drawRoundRect(rect, radius, radius, fillPaint)
+        if (appearance.borderWidthDp > 0 && appearance.borderOpacityPercent > 0) {
+            strokePaint.strokeWidth = context.dpF(appearance.borderWidthDp.toFloat())
+            strokePaint.color = withAlpha(accent, appearance.borderOpacityPercent / 100f)
+            canvas.drawRoundRect(rect, radius, radius, strokePaint)
+        }
+        super.onDraw(canvas)
     }
 }

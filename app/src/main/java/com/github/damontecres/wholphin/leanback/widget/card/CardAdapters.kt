@@ -181,9 +181,15 @@ class CardRowAdapter<T : Any>(
                         val o = old[oldItemPosition]
                         val n = new[newItemPosition]
                         return when {
-                            o is Entry.Card && n is Entry.Card -> oldItemPosition == newItemPosition && presenter.sameContent(o.item, n.item)
+                            o is Entry.Card && n is Entry.Card -> {
+                                oldItemPosition == newItemPosition &&
+                                    presenter.sameContent(o.item, n.item)
+                            }
+
                             // The View more card's size follows the row's options: rebind it on every submit
-                            else -> false
+                            else -> {
+                                false
+                            }
                         }
                     }
                 },
@@ -219,8 +225,14 @@ class CardRowAdapter<T : Any>(
         frame.setOnClickListener {
             val pos = holder.bindingAdapterPosition
             when (val e = entries.getOrNull(pos)) {
-                is Entry.Card -> e.item?.let { callbacks.onClick?.invoke(pos, it) }
-                Entry.More -> viewMore?.onClick?.invoke()
+                is Entry.Card -> {
+                    e.item?.let { callbacks.onClick?.invoke(pos, it) }
+                }
+
+                Entry.More -> {
+                    viewMore?.onClick?.invoke()
+                }
+
                 null -> {}
             }
         }
@@ -235,8 +247,14 @@ class CardRowAdapter<T : Any>(
             if (!hasFocus) return@setOnFocusChangeListener
             val pos = holder.bindingAdapterPosition
             when (val e = entries.getOrNull(pos)) {
-                is Entry.Card -> callbacks.onFocus?.invoke(pos, e.item)
-                Entry.More -> viewMore?.onFocus?.invoke()
+                is Entry.Card -> {
+                    callbacks.onFocus?.invoke(pos, e.item)
+                }
+
+                Entry.More -> {
+                    viewMore?.onFocus?.invoke()
+                }
+
                 null -> {}
             }
         }

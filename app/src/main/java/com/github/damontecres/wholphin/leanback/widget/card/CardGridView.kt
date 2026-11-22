@@ -19,18 +19,18 @@ import androidx.leanback.widget.BaseGridView
 import androidx.leanback.widget.GridLayoutManager
 import androidx.leanback.widget.VerticalGridView
 import androidx.leanback.widget.ViewHolderTask
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.findViewTreeLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.lifecycle.Lifecycle
 import androidx.recyclerview.widget.RecyclerView
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.leanback.theme.AppFonts
 import com.github.damontecres.wholphin.leanback.theme.AppTheme
-import com.github.damontecres.wholphin.leanback.theme.PageStyle
 import com.github.damontecres.wholphin.leanback.theme.NeonColors
+import com.github.damontecres.wholphin.leanback.theme.PageStyle
 import com.github.damontecres.wholphin.leanback.theme.TextRole
 import com.github.damontecres.wholphin.leanback.theme.dp
 import com.github.damontecres.wholphin.leanback.theme.dpF
@@ -131,6 +131,7 @@ class CardGridView(
     private var onPosition: ((Int, Int) -> Unit)? = null
     private var sortNameAt: (Int) -> String? = { null }
     private var initialized = false
+    private var configured = false
 
     init {
         clipChildren = false
@@ -203,9 +204,10 @@ class CardGridView(
             grid.adapter = typed
         }
         typed.cellWidthPx = grid.cellWidthFor(grid.width)
-        if (!initialized) {
+        if (!initialized && items.isNotEmpty()) {
+            // The first time there are cards: start at the initial position
             initialized = true
-            focusedIndex = config.initialPosition.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+            focusedIndex = config.initialPosition.coerceIn(0, items.size - 1)
             previouslyFocusedIndex = 0
             typed.setItems(items)
             grid.selectedPosition = focusedIndex
@@ -234,7 +236,8 @@ class CardGridView(
         }
 
     private fun applyConfig(config: CardGridConfig) {
-        val changed = config != this.config || !initialized
+        val changed = config != this.config || !configured
+        configured = true
         this.config = config
         if (!changed) return
         grid.setNumColumns(config.columns)
@@ -254,7 +257,6 @@ class CardGridView(
 
     /** Clamp focus into a shorter list and update the empty state, footer and letter bar */
     private fun onItemCountChanged(size: Int) {
-        val oldSize = itemsSize
         itemsSize = size
         val isEmpty = size == 0
         content.visibility = if (isEmpty) GONE else VISIBLE
@@ -264,7 +266,8 @@ class CardGridView(
         if (!isEmpty && focusedIndex >= size) {
             // A smaller result set: focus the last card
             selectAndFocus(size - 1, focus = hasFocus())
-        } else if (oldSize != size) {
+        } else {
+            // The focused item may have loaded: its first letter is the current one
             updateFooterAndLetter()
         }
     }
@@ -566,6 +569,8 @@ class AlphabetPickerView(
     init {
         isVerticalScrollBarEnabled = false
         isFillViewport = false
+        // Only the letters take focus
+        isFocusable = false
         clipChildren = false
         column.orientation = LinearLayout.VERTICAL
         column.clipChildren = false

@@ -308,7 +308,13 @@ class BannerCardView(
         // BannerCard sizes the card by the raw ratio; BannerCardWithTitle's column uses the ratio clamped to 2:3
         setFrameSize(context.dpRound(cardHeightDp * aspectRatio), cardHeight)
         val columnWidth =
-            if (withTitle) context.dpRound(cardHeightDp * aspectRatio.coerceAtLeast(AspectRatios.MIN)) else ViewGroup.LayoutParams.WRAP_CONTENT
+            if (withTitle) {
+                context.dpRound(
+                    cardHeightDp * aspectRatio.coerceAtLeast(AspectRatios.MIN),
+                )
+            } else {
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            }
         layoutParams?.let { if (it.width != columnWidth) it.width = columnWidth }
         frame.setLook(cardFocusLook(context, style, accent, container = CardContainer.SURFACE_VARIANT))
         frame.contentDescription =

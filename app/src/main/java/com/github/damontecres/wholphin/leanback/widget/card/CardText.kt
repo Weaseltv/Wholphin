@@ -46,7 +46,14 @@ internal fun roleSpec(
     val baseSize = if (weasel) role.neonSp else role.stockSp
     val size = sizeSp ?: baseSize
     val baseLineHeight = if (weasel) role.neonSp * role.neonLineHeight else role.stockLineHeightSp
-    val tracking = if (weasel) role.neonTrackingEm else if (size > 0) role.stockTrackingSp / size else 0f
+    val tracking =
+        if (weasel) {
+            role.neonTrackingEm
+        } else if (size > 0) {
+            role.stockTrackingSp / size
+        } else {
+            0f
+        }
     return TextSpec(
         sizeSp = size,
         weight = weight ?: if (weasel) role.neonWeight else role.stockWeight,
@@ -159,7 +166,7 @@ internal fun isBackwardKey(keyCode: Int): Boolean =
         keyCode == KeyEvent.KEYCODE_MEDIA_PREVIOUS || keyCode == KeyEvent.KEYCODE_MEDIA_REWIND ||
         keyCode == KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD
 
-/** `isPlayKeyUp`: media play or play/pause released */
-internal fun isPlayKeyUp(event: KeyEvent): Boolean =
+/** `isPlayKeyUp`: media play or play/pause released (Home cards and grids play the item) */
+fun isPlayKeyUp(event: KeyEvent): Boolean =
     event.action == KeyEvent.ACTION_UP &&
         (event.keyCode == KeyEvent.KEYCODE_MEDIA_PLAY || event.keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)

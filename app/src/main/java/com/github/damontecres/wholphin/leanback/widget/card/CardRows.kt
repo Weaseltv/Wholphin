@@ -312,11 +312,18 @@ class RowTitleView(
             rule.visibility = GONE
             textColumn.translationX = 0f
             textRow.setPaddingRelative(insetStartPx + context.dp(8), 0, insetEndPx, 0)
+            // A plain Text: wraps, no ellipsis
+            titleView.isSingleLine = false
+            titleView.maxLines = Int.MAX_VALUE
+            titleView.ellipsize = null
             titleView.applySpec(roleSpec(TextRole.TITLE_LARGE))
             titleView.setTextColor(palette.onBackground)
             titleView.text = title
             return
         }
+        titleView.isSingleLine = true
+        titleView.maxLines = 1
+        titleView.ellipsize = TextUtils.TruncateAt.END
         val start = titleStartPaddingDp ?: style.titleStartPaddingDp ?: 8f
         textRow.setPaddingRelative(
             insetStartPx + context.dp(max(start, 0f)),
@@ -393,6 +400,8 @@ class CardStripView(
         clipToPadding = false
         itemAnimator = null
         setHasFixedSize(false)
+        // The row is as tall as its cards (a page list measures rows with an unspecified height)
+        setRowHeight(LayoutParams.WRAP_CONTENT)
         (layoutManager as? GridLayoutManager)?.setFocusOutAllowed(true, false)
         setSmoothScrollByBehavior(
             object : SmoothScrollByBehavior {
@@ -890,13 +899,22 @@ class LoadingRowView(
         insetEndPx: Int = style.contentInsetEndPx,
     ) {
         val accent = pageStyle.sectionAccent
+
         fun showPlaceholder(
             message: String,
             error: Boolean,
         ) {
             row.visibility = GONE
             placeholder.visibility = VISIBLE
-            placeholder.bind(title, message, accent, isError = error, focusableRow = false, insetStartPx = insetStartPx, insetEndPx = insetEndPx)
+            placeholder.bind(
+                title,
+                message,
+                accent,
+                isError = error,
+                focusableRow = false,
+                insetStartPx = insetStartPx,
+                insetEndPx = insetEndPx,
+            )
         }
         when (state) {
             is RowLoadingState.Error -> {
@@ -933,8 +951,9 @@ class LoadingRowView(
 }
 
 /**
- * `HiddenFocusBox`: an invisible full-width view of no height that can take focus, calling [onFocus] when it does
- * (used to bring hidden content back, eg the player's chapter and queue rows).
+ * `HiddenFocusBox`: an invisible full-width view that can take focus, calling [onFocus] when it does (used to bring
+ * hidden content back, eg the player's chapter and queue rows). It is 1px tall and draws nothing: on API 28+ a View of
+ * no size cannot take focus, where the Compose box of 0dp could.
  */
 class HiddenFocusView(
     context: Context,
@@ -942,7 +961,7 @@ class HiddenFocusView(
 ) : View(context) {
     init {
         isFocusable = true
-        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0)
+        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1)
     }
 
     override fun onFocusChanged(
