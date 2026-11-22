@@ -168,11 +168,6 @@ fun CollectionFolderGrid(
     }
 }
 
-data class PositionItem(
-    val position: Int,
-    val item: BaseItem,
-)
-
 data class CollectionFolderGridParameters(
     val columns: Int = 6,
     val spacing: Dp = 16.dp,
@@ -239,57 +234,6 @@ data class CollectionFolderGridParameters(
     }
 }
 
-val CollectionType.baseItemKinds: List<BaseItemKind>
-    get() =
-        when (this) {
-            CollectionType.MOVIES -> {
-                listOf(BaseItemKind.MOVIE)
-            }
-
-            CollectionType.TVSHOWS -> {
-                listOf(BaseItemKind.SERIES, BaseItemKind.SEASON, BaseItemKind.EPISODE)
-            }
-
-            CollectionType.HOMEVIDEOS -> {
-                listOf(BaseItemKind.VIDEO)
-            }
-
-            CollectionType.MUSICVIDEOS -> {
-                listOf(BaseItemKind.MUSIC_VIDEO)
-            }
-
-            CollectionType.BOXSETS -> {
-                listOf(BaseItemKind.BOX_SET)
-            }
-
-            CollectionType.PLAYLISTS -> {
-                listOf(BaseItemKind.PLAYLIST)
-            }
-
-            CollectionType.PHOTOS -> {
-                listOf(BaseItemKind.PHOTO, BaseItemKind.PHOTO_ALBUM)
-            }
-
-            CollectionType.TRAILERS -> {
-                listOf(BaseItemKind.TRAILER)
-            }
-
-            CollectionType.BOOKS -> {
-                listOf(BaseItemKind.BOOK)
-            }
-
-            CollectionType.FOLDERS -> {
-                listOf(BaseItemKind.FOLDER)
-            }
-
-            CollectionType.LIVETV,
-            CollectionType.MUSIC,
-            CollectionType.UNKNOWN,
-            -> {
-                listOf()
-            }
-        }
-
 @Composable
 @NonRestartableComposable
 fun GridTitle(
@@ -327,13 +271,6 @@ fun GridTitle(
         )
     }
 }
-
-data class GridClickActions(
-    val onClickItem: (Int, BaseItem) -> Unit,
-    val onLongClickItem: ((Int, BaseItem) -> Unit)? = null,
-    val onClickPlayAll: ((shuffle: Boolean) -> Unit)? = null,
-    val onClickPlayRemoteButton: ((Int, BaseItem) -> Unit)? = null,
-)
 
 @Composable
 fun CollectionFolderHeader(

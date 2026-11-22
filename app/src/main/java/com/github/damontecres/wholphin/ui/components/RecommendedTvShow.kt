@@ -20,95 +20,6 @@ import org.jellyfin.sdk.model.api.request.GetResumeItemsRequest
 import java.time.LocalDateTime
 import java.util.UUID
 
-private fun getRecommendedRows(
-    parentId: UUID,
-    enableRewatching: Boolean,
-) = listOf(
-    RecommendedRow(
-        title = R.string.continue_watching,
-        handler = GetResumeItemsRequestHandler,
-        request =
-            GetResumeItemsRequest(
-                parentId = parentId,
-                fields = SlimItemFields,
-                includeItemTypes = listOf(BaseItemKind.EPISODE),
-                enableUserData = true,
-                enableTotalRecordCount = false,
-            ),
-    ),
-    RecommendedRow(
-        title = R.string.next_up,
-        handler = GetNextUpRequestHandler,
-        request =
-            GetNextUpRequest(
-                fields = SlimItemFields,
-                imageTypeLimit = 1,
-                parentId = parentId,
-                enableResumable = false,
-                enableUserData = true,
-                enableRewatching = enableRewatching,
-            ),
-    ),
-    RecommendedRow(
-        title = R.string.recently_released,
-        handler = GetItemsRequestHandler,
-        request =
-            GetItemsRequest(
-                parentId = parentId,
-                fields = SlimItemFields,
-                includeItemTypes = listOf(BaseItemKind.EPISODE),
-                recursive = true,
-                enableUserData = true,
-                sortBy =
-                    listOf(
-                        ItemSortBy.PREMIERE_DATE,
-                        ItemSortBy.SERIES_SORT_NAME,
-                        ItemSortBy.AIRED_EPISODE_ORDER,
-                    ),
-                sortOrder =
-                    listOf(
-                        SortOrder.DESCENDING,
-                        SortOrder.ASCENDING,
-                        SortOrder.DESCENDING,
-                    ),
-                enableTotalRecordCount = false,
-                maxPremiereDate = LocalDateTime.now(),
-                isUnaired = false,
-            ),
-    ),
-    RecommendedRow(
-        title = R.string.recently_added,
-        handler = GetItemsRequestHandler,
-        request =
-            GetItemsRequest(
-                parentId = parentId,
-                fields = SlimItemFields,
-                includeItemTypes = listOf(BaseItemKind.EPISODE),
-                recursive = true,
-                enableUserData = true,
-                sortBy = listOf(ItemSortBy.DATE_CREATED),
-                sortOrder = listOf(SortOrder.DESCENDING),
-                enableTotalRecordCount = false,
-            ),
-    ),
-    RecommendedRow(
-        title = R.string.top_unwatched,
-        handler = GetItemsRequestHandler,
-        request =
-            GetItemsRequest(
-                parentId = parentId,
-                fields = SlimItemFields,
-                includeItemTypes = listOf(BaseItemKind.SERIES),
-                recursive = true,
-                enableUserData = true,
-                isPlayed = false,
-                sortBy = listOf(ItemSortBy.COMMUNITY_RATING),
-                sortOrder = listOf(SortOrder.DESCENDING),
-                enableTotalRecordCount = false,
-            ),
-    ),
-)
-
 /**
  * The "recommended" tab of a TV show library
  */
@@ -125,7 +36,7 @@ fun RecommendedTvShow(
                     parentId = parentId,
                     suggestionsType = BaseItemKind.SERIES,
                     recommendedRows =
-                        getRecommendedRows(
+                        recommendedTvShowRows(
                             parentId,
                             preferences.appPreferences.homePagePreferences.enableRewatchingNextUp,
                         ),
