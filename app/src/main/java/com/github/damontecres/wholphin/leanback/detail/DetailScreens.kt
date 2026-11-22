@@ -25,6 +25,10 @@ object DetailScreens {
                     // Videos and music videos use the movie page, as before
                     BaseItemKind.MOVIE, BaseItemKind.VIDEO, BaseItemKind.MUSIC_VIDEO -> MovieDetailsFragment()
                     BaseItemKind.EPISODE -> EpisodeDetailsFragment()
+                    BaseItemKind.BOX_SET -> CollectionDetailsFragment()
+                    BaseItemKind.PLAYLIST -> PlaylistDetailsFragment()
+                    BaseItemKind.PERSON -> PersonPageFragment()
+                    // Folders, libraries and the rest belong to LIBRARY
                     else -> null
                 }
             }
