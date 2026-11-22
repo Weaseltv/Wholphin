@@ -18,77 +18,6 @@ import org.jellyfin.sdk.model.api.request.GetResumeItemsRequest
 import java.time.LocalDateTime
 import java.util.UUID
 
-private fun getRecommendedRows(parentId: UUID) =
-    listOf(
-        RecommendedRow(
-            title = R.string.continue_watching,
-            handler = GetResumeItemsRequestHandler,
-            request =
-                GetResumeItemsRequest(
-                    parentId = parentId,
-                    fields = SlimItemFields,
-                    includeItemTypes = listOf(BaseItemKind.MOVIE),
-                    enableUserData = true,
-                    enableTotalRecordCount = false,
-                ),
-        ),
-        RecommendedRow(
-            title = R.string.recently_released,
-            handler = GetItemsRequestHandler,
-            request =
-                GetItemsRequest(
-                    parentId = parentId,
-                    fields = SlimItemFields,
-                    includeItemTypes = listOf(BaseItemKind.MOVIE),
-                    recursive = true,
-                    enableUserData = true,
-                    sortBy =
-                        listOf(
-                            ItemSortBy.PREMIERE_DATE,
-                            ItemSortBy.SORT_NAME,
-                        ),
-                    sortOrder =
-                        listOf(
-                            SortOrder.DESCENDING,
-                            SortOrder.ASCENDING,
-                        ),
-                    enableTotalRecordCount = false,
-                    maxPremiereDate = LocalDateTime.now(),
-                ),
-        ),
-        RecommendedRow(
-            title = R.string.recently_added,
-            handler = GetItemsRequestHandler,
-            request =
-                GetItemsRequest(
-                    parentId = parentId,
-                    fields = SlimItemFields,
-                    includeItemTypes = listOf(BaseItemKind.MOVIE),
-                    recursive = true,
-                    enableUserData = true,
-                    sortBy = listOf(ItemSortBy.DATE_CREATED),
-                    sortOrder = listOf(SortOrder.DESCENDING),
-                    enableTotalRecordCount = false,
-                ),
-        ),
-        RecommendedRow(
-            title = R.string.top_unwatched,
-            handler = GetItemsRequestHandler,
-            request =
-                GetItemsRequest(
-                    parentId = parentId,
-                    fields = SlimItemFields,
-                    includeItemTypes = listOf(BaseItemKind.MOVIE),
-                    recursive = true,
-                    enableUserData = true,
-                    isPlayed = false,
-                    sortBy = listOf(ItemSortBy.COMMUNITY_RATING),
-                    sortOrder = listOf(SortOrder.DESCENDING),
-                    enableTotalRecordCount = false,
-                ),
-        ),
-    )
-
 /**
  * The "recommended" tab of a movie library
  */
@@ -104,7 +33,7 @@ fun RecommendedMovie(
                 it.create(
                     parentId = parentId,
                     suggestionsType = BaseItemKind.MOVIE,
-                    recommendedRows = getRecommendedRows(parentId),
+                    recommendedRows = recommendedMovieRows(parentId),
                     viewOptions = HomeRowViewOptions(),
                     serviceTop10Type = BaseItemKind.MOVIE,
                 )
