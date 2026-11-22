@@ -395,8 +395,20 @@ class CardGridView(
         return onGridKey(event)
     }
 
+    /** A BACK press that started in this grid; a BACK release whose press went elsewhere (the page below) is ignored */
+    private var backDownSeen = false
+
     private fun onGridKey(event: KeyEvent): Boolean {
         val code = event.keyCode
+        if (code == KeyEvent.KEYCODE_BACK) {
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                backDownSeen = true
+            } else if (event.action == KeyEvent.ACTION_UP && !backDownSeen) {
+                // The press went back from the page above, which is gone by the release: not "jump to the first card"
+                return false
+            }
+            if (event.action == KeyEvent.ACTION_UP) backDownSeen = false
+        }
         if (code == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_DOWN && event.isLongPress) {
             longPressing = true
             val newPosition = previouslyFocusedIndex

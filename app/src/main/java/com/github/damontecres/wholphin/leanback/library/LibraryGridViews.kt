@@ -470,10 +470,20 @@ class LibraryListView(
         return true
     }
 
+    /** A BACK press that started here; a release whose press went back from the page above is ignored */
+    private var backDownSeen = false
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.keyCode == KeyEvent.KEYCODE_BACK && row.hasFocus() && position > 0) {
-            if (event.action == KeyEvent.ACTION_UP) jumpTo(0)
-            return true
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                backDownSeen = true
+                return true
+            }
+            if (event.action == KeyEvent.ACTION_UP && backDownSeen) {
+                backDownSeen = false
+                jumpTo(0)
+                return true
+            }
         }
         return super.dispatchKeyEvent(event)
     }
