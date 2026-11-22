@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.leanback.search
 
+import com.github.damontecres.wholphin.leanback.theme.surfaceAtElevation
 import android.content.Context
 import android.graphics.Paint
 import android.graphics.Typeface
@@ -345,7 +346,12 @@ internal class DiscoverSortButton(
                 }
             menu.addItem(context.getString(option.stringRes), leadingIcon = icon) {
                 menu.dismiss()
-                val direction = if (current.sort == option) current.direction.flip() else current.direction
+                val direction =
+                    when {
+                        current.sort != option -> current.direction
+                        current.direction == SortOrder.ASCENDING -> SortOrder.DESCENDING
+                        else -> SortOrder.ASCENDING
+                    }
                 onSortChange(DiscoverSortAndDirection(option, direction))
             }
         }

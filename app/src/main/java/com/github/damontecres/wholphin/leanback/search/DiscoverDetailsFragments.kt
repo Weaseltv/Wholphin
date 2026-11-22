@@ -1,5 +1,7 @@
 package com.github.damontecres.wholphin.leanback.search
 
+import com.github.damontecres.wholphin.util.successValue
+import com.github.damontecres.wholphin.services.jellyfinId
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup

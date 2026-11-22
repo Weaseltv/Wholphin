@@ -439,9 +439,9 @@ abstract class DiscoverDetailsFragment : DestinationFragment() {
     private var stateView: View? = null
     private var page: DetailPageLayout? = null
     private lateinit var list: PageRowsView
-    protected lateinit var header: DiscoverHeaderView
+    internal lateinit var header: DiscoverHeaderView
         private set
-    protected lateinit var buttons: DiscoverButtonsRow
+    internal lateinit var buttons: DiscoverButtonsRow
         private set
     private lateinit var headerBlock: LinearLayout
     private var peopleRow: CardRowView? = null
@@ -672,7 +672,7 @@ abstract class DiscoverDetailsFragment : DestinationFragment() {
     ): CharSequence = quickDetailsLine(requireContext(), parts, rating?.audienceRating, rating?.criticRating?.toFloat())
 
     /** The actions of the request buttons */
-    protected abstract fun buttonActions(): DiscoverButtonsRow.Actions
+    internal abstract fun buttonActions(): DiscoverButtonsRow.Actions
 
     /** The buttons' "open the request queue" (Requests page on the request) */
     protected fun showQueue(requestId: Int?) {

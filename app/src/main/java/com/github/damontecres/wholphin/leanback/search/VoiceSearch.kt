@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.leanback.search
 
+import com.github.damontecres.wholphin.leanback.theme.surfaceAtElevation
 import android.Manifest
 import android.animation.ValueAnimator
 import android.content.Context

@@ -238,6 +238,8 @@ internal class PageRowsView(
             windowAlignmentOffsetPercent = 30f
         }
         adapter = rowsAdapter
+        // UP from the first row leaves the list (to the controls above), as the Compose list did; DOWN at the end stops
+        setFocusOutAllowed(true, false)
     }
 
     /** The rows now shown, in order; views are re-used by identity */
