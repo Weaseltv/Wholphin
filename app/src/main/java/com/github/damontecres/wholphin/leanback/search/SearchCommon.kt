@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.leanback.search
 
+import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -225,6 +226,8 @@ internal class PageRowsView(
     init {
         clipChildren = false
         clipToPadding = false
+        // Rows scrolled out must not draw over the page header (the Compose lazy list clipped them)
+        clipToOwnHeight()
         itemAnimator = null
         setHasFixedSize(false)
         windowAlignment = BaseGridView.WINDOW_ALIGN_BOTH_EDGE

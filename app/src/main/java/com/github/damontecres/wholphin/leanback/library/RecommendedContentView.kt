@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.leanback.library
 
+import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import android.annotation.SuppressLint
 import android.content.Context
 import android.view.KeyEvent
@@ -282,6 +283,7 @@ class RecommendedContentView(
             orientation = VERTICAL
             clipChildren = false
             clipToPadding = false
+            list.clipToOwnHeight()
             headerFit.addView(header, ViewGroup.LayoutParams(MATCH, WRAP))
             HeaderDimens.apply(header, headerBox)
             addView(headerFit, LayoutParams(MATCH, WRAP))

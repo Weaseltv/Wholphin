@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.leanback.library
 
+import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Outline
@@ -319,6 +320,7 @@ class LibraryListView(
     private var letterJob: Job? = null
 
     init {
+        list.clipToOwnHeight()
         orientation = VERTICAL
         clipChildren = false
         clipToPadding = false
