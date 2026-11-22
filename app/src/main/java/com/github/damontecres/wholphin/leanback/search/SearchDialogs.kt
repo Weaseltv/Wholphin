@@ -190,6 +190,7 @@ internal class SearchTypeOptionsDialog(
                 clipToPadding = false
             }
         val side = if (neon) context.dp(32) else 0
+
         fun addRow(row: SwitchListItem) {
             items.addView(
                 row,
@@ -210,10 +211,11 @@ internal class SearchTypeOptionsDialog(
         }
         if (discoverAvailable) {
             discoverRow =
-                SwitchListItem(context).apply {
-                    setHeadline(context.getString(R.string.discover))
-                    setOnClickListener { onClickDiscover() }
-                }.also { addRow(it) }
+                SwitchListItem(context)
+                    .apply {
+                        setHeadline(context.getString(R.string.discover))
+                        setOnClickListener { onClickDiscover() }
+                    }.also { addRow(it) }
         }
         val list =
             MenuListView(context).apply {

@@ -1,7 +1,5 @@
 package com.github.damontecres.wholphin.leanback.search
 
-import com.github.damontecres.wholphin.util.successValue
-import com.github.damontecres.wholphin.services.jellyfinId
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
@@ -12,6 +10,7 @@ import com.github.damontecres.wholphin.data.model.Trailer
 import com.github.damontecres.wholphin.data.model.hasPermission
 import com.github.damontecres.wholphin.leanback.theme.dp
 import com.github.damontecres.wholphin.services.SeerrUserConfig
+import com.github.damontecres.wholphin.services.jellyfinId
 import com.github.damontecres.wholphin.ui.detail.discover.DiscoverMovieState
 import com.github.damontecres.wholphin.ui.detail.discover.DiscoverMovieViewModel
 import com.github.damontecres.wholphin.ui.detail.discover.DiscoverSeriesState
@@ -21,6 +20,7 @@ import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.roundMinutes
 import com.github.damontecres.wholphin.util.DataLoadingState
+import com.github.damontecres.wholphin.util.successValue
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.lifecycle.withCreationCallback
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -184,7 +184,11 @@ class DiscoverMovieFragment : DiscoverDetailsFragment() {
             }
 
             override fun goTo() {
-                viewModel.goTo(viewModel.state.value.movie.successValue?.mediaInfo, BaseItemKind.MOVIE)
+                viewModel.goTo(
+                    viewModel.state.value.movie.successValue
+                        ?.mediaInfo,
+                    BaseItemKind.MOVIE,
+                )
             }
 
             override fun playTrailer(trailer: Trailer) = this@DiscoverMovieFragment.playTrailer(trailer)
@@ -343,7 +347,11 @@ class DiscoverSeriesFragment : DiscoverDetailsFragment() {
             }
 
             override fun goTo() {
-                viewModel.goTo(viewModel.state.value.tvSeries.successValue?.mediaInfo, BaseItemKind.SERIES)
+                viewModel.goTo(
+                    viewModel.state.value.tvSeries.successValue
+                        ?.mediaInfo,
+                    BaseItemKind.SERIES,
+                )
             }
 
             override fun playTrailer(trailer: Trailer) = this@DiscoverSeriesFragment.playTrailer(trailer)

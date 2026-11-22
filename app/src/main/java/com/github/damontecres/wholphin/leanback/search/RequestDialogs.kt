@@ -10,6 +10,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.github.damontecres.wholphin.R
+import com.github.damontecres.wholphin.api.seerr.model.MovieDetails
 import com.github.damontecres.wholphin.data.model.RequestStatus
 import com.github.damontecres.wholphin.data.model.SeerrAvailability
 import com.github.damontecres.wholphin.leanback.theme.AppTheme
@@ -37,7 +38,6 @@ import com.github.damontecres.wholphin.leanback.widget.dialog.MenuItem
 import com.github.damontecres.wholphin.leanback.widget.dialog.MenuListView
 import com.github.damontecres.wholphin.leanback.widget.text.FittedTitleView
 import com.github.damontecres.wholphin.leanback.widget.text.NeonRuleView
-import com.github.damontecres.wholphin.api.seerr.model.MovieDetails
 import com.github.damontecres.wholphin.ui.detail.discover.MovieRequest
 import com.github.damontecres.wholphin.ui.detail.discover.RequestSeason
 import com.github.damontecres.wholphin.ui.detail.discover.SeerrProfile
@@ -374,7 +374,13 @@ internal class RequestMovieDialog(
                     setOnClickListener { onSubmit(MovieRequest(data, movie.id, fourK, null, null)) }
                 }
             if (!fourK) firstFocus = row
-            list.addView(row, fullWidth().apply { marginStart = pad; marginEnd = pad })
+            list.addView(
+                row,
+                fullWidth().apply {
+                    marginStart = pad
+                    marginEnd = pad
+                },
+            )
         }
         column.addView(
             MenuListView(context).apply {

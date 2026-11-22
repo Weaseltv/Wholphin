@@ -1,6 +1,5 @@
 package com.github.damontecres.wholphin.leanback.search
 
-import com.github.damontecres.wholphin.leanback.theme.surfaceAtElevation
 import android.Manifest
 import android.animation.ValueAnimator
 import android.content.Context
@@ -32,6 +31,7 @@ import com.github.damontecres.wholphin.leanback.theme.TextRole
 import com.github.damontecres.wholphin.leanback.theme.applyTextRole
 import com.github.damontecres.wholphin.leanback.theme.dp
 import com.github.damontecres.wholphin.leanback.theme.dpF
+import com.github.damontecres.wholphin.leanback.theme.surfaceAtElevation
 import com.github.damontecres.wholphin.leanback.theme.withAlpha
 import com.github.damontecres.wholphin.leanback.widget.control.AppButton
 import com.github.damontecres.wholphin.leanback.widget.dialog.AppDialog
@@ -331,16 +331,24 @@ internal class VoiceOverlayDialog(
                 marginStart = context.dp(CONTENT_SPACING_DP)
             },
         )
-        content.addView(row, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        content.addView(
+            row,
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER),
+        )
         content.addView(
             TextView(context).apply {
                 setText(R.string.press_back_to_cancel)
                 applyTextRole(TextRole.BODY_SMALL)
                 setTextColor(withAlpha(AppTheme.palette.onSurface, HINT_TEXT_ALPHA))
             },
-            FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
-                bottomMargin = context.dp(DISMISS_HINT_BOTTOM_PADDING_DP)
-            },
+            FrameLayout
+                .LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
+                ).apply {
+                    bottomMargin = context.dp(DISMISS_HINT_BOTTOM_PADDING_DP)
+                },
         )
         setPanelContent(content)
         dots.apply {

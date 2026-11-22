@@ -69,6 +69,7 @@ internal class CombinedResultsView<T : CardGridItem>(
     fun bind(result: SearchResult) {
         val context = view.context
         val resultsTitle = context.getString(R.string.results)
+
         fun message(
             text: String,
             error: Boolean,

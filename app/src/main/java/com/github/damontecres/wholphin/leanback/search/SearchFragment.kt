@@ -265,8 +265,14 @@ class SearchFragment : DestinationFragment() {
                         onPosition = { columns, index -> onGridPosition(columns, index) },
                     ),
             )
-        content.addView(libraryResults.view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-        content.addView(seerrResults.view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        content.addView(
+            libraryResults.view,
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
+        )
+        content.addView(
+            seerrResults.view,
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
+        )
         return root
     }
 
@@ -282,9 +288,10 @@ class SearchFragment : DestinationFragment() {
         super.onViewCreated(view, savedInstanceState)
         voice.start(viewLifecycleOwner)
         focusListener =
-            ViewTreeObserver.OnGlobalFocusChangeListener { _, newFocus ->
-                if (newFocus != null && isDescendant(newFocus, tabs)) setPosition(RowColumn(TAB_ROW, 0))
-            }.also { view.viewTreeObserver.addOnGlobalFocusChangeListener(it) }
+            ViewTreeObserver
+                .OnGlobalFocusChangeListener { _, newFocus ->
+                    if (newFocus != null && isDescendant(newFocus, tabs)) setPosition(RowColumn(TAB_ROW, 0))
+                }.also { view.viewTreeObserver.addOnGlobalFocusChangeListener(it) }
 
         // Start with the current preferences, then follow changes from View options
         viewModel.userPreferencesService.flow
@@ -617,8 +624,9 @@ class SearchFragment : DestinationFragment() {
             }
 
             !combinedMode && row >= RESULTS_START -> {
-                val type = viewModel.state.value.includedSearchableTypes
-                    .getOrNull(row - RESULTS_START)
+                val type =
+                    viewModel.state.value.includedSearchableTypes
+                        .getOrNull(row - RESULTS_START)
                 type?.let { typeRows[it] }?.focus(rowsList) == true
             }
 
@@ -727,6 +735,7 @@ class SearchFragment : DestinationFragment() {
         ): Boolean {
             this.title = title
             val style = style()
+
             fun message(
                 text: String,
                 error: Boolean,

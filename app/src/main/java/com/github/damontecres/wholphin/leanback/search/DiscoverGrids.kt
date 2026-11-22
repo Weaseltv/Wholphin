@@ -1,6 +1,5 @@
 package com.github.damontecres.wholphin.leanback.search
 
-import com.github.damontecres.wholphin.leanback.theme.surfaceAtElevation
 import android.content.Context
 import android.graphics.Paint
 import android.graphics.Typeface
@@ -43,6 +42,7 @@ import com.github.damontecres.wholphin.leanback.theme.TextRole
 import com.github.damontecres.wholphin.leanback.theme.applyNeonEyebrow
 import com.github.damontecres.wholphin.leanback.theme.applyTextRole
 import com.github.damontecres.wholphin.leanback.theme.dp
+import com.github.damontecres.wholphin.leanback.theme.surfaceAtElevation
 import com.github.damontecres.wholphin.leanback.theme.withAlpha
 import com.github.damontecres.wholphin.leanback.widget.card.CardGridCallbacks
 import com.github.damontecres.wholphin.leanback.widget.card.CardGridConfig
@@ -119,7 +119,8 @@ internal fun gridTitleView(
                 glowStrength = .35f
                 ruleAccent = accent
             },
-            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            LinearLayout
+                .LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
                 .bleedIntoGutters(context)
                 .apply { topMargin = context.dp(6) },
         )
@@ -388,7 +389,14 @@ internal class DiscoverFilterButton(
                 setLabel(R.string.filter)
                 setLabelPaddingDp(4f, 4f)
             }
-            addView(count, 1, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginEnd = context.dp(4) })
+            addView(
+                count,
+                1,
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    marginEnd =
+                        context.dp(4)
+                },
+            )
             onContentColor = { count.setTextColor(it) }
             surface.onStateChanged = { updateGlyphWidth() }
             setOnClickListener { showFilters() }
@@ -458,7 +466,17 @@ internal class DiscoverFilterButton(
         val target = lastOpened?.takeIf { it in options } ?: options.firstOrNull()
         options.forEach { option ->
             val row =
-                m.addItem(context.getString(option.stringRes), leadingIcon = if (option.get(current) != null) R.drawable.lb_widget_ctl_ic_check else null) {
+                m.addItem(
+                    context.getString(option.stringRes),
+                    leadingIcon =
+                        if (option.get(current) !=
+                            null
+                        ) {
+                            R.drawable.lb_widget_ctl_ic_check
+                        } else {
+                            null
+                        },
+                ) {
                     lastOpened = option
                     m.onDismissRequest = null
                     m.dismiss()
@@ -583,7 +601,6 @@ internal class DiscoverFilterButton(
                 filterOption.set(value.value as? Int, current)
             }
         }
-
 }
 
 /** `HorizontalDivider()` in a menu: a 1dp line in the outline-variant colour */

@@ -165,7 +165,9 @@ internal class RequestsQueueView(
     private val empty = EmptyStateView(context)
     private val list = QueueList(context)
     private val adapter = QueueAdapter()
-    private val timeFormat = android.text.format.DateFormat.getTimeFormat(context)
+    private val timeFormat =
+        android.text.format.DateFormat
+            .getTimeFormat(context)
     private val posterWidth = context.dp(POSTER_WIDTH_DP)
     private val posterHeight = context.dp(POSTER_HEIGHT_DP)
 
@@ -529,7 +531,10 @@ internal class RequestsQueueView(
 
         override fun getItemCount(): Int = items.size
 
-        override fun getItemId(position: Int): Long = items[position].row.request.id.toLong()
+        override fun getItemId(position: Int): Long =
+            items[position]
+                .row.request.id
+                .toLong()
 
         override fun onCreateViewHolder(
             parent: ViewGroup,
@@ -685,12 +690,26 @@ internal class RequestsQueueView(
             addView(statusCell, LayoutParams(0, LayoutParams.WRAP_CONTENT, STATUS_WEIGHT))
 
             val progressCell = FrameLayout(context)
-            progressCell.addView(progress, FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER_VERTICAL or Gravity.START))
+            progressCell.addView(
+                progress,
+                FrameLayout.LayoutParams(
+                    LayoutParams.WRAP_CONTENT,
+                    LayoutParams.WRAP_CONTENT,
+                    Gravity.CENTER_VERTICAL or Gravity.START,
+                ),
+            )
             addView(progressCell, LayoutParams(0, LayoutParams.WRAP_CONTENT, PROGRESS_WEIGHT))
 
             // Watch now stays against the table's right edge
             val actionCell = FrameLayout(context)
-            actionCell.addView(pill, FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, context.dp(24), Gravity.CENTER_VERTICAL or Gravity.END))
+            actionCell.addView(
+                pill,
+                FrameLayout.LayoutParams(
+                    LayoutParams.WRAP_CONTENT,
+                    context.dp(24),
+                    Gravity.CENTER_VERTICAL or Gravity.END,
+                ),
+            )
             addView(actionCell, LayoutParams(0, LayoutParams.WRAP_CONTENT, ACTION_WEIGHT))
         }
 
@@ -945,7 +964,9 @@ internal class RequestsQueueView(
                 filled -> shape.setStroke(0, 0)
                 else -> shape.setStroke(context.dp(1), NeonColors.LOW)
             }
-            icon.imageTintList = android.content.res.ColorStateList.valueOf(content)
+            icon.imageTintList =
+                android.content.res.ColorStateList
+                    .valueOf(content)
             label.setTextColor(content)
         }
     }
@@ -1018,6 +1039,7 @@ internal class RequestsQueueView(
             orientation = HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPaddingRelative(context.dp(ROW_START_INSET_DP), 0, context.dp(ROW_END_INSET_DP), 0)
+
             fun heading(
                 text: String,
                 weight: Float,
@@ -1062,6 +1084,7 @@ internal class RequestsQueueView(
                 },
                 LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { topMargin = context.dp(26) },
             )
+
             fun body(
                 text: String,
                 topDp: Int,

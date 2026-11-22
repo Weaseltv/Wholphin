@@ -144,7 +144,6 @@ fun SearchTypeOptionsDialogContent(
     }
 }
 
-
 @Composable
 fun SearchTypeToggleRow(
     searchableTypes: List<BaseItemKind>,

@@ -159,7 +159,13 @@ internal class DiscoverHeaderView(
         clipToPadding = false
         val start = context.dp(HeaderDimens.START_PADDING)
         val titleFrame = FractionWidthFrame(context, .75f)
-        titleFrame.addView(titleOrLogo, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = start })
+        titleFrame.addView(
+            titleOrLogo,
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                marginStart =
+                    start
+            },
+        )
         addView(titleFrame, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
         val info =
             LinearLayout(context).apply {
@@ -167,6 +173,7 @@ internal class DiscoverHeaderView(
                 clipChildren = false
                 clipToPadding = false
             }
+
         fun add(
             view: View,
             startPadding: Boolean,
@@ -335,9 +342,11 @@ internal class DiscoverButtonsRow(
         first.isActionEnabled = ownRequest != null ||
             when (s.availability) {
                 SeerrAvailability.UNKNOWN -> s.canRequest
+
                 SeerrAvailability.PENDING, SeerrAvailability.PROCESSING, SeerrAvailability.PARTIALLY_AVAILABLE,
                 SeerrAvailability.AVAILABLE,
                 -> true
+
                 SeerrAvailability.BLOCKLISTED, SeerrAvailability.DELETED -> false
             }
         first.setOnClickListener {
@@ -349,9 +358,18 @@ internal class DiscoverButtonsRow(
                 }
             } else {
                 when (s.availability) {
-                    SeerrAvailability.UNKNOWN -> actions.request()
-                    SeerrAvailability.PENDING, SeerrAvailability.PROCESSING -> actions.showQueue(null)
-                    SeerrAvailability.PARTIALLY_AVAILABLE, SeerrAvailability.AVAILABLE -> actions.goTo()
+                    SeerrAvailability.UNKNOWN -> {
+                        actions.request()
+                    }
+
+                    SeerrAvailability.PENDING, SeerrAvailability.PROCESSING -> {
+                        actions.showQueue(null)
+                    }
+
+                    SeerrAvailability.PARTIALLY_AVAILABLE, SeerrAvailability.AVAILABLE -> {
+                        actions.goTo()
+                    }
+
                     SeerrAvailability.DELETED, SeerrAvailability.BLOCKLISTED -> {}
                 }
             }
@@ -533,7 +551,10 @@ abstract class DiscoverDetailsFragment : DestinationFragment() {
             PageRowsView(context, keepVisible = AppTheme.isNeon).apply {
                 if (isMovie) setPadding(0, context.dp(8), 0, context.dp(8)) else setPadding(0, 0, 0, context.dp(80))
             }
-        layout.addView(list, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT).bleedIntoGutters(context))
+        layout.addView(
+            list,
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT).bleedIntoGutters(context),
+        )
         header = DiscoverHeaderView(context)
         val fitted =
             FittedDetailHeaderLayout(context).apply {
@@ -597,6 +618,7 @@ abstract class DiscoverDetailsFragment : DestinationFragment() {
             }
             shown += row
         }
+
         fun itemRow(
             existing: CardRowView?,
             title: Int,
@@ -619,7 +641,9 @@ abstract class DiscoverDetailsFragment : DestinationFragment() {
         }
         val spacing = if (isMovie) context.dp(16) else 0
         shown.forEachIndexed { index, view ->
-            val lp = view.layoutParams as? FrameLayout.LayoutParams ?: FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            val lp =
+                view.layoutParams as? FrameLayout.LayoutParams
+                    ?: FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             lp.topMargin = if (index == 0) 0 else spacing
             view.layoutParams = lp
         }
