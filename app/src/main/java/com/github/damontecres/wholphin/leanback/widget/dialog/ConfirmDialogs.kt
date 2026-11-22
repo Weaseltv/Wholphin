@@ -99,7 +99,21 @@ fun confirmContent(
 ): View {
     val neon = AppTheme.isNeon
     val palette = AppTheme.palette
-    return LinearLayout(context).apply {
+    // The old rows used fillParentMaxWidth: the content is as wide as the dialog may be
+    return object : LinearLayout(context) {
+        override fun onMeasure(
+            widthMeasureSpec: Int,
+            heightMeasureSpec: Int,
+        ) {
+            val spec =
+                if (MeasureSpec.getMode(widthMeasureSpec) == MeasureSpec.AT_MOST) {
+                    MeasureSpec.makeMeasureSpec(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.EXACTLY)
+                } else {
+                    widthMeasureSpec
+                }
+            super.onMeasure(spec, heightMeasureSpec)
+        }
+    }.apply {
         orientation = LinearLayout.VERTICAL
         clipChildren = false
         clipToPadding = false

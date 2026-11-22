@@ -187,14 +187,26 @@ class DetailPageLayout(
     context: Context,
 ) : FrameLayout(context) {
     private val neon = AppTheme.isNeon
-    private var viewport: DetailViewport? = null
+
+    /** Exists from the start (Neon only), so the header and rows inside find it when they attach */
+    private val viewport: DetailViewport? =
+        if (neon) DetailViewport(0, 0, context.resources.displayMetrics.density) else null
     private val revealCheck: () -> Unit = { if (viewport?.measurementsReady == true) reveal() }
     private val timeout = Runnable { reveal() }
-    private var revealed = false
+    private var revealed = !neon
 
     init {
         clipChildren = false
         if (neon) alpha = 0f
+        viewport?.let {
+            setTag(R.id.lb_widget_ctl_detail_viewport, it)
+            it.addListener(revealCheck)
+        }
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        if (!revealed) postDelayed(timeout, HEADER_MEASURE_TIMEOUT_MS)
     }
 
     override fun onSizeChanged(
@@ -204,19 +216,22 @@ class DetailPageLayout(
         oldh: Int,
     ) {
         super.onSizeChanged(w, h, oldw, oldh)
-        if (!neon) return
-        val vp = viewport
-        if (vp == null) {
-            DetailViewport(h, w, resources.displayMetrics.density).also {
-                viewport = it
-                setTag(R.id.lb_widget_ctl_detail_viewport, it)
-                it.addListener(revealCheck)
-            }
-            postDelayed(timeout, HEADER_MEASURE_TIMEOUT_MS)
-        } else {
-            vp.heightPx = h
-            vp.widthPx = w
+        viewport?.let {
+            it.widthPx = w
+            it.heightPx = h
         }
+    }
+
+    override fun onLayout(
+        changed: Boolean,
+        left: Int,
+        top: Int,
+        right: Int,
+        bottom: Int,
+    ) {
+        super.onLayout(changed, left, top, right, bottom)
+        // Headers registered what they need when they attached; rows reported while being laid out
+        if (!revealed && viewport?.measurementsReady == true) reveal()
     }
 
     private fun reveal() {
