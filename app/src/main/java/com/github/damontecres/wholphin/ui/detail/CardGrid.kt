@@ -109,12 +109,6 @@ import kotlin.math.ceil
 
 private const val DEBUG = false
 
-interface CardGridItem {
-    val gridId: String
-    val playable: Boolean
-    val sortName: String
-}
-
 data class GridItemDetails<T : CardGridItem>(
     val item: T?,
     val index: Int,
