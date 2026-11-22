@@ -1,7 +1,6 @@
 package com.github.damontecres.wholphin.ui.setup
 
 import android.Manifest
-import android.content.res.Resources
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -514,26 +513,3 @@ private fun AddServerDialog(
         }
     }
 }
-
-fun serverErrorMessage(
-    server: ServerState?,
-    resources: Resources,
-): String? =
-    when {
-        server?.status is ServerConnectionStatus.Error -> {
-            server.status.message
-        }
-
-        server?.status is ServerConnectionStatus.Success &&
-            server.versionSupported == ServerVersionSupported.NOT_SUPPORTED -> {
-            resources.getString(R.string.server_version_not_supported) + ": ${server.status.systemInfo.version}"
-        }
-
-        server?.versionSupported == ServerVersionSupported.NOT_SUPPORTED -> {
-            resources.getString(R.string.server_version_not_supported)
-        }
-
-        else -> {
-            null
-        }
-    }
