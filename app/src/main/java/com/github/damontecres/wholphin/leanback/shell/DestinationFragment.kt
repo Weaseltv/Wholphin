@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.leanback.shell
 
+import android.os.Build
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
@@ -80,6 +81,23 @@ abstract class DestinationFragment : Fragment() {
     internal var lastFocused: View? = null
 
     /**
+     * True while this screen is the visible top page (set by the shell). A screen whose content arrives after
+     * [onScreenFocus] (data loading) checks it before taking focus for that content.
+     */
+    var isTopScreen: Boolean = false
+        internal set
+
+    /**
+     * Content that arrived after [onScreenFocus] (eg the first row once data loaded) takes focus on [view] when this is
+     * the top page and focus is not already inside it; this also takes focus from the side menu after a menu click,
+     * as the Compose pages' load-time requestFocus did. Returns whether [view] has focus.
+     */
+    fun requestInitialFocus(view: View): Boolean {
+        if (!isTopScreen || this.view?.hasFocus() == true) return view.isFocused
+        return view.requestFocus()
+    }
+
+    /**
      * The shell calls this when the screen becomes the visible top page and should take focus: after it is first
      * shown ([restoring] false) and when the page above it is popped ([restoring] true).
      *
@@ -90,7 +108,9 @@ abstract class DestinationFragment : Fragment() {
         val last = lastFocused
         if (restoring && last != null && last.isAttachedToWindow && last.isShown && last.requestFocus()) return
         view?.let { root ->
-            if (!root.restoreDefaultFocus()) root.requestFocus()
+            // restoreDefaultFocus is API 26+; before that the first focusable descendant takes focus
+            val restored = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && root.restoreDefaultFocus()
+            if (!restored) root.requestFocus()
         }
     }
 
@@ -156,6 +176,10 @@ object NavHostState {
     fun unregister(key: String) {
         destinations.remove(key)
     }
+
+    /** Whether [key] is registered (its page can be restored with its destination) */
+    @Synchronized
+    fun has(key: String): Boolean = destinations.containsKey(key)
 
     @Synchronized
     fun destinationFor(arguments: Bundle?): Destination? =

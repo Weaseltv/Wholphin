@@ -4,8 +4,6 @@ import android.app.Application
 import android.os.Build
 import android.os.StrictMode
 import android.util.Log
-import androidx.compose.runtime.Composer
-import androidx.compose.runtime.ExperimentalComposeRuntimeApi
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
@@ -20,7 +18,6 @@ import org.jellyfin.sdk.model.ServerVersion
 import timber.log.Timber
 import javax.inject.Inject
 
-@OptIn(ExperimentalComposeRuntimeApi::class)
 @HiltAndroidApp
 class WholphinApplication :
     Application(),
@@ -49,8 +46,6 @@ class WholphinApplication :
                 },
             )
         }
-
-        Composer.setDiagnosticStackTraceEnabled(BuildConfig.DEBUG)
     }
 
     override fun onCreate() {
