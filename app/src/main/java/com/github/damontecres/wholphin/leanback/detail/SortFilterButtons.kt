@@ -45,8 +45,8 @@ import com.github.damontecres.wholphin.leanback.widget.dialog.MenuDividerView
 import com.github.damontecres.wholphin.leanback.widget.text.EMPTY_STAR_COLOR
 import com.github.damontecres.wholphin.leanback.widget.text.FILLED_STAR_COLOR
 import com.github.damontecres.wholphin.ui.data.SortAndDirection
-import com.github.damontecres.wholphin.ui.data.getStringRes
 import com.github.damontecres.wholphin.ui.data.flip
+import com.github.damontecres.wholphin.ui.data.getStringRes
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.ItemSortBy
@@ -112,7 +112,8 @@ class SortButton(
                 labelOnlyWhenFocused = true
                 // The icon's box narrows to 28dp while the label shows
                 setOnFocusChangeListener { _, hasFocus ->
-                    glyphView.layoutParams = glyphView.layoutParams.apply { width = context.dp(if (hasFocus) MIN_BUTTON_DP - 12f else MIN_BUTTON_DP) }
+                    glyphView.layoutParams =
+                        glyphView.layoutParams.apply { width = context.dp(if (hasFocus) MIN_BUTTON_DP - 12f else MIN_BUTTON_DP) }
                 }
             }
         } else {
@@ -351,7 +352,8 @@ class FilterButton(
                 val row = DropdownMenuItemView(context, 8f)
                 if (option == CommunityRatingFilter) {
                     row.setText(starText("${value.name}+", FILLED_STAR_COLOR))
-                    row.onContentColor = { row.textView.text = starText("${value.name}+", if (row.isFocused) EMPTY_STAR_COLOR else FILLED_STAR_COLOR) }
+                    row.onContentColor =
+                        { row.textView.text = starText("${value.name}+", if (row.isFocused) EMPTY_STAR_COLOR else FILLED_STAR_COLOR) }
                 } else {
                     row.setText(value.name)
                 }

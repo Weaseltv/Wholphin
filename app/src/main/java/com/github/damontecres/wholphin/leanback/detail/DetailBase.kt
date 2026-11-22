@@ -24,6 +24,7 @@ import com.github.damontecres.wholphin.leanback.theme.AppFonts
 import com.github.damontecres.wholphin.leanback.theme.AppTheme
 import com.github.damontecres.wholphin.leanback.theme.CardDimens
 import com.github.damontecres.wholphin.leanback.theme.ControlTextStyle
+import com.github.damontecres.wholphin.leanback.theme.PageStyle
 import com.github.damontecres.wholphin.leanback.theme.TextRole
 import com.github.damontecres.wholphin.leanback.theme.applyTextStyle
 import com.github.damontecres.wholphin.leanback.theme.dp
@@ -36,7 +37,6 @@ import com.github.damontecres.wholphin.leanback.widget.dialog.ContextMenuDialog
 import com.github.damontecres.wholphin.leanback.widget.dialog.ItemDetailsDialog
 import com.github.damontecres.wholphin.leanback.widget.dialog.PlaylistPickerDialog
 import com.github.damontecres.wholphin.leanback.widget.text.HeaderDimens
-import com.github.damontecres.wholphin.leanback.theme.PageStyle
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.ui.components.ContextMenu
 import com.github.damontecres.wholphin.ui.components.ErrorViewModel

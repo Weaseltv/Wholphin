@@ -11,10 +11,10 @@ import com.github.damontecres.wholphin.data.model.DiscoverItem
 import com.github.damontecres.wholphin.data.model.Person
 import com.github.damontecres.wholphin.leanback.theme.CardDimens
 import com.github.damontecres.wholphin.leanback.theme.ControlTextStyle
-import com.github.damontecres.wholphin.leanback.theme.applyTextStyle
-import com.github.damontecres.wholphin.leanback.theme.dp
 import com.github.damontecres.wholphin.leanback.theme.PageStyle
 import com.github.damontecres.wholphin.leanback.theme.TextRole
+import com.github.damontecres.wholphin.leanback.theme.applyTextStyle
+import com.github.damontecres.wholphin.leanback.theme.dp
 import com.github.damontecres.wholphin.leanback.theme.provideNeonAccent
 import com.github.damontecres.wholphin.leanback.widget.card.CardCallbacks
 import com.github.damontecres.wholphin.leanback.widget.card.CardImages
@@ -158,10 +158,11 @@ class MovieDetailsFragment : DetailPageFragment() {
                 var created: MoviePage? = null
                 val first =
                     showContent {
-                        MoviePage(requireContext(), viewModel.kidPage, pageStyle.accentFor(s.data)).also {
-                            created = it
-                            page = it
-                        }.content.viewport
+                        MoviePage(requireContext(), viewModel.kidPage, pageStyle.accentFor(s.data))
+                            .also {
+                                created = it
+                                page = it
+                            }.content.viewport
                     }
                 val p = page ?: return
                 p.bind(s.data, state, preferences)
@@ -196,12 +197,17 @@ class MovieDetailsFragment : DetailPageFragment() {
                 ExpandablePlayButtonsView(
                     context,
                     PlayButtonsActions(
-                        playOnClick = { position -> movie?.let { viewModel.navigateTo(Destination.Playback(it.id, position.inWholeMilliseconds)) } },
+                        playOnClick = { position ->
+                            movie?.let { viewModel.navigateTo(Destination.Playback(it.id, position.inWholeMilliseconds)) }
+                        },
                         watchOnClick = { movie?.let { viewModel.setWatched(it.id, !it.played) } },
                         favoriteOnClick = { movie?.let { viewModel.setFavorite(it.id, !it.favorite) } },
                         moreOnClick = { showMore() },
                         trailerOnClick = { TrailerService.onClick(requireContext(), it, viewModel::navigateTo) },
-                        onConfirmDelete = { viewModel.state.value.movie?.let { viewModel.deleteItem(it) } },
+                        onConfirmDelete = {
+                            viewModel.state.value.movie
+                                ?.let { viewModel.deleteItem(it) }
+                        },
                         onChooseVersion = { source -> movie?.let { contextActions.onChooseVersion.invoke(it, source) } },
                     ),
                     collapseMore = true,
@@ -217,8 +223,14 @@ class MovieDetailsFragment : DetailPageFragment() {
                     onAction = { action ->
                         val m = movie ?: return@KidTitleButtonsView
                         when (action) {
-                            KidAction.START_OVER -> viewModel.navigateTo(Destination.Playback(m.id, 0L))
-                            KidAction.WATCHLIST -> viewModel.setFavorite(m.id, !m.favorite)
+                            KidAction.START_OVER -> {
+                                viewModel.navigateTo(Destination.Playback(m.id, 0L))
+                            }
+
+                            KidAction.WATCHLIST -> {
+                                viewModel.setFavorite(m.id, !m.favorite)
+                            }
+
                             KidAction.SHUFFLE -> {}
                         }
                     },
@@ -265,7 +277,10 @@ class MovieDetailsFragment : DetailPageFragment() {
             buttons?.bind(
                 PlayButtonsState(
                     title = movie.title ?: "",
-                    resumePosition = movie.data.userData?.playbackPositionTicks?.ticks ?: Duration.ZERO,
+                    resumePosition =
+                        movie.data.userData
+                            ?.playbackPositionTicks
+                            ?.ticks ?: Duration.ZERO,
                     watched = movie.data.userData?.played ?: false,
                     favorite = movie.data.userData?.isFavorite ?: false,
                     canDelete = state.canDelete,
@@ -340,7 +355,13 @@ class MovieDetailsFragment : DetailPageFragment() {
                         ContextMenu.ForPerson(
                             fromLongClick = true,
                             person = person,
-                            actions = PersonContextActions(navigateTo = viewModel::navigateTo, onClickFavorite = { id, f -> viewModel.setFavorite(id, f) }),
+                            actions =
+                                PersonContextActions(navigateTo = viewModel::navigateTo, onClickFavorite = {
+                                    id,
+                                    f,
+                                    ->
+                                    viewModel.setFavorite(id, f)
+                                }),
                         ),
                         kid,
                         null,
@@ -471,7 +492,11 @@ class MovieHeaderView(
             overview.setText(text)
             return
         }
-        quickDetails.bind(movie.ui.quickDetailsText, movie.timeRemainingOrRuntime, enabledToggles = enabledDisplayToggles(preferences.appPreferences))
+        quickDetails.bind(
+            movie.ui.quickDetailsText,
+            movie.timeRemainingOrRuntime,
+            enabledToggles = enabledDisplayToggles(preferences.appPreferences),
+        )
         streams.bind(chosenStreams, dto.mediaSourceCount ?: 0)
         val taglineText = dto.taglines?.firstOrNull()
         tagline.visibility = if (taglineText != null) View.VISIBLE else View.GONE

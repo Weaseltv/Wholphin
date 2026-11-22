@@ -419,4 +419,3 @@ data class PlaylistDetailsState(
     val loading: LoadingState = LoadingState.Pending,
     val canEdit: Boolean = false,
 )
-

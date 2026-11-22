@@ -136,7 +136,9 @@ class SeriesDetailsFragment : DetailPageFragment() {
 
     private fun confirmWatched() {
         val series = viewModel.state.value.series as? DataLoadingState.Success ?: return
-        val played = series.data.data.userData?.played ?: false
+        val played =
+            series.data.data.userData
+                ?.played ?: false
         ConfirmDialog.show(
             context = requireContext(),
             title = series.data.name ?: "",
@@ -160,10 +162,11 @@ class SeriesDetailsFragment : DetailPageFragment() {
                 var created: SeriesPage? = null
                 val first =
                     showContent {
-                        SeriesPage(requireContext(), viewModel.kidPage, pageStyle.accentFor(st.data)).also {
-                            created = it
-                            page = it
-                        }.content.viewport
+                        SeriesPage(requireContext(), viewModel.kidPage, pageStyle.accentFor(st.data))
+                            .also {
+                                created = it
+                                page = it
+                            }.content.viewport
                     }
                 page?.bind(st.data, state, preferences)
                 if (first) {
@@ -219,8 +222,14 @@ class SeriesDetailsFragment : DetailPageFragment() {
                     onAction = { action ->
                         val s = series ?: return@KidTitleButtonsView
                         when (action) {
-                            KidAction.WATCHLIST -> viewModel.setFavorite(s.id, !(s.data.userData?.isFavorite ?: false), null)
-                            KidAction.SHUFFLE -> viewModel.navigateTo(Destination.PlaybackList(itemId = s.id, shuffle = true))
+                            KidAction.WATCHLIST -> {
+                                viewModel.setFavorite(s.id, !(s.data.userData?.isFavorite ?: false), null)
+                            }
+
+                            KidAction.SHUFFLE -> {
+                                viewModel.navigateTo(Destination.PlaybackList(itemId = s.id, shuffle = true))
+                            }
+
                             KidAction.START_OVER -> {}
                         }
                     },
@@ -235,10 +244,22 @@ class SeriesDetailsFragment : DetailPageFragment() {
                 addView(fitted, LinearLayout.LayoutParams(MATCH, WRAP))
                 buttons?.let { row ->
                     row.provideButtonsOverArtwork()
-                    listOf(favoriteButton, trailerHolder.button, watchedButton, randomButton, shuffleButton, deleteButton).forEach(row::addButton)
+                    listOf(
+                        favoriteButton,
+                        trailerHolder.button,
+                        watchedButton,
+                        randomButton,
+                        shuffleButton,
+                        deleteButton,
+                    ).forEach(row::addButton)
                     row.firstFocus = favoriteButton
                     // `padding(start = startPadding + 16, end = 16)` inside a row bled 16dp to the start, 16dp below
-                    row.strip.setPaddingRelative(context.dp(HeaderDimens.START_PADDING + BUTTON_GLOW_ROOM_DP), 0, context.dp(BUTTON_GLOW_ROOM_DP), 0)
+                    row.strip.setPaddingRelative(
+                        context.dp(HeaderDimens.START_PADDING + BUTTON_GLOW_ROOM_DP),
+                        0,
+                        context.dp(BUTTON_GLOW_ROOM_DP),
+                        0,
+                    )
                     row.setPaddingRelative(0, 0, 0, context.dp(16))
                     row.reportDetailActionHeight()
                     addView(
@@ -477,7 +498,14 @@ class SeriesHeaderView(
         title.bind(series, preferences.appPreferences.interfacePreferences.showLogos, CardImages.imageUrlService(context))
         overview.onClick = overviewOnClick
         if (kid) {
-            val seasons = if (seasonCount > 0) context.resources.getQuantityString(R.plurals.kid_seasons, seasonCount, seasonCount) else null
+            val seasons =
+                if (seasonCount >
+                    0
+                ) {
+                    context.resources.getQuantityString(R.plurals.kid_seasons, seasonCount, seasonCount)
+                } else {
+                    null
+                }
             kidLine.bind(listOfNotNull(dto.seriesProductionYears, seasons), dto.officialRating)
             val genreList = dto.genres.orEmpty()
             genres.visibility = if (genreList.isNotEmpty()) View.VISIBLE else View.GONE

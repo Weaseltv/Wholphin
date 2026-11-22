@@ -141,12 +141,12 @@ class SeriesOverviewFragment : DetailPageFragment() {
         combine(viewModel.position, viewModel.state.map { it.episodes }.distinctUntilChanged { a, b -> a === b }) { pos, eps ->
             (eps as? EpisodeList.Success)?.episodes?.getOrNull(pos.episodeRowIndex)
         }.collectWhileStarted { ep ->
-                if (ep != null) {
-                    viewModel.lookUpChosenTracks(ep.id, ep)
-                    // A kid's page has no cast rows (owner 2026-10-23)
-                    if (!viewModel.kidPage) viewModel.lookupPeopleInEpisode(ep)
-                }
+            if (ep != null) {
+                viewModel.lookUpChosenTracks(ep.id, ep)
+                // A kid's page has no cast rows (owner 2026-10-23)
+                if (!viewModel.kidPage) viewModel.lookupPeopleInEpisode(ep)
             }
+        }
     }
 
     override fun onDestroyView() {
@@ -199,10 +199,11 @@ class SeriesOverviewFragment : DetailPageFragment() {
                 var created: OverviewPage? = null
                 val first =
                     showContent {
-                        OverviewPage(requireContext(), viewModel.kidPage, pageStyle.accentFor(st.data)).also {
-                            created = it
-                            page = it
-                        }.content.viewport
+                        OverviewPage(requireContext(), viewModel.kidPage, pageStyle.accentFor(st.data))
+                            .also {
+                                created = it
+                                page = it
+                            }.content.viewport
                     }
                 page?.bind(st.data, state, preferences)
                 if (first) {
@@ -217,7 +218,10 @@ class SeriesOverviewFragment : DetailPageFragment() {
     }
 
     private fun play(episode: BaseItem) {
-        val resume = episode.data.userData?.playbackPositionTicks?.ticks ?: Duration.ZERO
+        val resume =
+            episode.data.userData
+                ?.playbackPositionTicks
+                ?.ticks ?: Duration.ZERO
         viewModel.navigateTo(Destination.Playback(episode.id, resume.inWholeMilliseconds))
     }
 
@@ -268,7 +272,13 @@ class SeriesOverviewFragment : DetailPageFragment() {
                     LinearLayout(context).apply {
                         orientation = LinearLayout.VERTICAL
                         clipChildren = false
-                        addView(FrameLayout(context).apply { addView(title) }, LinearLayout.LayoutParams(MATCH, WRAP).apply { marginStart = context.headerStartPx() })
+                        addView(
+                            FrameLayout(context).apply { addView(title) },
+                            LinearLayout.LayoutParams(MATCH, WRAP).apply {
+                                marginStart =
+                                    context.headerStartPx()
+                            },
+                        )
                         addView(episodeHeader, LinearLayout.LayoutParams(MATCH, WRAP))
                     }
                 addView(column)
@@ -376,8 +386,14 @@ class SeriesOverviewFragment : DetailPageFragment() {
                     onAction = { action ->
                         val ep = focusedEpisode() ?: return@KidTitleButtonsView
                         when (action) {
-                            KidAction.START_OVER -> viewModel.navigateTo(Destination.Playback(ep.id, 0L))
-                            KidAction.WATCHLIST -> viewModel.setFavorite(ep.id, !(ep.data.userData?.isFavorite ?: false), position.episodeRowIndex)
+                            KidAction.START_OVER -> {
+                                viewModel.navigateTo(Destination.Playback(ep.id, 0L))
+                            }
+
+                            KidAction.WATCHLIST -> {
+                                viewModel.setFavorite(ep.id, !(ep.data.userData?.isFavorite ?: false), position.episodeRowIndex)
+                            }
+
                             KidAction.SHUFFLE -> {}
                         }
                     },
@@ -448,8 +464,13 @@ class SeriesOverviewFragment : DetailPageFragment() {
                     viewModel.loadEpisodes(season.id, season.indexNumber)
                     viewModel.position.value = SeriesOverviewPosition(index, 0)
                 }
+                requestFocusAfterSeason = true
+            } else if (viewModel.state.value.episodes is EpisodeList.Success && strip.visibility == View.VISIBLE) {
+                // The season shown: focus its episode at once
+                strip.requestFocus()
+            } else {
+                requestFocusAfterSeason = true
             }
-            requestFocusAfterSeason = true
         }
 
         /** After Watched in the footer, focus goes back to the episode row's last clicked card */
@@ -582,7 +603,10 @@ class SeriesOverviewFragment : DetailPageFragment() {
                 footer?.bind(
                     PlayButtonsState(
                         title = ep.title ?: "",
-                        resumePosition = ep.data.userData?.playbackPositionTicks?.ticks ?: Duration.ZERO,
+                        resumePosition =
+                            ep.data.userData
+                                ?.playbackPositionTicks
+                                ?.ticks ?: Duration.ZERO,
                         watched = ep.data.userData?.played ?: false,
                         favorite = ep.data.userData?.isFavorite ?: false,
                         canDelete = viewModel.canDelete(ep, preferences.appPreferences),
@@ -700,7 +724,11 @@ class FocusedEpisodeHeaderView(
         }
         if (ep != null) {
             quickDetails.visibility = View.VISIBLE
-            quickDetails.bind(ep.ui.quickDetailsText, ep.timeRemainingOrRuntime, enabledToggles = enabledDisplayToggles(preferences.appPreferences))
+            quickDetails.bind(
+                ep.ui.quickDetailsText,
+                ep.timeRemainingOrRuntime,
+                enabledToggles = enabledDisplayToggles(preferences.appPreferences),
+            )
         } else {
             quickDetails.visibility = View.GONE
         }

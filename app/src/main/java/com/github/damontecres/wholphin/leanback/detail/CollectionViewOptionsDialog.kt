@@ -46,7 +46,7 @@ class CollectionViewOptionsDialog(
     private val onViewOptionsChange: (CollectionViewOptions) -> Unit,
     private val defaultViewOptions: CollectionViewOptions = CollectionViewOptions(),
 ) : AppDialog(context, DialogOptions(usePlatformDefaultWidth = false, gravity = Gravity.END), accent) {
-    private var options = initial
+    private var current = initial
     private val rows =
         LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
@@ -99,7 +99,7 @@ class CollectionViewOptionsDialog(
     }
 
     private fun apply(new: CollectionViewOptions) {
-        options = new
+        current = new
         onViewOptionsChange(new)
         if (builtFor != new.separateTypes) {
             rebuild()
@@ -112,10 +112,10 @@ class CollectionViewOptionsDialog(
     private fun rebuild() {
         rows.removeAllViews()
         refreshers.clear()
-        builtFor = options.separateTypes
+        builtFor = current.separateTypes
         val separate = CollectionViewOptions.SeparateTypes
-        addSwitch(separate.title, { separate.getter(options) }) { apply(separate.setter(options, it)) }
-        val prefs = if (options.separateTypes) CollectionViewOptions.SeparateOptions else CollectionViewOptions.MixedOptions
+        addSwitch(separate.title, { separate.getter(current) }) { apply(separate.setter(current, it)) }
+        val prefs = if (current.separateTypes) CollectionViewOptions.SeparateOptions else CollectionViewOptions.MixedOptions
         prefs.forEach { pref ->
             @Suppress("UNCHECKED_CAST")
             val p = pref as AppPreference<ViewOptions, Any>
@@ -124,14 +124,15 @@ class CollectionViewOptionsDialog(
         refreshers.forEach { it() }
     }
 
-    private fun updateCard(transform: (ViewOptions) -> ViewOptions) = apply(options.copy(cardViewOptions = transform(options.cardViewOptions)))
+    private fun updateCard(transform: (ViewOptions) -> ViewOptions) =
+        apply(current.copy(cardViewOptions = transform(current.cardViewOptions)))
 
     @Suppress("UNCHECKED_CAST")
     private fun addRow(pref: AppPreference<ViewOptions, Any>) {
         when (pref) {
             is AppSwitchPreference<*> -> {
                 val sw = pref as AppSwitchPreference<ViewOptions>
-                addSwitch(sw.title, { sw.getter(options.cardViewOptions) }) { v -> updateCard { sw.setter(it, v) } }
+                addSwitch(sw.title, { sw.getter(current.cardViewOptions) }) { v -> updateCard { sw.setter(it, v) } }
             }
 
             is AppChoicePreference<*, *> -> {
@@ -141,7 +142,7 @@ class CollectionViewOptionsDialog(
                     AppListItem(context).apply {
                         setHeadline(context.getString(choice.title))
                         setOnClickListener {
-                            val current = choice.valueToIndex(choice.getter(options.cardViewOptions))
+                            val selectedIndex = choice.valueToIndex(choice.getter(current.cardViewOptions))
                             MenuDialog.show(
                                 context = context,
                                 title = context.getString(choice.title),
@@ -149,7 +150,7 @@ class CollectionViewOptionsDialog(
                                     labels.mapIndexed { index, label ->
                                         MenuItem(
                                             headline = label,
-                                            leading = ListLeading.SelectedDot(index == current),
+                                            leading = ListLeading.SelectedDot(index == selectedIndex),
                                             onClick = { updateCard { choice.setter(it, choice.indexToValue(index)) } },
                                         )
                                     },
@@ -161,7 +162,7 @@ class CollectionViewOptionsDialog(
                         }
                     }
                 refreshers += {
-                    val index = choice.valueToIndex(choice.getter(options.cardViewOptions))
+                    val index = choice.valueToIndex(choice.getter(current.cardViewOptions))
                     item.setSupporting(labels.getOrNull(index))
                 }
                 addRowView(item)
@@ -169,8 +170,15 @@ class CollectionViewOptionsDialog(
 
             is AppSliderPreference<*> -> {
                 val slider = pref as AppSliderPreference<ViewOptions>
-                val row = SliderRow(context, context.getString(slider.title), slider.min, slider.max, slider.interval) { v -> updateCard { slider.setter(it, v) } }
-                refreshers += { row.value = slider.getter(options.cardViewOptions) }
+                val row =
+                    SliderRow(
+                        context,
+                        context.getString(slider.title),
+                        slider.min,
+                        slider.max,
+                        slider.interval,
+                    ) { v -> updateCard { slider.setter(it, v) } }
+                refreshers += { row.value = slider.getter(current.cardViewOptions) }
                 addRowView(row)
             }
 
@@ -260,7 +268,13 @@ class CollectionViewOptionsDialog(
                     gravity = Gravity.CENTER_VERTICAL
                     clipChildren = false
                     addView(bar, LayoutParams(0, context.dp(24), 1f))
-                    addView(valueText, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(16) })
+                    addView(
+                        valueText,
+                        LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+                            marginStart =
+                                context.dp(16)
+                        },
+                    )
                 }
             addView(line, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
         }

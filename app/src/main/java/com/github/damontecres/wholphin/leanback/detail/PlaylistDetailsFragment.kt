@@ -221,11 +221,13 @@ class PlaylistDetailsFragment : DetailPageFragment() {
         // Left: the header
         private val playButton =
             DetailButtons.play(context, R.string.play, R.drawable.lb_widget_ctl_ic_play_arrow) {
-                viewModel.state.value.playlist?.let { play(0, it, false) }
+                viewModel.state.value.playlist
+                    ?.let { play(0, it, false) }
             }
         private val shuffleButton =
             DetailButtons.fa(context, R.string.shuffle, R.string.fa_shuffle) {
-                viewModel.state.value.playlist?.let { play(0, it, true) }
+                viewModel.state.value.playlist
+                    ?.let { play(0, it, true) }
             }
         private val filterButton =
             FilterButton(this@PlaylistDetailsFragment, context, DefaultPlaylistItemsOptions, viewModel::getFilterOptionValues) { filter ->
@@ -236,11 +238,23 @@ class PlaylistDetailsFragment : DetailPageFragment() {
                 viewModel.loadItems(viewModel.state.value.filterAndSort.filter, sort)
             }
         private val focusedTitle =
-            detailText(context, com.github.damontecres.wholphin.leanback.theme.ControlTextStyle.of(TextRole.HEADLINE_SMALL))
+            detailText(
+                context,
+                com.github.damontecres.wholphin.leanback.theme.ControlTextStyle
+                    .of(TextRole.HEADLINE_SMALL),
+            )
         private val focusedSubtitle =
-            detailText(context, com.github.damontecres.wholphin.leanback.theme.ControlTextStyle.of(TextRole.TITLE_MEDIUM))
+            detailText(
+                context,
+                com.github.damontecres.wholphin.leanback.theme.ControlTextStyle
+                    .of(TextRole.TITLE_MEDIUM),
+            )
         private val focusedDate =
-            detailText(context, com.github.damontecres.wholphin.leanback.theme.ControlTextStyle.of(TextRole.TITLE_SMALL))
+            detailText(
+                context,
+                com.github.damontecres.wholphin.leanback.theme.ControlTextStyle
+                    .of(TextRole.TITLE_SMALL),
+            )
         private val focusedOverview =
             OverviewTextView(context).apply {
                 maxLines = 10
@@ -485,7 +499,7 @@ class PlaylistDetailsFragment : DetailPageFragment() {
                     @Suppress("NotifyDataSetChanged")
                     notifyDataSetChanged()
                 } else if (n > 0) {
-                    notifyItemRangeChanged(0, n, REFRESH)
+                    notifyItemRangeChanged(0, n, refreshPayload)
                 }
             }
 
@@ -513,7 +527,7 @@ class PlaylistDetailsFragment : DetailPageFragment() {
                 holder.row.bind(position, item, canMove, position > 0, position < count - 1)
             }
 
-            private val REFRESH = Any()
+            private val refreshPayload = Any()
         }
 
         /** `PlaylistItem`: the list row (at least 80dp tall) and its move / More buttons */
@@ -640,7 +654,12 @@ class PlaylistDetailsFragment : DetailPageFragment() {
             }
 
             fun refreshTime() {
-                val runtime = item?.data?.runTimeTicks?.ticks?.roundMinutes
+                val runtime =
+                    item
+                        ?.data
+                        ?.runTimeTicks
+                        ?.ticks
+                        ?.roundMinutes
                 if (runtime == null) {
                     duration.visibility = View.GONE
                     endsAt.visibility = View.GONE
@@ -649,7 +668,10 @@ class PlaylistDetailsFragment : DetailPageFragment() {
                 duration.visibility = View.VISIBLE
                 endsAt.visibility = View.VISIBLE
                 duration.text = context.resources.formatDuration(runtime)
-                val end = AppClock.now.value.toLocalTime().plusSeconds(runtime.inWholeSeconds)
+                val end =
+                    AppClock.now.value
+                        .toLocalTime()
+                        .plusSeconds(runtime.inWholeSeconds)
                 endsAt.text = context.getString(R.string.ends_at, formatTime(context, end))
             }
 
@@ -715,7 +737,14 @@ class GridTitleView(
         if (neon) {
             val inset = context.dp(16)
             eyebrow.applyNeonEyebrow(context.getString(R.string.library), pageAccent())
-            addView(eyebrow, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { marginStart = inset; marginEnd = inset })
+            addView(
+                eyebrow,
+                LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                    marginStart = inset
+                    marginEnd =
+                        inset
+                },
+            )
             title.setTextColor(AppTheme.palette.onSurface)
             addView(
                 title,

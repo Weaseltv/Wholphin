@@ -230,9 +230,21 @@ private class KidPlayButton(
     fun bind(play: KidPlay) {
         label.text =
             when (val l = play.label) {
-                KidPlayLabel.Play -> context.getString(R.string.play)
-                KidPlayLabel.KeepWatching -> context.getString(R.string.kid_keep_watching)
-                is KidPlayLabel.Episode -> context.getString(R.string.kid_play_episode, l.season, formatEpisodeNumber(l.episode, l.episodeEnd))
+                KidPlayLabel.Play -> {
+                    context.getString(R.string.play)
+                }
+
+                KidPlayLabel.KeepWatching -> {
+                    context.getString(R.string.kid_keep_watching)
+                }
+
+                is KidPlayLabel.Episode -> {
+                    context.getString(
+                        R.string.kid_play_episode,
+                        l.season,
+                        formatEpisodeNumber(l.episode, l.episodeEnd),
+                    )
+                }
             }.uppercase()
         val progress = play.progress
         val left = play.remaining

@@ -113,10 +113,11 @@ class PersonPageFragment : DetailPageFragment() {
                 var created: PersonPage? = null
                 val first =
                     showContent {
-                        PersonPage(requireContext()).also {
-                            created = it
-                            page = it
-                        }.content.viewport
+                        PersonPage(requireContext())
+                            .also {
+                                created = it
+                                page = it
+                            }.content.viewport
                     }
                 page?.bind(st.data, state)
                 if (first) created?.let { c -> c.content.afterLayout { c.firstFocus()?.let(::requestInitialFocus) } }
@@ -185,7 +186,11 @@ class PersonPageFragment : DetailPageFragment() {
                                 ViewMoreSpec(
                                     bind = { it.bind(pageStyle) },
                                     onClick = {
-                                        state.discoverPerson?.let { viewModel.navigationManager.navigateTo(Destination.DiscoveredItem(it, maxItems)) }
+                                        state.discoverPerson?.let {
+                                            viewModel.navigationManager.navigateTo(
+                                                Destination.DiscoveredItem(it, maxItems),
+                                            )
+                                        }
                                     },
                                 )
                             } else {
@@ -227,7 +232,12 @@ class PersonPageFragment : DetailPageFragment() {
                         card.bind(item, pageStyle, imageHeightDp = imageHeightDp)
                     }
                 },
-                CardCallbacks(onClick = { _, item -> viewModel.navigationManager.navigateTo(item.destination()) }, onLongClick = { _, _ -> }),
+                CardCallbacks(onClick = {
+                    _,
+                    item,
+                    ->
+                    viewModel.navigationManager.navigateTo(item.destination())
+                }, onLongClick = { _, _ -> }),
             )
 
         init {
@@ -252,8 +262,14 @@ class PersonPageFragment : DetailPageFragment() {
             val ctx = view.context
             val accent = pageStyle.sectionAccent
             when (state) {
-                is RowLoadingState.Error -> showPlaceholder(title, state.localizedMessage, true)
-                RowLoadingState.Pending, RowLoadingState.Loading -> showPlaceholder(title, ctx.getString(R.string.loading), false)
+                is RowLoadingState.Error -> {
+                    showPlaceholder(title, state.localizedMessage, true)
+                }
+
+                RowLoadingState.Pending, RowLoadingState.Loading -> {
+                    showPlaceholder(title, ctx.getString(R.string.loading), false)
+                }
+
                 is RowLoadingState.Success -> {
                     if (state.items.isNotEmpty()) {
                         placeholder.visibility = View.GONE

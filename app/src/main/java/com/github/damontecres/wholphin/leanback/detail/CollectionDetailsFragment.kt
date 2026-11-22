@@ -13,7 +13,6 @@ import androidx.fragment.app.viewModels
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
-import com.github.damontecres.wholphin.ui.AspectRatio
 import com.github.damontecres.wholphin.leanback.theme.AppTheme
 import com.github.damontecres.wholphin.leanback.theme.CardDimens
 import com.github.damontecres.wholphin.leanback.theme.NeonSections
@@ -41,6 +40,7 @@ import com.github.damontecres.wholphin.leanback.widget.text.FittedDetailHeaderLa
 import com.github.damontecres.wholphin.leanback.widget.text.HeaderDimens
 import com.github.damontecres.wholphin.leanback.widget.text.detailViewport
 import com.github.damontecres.wholphin.leanback.widget.text.reportDetailRowHeight
+import com.github.damontecres.wholphin.ui.AspectRatio
 import com.github.damontecres.wholphin.ui.components.ContextMenu
 import com.github.damontecres.wholphin.ui.components.ContextMenuActions
 import com.github.damontecres.wholphin.ui.data.ItemDetailsDialogInfo
@@ -79,7 +79,10 @@ class CollectionDetailsFragment : DetailPageFragment() {
 
     private var page: CollectionPage? = null
 
-    private val isAdmin: Boolean get() = viewModel.serverRepository.currentUserDto?.policy?.isAdministrator == true
+    private val isAdmin: Boolean get() =
+        viewModel.serverRepository.currentUserDto
+            ?.policy
+            ?.isAdministrator == true
 
     private fun contextActionsFor(position: RowColumn?) =
         ContextMenuActions(
@@ -138,10 +141,11 @@ class CollectionDetailsFragment : DetailPageFragment() {
                 var created: CollectionPage? = null
                 val first =
                     showContent {
-                        CollectionPage(requireContext()).also {
-                            created = it
-                            page = it
-                        }.viewport
+                        CollectionPage(requireContext())
+                            .also {
+                                created = it
+                                page = it
+                            }.viewport
                     }
                 page?.bind(state)
                 if (first) created?.let { c -> c.afterLayout { c.firstFocus()?.let(::requestInitialFocus) } }
@@ -180,7 +184,9 @@ class CollectionDetailsFragment : DetailPageFragment() {
     private inner class CollectionPage(
         context: Context,
     ) {
-        val viewport = com.github.damontecres.wholphin.leanback.widget.text.DetailPageLayout(context)
+        val viewport =
+            com.github.damontecres.wholphin.leanback.widget.text
+                .DetailPageLayout(context)
         private val column =
             LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
@@ -305,7 +311,8 @@ class CollectionDetailsFragment : DetailPageFragment() {
         }
 
         fun afterLayout(block: () -> Unit) {
-            androidx.core.view.OneShotPreDrawListener.add(viewport) { block() }
+            androidx.core.view.OneShotPreDrawListener
+                .add(viewport) { block() }
         }
 
         fun firstFocus(): View? = if (itemsContentHasFocus) null else buttons.restoreTarget
@@ -487,11 +494,19 @@ class CollectionDetailsFragment : DetailPageFragment() {
                         }
 
                         BaseItemKind.PLAYLIST -> {
-                            HomeRowViewOptions(heightDp = CardDimens.HEIGHT_EPISODE_DP, aspectRatio = AspectRatio.SQUARE, showTitles = showTitles)
+                            HomeRowViewOptions(
+                                heightDp = CardDimens.HEIGHT_EPISODE_DP,
+                                aspectRatio = AspectRatio.SQUARE,
+                                showTitles = showTitles,
+                            )
                         }
 
                         BaseItemKind.VIDEO, BaseItemKind.MUSIC_VIDEO -> {
-                            HomeRowViewOptions(heightDp = CardDimens.HEIGHT_EPISODE_DP, aspectRatio = AspectRatio.WIDE, showTitles = showTitles)
+                            HomeRowViewOptions(
+                                heightDp = CardDimens.HEIGHT_EPISODE_DP,
+                                aspectRatio = AspectRatio.WIDE,
+                                showTitles = showTitles,
+                            )
                         }
 
                         else -> {
@@ -509,11 +524,19 @@ class CollectionDetailsFragment : DetailPageFragment() {
                     }
 
                     is HomeRowLoadingState.Error -> {
-                        specs += DetailRowSpec("row-$type", { view }) { bindPlaceholder(view, row.title.getString(requireContext()), row.localizedMessage, true) }
+                        specs +=
+                            DetailRowSpec(
+                                "row-$type",
+                                { view },
+                            ) { bindPlaceholder(view, row.title.getString(requireContext()), row.localizedMessage, true) }
                     }
 
                     is HomeRowLoadingState.Loading, is HomeRowLoadingState.Pending -> {
-                        specs += DetailRowSpec("row-$type", { view }) { bindPlaceholder(view, row.title.getString(requireContext()), getString(R.string.loading), false) }
+                        specs +=
+                            DetailRowSpec(
+                                "row-$type",
+                                { view },
+                            ) { bindPlaceholder(view, row.title.getString(requireContext()), getString(R.string.loading), false) }
                     }
                 }
             }
@@ -605,7 +628,13 @@ class CollectionDetailsFragment : DetailPageFragment() {
         ) {
             val rowAccent =
                 if (item?.type in listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES, BaseItemKind.SEASON, BaseItemKind.EPISODE)) {
-                    if (section == NeonSections.StandUpComedy.border || section == NeonSections.Sports.border) section else typeAccent(item?.type)
+                    if (section == NeonSections.StandUpComedy.border ||
+                        section == NeonSections.Sports.border
+                    ) {
+                        section
+                    } else {
+                        typeAccent(item?.type)
+                    }
                 } else {
                     section
                 }

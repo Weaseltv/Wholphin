@@ -190,7 +190,8 @@ class StreamDetailsView(
             setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
             setTextColor(AppTheme.palette.onSurface)
             includeFontPadding = false
-            val lineHeightSp = if (AppTheme.useWeaselFonts) TextRole.BODY_LARGE.neonSp * TextRole.BODY_LARGE.neonLineHeight else TextRole.BODY_LARGE.stockLineHeightSp
+            val body = TextRole.BODY_LARGE
+            val lineHeightSp = if (AppTheme.useWeaselFonts) body.neonSp * body.neonLineHeight else body.stockLineHeightSp
             val px = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, lineHeightSp, resources.displayMetrics)
             setLineSpacing(px - paint.getFontMetricsInt(null), 1f)
         }

@@ -159,7 +159,10 @@ class CollectionHeaderView(
             LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER_VERTICAL or Gravity.END),
         )
         titleColumn.addPadded(title)
-        column.addView(titleColumn, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        column.addView(
+            titleColumn,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT),
+        )
         info.addPadded(quickDetails)
         info.addPadded(genres)
         info.addPadded(tagline)
@@ -233,7 +236,14 @@ class FocusedItemHeaderView(
     private val quickDetails = QuickDetailsView(context)
     private val overview =
         AppCompatTextView(context).apply {
-            applyTextStyle(if (neon) NeonType.body() else com.github.damontecres.wholphin.leanback.theme.ControlTextStyle.of(TextRole.BODY_MEDIUM))
+            applyTextStyle(
+                if (neon) {
+                    NeonType.body()
+                } else {
+                    com.github.damontecres.wholphin.leanback.theme.ControlTextStyle
+                        .of(TextRole.BODY_MEDIUM)
+                },
+            )
             setTextColor(if (neon) 0xFFFFFFFF.toInt() else AppTheme.palette.onSurface)
             ellipsize = android.text.TextUtils.TruncateAt.END
         }
@@ -242,14 +252,32 @@ class FocusedItemHeaderView(
 
     init {
         clipChildren = false
-        standard.addView(eyebrow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = context.dp(4) })
-        titleColumn.addView(title, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        standard.addView(titleColumn, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        standard.addView(
+            eyebrow,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                bottomMargin =
+                    context.dp(4)
+            },
+        )
+        titleColumn.addView(
+            title,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT),
+        )
+        standard.addView(
+            titleColumn,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT),
+        )
         info.addView(episodeName, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        info.addView(quickDetails, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        info.addView(
+            quickDetails,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT),
+        )
         info.addView(
             overview,
-            LinearLayout.LayoutParams(if (neon) LinearLayout.LayoutParams.MATCH_PARENT else context.dp(400), LinearLayout.LayoutParams.WRAP_CONTENT),
+            LinearLayout.LayoutParams(
+                if (neon) LinearLayout.LayoutParams.MATCH_PARENT else context.dp(400),
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ),
         )
         info.addView(overviewSpace, LinearLayout.LayoutParams(if (neon) LinearLayout.LayoutParams.MATCH_PARENT else context.dp(400), 0))
         standard.addView(info, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
@@ -283,16 +311,29 @@ class FocusedItemHeaderView(
             val text =
                 listOfNotNull(
                     itemKindLabel(context, item.type),
-                    dto?.genres?.take(2)?.joinToString(" · ")?.takeIf { it.isNotBlank() },
+                    dto
+                        ?.genres
+                        ?.take(2)
+                        ?.joinToString(" · ")
+                        ?.takeIf { it.isNotBlank() },
                 ).joinToString(" · ")
             eyebrow.applyNeonEyebrow(text, pageStyle.accentFor(item))
         } else {
             eyebrow.visibility = View.GONE
         }
-        title.bind(item?.title, logoUrlFor(item, CardImages.imageUrlService(context)), preferences.appPreferences.interfacePreferences.showLogos)
+        title.bind(
+            item?.title,
+            logoUrlFor(item, CardImages.imageUrlService(context)),
+            preferences.appPreferences.interfacePreferences.showLogos,
+        )
         episodeName.visibility = if (isEpisode) View.VISIBLE else View.GONE
         episodeName.text = if (isEpisode) dto?.name else null
-        quickDetails.bind(item?.ui?.quickDetailsText, item?.timeRemainingOrRuntime, endsAt = item?.data?.endDate, enabledToggles = enabledDisplayToggles(preferences.appPreferences))
+        quickDetails.bind(
+            item?.ui?.quickDetailsText,
+            item?.timeRemainingOrRuntime,
+            endsAt = item?.data?.endDate,
+            enabledToggles = enabledDisplayToggles(preferences.appPreferences),
+        )
         val text = dto?.overview
         if (text.isNotNullOrBlank()) {
             overview.visibility = View.VISIBLE
@@ -347,7 +388,12 @@ class StreamingProviderHeaderView(
         eyebrow.applyNeonEyebrow(context.getString(R.string.collection), NeonSections.Collections.glow)
         wordmark.bind(item.name, accent)
         title.bind(item.title, null, false)
-        quickDetails.bind(item.ui.quickDetailsText, item.timeRemainingOrRuntime, endsAt = item.data.endDate, enabledToggles = enabledDisplayToggles(preferences.appPreferences))
+        quickDetails.bind(
+            item.ui.quickDetailsText,
+            item.timeRemainingOrRuntime,
+            endsAt = item.data.endDate,
+            enabledToggles = enabledDisplayToggles(preferences.appPreferences),
+        )
         description.text = context.getString(R.string.streaming_provider_description, item.name.orEmpty())
     }
 }
@@ -442,7 +488,9 @@ internal class CollectionButtonsView(
         val onSortChange: (SortAndDirection) -> Unit,
         val onClickRandom: () -> Unit,
         val onQuickListChange: (StreamingQuickList) -> Unit,
-        val getPossibleFilterValues: suspend (com.github.damontecres.wholphin.data.filter.ItemFilterBy<*>) -> List<com.github.damontecres.wholphin.data.filter.FilterValueOption>,
+        val getPossibleFilterValues: suspend (
+            com.github.damontecres.wholphin.data.filter.ItemFilterBy<*>,
+        ) -> List<com.github.damontecres.wholphin.data.filter.FilterValueOption>,
         val onClickViewOptions: () -> Unit,
         val favoriteOnClick: () -> Unit,
         val onConfirmDelete: () -> Unit,
@@ -462,14 +510,38 @@ internal class CollectionButtonsView(
                 }
         }
     private val quickLists = StreamingQuickList.entries.map { q -> QuickListButtonHolder(context, q) { actions.onQuickListChange(q) } }
-    private val favoriteButton = DetailButtons.fa(context, R.string.add_favorite, R.string.fa_heart, allCaps = true) { actions.favoriteOnClick() }
-    private val deleteButton = DetailButtons.delete(context, title = { state?.collection?.title ?: "" }, allCaps = true) { actions.onConfirmDelete() }
-    private val viewOptionsButton = DetailButtons.fa(context, R.string.view_options, R.string.fa_sliders, allCaps = true) { actions.onClickViewOptions() }
-    private val moreButton = DetailButtons.fa(context, R.string.more, R.string.fa_ellipsis_vertical, allCaps = true) { actions.moreOnClick() }
-    private val randomButton = DetailButtons.fa(context, R.string.sort_by_random, R.string.fa_dice, collapsed = true) { actions.onClickRandom() }
+    private val favoriteButton =
+        DetailButtons.fa(context, R.string.add_favorite, R.string.fa_heart, allCaps = true) {
+            actions.favoriteOnClick()
+        }
+    private val deleteButton =
+        DetailButtons.delete(context, title = {
+            state?.collection?.title ?: ""
+        }, allCaps = true) { actions.onConfirmDelete() }
+    private val viewOptionsButton =
+        DetailButtons.fa(context, R.string.view_options, R.string.fa_sliders, allCaps = true) {
+            actions.onClickViewOptions()
+        }
+    private val moreButton =
+        DetailButtons.fa(
+            context,
+            R.string.more,
+            R.string.fa_ellipsis_vertical,
+            allCaps = true,
+        ) { actions.moreOnClick() }
+    private val randomButton =
+        DetailButtons.fa(context, R.string.sort_by_random, R.string.fa_dice, collapsed = true) {
+            actions.onClickRandom()
+        }
     private val sortButton = SortButton(context, MovieSortOptions, collapsed = true) { actions.onSortChange(it) }
     private val filterButton =
-        FilterButton(fragment, context, DefaultFilterOptions, actions.getPossibleFilterValues, allCaps = true) { actions.onFilterChange(it) }
+        FilterButton(
+            fragment,
+            context,
+            DefaultFilterOptions,
+            actions.getPossibleFilterValues,
+            allCaps = true,
+        ) { actions.onFilterChange(it) }
 
     init {
         typeButtons.forEach { (_, b) -> typeRow.addView(b) }
@@ -599,7 +671,10 @@ internal fun plainText(
     role: TextRole,
 ): TextView =
     AppCompatTextView(context).apply {
-        applyTextStyle(com.github.damontecres.wholphin.leanback.theme.ControlTextStyle.of(role))
+        applyTextStyle(
+            com.github.damontecres.wholphin.leanback.theme.ControlTextStyle
+                .of(role),
+        )
         setTextColor(AppTheme.palette.onSurface)
     }
 
@@ -611,8 +686,9 @@ internal fun ViewGroup.fixHeaderHeight(
 ) {
     minimumHeight = 0
     if (heightDp != null) {
-        layoutParams = (layoutParams ?: ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0)).apply {
-            height = context.dp(heightDp + topDp + bottomDp)
-        }
+        layoutParams =
+            (layoutParams ?: ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0)).apply {
+                height = context.dp(heightDp + topDp + bottomDp)
+            }
     }
 }

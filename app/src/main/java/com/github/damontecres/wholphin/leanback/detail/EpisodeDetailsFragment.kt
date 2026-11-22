@@ -133,10 +133,11 @@ class EpisodeDetailsFragment : DetailPageFragment() {
                 var created: EpisodePage? = null
                 val first =
                     showContent {
-                        EpisodePage(requireContext(), viewModel.kidPage, pageStyle.accentFor(st.data)).also {
-                            created = it
-                            page = it
-                        }.content.viewport
+                        EpisodePage(requireContext(), viewModel.kidPage, pageStyle.accentFor(st.data))
+                            .also {
+                                created = it
+                                page = it
+                            }.content.viewport
                     }
                 page?.bind(st.data, state, preferences)
                 if (first) {
@@ -170,7 +171,9 @@ class EpisodeDetailsFragment : DetailPageFragment() {
                 ExpandablePlayButtonsView(
                     context,
                     PlayButtonsActions(
-                        playOnClick = { position -> ep?.let { viewModel.navigateTo(Destination.Playback(it.id, position.inWholeMilliseconds)) } },
+                        playOnClick = { position ->
+                            ep?.let { viewModel.navigateTo(Destination.Playback(it.id, position.inWholeMilliseconds)) }
+                        },
                         watchOnClick = { ep?.let { viewModel.setWatched(it.id, !it.played) } },
                         favoriteOnClick = { ep?.let { viewModel.setFavorite(it.id, !it.favorite) } },
                         moreOnClick = { showMore() },
@@ -191,8 +194,14 @@ class EpisodeDetailsFragment : DetailPageFragment() {
                     onAction = { action ->
                         val e = ep ?: return@KidTitleButtonsView
                         when (action) {
-                            KidAction.START_OVER -> viewModel.navigateTo(Destination.Playback(e.id, 0L))
-                            KidAction.WATCHLIST -> viewModel.setFavorite(e.id, !e.favorite)
+                            KidAction.START_OVER -> {
+                                viewModel.navigateTo(Destination.Playback(e.id, 0L))
+                            }
+
+                            KidAction.WATCHLIST -> {
+                                viewModel.setFavorite(e.id, !e.favorite)
+                            }
+
                             KidAction.SHUFFLE -> {}
                         }
                     },
@@ -241,7 +250,10 @@ class EpisodeDetailsFragment : DetailPageFragment() {
             buttons?.bind(
                 PlayButtonsState(
                     title = ep.title ?: "",
-                    resumePosition = ep.data.userData?.playbackPositionTicks?.ticks ?: Duration.ZERO,
+                    resumePosition =
+                        ep.data.userData
+                            ?.playbackPositionTicks
+                            ?.ticks ?: Duration.ZERO,
                     watched = ep.data.userData?.played ?: false,
                     favorite = ep.data.userData?.isFavorite ?: false,
                     canDelete = viewModel.canDelete.value,
@@ -287,7 +299,10 @@ class EpisodeHeaderView(
             LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT),
         )
         addView(
-            FractionColumn(context, .75f).apply { addView(episodeNameText, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)) },
+            FractionColumn(
+                context,
+                .75f,
+            ).apply { addView(episodeNameText, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)) },
             LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT),
         )
         if (kid) {
@@ -321,7 +336,11 @@ class EpisodeHeaderView(
         val dto = ep.data
         if (kid) {
             // The series' logo (falling back to its name), as on the season/episode page
-            logo.bind(dto.seriesName, logoUrlFor(ep, CardImages.imageUrlService(context)), preferences.appPreferences.interfacePreferences.showLogos)
+            logo.bind(
+                dto.seriesName,
+                logoUrlFor(ep, CardImages.imageUrlService(context)),
+                preferences.appPreferences.interfacePreferences.showLogos,
+            )
         } else {
             seriesName.text = dto.seriesName ?: ""
         }
@@ -330,7 +349,11 @@ class EpisodeHeaderView(
             kidInfo.bind(dto, seriesRating)
             return
         }
-        quickDetails.bind(ep.ui.quickDetailsText, ep.timeRemainingOrRuntime, enabledToggles = enabledDisplayToggles(preferences.appPreferences))
+        quickDetails.bind(
+            ep.ui.quickDetailsText,
+            ep.timeRemainingOrRuntime,
+            enabledToggles = enabledDisplayToggles(preferences.appPreferences),
+        )
         streams.bind(chosenStreams, dto.mediaSourceCount ?: 0)
         val taglineText = dto.taglines?.firstOrNull()
         tagline.visibility = if (taglineText != null) View.VISIBLE else View.GONE
