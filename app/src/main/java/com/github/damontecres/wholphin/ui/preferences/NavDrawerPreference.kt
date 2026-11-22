@@ -247,4 +247,3 @@ fun NavDrawerPreferenceListItemPreview() {
         )
     }
 }
-
