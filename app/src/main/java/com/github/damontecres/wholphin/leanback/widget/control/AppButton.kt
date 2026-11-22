@@ -238,10 +238,11 @@ open class AppButton
             iconView.setImageResource(res)
             iconTint = tint
             iconView.visibility = View.VISIBLE
-            iconView.layoutParams = (iconView.layoutParams as LayoutParams).apply {
-                width = context.dp(sizeDp)
-                height = context.dp(sizeDp)
-            }
+            iconView.layoutParams =
+                (iconView.layoutParams as LayoutParams).apply {
+                    width = context.dp(sizeDp)
+                    height = context.dp(sizeDp)
+                }
             applyContentColor(surface.contentColor)
         }
 
@@ -257,10 +258,11 @@ open class AppButton
             glyphView.setText(glyph)
             glyphColor = color
             glyphView.visibility = View.VISIBLE
-            glyphView.layoutParams = (glyphView.layoutParams as LayoutParams).apply {
-                width = context.dp(boxDp)
-                height = context.dp(boxDp)
-            }
+            glyphView.layoutParams =
+                (glyphView.layoutParams as LayoutParams).apply {
+                    width = context.dp(boxDp)
+                    height = context.dp(boxDp)
+                }
             applyContentColor(surface.contentColor)
         }
 
@@ -278,7 +280,9 @@ open class AppButton
 
         override fun drawableStateChanged() {
             super.drawableStateChanged()
-            surface.refresh()
+            // Null while the View constructor runs, before this class's fields are set
+            @Suppress("SENSELESS_COMPARISON")
+            if (surface != null) surface.refresh()
         }
 
         override fun onAttachedToWindow() {

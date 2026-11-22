@@ -264,7 +264,7 @@ class ControlSurfaceDrawable(
     private val rect = RectF()
     private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).also { it.style = Paint.Style.STROKE }
 
     var style: ControlSurfaceStyle = style
         set(value) {

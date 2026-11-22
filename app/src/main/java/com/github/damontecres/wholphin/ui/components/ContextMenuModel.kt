@@ -169,7 +169,13 @@ fun buildContextMenuEntries(
             add(entry(resources.getString(R.string.go_to), MenuIcon.ARROW_FORWARD, dismissOnClick = true) { actions.onClickGoTo(item) })
         }
         actions.onReorder?.let { onReorder ->
-            add(faEntry(resources.getString(R.string.reorder), R.string.fa_arrow_left_arrow_right, dismissOnClick = true) { onReorder(item) })
+            add(
+                faEntry(
+                    resources.getString(R.string.reorder),
+                    R.string.fa_arrow_left_arrow_right,
+                    dismissOnClick = true,
+                ) { onReorder(item) },
+            )
         }
         if (item.type in supportedPlayableTypes) {
             if (item.playbackPosition > Duration.ZERO) {

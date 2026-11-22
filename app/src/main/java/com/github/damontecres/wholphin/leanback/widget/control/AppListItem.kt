@@ -311,7 +311,9 @@ open class AppListItem
 
         override fun drawableStateChanged() {
             super.drawableStateChanged()
-            surface.refresh()
+            // Null while the View constructor runs, before this class's fields are set
+            @Suppress("SENSELESS_COMPARISON")
+            if (surface != null) surface.refresh()
         }
 
         override fun onAttachedToWindow() {

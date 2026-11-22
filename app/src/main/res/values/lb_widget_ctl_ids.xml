@@ -6,4 +6,5 @@
     <item name="lb_widget_ctl_menu_list" type="id" />
     <item name="lb_widget_ctl_button_label" type="id" />
     <item name="lb_widget_ctl_button_icon" type="id" />
+    <item name="lb_widget_ctl_detail_viewport" type="id" />
 </resources>
