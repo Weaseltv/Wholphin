@@ -1,5 +1,3 @@
-@file:UseSerializers(UUIDSerializer::class)
-
 package com.github.damontecres.wholphin.ui.detail.series
 
 import androidx.compose.runtime.Composable
@@ -36,36 +34,12 @@ import com.github.damontecres.wholphin.ui.theme.ProvideNeonAccent
 import com.github.damontecres.wholphin.ui.theme.neonAccentFor
 import com.github.damontecres.wholphin.util.DataLoadingState
 import kotlinx.coroutines.flow.update
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.UseSerializers
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.PersonKind
 import org.jellyfin.sdk.model.extensions.ticks
-import org.jellyfin.sdk.model.serializer.UUIDSerializer
 import org.jellyfin.sdk.model.serializer.toUUID
 import java.util.UUID
 import kotlin.time.Duration
-
-@Serializable
-data class SeasonEpisode(
-    val season: Int,
-    val episode: Int,
-    val episodeEnd: Int? = null,
-)
-
-@Serializable
-data class SeasonEpisodeIds(
-    val seasonId: UUID,
-    val seasonNumber: Int?,
-    val episodeId: UUID?,
-    val episodeNumber: Int?,
-)
-
-@Serializable
-data class SeriesOverviewPosition(
-    val seasonTabIndex: Int,
-    val episodeRowIndex: Int,
-)
 
 @Composable
 fun SeriesOverview(

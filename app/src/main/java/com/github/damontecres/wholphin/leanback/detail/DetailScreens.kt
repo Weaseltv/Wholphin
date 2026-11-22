@@ -15,10 +15,16 @@ object DetailScreens {
         preferences: UserPreferences,
     ): DestinationFragment? =
         when (destination) {
+            is Destination.SeriesOverview -> {
+                SeriesOverviewFragment()
+            }
+
             is Destination.MediaItem -> {
                 when (destination.type) {
+                    BaseItemKind.SERIES -> SeriesDetailsFragment()
                     // Videos and music videos use the movie page, as before
                     BaseItemKind.MOVIE, BaseItemKind.VIDEO, BaseItemKind.MUSIC_VIDEO -> MovieDetailsFragment()
+                    BaseItemKind.EPISODE -> EpisodeDetailsFragment()
                     else -> null
                 }
             }

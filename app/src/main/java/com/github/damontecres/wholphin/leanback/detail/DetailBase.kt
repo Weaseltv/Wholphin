@@ -45,6 +45,8 @@ import com.github.damontecres.wholphin.ui.data.ItemDetailsDialogInfo
 import com.github.damontecres.wholphin.ui.detail.KidTitlePage
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.LoadingState
+import com.github.damontecres.wholphin.util.RequestPager
+import kotlinx.coroutines.Job
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.MediaSourceInfo
 import java.util.UUID
@@ -85,6 +87,7 @@ abstract class DetailPageFragment : DestinationFragment() {
         private set
 
     private var active = false
+    private val pagerWatches = HashMap<String, Pair<List<*>, Job>>()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -107,7 +110,28 @@ abstract class DetailPageFragment : DestinationFragment() {
         content = null
         loadingView = null
         errorView = null
+        pagerWatches.clear()
         super.onDestroyView()
+    }
+
+    /**
+     * Call [onChange] whenever the pager behind [list] loads a page or changes size (the Compose rows recomposed from
+     * the pager's state); watching [key] moves to a new list when the page gets one. Plain lists are not watched.
+     */
+    protected fun watchPager(
+        key: String,
+        list: List<*>,
+        onChange: () -> Unit,
+    ) {
+        val existing = pagerWatches[key]
+        if (existing != null && existing.first === list) return
+        existing?.second?.cancel()
+        val pager = list as? RequestPager<*>
+        if (pager == null) {
+            pagerWatches.remove(key)
+            return
+        }
+        pagerWatches[key] = list to pager.changes.collectWhileStarted { onChange() }
     }
 
     /** The loading page (`LoadingPage`); focus waits on the shell's sink meanwhile */
@@ -603,7 +627,7 @@ internal class SpaceDrawable(
  * A vertical column [fraction] as wide as the width it is given (Compose `fillMaxWidth(fraction)`), its children
  * [spacingDp] apart (`Arrangement.spacedBy`).
  */
-class FractionColumn(
+open class FractionColumn(
     context: Context,
     var fraction: Float = 1f,
     spacingDp: Float = 0f,
