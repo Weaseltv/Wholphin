@@ -324,13 +324,14 @@ internal class AppShell(
             deps.installImageLoader(prefs)
             prefsLoading.visibility = View.GONE
             content.visibility = View.VISIBLE
-            root.setBackgroundColor(AppTheme.palette.background)
+            root.setBackgroundColor(AppTheme.palette.surface)
         }
         clock.visibility = if (menu.visibility == View.VISIBLE && app.interfacePreferences.showClock) View.VISIBLE else View.GONE
     }
 
     private fun onThemeChanged() {
-        if (preferences != null) root.setBackgroundColor(AppTheme.palette.background)
+        // The old MainContent Surface: the theme's surface colour under everything
+        if (preferences != null) root.setBackgroundColor(AppTheme.palette.surface)
         menu.onThemeChanged()
         clock.onThemeChanged()
         backdrop.onThemeChanged()

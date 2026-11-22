@@ -302,6 +302,8 @@ internal class SideMenuView(
     /** Shows [model]; rows are reused by key so a focused row keeps focus */
     fun bind(model: SideMenuModel) {
         this.model = model
+        registerTarget(CoachMarkIds.MENU, column)
+        registerTarget(CoachMarkIds.PROFILE, profileRow)
         val keys = desiredKeys(model)
         if (keys != rowKeys) rebuildRows(model, keys)
         bindProfile(model)

@@ -37,7 +37,8 @@ internal class PageContainer(
 
     init {
         id = R.id.lb_shell_pages
-        addView(sink, LayoutParams(1, 1))
+        // In the middle of the page area, so arrows from it behave like from a page-filling loading view
+        addView(sink, LayoutParams(1, 1, android.view.Gravity.CENTER))
         // Card glows, scaled cards and the Neon section rules draw past a page's edges (into the 24dp gutter at the
         // side menu and the 8dp one at the screen end), as the Compose content did
         clipChildren = false
