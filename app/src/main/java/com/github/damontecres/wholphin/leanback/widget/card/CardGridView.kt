@@ -181,10 +181,13 @@ class CardGridView(
         val typed =
             when {
                 existing == null -> CardGridAdapter(presenter)
+
                 existing.presenter === presenter -> existing
+
                 // The same call site's presenter (pages build one per update): keep the adapter, so Leanback keeps the
                 // selected position and focus, and rebind the cards with the new presenter
                 existing.presenter.javaClass == presenter.javaClass -> existing.also { it.presenter = presenter }
+
                 else -> CardGridAdapter(presenter)
             }
         typed.callbacks =
