@@ -297,7 +297,22 @@ class SeriesOverviewFragment : DetailPageFragment() {
             }
 
         // The episode row (or its loading / error state)
-        private val episodeSlot = FrameLayout(context).apply { clipChildren = false }
+        private val episodeSlot =
+            object : FrameLayout(context) {
+                override fun focusSearch(
+                    focused: View?,
+                    direction: Int,
+                ): View? {
+                    // DOWN from an episode goes to the buttons under it (their last focused one, else Play), as the
+                    // Compose footer took it. The buttons' row offers only that one button to a search from outside,
+                    // so from an episode on the right the cast row below won instead
+                    if (direction == View.FOCUS_DOWN && footerSlot.visibility == View.VISIBLE) {
+                        val target = footer?.restoreTarget ?: kidFooter?.firstFocusView
+                        if (target != null && target.isShown) return target
+                    }
+                    return super.focusSearch(focused, direction)
+                }
+            }.apply { clipChildren = false }
         private val loadingView = LoadingPageView(context, focusEnabled = false)
         private var errorView: View? = null
         val strip =

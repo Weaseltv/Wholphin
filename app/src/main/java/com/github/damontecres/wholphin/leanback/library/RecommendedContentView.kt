@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import androidx.leanback.widget.BaseGridView
+import androidx.leanback.widget.GridLayoutManager
 import androidx.leanback.widget.VerticalGridView
 import androidx.recyclerview.widget.RecyclerView
 import com.github.damontecres.wholphin.R
@@ -292,6 +293,8 @@ class RecommendedContentView(
             list.clipToPadding = false
             list.itemAnimator = null
             list.setNumColumns(1)
+            // UP from the first row leaves the list (to the tabs and buttons above it), as the Compose list did; a Leanback list keeps focus at its ends by default
+            (list.layoutManager as? GridLayoutManager)?.setFocusOutAllowed(true, false)
             list.setPadding(0, 0, 0, context.dp(CardDimens.HEIGHT_2X3_DP))
             // The focused row's top at 4dp (WeaselTV) / 50dp below the list's top; the first row stays at the top
             list.windowAlignment = BaseGridView.WINDOW_ALIGN_LOW_EDGE

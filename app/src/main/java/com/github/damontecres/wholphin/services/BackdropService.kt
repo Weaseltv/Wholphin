@@ -142,6 +142,16 @@ class BackdropService
         }
 
         /**
+         * Show [result] again, as it was (a page that was covered came back); pending loads are dropped
+         */
+        suspend fun restore(result: BackdropResult) {
+            requestMutex.withLock {
+                ++requestVersion
+                _backdropFlow.value = result
+            }
+        }
+
+        /**
          * Remove the backdrop, such as when switching pages
          */
         suspend fun clearBackdrop() {

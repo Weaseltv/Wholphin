@@ -49,7 +49,7 @@ object KidHomeCollections {
             enableUserData = false,
         )
 
-    /** The kid's own played movies and shows, most recently played first. */
+    /** The kid's own played movies and shows, most recently played first; [reallyPlayed] drops shows with nothing watched. */
     fun watchAgainRow(title: String) =
         HomeRowConfig.GetItems(
             name = title,
@@ -61,10 +61,23 @@ object KidHomeCollections {
                     sortBy = listOf(ItemSortBy.DATE_PLAYED),
                     sortOrder = listOf(SortOrder.DESCENDING),
                     limit = WATCH_AGAIN_LIMIT,
-                    fields = HomeItemFields,
+                    fields = HomeItemFields + ItemFields.RECURSIVE_ITEM_COUNT,
                 ),
             viewOptions = viewOptions,
         )
+
+    /**
+     * Whether [item], returned for an `isPlayed = true` request, was really watched (owner bug 2026-11-22: a new kid's
+     * Watch Again showed a show). The server calls a show played when none of its episodes is unplayed, so a show with no
+     * episodes this profile can see counts as played. A show counts only when it has episodes the profile can see
+     * ([BaseItemDto.recursiveItemCount], needs [ItemFields.RECURSIVE_ITEM_COUNT]) and all of them are played. Without
+     * the count (a request that didn't ask for it) it is kept, as before.
+     */
+    fun reallyPlayed(item: BaseItemDto): Boolean {
+        if (item.type != BaseItemKind.SERIES) return true
+        val episodes = item.recursiveItemCount ?: return true
+        return episodes > 0 && item.userData?.played == true
+    }
 
     /** A collection's row: its children as the kid, in the order the server gives them. */
     fun collectionRow(collectionId: UUID) = HomeRowConfig.ByParent(parentId = collectionId, viewOptions = viewOptions)

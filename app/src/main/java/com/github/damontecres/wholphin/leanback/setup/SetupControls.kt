@@ -62,6 +62,9 @@ internal fun Context.neonBrandRow(
         return ImageView(this).apply {
             setImageResource(lockup)
             adjustViewBounds = true
+            // The lockup is mascotDp * 1.6 tall (`Modifier.height`). maxHeight keeps that when the caller adds the view
+            // with its own wrap_content params, which replace these and drew the lockup at its full 210dp height
+            maxHeight = dp(mascotDp * 1.6f)
             contentDescription = "WeaselPlex"
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(mascotDp * 1.6f))
         }

@@ -123,6 +123,9 @@ internal class HomeSettingsPreview(
             )
             column.addView(message)
             cards.adapter = cardAdapter
+            // As tall as its cards (as HOME's CardStripView): without it each row collapsed and its cards drew over
+            // the rows below
+            cards.setRowHeight(ViewGroup.LayoutParams.WRAP_CONTENT)
             cards.clipChildren = false
             cards.clipToPadding = false
             // LEFT from the first card goes back to the settings panel

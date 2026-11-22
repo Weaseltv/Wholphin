@@ -10,6 +10,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.github.damontecres.wholphin.leanback.theme.PageStyle
 import com.github.damontecres.wholphin.preferences.UserPreferences
+import com.github.damontecres.wholphin.services.BackdropResult
 import com.github.damontecres.wholphin.ui.nav.Destination
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -82,6 +83,13 @@ abstract class DestinationFragment : Fragment() {
 
     /** [lastFocused] when a page was pushed on top of this one; restored (once) when that page is popped */
     internal var focusToRestore: View? = null
+
+    /**
+     * The backdrop shown when a page was pushed on top of this one, put back when that page is popped. A Compose page
+     * re-submitted its focused item's backdrop when it came back on screen; a kept fragment does not, so the shell
+     * restores it (otherwise Back from Settings left Home without a backdrop until focus moved).
+     */
+    internal var backdropToRestore: BackdropResult? = null
 
     /**
      * True while this screen is the visible top page (set by the shell). A screen whose content arrives after

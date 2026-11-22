@@ -423,6 +423,8 @@ internal class SettingsPinDialog(
                     addKey(key(context.getString(R.string.kid_key_ok), false))
                     addKey(key(context.getString(R.string.fa_arrow_right_long), true))
                 },
+                // wrap_content: the default match_parent row took the column's width, one key, and cut off OK and RIGHT
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT),
             )
             addKey(key(context.getString(R.string.fa_arrow_down_long), true))
         }

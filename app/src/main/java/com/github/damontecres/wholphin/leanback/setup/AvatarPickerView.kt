@@ -19,6 +19,7 @@ import coil3.load
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.leanback.theme.NeonColors
 import com.github.damontecres.wholphin.leanback.theme.dp
+import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import com.github.damontecres.wholphin.services.Avatar
 
 /**
@@ -55,6 +56,8 @@ internal class AvatarPickerView(
             // Room for the focused tile's scale and glow: half the gap around every tile plus the rest at the edges
             val edge = context.dp(GRID_PADDING_DP - TILE_GAP_DP / 2)
             setPadding(edge, edge, edge, edge)
+            // The padding holds the focus glow; rows scrolled past it must not draw over the title or the bottom row
+            clipToOwnHeight()
         }
 
     /** Progress or errors between the hints and the buttons */

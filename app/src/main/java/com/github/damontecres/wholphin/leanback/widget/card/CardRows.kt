@@ -434,6 +434,25 @@ class CardStripView(
         return super.onRequestFocusInDescendants(direction, previouslyFocusedRect)
     }
 
+    /**
+     * UP/DOWN into the row from outside lands on its selected card, as the Compose rows' focus restorer did (eg UP from a
+     * series page's Play button returns to the episode it shows, not the card that happens to sit above the button)
+     */
+    override fun addFocusables(
+        views: ArrayList<View>,
+        direction: Int,
+        focusableMode: Int,
+    ) {
+        if (!hasFocus() && (direction == View.FOCUS_UP || direction == View.FOCUS_DOWN)) {
+            val selected = layoutManager?.findViewByPosition(selectedPosition)
+            if (selected != null && selected.isShown && selected.hasFocusable()) {
+                selected.addFocusables(views, direction, focusableMode)
+                return
+            }
+        }
+        super.addFocusables(views, direction, focusableMode)
+    }
+
     private fun applyScrollMode() {
         windowAlignment = BaseGridView.WINDOW_ALIGN_BOTH_EDGE
         itemAlignmentOffset = 0

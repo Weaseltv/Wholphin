@@ -22,6 +22,7 @@ import com.github.damontecres.wholphin.kids.KidSessionGateImpl
 import com.github.damontecres.wholphin.kids.ProfileChooserLock
 import com.github.damontecres.wholphin.leanback.shell.AppShell
 import com.github.damontecres.wholphin.leanback.shell.DestinationFragment
+import com.github.damontecres.wholphin.leanback.shell.InjectedLongPress
 import com.github.damontecres.wholphin.leanback.shell.NavHost
 import com.github.damontecres.wholphin.leanback.shell.NavHostState
 import com.github.damontecres.wholphin.leanback.shell.OrphanPageFragment
@@ -330,6 +331,8 @@ class MainActivity :
         super.startActivityForResult(intent, requestCode, options)
     }
 
+    private val injectedLongPress = InjectedLongPress()
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (screensaverService.state.value.run { show || showDim }) {
             screensaverService.stop(false)
@@ -346,6 +349,8 @@ class MainActivity :
             screensaverService.pulse()
             // The coach-mark tour takes the remote while it runs, so nothing moves underneath it
             if (coachMarkTour.onKey(event)) return true
+            // OK long-pressed by a phone remote app or adb arrives as one flagged event: open the long-click action
+            if (injectedLongPress.onKey(event, currentFocus?.findFocus())) return true
             // Then the top page's own key handling (the old page-level onPreviewKeyEvent), then normal dispatch
             if (::shell.isInitialized && shell.dispatchPreviewKey(event)) return true
             return super.dispatchKeyEvent(event)

@@ -159,10 +159,29 @@ internal fun Context.emphasise(
 }
 
 /** A vertical gap of [heightDp] (`KidGap`, `Spacer`) */
-internal fun Context.gap(heightDp: Float): View = View(this).apply { layoutParams = LinearLayout.LayoutParams(1, dp(heightDp)) }
+internal fun Context.gap(heightDp: Float): View = SpacerView(this, 1, dp(heightDp))
+
+/**
+ * A spacer that keeps its size whatever layout params it is added with: the add-kid flow adds every view with
+ * wrap_content params, which replaced a plain View's size and made its gaps 0 tall (`KidGap`/`Spacer` sizes)
+ */
+private class SpacerView(
+    context: Context,
+    private val widthPx: Int,
+    private val heightPx: Int,
+) : View(context) {
+    init {
+        layoutParams = LinearLayout.LayoutParams(widthPx, heightPx)
+    }
+
+    override fun onMeasure(
+        widthMeasureSpec: Int,
+        heightMeasureSpec: Int,
+    ) = setMeasuredDimension(widthPx, heightPx)
+}
 
 /** A horizontal gap of [widthDp] */
-internal fun Context.hGap(widthDp: Float): View = View(this).apply { layoutParams = LinearLayout.LayoutParams(dp(widthDp), 1) }
+internal fun Context.hGap(widthDp: Float): View = SpacerView(this, dp(widthDp), 1)
 
 internal fun vertical(context: Context): LinearLayout =
     LinearLayout(context).apply {

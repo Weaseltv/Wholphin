@@ -12,6 +12,7 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.SeerrItemType
 import com.github.damontecres.wholphin.leanback.theme.PageStyle
 import com.github.damontecres.wholphin.preferences.UserPreferences
+import com.github.damontecres.wholphin.services.BackdropResult
 import com.github.damontecres.wholphin.ui.nav.Destination
 import org.jellyfin.sdk.model.api.BaseItemKind
 import timber.log.Timber
@@ -85,6 +86,12 @@ internal class NavHost(
         fun onBlocked(destination: Destination)
 
         fun clearBackdrop()
+
+        /** The backdrop showing now, saved on a page that another page covers */
+        fun currentBackdrop(): BackdropResult
+
+        /** Show [backdrop] again (a covered page came back) */
+        fun restoreBackdrop(backdrop: BackdropResult)
 
         fun menuHasFocus(): Boolean
 
@@ -254,6 +261,7 @@ internal class NavHost(
                 // What to restore when this page is shown again: taken now, because when the page above is removed
                 // later, Android moves focus into this page by itself and that would overwrite lastFocused
                 oldTop.fragment.focusToRestore = oldTop.fragment.lastFocused
+                oldTop.fragment.backdropToRestore = callbacks.currentBackdrop()
                 tx.hide(oldTop.fragment)
             }
             for (i in common until stack.size) {
@@ -272,7 +280,14 @@ internal class NavHost(
 
         val newTop = entries.last()
         callbacks.onTopChanged(newTop.fragment, pop)
-        if (callbacks.mayOpen(newTop.destination) && clearsBackdrop(newTop.destination)) callbacks.clearBackdrop()
+        val savedBackdrop = newTop.fragment.backdropToRestore.takeIf { pop }
+        newTop.fragment.backdropToRestore = null
+        if (savedBackdrop != null) {
+            // Back to a covered page: the backdrop it showed, as its Compose page re-submitted on returning
+            callbacks.restoreBackdrop(savedBackdrop)
+        } else if (callbacks.mayOpen(newTop.destination) && clearsBackdrop(newTop.destination)) {
+            callbacks.clearBackdrop()
+        }
         // Focus: a page reached from the menu takes focus itself once it can (the menu keeps it meanwhile); going back
         // with focus in the menu leaves it there; otherwise the new page takes it, or it waits on the sink
         val parkIfNone = !focusInMenu && (focusInRemoved || focusInOldTop || container.parked || !container.hasFocus())

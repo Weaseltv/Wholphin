@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import androidx.leanback.widget.GridLayoutManager
 import androidx.leanback.widget.VerticalGridView
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -509,6 +510,8 @@ class FolderContentView(
             clipChildren = false
             clipToPadding = false
             grid.clipToOwnHeight()
+            // UP from the first row leaves the list (to the tabs and buttons above it), as the Compose list did; a Leanback list keeps focus at its ends by default
+            (grid.layoutManager as? GridLayoutManager)?.setFocusOutAllowed(true, false)
             setPadding(0, context.dp(8), 0, context.dp(16))
             details.orientation = VERTICAL
             details.gravity = Gravity.CENTER_HORIZONTAL

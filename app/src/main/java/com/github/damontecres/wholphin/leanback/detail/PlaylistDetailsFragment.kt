@@ -15,6 +15,7 @@ import androidx.appcompat.widget.AppCompatTextView
 import androidx.core.view.doOnPreDraw
 import androidx.fragment.app.viewModels
 import androidx.leanback.widget.BaseGridView
+import androidx.leanback.widget.GridLayoutManager
 import androidx.leanback.widget.VerticalGridView
 import androidx.recyclerview.widget.RecyclerView
 import com.github.damontecres.wholphin.R
@@ -448,6 +449,8 @@ class PlaylistDetailsFragment : DetailPageFragment() {
                 windowAlignment = BaseGridView.WINDOW_ALIGN_BOTH_EDGE
                 focusScrollStrategy = BaseGridView.FOCUS_SCROLL_ITEM
                 clipToOwnHeight()
+                // Leaving at either end reaches focusSearch below (to Play); a Leanback list keeps focus at its ends
+                (layoutManager as? GridLayoutManager)?.setFocusOutAllowed(true, true)
             }
 
             override fun focusSearch(

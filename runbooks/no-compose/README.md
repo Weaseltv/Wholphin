@@ -34,7 +34,28 @@ Lessons from testing on a TV (keep them in mind when changing lists and focus):
 - Lists turn `clipChildren` off so focus glows aren't cut; call `clipToOwnHeight()` so scrolled-out rows don't draw over
   headers.
 - The shell saves a page's focused view when another page covers it (`focusToRestore`), because removing the page above
-  makes Android move focus into the page below first.
+  makes Android move focus into the page below first. It saves the backdrop too (`backdropToRestore`): a Compose page
+  re-submitted its backdrop when it came back, a kept fragment does not.
+
+Found on the Shield (2026-11-22, second pass):
+
+- A Leanback `VerticalGridView` keeps focus at its first and last rows unless `setFocusOutAllowed` says otherwise. A list
+  under tabs or buttons needs `setFocusOutAllowed(true, false)`, or UP never reaches them (the Movies Recommended tab).
+- A `HorizontalGridView` inside a list needs `setRowHeight(WRAP_CONTENT)`; with the default row height it collapses in a
+  list (rows drew over each other in the Home settings preview).
+- A view added with an `add(view, wrap(...))` helper loses its own layout params. Spacers are `SpacerView`s, which keep
+  their size whatever params they get; other fixed sizes need `maxHeight` or explicit params.
+- The side menu's rows are as wide as the open menu even when it is collapsed, so a plain focus search from a page's top
+  controls can land in the menu. The shell keeps UP and DOWN inside the page; only LEFT opens the menu.
+- A card strip entered with UP or DOWN focuses its selected card (`CardStripView.addFocusables`), as the Compose rows'
+  focus restorer did.
+- `adb shell input keyevent --longpress 23` and phone remote apps send a long press as one flagged key event. The
+  activity turns that into the focused view's long click (`InjectedLongPress`); a View's own long click needs the key held.
+- The Shield blocks screenshots while a profile with a PIN is current (`FLAG_SECURE`); use `uiautomator dump` text there.
+  Screenshots of the 4K screen take about 5 seconds, longer than the player's controls stay up: send player keys
+  without screenshots in between.
+- Demo accounts for device tests (Alex, Sam, kid Riley) and their rules are described by the TV user-guide thread; the
+  logins live outside git in `~/.config/weaseltv-guides/`. Never use the owner's own profile for tests.
 
 Testing without the Shield: the TV-sized emulator AVD `weasel_tv_audit_api36` (x86_64; build with
 `./scripts/build-alpha.sh --abi x86_64`), started headless with `emulator -avd weasel_tv_audit_api36 -no-window`.

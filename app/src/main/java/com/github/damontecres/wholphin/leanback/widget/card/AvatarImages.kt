@@ -7,6 +7,7 @@ import com.github.damontecres.wholphin.BuildConfig
 import com.github.damontecres.wholphin.data.model.ApprovedHomeLayout
 import com.github.damontecres.wholphin.leanback.theme.dp
 import com.github.damontecres.wholphin.ui.Cards
+import timber.log.Timber
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.max
@@ -40,7 +41,11 @@ object AvatarImages {
             placeholderMemoryCacheKey(lastShown[userId] ?: imageUrl)
             listener(
                 onSuccess = { _, _ -> lastShown[userId] = imageUrl },
-                onError = { _, _ -> onError() },
+                onError = { _, result ->
+                    // Why a profile shows its letter: the server's answer (eg HTTP 404: no picture on that user)
+                    Timber.w(result.throwable, "Profile picture failed for %s", userId)
+                    onError()
+                },
             )
         }
     }

@@ -317,9 +317,25 @@ class HomeRowsView(
                 false,
             ).dispatchUpdatesTo(adapter)
         followKidFocus()
+        leaveEmptiedRow()
         bindHeader()
         takeFirstFocus()
         checkTour()
+    }
+
+    /**
+     * The focused row finished loading with nothing in it (a kids Watch Again or a Continue Watching that the refresh
+     * emptied: Home hides it, and its focused card went with it). Move to the nearest row with content, the next one
+     * first, and give it focus if the page lost it, so a card stays highlighted.
+     */
+    private fun leaveEmptiedRow() {
+        val row = position.row
+        val state = rows.getOrNull(row) as? HomeRowLoadingState.Success ?: return
+        if (state.items.isNotEmpty()) return
+        val target =
+            ((row + 1) until rows.size).firstOrNull { hasContent(it) } ?: (row - 1 downTo 0).firstOrNull { hasContent(it) } ?: return
+        setPosition(RowColumn(target, 0))
+        focusRow(target, force = false)
     }
 
     /** Re-bind every row (theme or style change) */

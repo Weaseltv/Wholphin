@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Rect
+import android.view.FocusFinder
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
@@ -35,6 +36,7 @@ import com.github.damontecres.wholphin.leanback.theme.homeMediaAppearanceView
 import com.github.damontecres.wholphin.leanback.theme.libraryAccent
 import com.github.damontecres.wholphin.leanback.theme.navigationSectionAccent
 import com.github.damontecres.wholphin.preferences.UserPreferences
+import com.github.damontecres.wholphin.services.BackdropResult
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.HomeSettingsService
 import com.github.damontecres.wholphin.services.NavDrawerService
@@ -150,6 +152,13 @@ internal class AppShell(
                 }
 
                 override fun clearBackdrop() = this@AppShell.clearBackdrop()
+
+                override fun currentBackdrop(): BackdropResult = deps.backdropService.backdropFlow.value
+
+                override fun restoreBackdrop(backdrop: BackdropResult) {
+                    // Main.immediate: done before the page takes focus, so a backdrop the page submits itself wins
+                    activity.lifecycleScope.launch(Dispatchers.Main.immediate) { deps.backdropService.restore(backdrop) }
+                }
 
                 override fun menuHasFocus(): Boolean = menu.hasFocus()
 
@@ -618,12 +627,19 @@ internal class AppShell(
         navHost.pages.forEach { f -> if (f.showsNavDrawer) f.view?.translationX = dx }
     }
 
+    /** Home was chosen in the menu: the Home page shown next takes focus ([onTopChanged]) */
+    private var focusHomeFromMenu = false
+
     private fun onTopChanged(
         top: DestinationFragment,
         pop: Boolean,
     ) {
         val destination = top.destinationOrNull ?: return
         if (!mayOpenPage(destination)) kidGuard.leave(destination)
+        if (focusHomeFromMenu) {
+            focusHomeFromMenu = false
+            if (destination is Destination.Home) navHost.focusTop(top, restoring = true, park = false)
+        }
         val showClock = preferences?.appPreferences?.interfacePreferences?.showClock == true
         menuHideJob?.cancel()
         if (top.showsNavDrawer) {
@@ -721,10 +737,25 @@ internal class AppShell(
             }
         }
         if (result != null && menu.contains(result)) {
+            if ((direction == View.FOCUS_UP || direction == View.FOCUS_DOWN) && isInPages(focused)) {
+                // UP/DOWN stay in the page; only LEFT opens the menu. The menu's rows span its open width under the
+                // page, so a search from a page's top controls (eg Search's type toggles) found them before the
+                // results; the Compose rail was only as wide as its icons
+                return FocusFinder.getInstance().findNextFocus(pages, focused, direction) ?: focused
+            }
             // Coming into the menu from the page lands on the current page's button (owner, 2026-11-11)
             return menu.entryTarget() ?: result
         }
         return result
+    }
+
+    private fun isInPages(view: View): Boolean {
+        var parent = view.parent
+        while (parent != null) {
+            if (parent === pages) return true
+            parent = parent.parent
+        }
+        return false
     }
 
     /** Open the side menu on the current section, for screens (eg LEFT at a row's first card) */
@@ -792,6 +823,9 @@ internal class AppShell(
                     nav.reloadHome()
                     clearBackdrop()
                 } else {
+                    // Going back to Home keeps focus in the menu; from the menu's Home it moves to Home's top row, as
+                    // the Compose Home took focus when it came back on screen
+                    focusHomeFromMenu = true
                     nav.goToHome()
                 }
             }

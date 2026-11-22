@@ -617,6 +617,8 @@ internal class QueueRowView(
         grid.noClip()
         grid.setPadding(context.dp(16), p8, context.dp(16), p8)
         grid.setItemSpacing(context.dp(16))
+        // As tall as its cards; with the default row height a wrap_content strip takes whatever height it is offered
+        grid.setRowHeight(LayoutParams.WRAP_CONTENT)
         grid.focusScrollStrategy = BaseGridView.FOCUS_SCROLL_ITEM
         grid.adapter = QueueAdapter()
         grid.setOnKeyInterceptListener { event ->
