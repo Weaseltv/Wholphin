@@ -1,6 +1,5 @@
 package com.github.damontecres.wholphin.leanback.detail
 
-import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import android.content.Context
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -39,6 +38,7 @@ import com.github.damontecres.wholphin.leanback.theme.withAlpha
 import com.github.damontecres.wholphin.leanback.widget.card.CardImages
 import com.github.damontecres.wholphin.leanback.widget.card.ItemImageState
 import com.github.damontecres.wholphin.leanback.widget.card.ItemImageView
+import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import com.github.damontecres.wholphin.leanback.widget.control.AppButton
 import com.github.damontecres.wholphin.leanback.widget.control.AppListItem
 import com.github.damontecres.wholphin.leanback.widget.control.ErrorView

@@ -1,7 +1,5 @@
 package com.github.damontecres.wholphin.leanback.detail
 
-import androidx.leanback.widget.ViewHolderTask
-import androidx.core.view.doOnNextLayout
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.drawable.GradientDrawable
@@ -11,8 +9,10 @@ import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import androidx.core.view.doOnNextLayout
 import androidx.core.view.doOnPreDraw
 import androidx.fragment.app.viewModels
+import androidx.leanback.widget.ViewHolderTask
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.ChosenStreams
 import com.github.damontecres.wholphin.data.model.BaseItem

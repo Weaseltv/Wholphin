@@ -1,6 +1,5 @@
 package com.github.damontecres.wholphin.ui.data
 
-import com.github.damontecres.wholphin.ui.detail.PlaylistLoadingState
 import android.content.Context
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
@@ -8,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.services.NavDrawerService
 import com.github.damontecres.wholphin.services.PlaylistCreator
+import com.github.damontecres.wholphin.ui.detail.PlaylistLoadingState
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.showToast
 import com.github.damontecres.wholphin.util.ExceptionHandler

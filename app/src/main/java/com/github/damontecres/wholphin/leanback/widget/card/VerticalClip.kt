@@ -14,7 +14,11 @@ import androidx.recyclerview.widget.RecyclerView
  */
 fun View.clipToOwnHeight(extraPx: Int = width) {
     val rect = Rect()
-    fun apply(w: Int, h: Int) {
+
+    fun apply(
+        w: Int,
+        h: Int,
+    ) {
         val extra = if (extraPx > 0) extraPx else w
         rect.set(-extra, 0, w + extra, h)
         clipBounds = rect

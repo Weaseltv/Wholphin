@@ -1,6 +1,5 @@
 package com.github.damontecres.wholphin.leanback.library
 
-import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import android.annotation.SuppressLint
 import android.content.Context
 import android.view.KeyEvent
@@ -34,6 +33,7 @@ import com.github.damontecres.wholphin.leanback.widget.card.GenreCardView
 import com.github.damontecres.wholphin.leanback.widget.card.PlaceholderRowView
 import com.github.damontecres.wholphin.leanback.widget.card.StudioCardView
 import com.github.damontecres.wholphin.leanback.widget.card.ViewMoreSpec
+import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import com.github.damontecres.wholphin.leanback.widget.control.ErrorView
 import com.github.damontecres.wholphin.leanback.widget.control.LoadingPageView
 import com.github.damontecres.wholphin.leanback.widget.dialog.ContextMenuHelper

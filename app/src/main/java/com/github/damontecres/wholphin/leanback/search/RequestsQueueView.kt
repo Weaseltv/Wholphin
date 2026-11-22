@@ -61,12 +61,13 @@ import java.time.Instant
 import kotlin.math.abs
 
 // Sizes for the 1080p reference frame (owner mockups 2026-11-03; mockup px / 2). The table spans the content width,
-// and its five columns share it in these proportions.
-private const val TITLE_WEIGHT = 4.7f
+// and its five columns share it in these proportions. The action column took .25 from the title so the "Watch now"
+// button fits (owner, 2026-11-20: it showed only "Watch").
+private const val TITLE_WEIGHT = 4.45f
 private const val TYPE_WEIGHT = .85f
 private const val STATUS_WEIGHT = 1.95f
 private const val PROGRESS_WEIGHT = 1.45f
-private const val ACTION_WEIGHT = 1.35f
+private const val ACTION_WEIGHT = 1.6f
 private const val POSTER_WIDTH_DP = 28f
 private const val POSTER_HEIGHT_DP = 42f
 private const val POSTER_GAP_DP = 11f
@@ -961,7 +962,9 @@ internal class RequestsQueueView(
             addView(icon, LayoutParams(context.dp(13), context.dp(13)))
             label.text = "Watch now"
             label.activityStyle(11f, NeonColors.TEXT, weight = 700, trackingEm = .02f)
+            // On one line: a narrow column wrapped it at the space and the one-line limit hid "now"
             label.maxLines = 1
+            label.setHorizontallyScrolling(true)
             addView(label, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { marginStart = context.dp(6) })
         }
 

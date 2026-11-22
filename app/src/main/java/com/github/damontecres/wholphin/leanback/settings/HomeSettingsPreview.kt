@@ -1,6 +1,5 @@
 package com.github.damontecres.wholphin.leanback.settings
 
-import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.drawable.GradientDrawable
@@ -27,6 +26,7 @@ import com.github.damontecres.wholphin.leanback.theme.TextRole
 import com.github.damontecres.wholphin.leanback.theme.applyTextRole
 import com.github.damontecres.wholphin.leanback.theme.dp
 import com.github.damontecres.wholphin.leanback.theme.dpF
+import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import com.github.damontecres.wholphin.preferences.PrefContentScale
 import com.github.damontecres.wholphin.services.ImageUrlService
 import com.github.damontecres.wholphin.util.HomeRowLoadingState

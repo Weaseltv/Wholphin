@@ -55,5 +55,8 @@ data class AnalyticsState(
 
 data class SubtitleSearchState(
     val status: SubtitleSearchStatus = SubtitleSearchStatus.Inactive,
-    val language: String = java.util.Locale.getDefault().language,
+    val language: String =
+        java.util.Locale
+            .getDefault()
+            .language,
 )

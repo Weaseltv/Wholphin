@@ -1,6 +1,5 @@
 package com.github.damontecres.wholphin.leanback.home
 
-import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import android.annotation.SuppressLint
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
@@ -39,6 +38,7 @@ import com.github.damontecres.wholphin.leanback.widget.card.FavoriteView
 import com.github.damontecres.wholphin.leanback.widget.card.GridCardView
 import com.github.damontecres.wholphin.leanback.widget.card.GridScrollMode
 import com.github.damontecres.wholphin.leanback.widget.card.cardPresenter
+import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import com.github.damontecres.wholphin.leanback.widget.control.AppListItem
 import com.github.damontecres.wholphin.leanback.widget.control.CircularProgressView
 import com.github.damontecres.wholphin.leanback.widget.control.ErrorView

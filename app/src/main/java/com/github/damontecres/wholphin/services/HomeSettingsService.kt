@@ -1,6 +1,5 @@
 package com.github.damontecres.wholphin.services
 
-import com.github.damontecres.wholphin.ui.Cards
 import android.content.Context
 import androidx.annotation.StringRes
 import com.github.damontecres.wholphin.BuildConfig
@@ -18,6 +17,7 @@ import com.github.damontecres.wholphin.data.model.createStudioDestination
 import com.github.damontecres.wholphin.preferences.DefaultUserConfiguration
 import com.github.damontecres.wholphin.preferences.HomePagePreferences
 import com.github.damontecres.wholphin.ui.AspectRatio
+import com.github.damontecres.wholphin.ui.Cards
 import com.github.damontecres.wholphin.ui.HomeItemFields
 import com.github.damontecres.wholphin.ui.components.getGenreImageMap
 import com.github.damontecres.wholphin.ui.components.isKidOrUnknown

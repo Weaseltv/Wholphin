@@ -1,6 +1,5 @@
 package com.github.damontecres.wholphin.leanback.shell
 
-import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import android.animation.TimeInterpolator
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
@@ -41,6 +40,8 @@ import com.github.damontecres.wholphin.leanback.theme.dpF
 import com.github.damontecres.wholphin.leanback.theme.neonGlowAccent
 import com.github.damontecres.wholphin.leanback.theme.sectionAccent
 import com.github.damontecres.wholphin.leanback.theme.withAlpha
+import com.github.damontecres.wholphin.leanback.widget.card.AvatarImages
+import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import com.github.damontecres.wholphin.preferences.AppThemeColors
 import com.github.damontecres.wholphin.ui.coachmark.CoachMarkIds
 import com.github.damontecres.wholphin.ui.coachmark.CoachMarkRail
@@ -1076,13 +1077,9 @@ internal class AvatarView(
             } else {
                 image.visibility = VISIBLE
                 letter.visibility = GONE
-                image.load(imageUrl) {
-                    listener(
-                        onError = { _, _ ->
-                            image.visibility = GONE
-                            letter.visibility = VISIBLE
-                        },
-                    )
+                AvatarImages.load(image, id, imageUrl) {
+                    image.visibility = GONE
+                    letter.visibility = VISIBLE
                 }
             }
         }

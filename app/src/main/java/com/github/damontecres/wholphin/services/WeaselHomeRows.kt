@@ -1,12 +1,12 @@
 package com.github.damontecres.wholphin.services
 
-import com.github.damontecres.wholphin.leanback.theme.libraryAccent
-import com.github.damontecres.wholphin.leanback.theme.NeonSections
 import androidx.annotation.StringRes
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.data.model.JustWatchHomeList
+import com.github.damontecres.wholphin.leanback.theme.NeonSections
+import com.github.damontecres.wholphin.leanback.theme.libraryAccent
 import com.github.damontecres.wholphin.ui.main.settings.Library
 import org.jellyfin.sdk.model.api.CollectionType
 import java.util.UUID

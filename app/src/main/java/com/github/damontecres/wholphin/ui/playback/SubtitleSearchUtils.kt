@@ -53,7 +53,9 @@ fun PlaybackViewModel.searchForSubtitles(language: String? = null) {
                 .currentUserDto
                 ?.configuration,
         )?.takeIf { it.isNotNullOrBlank() }
-            ?: java.util.Locale.getDefault().language
+            ?: java.util.Locale
+                .getDefault()
+                .language
 
     subtitleSearchState.update {
         it.copy(

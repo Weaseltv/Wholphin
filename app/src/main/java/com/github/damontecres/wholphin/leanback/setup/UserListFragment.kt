@@ -30,6 +30,7 @@ import com.github.damontecres.wholphin.leanback.theme.TextRole
 import com.github.damontecres.wholphin.leanback.theme.applyTextRole
 import com.github.damontecres.wholphin.leanback.theme.dp
 import com.github.damontecres.wholphin.leanback.theme.withAlpha
+import com.github.damontecres.wholphin.leanback.widget.card.AvatarImages
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.profilePicturesEnabled
 import com.github.damontecres.wholphin.services.versionedUserImageUrl
@@ -1026,13 +1027,9 @@ class UserListFragment : SetupFragment() {
             val image = ImageView(context).apply { scaleType = ImageView.ScaleType.CENTER_CROP }
             tile.surface.addView(image, 0, frame())
             letter.visibility = View.GONE
-            image.load(url) {
-                listener(
-                    onError = { _, _ ->
-                        image.visibility = View.GONE
-                        letter.visibility = View.VISIBLE
-                    },
-                )
+            AvatarImages.load(image, user.user.id, url) {
+                image.visibility = View.GONE
+                letter.visibility = View.VISIBLE
             }
         }
         if (entry.isKid) {

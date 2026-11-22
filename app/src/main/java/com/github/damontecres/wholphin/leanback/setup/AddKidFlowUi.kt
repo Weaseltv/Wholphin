@@ -71,6 +71,7 @@ internal class AddKidFlowUi(
     private var formErrorHolder: LinearLayout? = null
     private var levelCards: Map<KidLevel, KidOptionCardView> = emptyMap()
     private var picker: AvatarPickerView? = null
+
     // Who was first in the list last time: one moving into first place takes focus (`initialFocus(index == 0)`)
     private var firstKid: String? = null
     private var firstAdult: Int? = null

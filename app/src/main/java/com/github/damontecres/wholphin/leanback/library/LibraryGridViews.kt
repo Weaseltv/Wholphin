@@ -1,6 +1,5 @@
 package com.github.damontecres.wholphin.leanback.library
 
-import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Outline
@@ -51,6 +50,7 @@ import com.github.damontecres.wholphin.leanback.widget.card.FavoriteView
 import com.github.damontecres.wholphin.leanback.widget.card.GridCardView
 import com.github.damontecres.wholphin.leanback.widget.card.GridScrollMode
 import com.github.damontecres.wholphin.leanback.widget.card.WatchedIconView
+import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import com.github.damontecres.wholphin.leanback.widget.control.AppListItem
 import com.github.damontecres.wholphin.leanback.widget.control.ListLeading
 import com.github.damontecres.wholphin.leanback.widget.text.FittedDetailHeaderLayout

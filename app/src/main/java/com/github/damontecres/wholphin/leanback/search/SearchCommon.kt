@@ -1,6 +1,5 @@
 package com.github.damontecres.wholphin.leanback.search
 
-import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -26,6 +25,7 @@ import com.github.damontecres.wholphin.leanback.theme.applyTextRole
 import com.github.damontecres.wholphin.leanback.theme.dp
 import com.github.damontecres.wholphin.leanback.theme.resolveNeonScope
 import com.github.damontecres.wholphin.leanback.theme.withAlpha
+import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import com.github.damontecres.wholphin.leanback.widget.control.AppButton
 import com.github.damontecres.wholphin.leanback.widget.control.SearchEditTextBox
 import com.github.damontecres.wholphin.preferences.AppThemeColors

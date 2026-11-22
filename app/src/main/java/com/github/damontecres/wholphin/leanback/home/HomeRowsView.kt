@@ -1,6 +1,5 @@
 package com.github.damontecres.wholphin.leanback.home
 
-import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import android.annotation.SuppressLint
 import android.content.Context
 import android.view.Gravity
@@ -27,6 +26,7 @@ import com.github.damontecres.wholphin.leanback.widget.card.CardRowStyle
 import com.github.damontecres.wholphin.leanback.widget.card.CardRowView
 import com.github.damontecres.wholphin.leanback.widget.card.PlaceholderRowView
 import com.github.damontecres.wholphin.leanback.widget.card.ViewMoreSpec
+import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import com.github.damontecres.wholphin.leanback.widget.card.isPlayKeyUp
 import com.github.damontecres.wholphin.leanback.widget.control.CircularProgressView
 import com.github.damontecres.wholphin.ui.coachmark.CoachMarkIds

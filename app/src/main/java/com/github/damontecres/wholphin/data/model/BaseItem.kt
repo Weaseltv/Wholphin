@@ -270,7 +270,6 @@ data class QuickDetailsText(
     val criticRating: Float? = null,
 )
 
-
 /**
  * Create the special [Destination.FilteredCollection] for the given genre information
  */
