@@ -43,35 +43,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 
-@HiltViewModel(assistedFactory = DiscoverPersonViewModel.Factory::class)
-class DiscoverPersonViewModel
-    @AssistedInject
-    constructor(
-        val navigationManager: NavigationManager,
-        val serverRepository: ServerRepository,
-        val seerrService: SeerrService,
-        private val backdropService: BackdropService,
-        @Assisted val item: DiscoverItem,
-    ) : ViewModel() {
-        @AssistedFactory
-        interface Factory {
-            fun create(item: DiscoverItem): DiscoverPersonViewModel
-        }
-
-        val credits = MutableStateFlow<DataLoadingState<List<DiscoverItem>>>(DataLoadingState.Pending)
-
-        init {
-            viewModelScope.launchIO {
-                backdropService.clearBackdrop()
-
-                val credits = seerrService.personCredits(item.id)
-                this@DiscoverPersonViewModel.credits.update {
-                    DataLoadingState.Success(credits)
-                }
-            }
-        }
-    }
-
 @Composable
 fun DiscoverPersonPage(
     person: DiscoverItem,
