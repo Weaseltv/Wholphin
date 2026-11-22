@@ -260,11 +260,12 @@ class SeerrServerPage : SettingsPanelPage() {
             }
         }
         errorView =
-            AppCompatTextView(context).apply {
-                applyTextRole(TextRole.TITLE_LARGE)
-                setTextColor(AppTheme.palette.error)
-                visibility = View.GONE
-            }.also { container.addView(it, lp(top = gap)) }
+            AppCompatTextView(context)
+                .apply {
+                    applyTextRole(TextRole.TITLE_LARGE)
+                    setTextColor(AppTheme.palette.error)
+                    visibility = View.GONE
+                }.also { container.addView(it, lp(top = gap)) }
         submitView =
             settingsButton(context, context.getString(R.string.submit), accent) { submit() }.also {
                 container.addView(

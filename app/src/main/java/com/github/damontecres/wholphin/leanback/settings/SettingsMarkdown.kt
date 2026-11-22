@@ -36,6 +36,7 @@ internal object SettingsMarkdown {
         markdown: String,
     ): CharSequence {
         val weasel = AppTheme.useWeaselFonts
+
         fun sp(role: TextRole) = (if (weasel) role.neonSp else role.stockSp).toInt()
         val out = SpannableStringBuilder()
         val textColor = AppTheme.palette.onSurface
@@ -88,12 +89,14 @@ internal object SettingsMarkdown {
         text: String,
     ) {
         var plain = link.replace(text) { it.groupValues[1] }
+
         data class Mark(
             val start: Int,
             val end: Int,
             val span: Any,
         )
         val marks = mutableListOf<Mark>()
+
         fun strip(
             regex: Regex,
             span: () -> Any,

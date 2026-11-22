@@ -105,6 +105,11 @@ class AppSettingsFragment : SettingsPageFragment() {
             },
         )
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        prefs = initialAppPreferences
+    }
+
     private val installedVersion get() = updateViewModel.currentVersion
 
     private val release: Release? get() = updateViewModel.state.value.release
@@ -384,8 +389,8 @@ class AppSettingsFragment : SettingsPageFragment() {
         return SettingsListPreference(ctx).also { row ->
             row.title = getString(pref.title)
             row.dialogTitle = row.title
-            row.entries = labels.toTypedArray()
-            row.entryValues = arrayOf("0", "1", "2")
+            row.entries = Array<CharSequence>(labels.size) { labels[it] }
+            row.entryValues = arrayOf<CharSequence>("0", "1", "2")
             fragment.onRefresh {
                 val user = viewModel.currentUser.value
                 val index =
@@ -461,7 +466,7 @@ class AppSettingsFragment : SettingsPageFragment() {
         var dialog: SettingsPinDialog? = null
         var wrong = false
         var lockedUntil = 0L
-        dialog =
+        val pinDialog =
             SettingsPinDialog(
                 ctx,
                 viewLifecycleOwner.lifecycleScope,
@@ -507,7 +512,8 @@ class AppSettingsFragment : SettingsPageFragment() {
                 prompt = pinPromptFor(ctx, user.shownName)
                 length = PinRules.entryLength(user.pin)
             }
-        track(dialog).show()
+        dialog = pinDialog
+        track(pinDialog).show()
     }
 
     private fun externalPlayerRow(
@@ -516,6 +522,7 @@ class AppSettingsFragment : SettingsPageFragment() {
         pref: AppPreference<AppPreferences, *>,
     ): Preference {
         val ctx = fragment.preferenceManager.context
+
         @Suppress("UNCHECKED_CAST")
         val stringPref = pref as AppPreference<AppPreferences, String>
         return SettingsListPreference(ctx).also { row ->
@@ -532,7 +539,7 @@ class AppSettingsFragment : SettingsPageFragment() {
                 // Each app with its icon, 40dp wide, as the old choice dialog showed them
                 row.entries =
                     players
-                        .map { player ->
+                        .map<_, CharSequence> { player ->
                             val icon = player.icon
                             if (icon == null) {
                                 player.name
@@ -545,7 +552,7 @@ class AppSettingsFragment : SettingsPageFragment() {
                                 }
                             }
                         }.toTypedArray()
-                row.entryValues = Array(players.size) { it.toString() }
+                row.entryValues = Array<CharSequence>(players.size) { it.toString() }
                 val value = prefs?.let { stringPref.getter(it) }
                 val index = players.indexOfFirst { it.identifier == value }.takeIf { it >= 0 } ?: 0
                 if (players.isNotEmpty()) row.value = index.toString()
@@ -570,7 +577,7 @@ class AppSettingsFragment : SettingsPageFragment() {
                     state.availableLocales
                         .map { AppPreferenceBinder.withSubtitle(it.getDisplayName(it), it.getDisplayName(Locale.ENGLISH)) }
                         .toTypedArray()
-                row.entryValues = state.availableLocales.map { it.toLanguageTag() }.toTypedArray()
+                row.entryValues = Array<CharSequence>(state.availableLocales.size) { state.availableLocales[it].toLanguageTag() }
                 if (state.availableLocales.isNotEmpty()) row.value = state.userLocale.toLanguageTag()
                 val locale =
                     viewModel.currentUser.value
@@ -662,8 +669,7 @@ class AppSettingsFragment : SettingsPageFragment() {
         }
     }
 
-    private fun errorColor(): Int =
-        com.github.damontecres.wholphin.leanback.theme.AppTheme.palette.error
+    private fun errorColor(): Int = com.github.damontecres.wholphin.leanback.theme.AppTheme.palette.error
 
     /** The Seerr sign-in choice (the old `ChooseSeerrLoginType`); Quick Connect is never offered here */
     private fun buildSeerrLogin(
@@ -738,9 +744,18 @@ class AppSettingsFragment : SettingsPageFragment() {
             notesText?.text = SettingsMarkdown.render(requireContext(), notes.content)
             pane.animate().cancel()
             pane.visibility = View.VISIBLE
-            pane.animate().alpha(1f).setDuration(CROSSFADE_MS).start()
+            pane
+                .animate()
+                .alpha(1f)
+                .setDuration(CROSSFADE_MS)
+                .start()
         } else if (pane.visibility == View.VISIBLE) {
-            pane.animate().alpha(0f).setDuration(CROSSFADE_MS).withEndAction { pane.visibility = View.GONE }.start()
+            pane
+                .animate()
+                .alpha(0f)
+                .setDuration(CROSSFADE_MS)
+                .withEndAction { pane.visibility = View.GONE }
+                .start()
         }
     }
 
@@ -759,13 +774,19 @@ class AppSettingsFragment : SettingsPageFragment() {
             }
         notesText = card
         notesPane =
-            FrameLayout(ctx).apply {
-                val pad = ctx.dp(24)
-                setPadding(pad, pad, pad, pad)
-                visibility = View.GONE
-                alpha = 0f
-                addView(card, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT))
-            }.also { sidePane.addView(it, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)) }
+            FrameLayout(ctx)
+                .apply {
+                    val pad = ctx.dp(24)
+                    setPadding(pad, pad, pad, pad)
+                    visibility = View.GONE
+                    alpha = 0f
+                    addView(card, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT))
+                }.also {
+                    sidePane.addView(
+                        it,
+                        FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT),
+                    )
+                }
         updateCacheUsage()
 
         viewModel.preferenceDataStore.data.collectWhileStarted { latest ->

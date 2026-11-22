@@ -215,10 +215,16 @@ internal class SettingsPinDialog(
         column.addView(promptView, wrap(top = 10))
         column.addView(boxes, wrap(top = 22))
         column.addView(messageView, wrap(top = 12))
-        hintFrame.addView(dpadHint, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        hintFrame.addView(
+            dpadHint,
+            FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER),
+        )
         forgotHint?.let {
             it.visibility = View.GONE
-            hintFrame.addView(it, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+            hintFrame.addView(
+                it,
+                FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER),
+            )
         }
         column.addView(hintFrame, wrap(top = 18))
         column.addView(
@@ -351,10 +357,11 @@ internal class SettingsPinDialog(
                 index < filled -> {
                     box.addView(
                         View(ctx).apply {
-                            background = GradientDrawable().apply {
-                                shape = GradientDrawable.OVAL
-                                setColor(PinColors.TEXT)
-                            }
+                            background =
+                                GradientDrawable().apply {
+                                    shape = GradientDrawable.OVAL
+                                    setColor(PinColors.TEXT)
+                                }
                         },
                         FrameLayout.LayoutParams(ctx.dp(17), ctx.dp(17), Gravity.CENTER),
                     )
@@ -398,7 +405,12 @@ internal class SettingsPinDialog(
             }
 
         fun LinearLayout.addKey(view: View) {
-            addView(view, LinearLayout.LayoutParams(context.dp(42), context.dp(42)).apply { setMargins(context.dp(2), context.dp(2), context.dp(2), context.dp(2)) })
+            addView(
+                view,
+                LinearLayout.LayoutParams(context.dp(42), context.dp(42)).apply {
+                    setMargins(context.dp(2), context.dp(2), context.dp(2), context.dp(2))
+                },
+            )
         }
         return LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL

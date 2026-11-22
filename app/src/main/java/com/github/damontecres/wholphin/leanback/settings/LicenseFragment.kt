@@ -44,7 +44,7 @@ class LicenseFragment : SettingsPageFragment() {
         val ctx = fragment.preferenceManager.context
         val loading =
             SettingsInfoPreference(ctx).apply {
-                key = "loading"
+                this.key = "loading"
                 accent = this@LicenseFragment.accent
                 title = getString(R.string.loading)
             }
@@ -58,7 +58,7 @@ class LicenseFragment : SettingsPageFragment() {
             libs.forEachIndexed { index, library ->
                 screen.addPreference(
                     SettingsClickPreference(ctx).apply {
-                        key = "${library.id}-$index"
+                        this.key = "${library.id}-$index"
                         accent = this@LicenseFragment.accent
                         title = library.name
                         summary =
@@ -136,7 +136,9 @@ class LicenseFragment : SettingsPageFragment() {
             }
         val dialog = SettingsDialog(ctx, widthDp = 640)
         dialog.column.addView(
-            androidx.appcompat.widget.AppCompatTextView(ctx).apply { styleDialogTitle(library.name) },
+            androidx.appcompat.widget
+                .AppCompatTextView(ctx)
+                .apply { styleDialogTitle(library.name) },
         )
         val body =
             scrollingText(ctx, text).apply {

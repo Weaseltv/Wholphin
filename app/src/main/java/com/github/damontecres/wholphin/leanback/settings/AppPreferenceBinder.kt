@@ -127,7 +127,7 @@ internal class AppPreferenceBinder<P : Any>(
                     title = context.getString(pref.title)
                     dialogTitle = title
                     entries = choiceEntries(context, choice.displayValues, choice.subtitles)
-                    entryValues = Array(entries.size) { it.toString() }
+                    entryValues = Array<CharSequence>(entries.size) { it.toString() }
                     setOnPreferenceChangeListener { _, newValue ->
                         val index = (newValue as String).toInt()
                         save(choice, choice.indexToValue(index))
@@ -141,9 +141,10 @@ internal class AppPreferenceBinder<P : Any>(
                     title = context.getString(pref.title)
                     dialogTitle = title
                     entries = choiceEntries(context, multi.displayValues, multi.displayValuesSubtitles)
-                    entryValues = Array(multi.allValues.size) { it.toString() }
+                    entryValues = Array<CharSequence>(multi.allValues.size) { it.toString() }
                     setOnPreferenceChangeListener { _, newValue ->
                         val prefs = current() ?: return@setOnPreferenceChangeListener false
+
                         @Suppress("UNCHECKED_CAST")
                         val indices = (newValue as Set<String>).map { it.toInt() }.toSet()
                         val chosen = multi.allValues.filterIndexed { i, _ -> i in indices }
@@ -222,7 +223,11 @@ internal class AppPreferenceBinder<P : Any>(
                 { prefs ->
                     val multi = pref as AppMultiChoicePreference<P, Any?>
                     val selected = multi.getter(prefs)
-                    row.values = multi.allValues.indices.filter { multi.allValues[it] in selected }.map { it.toString() }.toSet()
+                    row.values =
+                        multi.allValues.indices
+                            .filter { multi.allValues[it] in selected }
+                            .map { it.toString() }
+                            .toSet()
                     row.summary = multi.summary?.let(context::getString) ?: multi.summary(context, selected)
                 }
             }

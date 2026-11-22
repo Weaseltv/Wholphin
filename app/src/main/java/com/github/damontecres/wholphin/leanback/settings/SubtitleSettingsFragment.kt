@@ -60,6 +60,11 @@ class SubtitleSettingsFragment : SettingsPageFragment() {
 
     override fun screenTitle(key: String): CharSequence = getString(if (hdr) R.string.hdr_subtitle_style else R.string.subtitle_style)
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        appPreferences = initialAppPreferences
+    }
+
     private val subtitlePreferences: SubtitlePreferences?
         get() =
             appPreferences?.interfacePreferences?.let {
@@ -220,7 +225,10 @@ class SubtitleSettingsFragment : SettingsPageFragment() {
                         },
                     )
                 }
-                frame.addView(column, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+                frame.addView(
+                    column,
+                    FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT),
+                )
             }
         }
     }

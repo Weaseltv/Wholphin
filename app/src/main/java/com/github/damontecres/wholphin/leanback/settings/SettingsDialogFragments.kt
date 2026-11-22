@@ -45,7 +45,8 @@ private fun Fragment.themedInflater(inflater: LayoutInflater): LayoutInflater =
  * and the settings row look. A single choice closes the panel; multiple choices apply each toggle at once.
  */
 class SettingsListDialogFragment : LeanbackListPreferenceDialogFragmentCompat() {
-    override fun onGetLayoutInflater(savedInstanceState: Bundle?): LayoutInflater = themedInflater(super.onGetLayoutInflater(savedInstanceState))
+    override fun onGetLayoutInflater(savedInstanceState: Bundle?): LayoutInflater =
+        themedInflater(super.onGetLayoutInflater(savedInstanceState))
 
     override fun onViewCreated(
         view: View,
@@ -120,7 +121,8 @@ class SettingsEditTextFragment :
 
     private val editPreference: SettingsEditTextPreference? get() = preference as? SettingsEditTextPreference
 
-    override fun onGetLayoutInflater(savedInstanceState: Bundle?): LayoutInflater = themedInflater(super.onGetLayoutInflater(savedInstanceState))
+    override fun onGetLayoutInflater(savedInstanceState: Bundle?): LayoutInflater =
+        themedInflater(super.onGetLayoutInflater(savedInstanceState))
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -252,7 +254,10 @@ class SettingsEditTextFragment :
 
     companion object {
         fun newInstance(key: String): SettingsEditTextFragment =
-            SettingsEditTextFragment().apply { arguments = bundleOf(ARG_KEY to key) }
+            SettingsEditTextFragment().apply {
+                arguments =
+                    bundleOf(LeanbackPreferenceDialogFragmentCompat.ARG_KEY to key)
+            }
     }
 }
 

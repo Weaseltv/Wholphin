@@ -11,6 +11,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.appcompat.widget.AppCompatTextView
 import androidx.leanback.widget.BaseGridView
+import androidx.leanback.widget.GridLayoutManager
 import androidx.leanback.widget.HorizontalGridView
 import androidx.leanback.widget.VerticalGridView
 import androidx.recyclerview.widget.RecyclerView
@@ -123,8 +124,7 @@ internal class HomeSettingsPreview(
             cards.clipChildren = false
             cards.clipToPadding = false
             // LEFT from the first card goes back to the settings panel
-            cards.setFocusOutAllowed(true, false)
-            cards.setFocusOutSideAllowed(true, true)
+            (cards.layoutManager as? GridLayoutManager)?.setFocusOutAllowed(true, false)
             column.addView(cards, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             SettingsLook.styleBody(message)
         }
@@ -290,7 +290,10 @@ internal class HomeSettingsPreview(
         private fun focusBorder(ctx: Context) =
             GradientDrawable().apply {
                 val accent = pageStyle.homeCardAccent(pageStyle.accentFor(item))
-                setStroke(ctx.dp(pageStyle.cardAppearance.borderWidthDp.coerceAtLeast(1)), if (SettingsLook.neon) accent else AppTheme.palette.border)
+                setStroke(
+                    ctx.dp(pageStyle.cardAppearance.borderWidthDp.coerceAtLeast(1)),
+                    if (SettingsLook.neon) accent else AppTheme.palette.border,
+                )
                 cornerRadius = ctx.dpF(pageStyle.cardAppearance.cornerRadiusDp.toFloat())
             }
     }

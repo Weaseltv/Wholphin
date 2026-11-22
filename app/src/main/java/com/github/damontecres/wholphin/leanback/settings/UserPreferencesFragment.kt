@@ -7,8 +7,8 @@ import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceScreen
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.JellyfinUserPreferences
-import com.github.damontecres.wholphin.preferences.UserProfileSettings
 import com.github.damontecres.wholphin.preferences.SubtitleModePreference
+import com.github.damontecres.wholphin.preferences.UserProfileSettings
 import com.github.damontecres.wholphin.ui.preferences.user.PreferredLanguage
 import com.github.damontecres.wholphin.ui.preferences.user.PreferredLanguageType
 import com.github.damontecres.wholphin.ui.preferences.user.UserPreferencesViewModel
@@ -77,7 +77,11 @@ class UserPreferencesFragment : SettingsPageFragment() {
                     SettingsClickPreference(ctx).also { row ->
                         row.title = getString(pref.title)
                         row.onClick = { openScreen(AUDIO) }
-                        fragment.onRefresh { row.summary = viewModel.audioLanguage.value.selected.displayString.getString(ctx) }
+                        fragment.onRefresh {
+                            row.summary =
+                                viewModel.audioLanguage.value.selected.displayString
+                                    .getString(ctx)
+                        }
                     }
                 }
 
@@ -85,7 +89,11 @@ class UserPreferencesFragment : SettingsPageFragment() {
                     SettingsClickPreference(ctx).also { row ->
                         row.title = getString(pref.title)
                         row.onClick = { openScreen(SUBTITLE) }
-                        fragment.onRefresh { row.summary = viewModel.subtitleLanguage.value.selected.displayString.getString(ctx) }
+                        fragment.onRefresh {
+                            row.summary =
+                                viewModel.subtitleLanguage.value.selected.displayString
+                                    .getString(ctx)
+                        }
                     }
                 }
 
@@ -108,7 +116,7 @@ class UserPreferencesFragment : SettingsPageFragment() {
         return SettingsListPreference(ctx).also { row ->
             row.title = getString(R.string.subtitle_mode)
             row.dialogTitle = row.title
-            row.entryValues = Array(values.size) { it.toString() }
+            row.entryValues = Array<CharSequence>(values.size) { it.toString() }
             row.setOnPreferenceChangeListener { _, newValue ->
                 val index = (newValue as String).toInt()
                 viewModel.updatePreferences { it.copy(subtitleMode = SubtitleModePreference.entries[index]) }
@@ -121,8 +129,14 @@ class UserPreferencesFragment : SettingsPageFragment() {
                         ?.subtitleMode
                 row.entries =
                     values
-                        .mapIndexed { index, text ->
-                            if (index == 0 && userMode != null) AppPreferenceBinder.withSubtitle(text, getString(userMode.stringRes)) else text
+                        .mapIndexed<_, CharSequence> { index, text ->
+                            if (index == 0 &&
+                                userMode != null
+                            ) {
+                                AppPreferenceBinder.withSubtitle(text, getString(userMode.stringRes))
+                            } else {
+                                text
+                            }
                         }.toTypedArray()
                 val value = viewModel.userAppPreferences.value.subtitleMode
                 row.value = value.ordinal.toString()
@@ -163,7 +177,11 @@ class UserPreferencesFragment : SettingsPageFragment() {
             }
         screen.addPreference(search)
 
-        fun firstResultKey(): String? = rows.values.filter { it.isVisible && it.isSelectable }.minByOrNull { it.order }?.key
+        fun firstResultKey(): String? =
+            rows.values
+                .filter { it.isVisible && it.isSelectable }
+                .minByOrNull { it.order }
+                ?.key
 
         search.onSearch = { firstResultKey()?.let(fragment::selectPreference) }
         search.onQuery = { query ->

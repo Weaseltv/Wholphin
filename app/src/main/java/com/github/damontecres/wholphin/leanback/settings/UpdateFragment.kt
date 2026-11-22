@@ -175,7 +175,10 @@ class UpdateFragment : DestinationFragment() {
                 } else {
                     val page = releaseContent(release)
                     content = page
-                    root.addView(page, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+                    root.addView(
+                        page,
+                        FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT),
+                    )
                     // WeaselFin: the popup's "Update" already asked, so don't make the user press "Download & Update"
                     // as well. Once per visit, and only for a newer release.
                     if (installNow && !installNowDone && release.version.isGreaterThan(viewModel.currentVersion)) {
@@ -281,7 +284,11 @@ class UpdateFragment : DestinationFragment() {
             FrameLayout(ctx).apply {
                 addView(
                     cardScroll,
-                    FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER_VERTICAL),
+                    FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.WRAP_CONTENT,
+                        Gravity.CENTER_VERTICAL,
+                    ),
                 )
             },
             LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, .4f).apply { marginStart = ctx.dp(16) },
@@ -325,7 +332,9 @@ class UpdateFragment : DestinationFragment() {
         val progress =
             ProgressBar(ctx, null, android.R.attr.progressBarStyle).apply {
                 isIndeterminate = true
-                indeterminateTintList = android.content.res.ColorStateList.valueOf(AppTheme.palette.border)
+                indeterminateTintList =
+                    android.content.res.ColorStateList
+                        .valueOf(AppTheme.palette.border)
             }
         line.addView(progress, LinearLayout.LayoutParams(ctx.dp(48), ctx.dp(48)).apply { marginStart = ctx.dp(8) })
         dialog.column.gravity = Gravity.CENTER_HORIZONTAL

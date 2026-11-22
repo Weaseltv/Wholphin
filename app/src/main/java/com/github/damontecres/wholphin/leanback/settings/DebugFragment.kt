@@ -89,7 +89,14 @@ class DebugFragment : SettingsPageFragment() {
         lines(device, "device") { plain(state().deviceInfo) }
         lines(section("Display Modes", TextRole.TITLE_MEDIUM, device), "modes") { plain(state().displayModes) }
         lines(section("Audio Devices", TextRole.TITLE_MEDIUM, device), "audio") { plain(state().audioInfo) }
-        lines(section("AppPreferences"), "prefs") { listOf(preferences.appPreferences.toString() to null) }
+        lines(section("AppPreferences"), "prefs") {
+            listOf(
+                screenHost.userPreferences.value
+                    ?.appPreferences
+                    ?.toString()
+                    .orEmpty() to null,
+            )
+        }
         lines(section("User Information"), "user") {
             plain(
                 listOf(

@@ -87,6 +87,9 @@ class SettingsListFragment : BaseLeanbackPreferenceFragmentCompat() {
     /** Re-reads every row from the page's state */
     fun refresh() {
         refreshers.forEach { it() }
+        // Rows that appear later (state loaded after the level opened) must not leave the focus on a heading; this
+        // runs after the preference adapter has applied the visibility changes (posted the same way)
+        view?.post { (listView as? VerticalGridView)?.let(::selectFirstRowIfNeeded) }
     }
 
     override fun onCreateView(

@@ -95,6 +95,10 @@ abstract class SettingsPageFragment :
         grid: VerticalGridView,
     ) {}
 
+    /** The app preferences the shell has now, so the rows show at once (the store's flow follows) */
+    protected val initialAppPreferences: com.github.damontecres.wholphin.preferences.AppPreferences?
+        get() = (activity as? com.github.damontecres.wholphin.leanback.shell.ScreenHost)?.userPreferences?.value?.appPreferences
+
     /** The scope for writes that should finish even if a level closes */
     val pageScope: CoroutineScope get() = lifecycleScope
 

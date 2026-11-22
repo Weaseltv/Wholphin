@@ -11,9 +11,9 @@ import androidx.preference.Preference
 import androidx.preference.PreferenceGroup
 import androidx.preference.PreferenceScreen
 import coil3.SingletonImageLoader
+import coil3.asDrawable
 import coil3.request.ImageRequest
 import coil3.request.target
-import coil3.asDrawable
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
@@ -94,6 +94,11 @@ class HomeSettingsFragment : SettingsPageFragment() {
     override fun panelBackground(): Int = SettingsLook.tonalSurface(1f, accent)
 
     private val state get() = viewModel.state.value
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        appPreferences = initialAppPreferences
+    }
 
     override fun screenTitle(key: String): CharSequence =
         when {
@@ -323,17 +328,28 @@ class HomeSettingsFragment : SettingsPageFragment() {
 
     private fun onMeta(type: MetaRowType) {
         when (type) {
-            MetaRowType.CONTINUE_WATCHING, MetaRowType.NEXT_UP, MetaRowType.COMBINED_CONTINUE_WATCHING -> addRow { viewModel.addRow(type) }
-            MetaRowType.FAVORITES -> openScreen(FAVORITES)
-            MetaRowType.COLLECTION -> openScreen("$SEARCH${BaseItemKind.BOX_SET.name}")
-            MetaRowType.PLAYLIST -> openScreen("$SEARCH${BaseItemKind.PLAYLIST.name}")
+            MetaRowType.CONTINUE_WATCHING, MetaRowType.NEXT_UP, MetaRowType.COMBINED_CONTINUE_WATCHING -> {
+                addRow { viewModel.addRow(type) }
+            }
+
+            MetaRowType.FAVORITES -> {
+                openScreen(FAVORITES)
+            }
+
+            MetaRowType.COLLECTION -> {
+                openScreen("$SEARCH${BaseItemKind.BOX_SET.name}")
+            }
+
+            MetaRowType.PLAYLIST -> {
+                openScreen("$SEARCH${BaseItemKind.PLAYLIST.name}")
+            }
+
             // Discover rows are not offered yet (the old page had them switched off)
             MetaRowType.DISCOVER -> {}
         }
     }
 
-    private fun libraryFor(key: String) =
-        key.removePrefix(LIBRARY).let { id -> state.libraries.firstOrNull { it.itemId.toString() == id } }
+    private fun libraryFor(key: String) = key.removePrefix(LIBRARY).let { id -> state.libraries.firstOrNull { it.itemId.toString() == id } }
 
     private fun buildLibrary(
         fragment: SettingsListFragment,
@@ -670,8 +686,16 @@ class HomeSettingsFragment : SettingsPageFragment() {
         listOf(AppPreference.HomePageItems, AppPreference.RewatchNextUp, AppPreference.MaxDaysNextUp, AppPreference.HomeClickToPlay)
             .forEachIndexed { index, pref -> binder.add(screen, pref, "global$index") }
         screen.addPreference(SettingsDividerPreference(ctx).apply { key = "divider1" })
-        screen.addPreference(click(fragment, "bigger", glyph(R.string.lb_settings_fa_chevron_up, R.string.increase_all_cards_size)) { viewModel.resizeCards(1) })
-        screen.addPreference(click(fragment, "smaller", glyph(R.string.lb_settings_fa_chevron_down, R.string.decrease_all_cards_size)) { viewModel.resizeCards(-1) })
+        screen.addPreference(
+            click(fragment, "bigger", glyph(R.string.lb_settings_fa_chevron_up, R.string.increase_all_cards_size)) {
+                viewModel.resizeCards(1)
+            },
+        )
+        screen.addPreference(
+            click(fragment, "smaller", glyph(R.string.lb_settings_fa_chevron_down, R.string.decrease_all_cards_size)) {
+                viewModel.resizeCards(-1)
+            },
+        )
         screen.addPreference(SettingsDividerPreference(ctx).apply { key = "divider2" })
         screen.addPreference(click(fragment, "removed", glyph(R.string.fa_eye, R.string.view_removed_next_up)) { openScreen(REMOVED) })
         screen.addPreference(
@@ -752,7 +776,9 @@ class HomeSettingsFragment : SettingsPageFragment() {
                 row.title = item.series.title ?: item.series.id.toString()
                 row.summary = formatDateTime(item.datetime)
                 row.buttons =
-                    listOf(ReorderButton(getString(R.string.lb_settings_fa_trash), removedState.removedEnabled, "delete") { vm.remove(item) })
+                    listOf(
+                        ReorderButton(getString(R.string.lb_settings_fa_trash), removedState.removedEnabled, "delete") { vm.remove(item) },
+                    )
             }
         }
         fragment.lifecycleScope.launch { vm.state.collect { fragment.refresh() } }

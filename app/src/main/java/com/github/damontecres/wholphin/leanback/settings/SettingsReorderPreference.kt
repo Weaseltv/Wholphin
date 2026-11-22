@@ -158,8 +158,17 @@ internal class SettingsReorderPreference(
         }
         row.setOnClickListener {
             when (val zone = currentZone()) {
-                0 -> onMainClick?.invoke()
-                else -> buttons.getOrNull(zone - 1)?.takeIf { it.enabled }?.onClick?.invoke()
+                0 -> {
+                    onMainClick?.invoke()
+                }
+
+                else -> {
+                    buttons
+                        .getOrNull(zone - 1)
+                        ?.takeIf { it.enabled }
+                        ?.onClick
+                        ?.invoke()
+                }
             }
         }
         val longClick = onLongClick
