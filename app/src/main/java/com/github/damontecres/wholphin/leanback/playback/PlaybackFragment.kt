@@ -194,9 +194,10 @@ class PlaybackFragment : DestinationFragment() {
                 val instance = viewModel.currentPlayer.value ?: return
                 val c = content
                 if (c == null || c.instance !== instance) {
+                    // A new player (backend switch between items): rebuild, keeping focus on the page
+                    val focusHere = view?.hasFocus() == true || c == null
                     c?.destroy()
                     removeStatus()
-                    val focusHere = view?.hasFocus() == true || c == null
                     content = Content(instance).also { it.attach() }
                     if (focusHere) content?.focusDefault()
                 }
@@ -302,6 +303,7 @@ class PlaybackFragment : DestinationFragment() {
         private var state: PlaybackState = PlaybackState()
         private var accent: Int = pageStyle.accentFor(null)
         private var showDebugInfo = playback.showDebugInfo
+
         // MPV scales the video itself, so its surface always fills the box
         private var videoScale: VideoScale =
             if (instance.backend == PlayerBackend.MPV) VideoScale.FILL else VideoScale.from(playback.globalContentScale)

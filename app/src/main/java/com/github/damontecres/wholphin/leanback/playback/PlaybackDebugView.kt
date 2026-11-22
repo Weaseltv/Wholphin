@@ -175,6 +175,8 @@ internal class PlaybackDebugView(
     }
 
     private fun rebuildTables() {
+        // Only while shown; showing it rebuilds (the tickers start then)
+        if (!running) return
         tables.removeAllViews()
         val cp = currentPlayback
         val first =
