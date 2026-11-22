@@ -96,12 +96,14 @@ internal class AppPreferenceBinder<P : Any>(
         key: String = "row${keyCounter++}",
         visible: (P) -> Boolean = { true },
     ): Preference {
-        val row = special?.invoke(pref) ?: create(pref)
+        val specialRow = special?.invoke(pref)
+        val row = specialRow ?: create(pref)
         row.key = key
         (row as? SettingsRow)?.accent = accent
         parent.addPreference(row)
         afterAdd?.invoke(pref, row, parent)
-        val refreshValue = refresher(pref, row)
+        // A special row shows its value itself; the binder only keeps its visibility
+        val refreshValue: (P) -> Unit = if (specialRow != null) ({ _ -> }) else refresher(pref, row)
         fragment.onRefresh {
             val prefs = current()
             row.isVisible = prefs != null && visible(prefs)

@@ -72,7 +72,8 @@ class UpdateFragment : DestinationFragment() {
         super.onCreate(savedInstanceState)
         permissions = viewModel.updater.hasPermissions()
         installNowDone = savedInstanceState?.getBoolean(STATE_INSTALL_NOW_DONE) ?: false
-        if (savedInstanceState == null) viewModel.init()
+        // Once per visit (the view model outlives configuration changes; a restored process checks again)
+        if (viewModel.state.value.loading == LoadingState.Pending) viewModel.init()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

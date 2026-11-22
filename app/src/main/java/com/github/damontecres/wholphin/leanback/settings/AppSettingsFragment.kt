@@ -596,6 +596,12 @@ class AppSettingsFragment : SettingsPageFragment() {
     ): Preference =
         SettingsSwitchPreference(fragment.preferenceManager.context).also { row ->
             row.title = getString(pref.title)
+            fragment.onRefresh {
+                prefs?.let {
+                    row.isChecked = pref.getter(it)
+                    row.summary = pref.summary(fragment.preferenceManager.context, row.isChecked)
+                }
+            }
             row.setOnPreferenceChangeListener { _, newValue ->
                 if (newValue == false) {
                     binder.save(pref, false)
