@@ -13,6 +13,7 @@ import androidx.fragment.app.viewModels
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
+import com.github.damontecres.wholphin.leanback.home.HomeHeaderView
 import com.github.damontecres.wholphin.leanback.theme.AppTheme
 import com.github.damontecres.wholphin.leanback.theme.CardDimens
 import com.github.damontecres.wholphin.leanback.theme.NeonSections
@@ -39,6 +40,7 @@ import com.github.damontecres.wholphin.leanback.widget.control.LoadingPageView
 import com.github.damontecres.wholphin.leanback.widget.text.FittedDetailHeaderLayout
 import com.github.damontecres.wholphin.leanback.widget.text.HeaderDimens
 import com.github.damontecres.wholphin.leanback.widget.text.detailViewport
+import com.github.damontecres.wholphin.leanback.widget.text.enabledDisplayToggles
 import com.github.damontecres.wholphin.leanback.widget.text.reportDetailRowHeight
 import com.github.damontecres.wholphin.ui.AspectRatio
 import com.github.damontecres.wholphin.ui.components.ContextMenu
@@ -204,7 +206,8 @@ class CollectionDetailsFragment : DetailPageFragment() {
         private val collectionHeader = CollectionHeaderView(context)
         private val collectionFitted =
             FittedDetailHeaderLayout(context).apply {
-                addView(collectionHeader)
+                // The wrapper keeps the header's fixed height (other themes), which the fitting would otherwise ignore
+                addView(FrameLayout(context).apply { addView(collectionHeader) })
                 onCompactChanged = { collectionHeader.compact = it }
             }
         private val buttons =
@@ -231,11 +234,24 @@ class CollectionDetailsFragment : DetailPageFragment() {
 
         // The focused item's header: an invisible focus target above the items brings the collection header back
         private val hiddenFocus = HiddenFocusView(context) { viewport.post { showCollectionHeader() } }
-        private val itemHeader = FocusedItemHeaderView(context)
+
+        // HOME's `HomePageHeader` port, in the old box: 8dp in, the detail top padding, 8dp below; 180dp tall off WeaselTV
+        private val itemHeader =
+            HomeHeaderView(
+                context,
+                showLogo = preferences.appPreferences.interfacePreferences.showLogos,
+                box =
+                    HeaderDimens.HeaderBox(
+                        HeaderDimens.START_PADDING,
+                        HeaderDimens.detailTopPadding(),
+                        0f,
+                        8f,
+                        if (AppTheme.isNeon) null else HeaderDimens.HEIGHT,
+                    ),
+            )
         private val itemFitted =
             FittedDetailHeaderLayout(context).apply {
-                addView(itemHeader)
-                onCompactChanged = { itemHeader.compact = it }
+                addView(FrameLayout(context).apply { addView(itemHeader) })
             }
         private val itemBlock =
             LinearLayout(context).apply {
@@ -398,15 +414,10 @@ class CollectionDetailsFragment : DetailPageFragment() {
 
         private fun bindItemHeader() {
             val s = state ?: return
-            itemHeader.bind(focusedItem, preferences, pageStyle)
-            // Not the WeaselTV theme: the header box is HeaderUtils.height tall
-            itemHeader.setPaddingRelative(
-                requireContext().dp(HeaderDimens.START_PADDING),
-                requireContext().dp(HeaderDimens.detailTopPadding()),
-                0,
-                requireContext().dp(8),
-            )
-            if (!AppTheme.isNeon) itemHeader.fixHeaderHeight(HeaderDimens.HEIGHT, HeaderDimens.detailTopPadding(), 8f)
+            itemHeader.pageStyle = pageStyle
+            itemHeader.displayToggles = enabledDisplayToggles(preferences.appPreferences)
+            itemHeader.showLogo = preferences.appPreferences.interfacePreferences.showLogos
+            itemHeader.bind(focusedItem)
             focusedItem?.let { setBackdrop(it) }
             itemFitted.visibility = if (s.viewOptions.cardViewOptions.showDetails) View.VISIBLE else View.GONE
         }

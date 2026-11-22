@@ -33,8 +33,9 @@ overview / playlist / context-menu dialogs with the kid guard). Detail pages bui
 - `StreamDetailsView` (`VideoStreamDetails`), `seriesNameView` / `episodeNameView` (`SeriesName` / `EpisodeName`),
   `KidMetadataLineView`, `KidEpisodeInfoView`, `taglineView`, `directorNames`.
 - `SortButton` / `FilterButton`: DETAILS-private ports of `SortByButton` / `FilterByButton` (LIBRARY owns the
-  originals and builds its own); `GridTitleView` (`GridTitle`), `StreamingWordmarkView`, `FocusedItemHeaderView`
-  (`HomePageHeader` for a collection's focused item) are likewise private ports of other areas' composables.
+  originals and builds its own); `GridTitleView` (`GridTitle`), `StreamingWordmarkView`, the type-filter and quick-list
+  buttons are likewise private ports of LIBRARY's composables. A collection's focused-item header uses HOME's
+  `HomeHeaderView`.
 
 ## Moved out of Compose files (same package, same names)
 
