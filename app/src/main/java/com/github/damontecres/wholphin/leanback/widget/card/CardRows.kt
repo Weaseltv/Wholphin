@@ -419,6 +419,21 @@ class CardStripView(
         applyScrollMode()
     }
 
+    /**
+     * `requestFocus()` on the row lands on its selected card (the old rows' focus restorer, and a details page opening on
+     * the given episode). Leanback's keep-visible strategy otherwise focuses the first fully visible card and ignores
+     * the selected position; the pivot strategy already uses it.
+     */
+    override fun onRequestFocusInDescendants(
+        direction: Int,
+        previouslyFocusedRect: Rect?,
+    ): Boolean {
+        if (focusScrollStrategy != BaseGridView.FOCUS_SCROLL_ALIGNED && requestSelectedFocus(direction, previouslyFocusedRect)) {
+            return true
+        }
+        return super.onRequestFocusInDescendants(direction, previouslyFocusedRect)
+    }
+
     private fun applyScrollMode() {
         windowAlignment = BaseGridView.WINDOW_ALIGN_BOTH_EDGE
         itemAlignmentOffset = 0

@@ -1,5 +1,7 @@
 package com.github.damontecres.wholphin.leanback.detail
 
+import androidx.leanback.widget.ViewHolderTask
+import androidx.core.view.doOnNextLayout
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.drawable.GradientDrawable
@@ -586,7 +588,23 @@ class SeriesOverviewFragment : DetailPageFragment() {
                         shownEpisodes = eps.episodes
                         if (epPosition < 0) epPosition = pos.episodeRowIndex
                         adapter.setItems(eps.episodes)
-                        strip.selectedPosition = pos.episodeRowIndex.coerceIn(0, (eps.episodes.size - 1).coerceAtLeast(0))
+                        // Select the page's episode once the strip has laid out the new list: selecting it in the same
+                        // frame as the data change left the strip at its first episode (Leanback)
+                        val target = pos.episodeRowIndex.coerceIn(0, (eps.episodes.size - 1).coerceAtLeast(0))
+                        // Scroll to it once the strip has laid out the new list, outside that layout pass. A plain
+                        // selection waits for a layout request the nested detail list doesn't always pass on, so the
+                        // strip stayed at its first episode; a smooth scroll moves the strip directly, like the D-pad.
+                        // If focus is already in the strip (the page's first focus), the episode takes it.
+                        strip.doOnNextLayout {
+                            strip.post {
+                                if (target != strip.selectedPosition || strip.findViewHolderForAdapterPosition(target) == null) {
+                                    strip.setSelectedPositionSmooth(
+                                        target,
+                                        ViewHolderTask { holder -> if (strip.hasFocus()) holder.itemView.requestFocus() },
+                                    )
+                                }
+                            }
+                        }
                         if (requestFocusAfterSeason) {
                             // Changing seasons: move focus once the new episodes are loaded
                             requestFocusAfterSeason = false

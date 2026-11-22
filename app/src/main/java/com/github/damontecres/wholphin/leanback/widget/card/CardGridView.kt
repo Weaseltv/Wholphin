@@ -470,6 +470,20 @@ class CardVerticalGrid(
         isItemAlignmentOffsetWithPadding = false
     }
 
+    /**
+     * `requestFocus()` on the grid lands on its selected card (a restored position); Leanback's keep-visible strategy
+     * (WeaselTV) otherwise focuses the first fully visible card and ignores the selected position.
+     */
+    override fun onRequestFocusInDescendants(
+        direction: Int,
+        previouslyFocusedRect: Rect?,
+    ): Boolean {
+        if (focusScrollStrategy != BaseGridView.FOCUS_SCROLL_ALIGNED && requestSelectedFocus(direction, previouslyFocusedRect)) {
+            return true
+        }
+        return super.onRequestFocusInDescendants(direction, previouslyFocusedRect)
+    }
+
     internal fun applyScroll(mode: GridScrollMode) {
         if (AppTheme.isNeon) {
             focusScrollStrategy = BaseGridView.FOCUS_SCROLL_ITEM
