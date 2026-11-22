@@ -121,15 +121,34 @@ class HomeHeaderView(
     private fun buildStandard() {
         val gap = context.dp(4)
         // NeonEyebrow with 4dp below it, plus the column's 4dp spacing
-        standard.addView(eyebrow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = gap * 2 })
+        standard.addView(
+            eyebrow,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                bottomMargin =
+                    gap * 2
+            },
+        )
         titleBox.maxHeightPx = if (compactLogo) context.dp(40) else Int.MAX_VALUE
         titleBox.addView(titleOrLogo, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
-        standard.addView(FractionFrame(context, .75f).apply { addView(titleBox, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)) })
+        standard.addView(
+            FractionFrame(context, .75f).apply {
+                addView(titleBox, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+            },
+        )
         details.orientation = LinearLayout.VERTICAL
         details.clipChildren = false
-        standard.addView(details, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = gap })
+        standard.addView(
+            details,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin =
+                    gap
+            },
+        )
         details.addView(subtitle, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        details.addView(quickDetails, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        details.addView(
+            quickDetails,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT),
+        )
         // Overview: WeaselTV fills the details column, other themes are 400dp wide
         val overviewWidth = if (neon) LinearLayout.LayoutParams.MATCH_PARENT else context.dp(400)
         details.addView(overview, LinearLayout.LayoutParams(overviewWidth, LinearLayout.LayoutParams.WRAP_CONTENT))
@@ -145,10 +164,37 @@ class HomeHeaderView(
         titleOrLogo.small = true
         compactTitleRow.addView(titleOrLogo, LinearLayout.LayoutParams(context.dp(160), context.dp(28)))
         compactTitleRow.addView(compactTitle, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        compactTitleRow.addView(subtitle, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = context.dp(12) })
-        standard.addView(FractionFrame(context, .92f).apply { addView(compactTitleRow, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)) }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = gap })
-        standard.addView(quickDetails, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = gap })
-        standard.addView(FractionFrame(context, .92f).apply { addView(overview, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)) }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = gap })
+        compactTitleRow.addView(
+            subtitle,
+            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginStart =
+                    context.dp(12)
+            },
+        )
+        standard.addView(
+            FractionFrame(
+                context,
+                .92f,
+            ).apply { addView(compactTitleRow, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)) },
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin =
+                    gap
+            },
+        )
+        standard.addView(
+            quickDetails,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin =
+                    gap
+            },
+        )
+        standard.addView(
+            FractionFrame(context, .92f).apply { addView(overview, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)) },
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin =
+                    gap
+            },
+        )
     }
 
     override fun bind(item: BaseItem?) {
@@ -168,7 +214,11 @@ class HomeHeaderView(
             item?.let {
                 listOfNotNull(
                     itemKindLabel(context, it.type),
-                    dto?.genres?.take(2)?.joinToString(" · ")?.takeIf { g -> g.isNotBlank() },
+                    dto
+                        ?.genres
+                        ?.take(2)
+                        ?.joinToString(" · ")
+                        ?.takeIf { g -> g.isNotBlank() },
                 ).joinToString(" · ")
             }
         val accent = pageStyle.accentFor(item)
@@ -257,11 +307,29 @@ private class StreamingProviderHeaderView(
         column.orientation = LinearLayout.VERTICAL
         val gap = context.dp(8)
         column.addView(eyebrow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        column.addView(title, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = gap })
-        column.addView(quickDetails, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = gap })
+        column.addView(
+            title,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin =
+                    gap
+            },
+        )
+        column.addView(
+            quickDetails,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin =
+                    gap
+            },
+        )
         description.maxLines = 2
         description.ellipsize = TextUtils.TruncateAt.END
-        column.addView(description, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = gap })
+        column.addView(
+            description,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin =
+                    gap
+            },
+        )
         addView(column, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
     }
 
@@ -410,7 +478,13 @@ internal class HeaderFitLayout(
         val child = getChildAt(0)
         val width = View.MeasureSpec.getSize(widthMeasureSpec)
         val available =
-            if (View.MeasureSpec.getMode(heightMeasureSpec) == View.MeasureSpec.UNSPECIFIED) Int.MAX_VALUE else View.MeasureSpec.getSize(heightMeasureSpec)
+            if (View.MeasureSpec.getMode(heightMeasureSpec) ==
+                View.MeasureSpec.UNSPECIFIED
+            ) {
+                Int.MAX_VALUE
+            } else {
+                View.MeasureSpec.getSize(heightMeasureSpec)
+            }
         val limit = min(maxHeightPx, available).coerceAtLeast(1)
         if (child == null || child.visibility == GONE) {
             setMeasuredDimension(width, if (fillHeight && limit != Int.MAX_VALUE) limit else 0)

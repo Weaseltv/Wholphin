@@ -69,7 +69,10 @@ class WatchlistFragment : DestinationFragment() {
         if (neon) {
             title =
                 GridTitleView(context).also {
-                    filters.addView(it, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+                    filters.addView(
+                        it,
+                        LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT),
+                    )
                 }
         }
         typeRow = SelectedFocusRow(context)
@@ -109,7 +112,11 @@ class WatchlistFragment : DestinationFragment() {
         savedInstanceState: Bundle?,
     ) {
         super.onViewCreated(view, savedInstanceState)
-        title?.bind(getString(R.string.watchlist), pageStyle.sectionAccent, collectionsOptions = ApprovedHomeLayout.apply(HomeRowViewOptions()))
+        title?.bind(
+            getString(R.string.watchlist),
+            pageStyle.sectionAccent,
+            collectionsOptions = ApprovedHomeLayout.apply(HomeRowViewOptions()),
+        )
         typeRow.preferred = { typeButtons.getOrNull(selectedIndex()) }
         viewModel.state.collectWhileStarted { folder.bind(it) }
         viewModel.libraries.collectWhileStarted { folder.watchlistLibraries = it }

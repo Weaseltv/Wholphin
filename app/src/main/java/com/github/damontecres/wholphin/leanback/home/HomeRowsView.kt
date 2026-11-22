@@ -139,7 +139,14 @@ class HomeRowsView(
             }
         }
 
+    /** The user's libraries: row headings and accents come from them */
     var libraries: List<Library> = emptyList()
+        set(value) {
+            if (field != value) {
+                field = value
+                if (rows.isNotEmpty()) refreshAll()
+            }
+        }
 
     /** WeaselTV: Home's rows show a kicker and a title split from the row's meaning (`splitHomeTitles`) */
     var splitHomeTitles: Boolean = false
@@ -229,7 +236,9 @@ class HomeRowsView(
         val insetStart = if (neon) context.dp(CardDimens.NEON_RULE_INSET_START_DP) else 0
         column.addView(
             grid,
-            android.widget.LinearLayout.LayoutParams(MATCH, 0, 1f).apply { marginStart = -insetStart },
+            android.widget.LinearLayout
+                .LayoutParams(MATCH, 0, 1f)
+                .apply { marginStart = -insetStart },
         )
         addView(column, LayoutParams(MATCH, MATCH))
         addView(spinner, LayoutParams(context.dp(40), context.dp(40), Gravity.TOP or Gravity.END))
@@ -498,10 +507,29 @@ class HomeRowsView(
 
     // Coach-mark tour --------------------------------------------------------------------------------------------------
 
+    /** The view registered as the tour's HOME_ROW target */
+    private var coachRowTarget: View? = null
+
     private fun registerCoachRow(holder: RowHolder? = rowViewAt(position.row)) {
         if (!CoachMarkTargets.enabled || holder == null) return
         val target = holder.cardRow?.strip ?: holder.placeholder ?: return
+        if (target === coachRowTarget) return
+        coachRowTarget?.let { CoachMarkTargets.unregister(CoachMarkIds.HOME_ROW, it) }
+        coachRowTarget = target
+        // The tour spotlights the focused row's posters, leaving room above them for its card
         CoachMarkTargets.register(CoachMarkIds.HOME_ROW, target)
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        if (header != null) CoachMarkTargets.register(CoachMarkIds.HOME_HEADER, headerFit)
+        coachRowTarget?.let { CoachMarkTargets.register(CoachMarkIds.HOME_ROW, it) }
+    }
+
+    override fun onDetachedFromWindow() {
+        CoachMarkTargets.unregister(CoachMarkIds.HOME_HEADER, headerFit)
+        coachRowTarget?.let { CoachMarkTargets.unregister(CoachMarkIds.HOME_ROW, it) }
+        super.onDetachedFromWindow()
     }
 
     /**
@@ -515,7 +543,8 @@ class HomeRowsView(
         if (!firstFocused && takeFocus) return
         val chartRow =
             rows.indexOfFirst {
-                hasContent(it) && ((it as HomeRowLoadingState.Success).rowType as? HomeRowConfig.JustWatch)?.list == JustWatchHomeList.TRENDING_MOVIES
+                hasContent(it) &&
+                    ((it as HomeRowLoadingState.Success).rowType as? HomeRowConfig.JustWatch)?.list == JustWatchHomeList.TRENDING_MOVIES
             }
         val loaded = rows.isNotEmpty() && rows.all { it.completed }
         if (chartRow >= 0) {
@@ -599,8 +628,19 @@ class HomeRowsView(
 
         override fun getItemViewType(position: Int): Int =
             when (val row = rows[position]) {
-                is HomeRowLoadingState.Success -> if (row.items.isNotEmpty()) TYPE_CARDS else if (showEmptyRows) TYPE_PLACEHOLDER else TYPE_EMPTY
-                else -> TYPE_PLACEHOLDER
+                is HomeRowLoadingState.Success -> {
+                    if (row.items.isNotEmpty()) {
+                        TYPE_CARDS
+                    } else if (showEmptyRows) {
+                        TYPE_PLACEHOLDER
+                    } else {
+                        TYPE_EMPTY
+                    }
+                }
+
+                else -> {
+                    TYPE_PLACEHOLDER
+                }
             }
 
         override fun onCreateViewHolder(
@@ -671,7 +711,9 @@ class HomeRowsView(
             val ctx = container.context
             val insetStart = if (neon) ctx.dp(CardDimens.NEON_RULE_INSET_START_DP) else 0
             when (type) {
-                TYPE_CARDS -> bindCards(index, row as HomeRowLoadingState.Success, key, keyChanged, insetStart)
+                TYPE_CARDS -> {
+                    bindCards(index, row as HomeRowLoadingState.Success, key, keyChanged, insetStart)
+                }
 
                 TYPE_PLACEHOLDER -> {
                     val (message, error) =
@@ -792,9 +834,11 @@ class HomeRowsView(
             saveSelection()
             cardRow?.strip?.adapter = null
             boundKey = null
-            CoachMarkTargets.unregisterAll(container)
-            cardRow?.strip?.let { CoachMarkTargets.unregisterAll(it) }
-            placeholder?.let { CoachMarkTargets.unregisterAll(it) }
+            val target = cardRow?.strip ?: placeholder
+            if (target != null && target === coachRowTarget) {
+                CoachMarkTargets.unregister(CoachMarkIds.HOME_ROW, target)
+                coachRowTarget = null
+            }
         }
     }
 

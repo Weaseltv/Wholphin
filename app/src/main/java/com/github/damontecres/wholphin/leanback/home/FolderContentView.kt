@@ -9,6 +9,8 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.leanback.widget.VerticalGridView
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.RecyclerView
 import coil3.load
 import coil3.request.crossfade
@@ -61,8 +63,6 @@ import com.github.damontecres.wholphin.ui.roundMinutes
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.LoadingState
 import com.github.damontecres.wholphin.util.RequestPager
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -188,8 +188,21 @@ class FolderContentView(
         column.addView(header, LinearLayout.LayoutParams(MATCH, WRAP))
         column.addView(content, LinearLayout.LayoutParams(MATCH, 0, 1f))
         addView(column, LayoutParams(MATCH, MATCH))
-        content.addView(spinner, LayoutParams(context.dp(64), context.dp(64), Gravity.CENTER).apply { setMargins(context.dp(16), context.dp(16), context.dp(16), context.dp(16)) })
-        sortButton.onSortChange = { actions.onSortChange(it, true, state?.filter ?: com.github.damontecres.wholphin.data.model.GetItemsFilter()) }
+        content.addView(
+            spinner,
+            LayoutParams(context.dp(64), context.dp(64), Gravity.CENTER).apply {
+                setMargins(context.dp(16), context.dp(16), context.dp(16), context.dp(16))
+            },
+        )
+        sortButton.onSortChange =
+            {
+                actions.onSortChange(
+                    it,
+                    true,
+                    state?.filter ?: com.github.damontecres.wholphin.data.model
+                        .GetItemsFilter(),
+                )
+            }
         filterButton.onFilterChange = { actions.onFilterChange(it, true) }
         filterButton.getPossibleValues = { actions.getFilterOptionValues(it) }
         filterButton.onShow = { filterOpen = it }
@@ -203,8 +216,10 @@ class FolderContentView(
         viewOptionsDialog?.takeIf { it.isShowing }?.update(state.viewOptions)
         when (val items = state.items) {
             is DataLoadingState.Error -> {
-                showContent(KIND_ERROR) { ErrorView(context, items, onSendLogs = onSendLogs) }
-                (focusOnEmpty?.invoke() ?: sortButton.button).requestFocusIfTop()
+                if (contentKind != KIND_ERROR) {
+                    showContent(KIND_ERROR) { ErrorView(context, items, onSendLogs = onSendLogs) }
+                    (focusOnEmpty?.invoke() ?: sortButton.button).requestFocusIfTop()
+                }
             }
 
             DataLoadingState.Loading, DataLoadingState.Pending -> {
@@ -213,7 +228,7 @@ class FolderContentView(
 
             is DataLoadingState.Success -> {
                 val listMode = state.viewOptions.type != ViewOptionsType.GRID
-                val entered = contentKind != KIND_GRID && contentKind != KIND_LIST || (contentKind == KIND_LIST) != listMode
+                val entered = (contentKind != KIND_GRID && contentKind != KIND_LIST) || ((contentKind == KIND_LIST) != listMode)
                 if (listMode) showList(items.data, state) else showGrid(items.data, state)
                 if (entered) focusAfterLoad(items.data)
             }
@@ -503,7 +518,13 @@ class FolderContentView(
             details.addView(detailsQuick, LayoutParams(WRAP, WRAP).apply { topMargin = pad })
             detailsOverview.maxLines = 5
             details.addView(detailsOverview, LayoutParams(MATCH, WRAP).apply { topMargin = pad })
-            addView(FractionFrame(context, .33f).apply { addView(details, LayoutParams(MATCH, MATCH)) }, LayoutParams(WRAP, MATCH).apply { marginEnd = context.dp(8) })
+            addView(
+                FractionFrame(context, .33f).apply { addView(details, LayoutParams(MATCH, MATCH)) },
+                LayoutParams(WRAP, MATCH).apply {
+                    marginEnd =
+                        context.dp(8)
+                },
+            )
             grid.adapter = adapter
             grid.clipToPadding = false
             val edge = context.dp(20)
@@ -542,7 +563,12 @@ class FolderContentView(
         fun bindDetails(item: BaseItem?) {
             if (!options.showDetails) return
             detailsTitle.bind(item, true, CardImages.imageUrlService(context))
-            val url = item?.imageUrlOverride ?: CardImages.imageUrlService(context).getItemImageUrl(item, org.jellyfin.sdk.model.api.ImageType.PRIMARY, useSeriesForPrimary = true)
+            val url =
+                item?.imageUrlOverride
+                    ?: CardImages
+                        .imageUrlService(
+                            context,
+                        ).getItemImageUrl(item, org.jellyfin.sdk.model.api.ImageType.PRIMARY, useSeriesForPrimary = true)
             detailsImage.load(url) { crossfade(300) }
             detailsQuick.showIf(item != null)
             item?.let { detailsQuick.bind(it.ui.quickDetailsText, null) }

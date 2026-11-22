@@ -59,8 +59,14 @@ fun homeRowAccentFor(
     }
     if (row is HomeRowConfig.RecentlyAddedCombined) {
         when (row.collectionType) {
-            CollectionType.MOVIES -> return NeonSections.Movies.border
-            CollectionType.TVSHOWS -> return NeonSections.TvShows.border
+            CollectionType.MOVIES -> {
+                return NeonSections.Movies.border
+            }
+
+            CollectionType.TVSHOWS -> {
+                return NeonSections.TvShows.border
+            }
+
             else -> {}
         }
     }

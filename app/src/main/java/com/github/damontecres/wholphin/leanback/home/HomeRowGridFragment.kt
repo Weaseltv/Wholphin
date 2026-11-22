@@ -191,7 +191,10 @@ class HomeRowGridFragment : DestinationFragment() {
                         it.isActionEnabled = state.items.isNotEmpty()
                     },
                 )
-                column.addView(buttons, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+                column.addView(
+                    buttons,
+                    LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT),
+                )
                 val g = CardGridView(context)
                 grid = g
                 column.addView(
@@ -274,7 +277,13 @@ class HomeRowGridFragment : DestinationFragment() {
                                 },
                                 letterPosition = { vm.positionOfLetter(it) },
                             ),
-                        config = CardGridConfig(columns = 4, spacingDp = 16f, showLetterButtons = true, initialPosition = dest.initialPosition),
+                        config =
+                            CardGridConfig(
+                                columns = 4,
+                                spacingDp = 16f,
+                                showLetterButtons = true,
+                                initialPosition = dest.initialPosition,
+                            ),
                         pageStyle = style,
                     )
                     requestInitialFocus(tiles.grid.grid)
@@ -318,7 +327,13 @@ class HomeRowGridFragment : DestinationFragment() {
                                 },
                                 letterPosition = { vm.positionOfLetter(it) },
                             ),
-                        config = CardGridConfig(columns = 4, spacingDp = 16f, showLetterButtons = true, initialPosition = dest.initialPosition),
+                        config =
+                            CardGridConfig(
+                                columns = 4,
+                                spacingDp = 16f,
+                                showLetterButtons = true,
+                                initialPosition = dest.initialPosition,
+                            ),
                         pageStyle = style,
                     )
                     requestInitialFocus(tiles.grid.grid)

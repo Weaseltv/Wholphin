@@ -378,7 +378,10 @@ internal class FilterButton(
                             }
                         }
                         row.tag = value
-                        column.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+                        column.addView(
+                            row,
+                            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT),
+                        )
                         if (first == null) first = row
                     }
                     if (menu.isShowing) {
@@ -402,7 +405,8 @@ internal class FilterButton(
         }
     }
 
-    private fun LinearLayout.indexOfChildFocusable(value: FilterValueOption): Int = (0 until childCount).firstOrNull { getChildAt(it).tag == value } ?: -1
+    private fun LinearLayout.indexOfChildFocusable(value: FilterValueOption): Int =
+        (0 until childCount).firstOrNull { getChildAt(it).tag == value } ?: -1
 
     private fun removeRow(
         menu: AppDropdownMenu?,
@@ -452,12 +456,32 @@ internal class FilterButton(
             item: T,
         ): List<T>? = list.toMutableList().apply { if (selected) remove(item) else add(item) }.takeIf { it.isNotEmpty() }
         return when (option) {
-            GenreFilter, StudioFilter -> option.set(toggle((currentValue as? List<UUID>).orEmpty(), value.value as UUID), current)
-            FavoriteFilter, PlayedFilter -> option.set(value.name.toBoolean(), current)
-            OfficialRatingFilter -> option.set(toggle((currentValue as? List<String>).orEmpty(), value.name), current)
-            VideoTypeFilter -> option.set(toggle((currentValue as? List<FilterVideoType>).orEmpty(), value.value as FilterVideoType), current)
-            YearFilter, DecadeFilter -> option.set(toggle((currentValue as? List<Int>).orEmpty(), value.value as Int), current)
-            CommunityRatingFilter -> option.set(value.value as? Int, current)
+            GenreFilter, StudioFilter -> {
+                option.set(toggle((currentValue as? List<UUID>).orEmpty(), value.value as UUID), current)
+            }
+
+            FavoriteFilter, PlayedFilter -> {
+                option.set(value.name.toBoolean(), current)
+            }
+
+            OfficialRatingFilter -> {
+                option.set(toggle((currentValue as? List<String>).orEmpty(), value.name), current)
+            }
+
+            VideoTypeFilter -> {
+                option.set(
+                    toggle((currentValue as? List<FilterVideoType>).orEmpty(), value.value as FilterVideoType),
+                    current,
+                )
+            }
+
+            YearFilter, DecadeFilter -> {
+                option.set(toggle((currentValue as? List<Int>).orEmpty(), value.value as Int), current)
+            }
+
+            CommunityRatingFilter -> {
+                option.set(value.value as? Int, current)
+            }
         }
     }
 }
@@ -610,7 +634,13 @@ internal class PreferenceOptionsDialog<P : Any>(
                     dialog.onChange(dialog.value)
                 }
             }
-        column.addView(slider, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, context.dp(24)).apply { topMargin = context.dp(4) })
+        column.addView(
+            slider,
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, context.dp(24)).apply {
+                topMargin =
+                    context.dp(4)
+            },
+        )
         return column
     }
 

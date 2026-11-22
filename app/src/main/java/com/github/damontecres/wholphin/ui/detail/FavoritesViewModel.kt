@@ -28,8 +28,6 @@ import com.github.damontecres.wholphin.ui.collectLatestIn
 import com.github.damontecres.wholphin.ui.components.CollectionFolderState
 import com.github.damontecres.wholphin.ui.components.CollectionFolderViewActions
 import com.github.damontecres.wholphin.ui.components.ContextMenuProvider
-import com.github.damontecres.wholphin.ui.util.ResStringProvider
-import com.github.damontecres.wholphin.ui.util.StringProvider
 import com.github.damontecres.wholphin.ui.components.ViewOptions
 import com.github.damontecres.wholphin.ui.components.baseItemKinds
 import com.github.damontecres.wholphin.ui.components.defaultViewOptions
@@ -42,6 +40,8 @@ import com.github.damontecres.wholphin.ui.main.settings.Library
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.nav.NavDrawerItem
 import com.github.damontecres.wholphin.ui.showToast
+import com.github.damontecres.wholphin.ui.util.ResStringProvider
+import com.github.damontecres.wholphin.ui.util.StringProvider
 import com.github.damontecres.wholphin.util.ApiRequestPager
 import com.github.damontecres.wholphin.util.BlockingList
 import com.github.damontecres.wholphin.util.DataLoadingState

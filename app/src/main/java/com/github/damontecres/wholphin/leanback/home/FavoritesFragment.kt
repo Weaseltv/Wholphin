@@ -110,7 +110,11 @@ class FavoritesFragment : DestinationFragment() {
                                 setTextColor(AppTheme.palette.onSurface)
                                 setText(R.string.no_favorites_found)
                             },
-                            FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER),
+                            FrameLayout.LayoutParams(
+                                FrameLayout.LayoutParams.WRAP_CONTENT,
+                                FrameLayout.LayoutParams.WRAP_CONTENT,
+                                Gravity.CENTER,
+                            ),
                         )
                     }
                 }
@@ -151,7 +155,10 @@ class FavoritesFragment : DestinationFragment() {
                     }
                 val tabs = AppTabRow(context, keyed = true)
                 tabs.onTabClick = { index -> tabKeys.getOrNull(index)?.let(viewModel::updateSelectedTabKey) }
-                column.addView(tabs, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+                column.addView(
+                    tabs,
+                    LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT),
+                )
                 val content =
                     FrameLayout(context).apply {
                         clipChildren = false
@@ -187,7 +194,10 @@ class FavoritesFragment : DestinationFragment() {
                 shownTab = null
             } else {
                 val folder = folders.getOrPut(type) { folderFor(type) }
-                content.addView(folder, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+                content.addView(
+                    folder,
+                    FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT),
+                )
                 // The new tab fades in after 100ms over 300ms, as AnimatedContent did
                 folder.alpha = 0f
                 folder
