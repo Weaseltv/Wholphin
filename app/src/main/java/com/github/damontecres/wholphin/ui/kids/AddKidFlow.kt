@@ -591,22 +591,6 @@ private fun KidForm(
     }
 }
 
-val KidLevel.label: Int
-    get() =
-        when (this) {
-            KidLevel.KIDS -> R.string.kid_level_kids
-            KidLevel.OLDER_KIDS -> R.string.kid_level_older_kids
-            KidLevel.TEENS -> R.string.kid_level_teens
-        }
-
-val KidLevel.description: Int
-    get() =
-        when (this) {
-            KidLevel.KIDS -> R.string.kid_level_kids_description
-            KidLevel.OLDER_KIDS -> R.string.kid_level_older_kids_description
-            KidLevel.TEENS -> R.string.kid_level_teens_description
-        }
-
 @Composable
 private fun errorText(error: AddKidError): String =
     when (error) {

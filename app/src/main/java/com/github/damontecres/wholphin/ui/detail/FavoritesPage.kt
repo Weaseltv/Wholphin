@@ -75,10 +75,26 @@ fun FavoritesPage(
 
         FavoritesLoadingState.Success -> {
 //    LaunchedEffect(Unit) { focusRequester.tryRequestFocus() }
+            // The ViewModel keeps plain tab titles (no Compose types); the old tab row wants TabDetails
+            val tabs =
+                remember(state.tabs) {
+                    java.util
+                        .TreeMap<org.jellyfin.sdk.model.api.BaseItemKind, com.github.damontecres.wholphin.ui.components.TabDetails>(
+                            state.tabs.comparator(),
+                        ).apply {
+                            state.tabs.forEach { (type, title) ->
+                                put(
+                                    type,
+                                    com.github.damontecres.wholphin.ui.components
+                                        .TabDetails(title),
+                                )
+                            }
+                        }
+                }
             KeyedTabbedPage(
                 selectedTabKey = state.tabKey,
                 updateSelectedTabKey = viewModel::updateSelectedTabKey,
-                tabs = state.tabs,
+                tabs = tabs,
                 showTabs = showTabs,
                 isShowClock = state.isShowClock,
                 modifier = modifier,

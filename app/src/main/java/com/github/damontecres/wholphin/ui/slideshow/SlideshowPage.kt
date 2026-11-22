@@ -373,7 +373,7 @@ fun SlideshowPage(
                             val colorFilter =
                                 remember(imageState.id, imageFilter) {
                                     if (imageFilter.hasImageFilter()) {
-                                        ColorMatrixColorFilter(imageFilter.colorMatrix)
+                                        ColorMatrixColorFilter(androidx.compose.ui.graphics.ColorMatrix(imageFilter.colorMatrix.array))
                                     } else {
                                         null
                                     }

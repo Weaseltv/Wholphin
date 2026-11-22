@@ -41,20 +41,7 @@ import com.github.damontecres.wholphin.ui.theme.NeonBoard
 import com.github.damontecres.wholphin.ui.theme.NeonType
 import com.github.damontecres.wholphin.ui.theme.isWeaselTv
 import com.github.damontecres.wholphin.ui.theme.neonSurfaceGlow
-import org.jellyfin.sdk.model.api.PublicSystemInfo
 import java.util.UUID
-
-sealed interface ServerConnectionStatus {
-    data class Success(
-        val systemInfo: PublicSystemInfo,
-    ) : ServerConnectionStatus
-
-    object Pending : ServerConnectionStatus
-
-    data class Error(
-        val message: String?,
-    ) : ServerConnectionStatus
-}
 
 /**
  * Generate a consistent color for a UUID

@@ -602,8 +602,10 @@ internal class RailScrollView(
     init {
         isVerticalScrollBarEnabled = false
         overScrollMode = OVER_SCROLL_NEVER
+        // Rows' glow may use the padding at both ends, but scrolled rows must not draw outside the list (over the
+        // profile row or the brand), as the Compose LazyColumn clipped its content
         clipToPadding = false
-        clipChildren = false
+        clipChildren = true
         isSmoothScrollingEnabled = true
         isFocusable = false
         descendantFocusability = FOCUS_AFTER_DESCENDANTS

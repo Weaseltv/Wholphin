@@ -59,6 +59,7 @@ import com.github.damontecres.wholphin.ui.playback.AnalyticsState
 import com.github.damontecres.wholphin.ui.playback.ControllerViewState
 import com.github.damontecres.wholphin.ui.playback.CurrentPlayback
 import com.github.damontecres.wholphin.ui.playback.PlaybackDialogType
+import com.github.damontecres.wholphin.ui.playback.collectVisible
 import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.MediaSegmentDto
 import org.jellyfin.sdk.model.api.TrickplayInfo
@@ -96,6 +97,7 @@ fun PlaybackOverlay(
     seekBarInteractionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) {
     val seekBarFocused by seekBarInteractionSource.collectIsFocusedAsState()
+    val controlsShown = controllerViewState.collectVisible()
     // Will be used for preview/trick play images
     var seekProgressMs by remember(seekBarFocused) { mutableLongStateOf(player.currentPosition) }
     var seekProgressPercent = (seekProgressMs.toDouble() / player.duration).toFloat()
@@ -113,8 +115,8 @@ fun PlaybackOverlay(
 
     // This will be calculated after composition
     var controllerHeight by remember { mutableStateOf(0.dp) }
-    var state by remember(controllerViewState.controlsVisible) {
-        mutableStateOf(if (controllerViewState.controlsVisible) OverlayViewState.CONTROLLER else OverlayViewState.HIDDEN)
+    var state by remember(controlsShown) {
+        mutableStateOf(if (controlsShown) OverlayViewState.CONTROLLER else OverlayViewState.HIDDEN)
     }
     val onChangeState = { newState: OverlayViewState ->
         state = newState
@@ -125,7 +127,7 @@ fun PlaybackOverlay(
         contentAlignment = Alignment.BottomCenter,
     ) {
         AnimatedVisibility(
-            visible = controllerViewState.controlsVisible && !showDebugInfo,
+            visible = controlsShown && !showDebugInfo,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.matchParentSize(),
@@ -260,7 +262,7 @@ fun PlaybackOverlay(
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
             // Trickplay
             AnimatedVisibility(
-                visible = controllerViewState.controlsVisible && seekProgressPercent >= 0 && seekBarFocused,
+                visible = controlsShown && seekProgressPercent >= 0 && seekBarFocused,
                 enter =
                     expandVertically(
                         spring(
@@ -299,7 +301,7 @@ fun PlaybackOverlay(
         // Top
         val logoImageUrl = LocalImageUrlService.current.rememberImageUrl(item, ImageType.LOGO)
         AnimatedVisibility(
-            visible = !showDebugInfo && logoImageUrl.isNotNullOrBlank() && controllerViewState.controlsVisible,
+            visible = !showDebugInfo && logoImageUrl.isNotNullOrBlank() && controlsShown,
             enter = slideIn { IntOffset(x = -it.width / 2, y = -it.height / 2) } + fadeIn(),
             exit = slideOut { IntOffset(x = -it.width / 2, y = -it.height / 2) } + fadeOut(),
             modifier =
@@ -317,7 +319,7 @@ fun PlaybackOverlay(
             )
         }
         AnimatedVisibility(
-            visible = !showDebugInfo && showClock && controllerViewState.controlsVisible,
+            visible = !showDebugInfo && showClock && controlsShown,
             enter = slideIn { IntOffset(x = it.width / 2, y = -it.height / 2) } + fadeIn(),
             exit = slideOut { IntOffset(x = it.width / 2, y = -it.height / 2) } + fadeOut(),
             modifier =
@@ -329,7 +331,7 @@ fun PlaybackOverlay(
 
         // Debug overlay
         AnimatedVisibility(
-            visible = showDebugInfo && controllerViewState.controlsVisible,
+            visible = showDebugInfo && controlsShown,
             enter = slideInVertically() + fadeIn(),
             exit = slideOutVertically() + fadeOut(),
             modifier =
