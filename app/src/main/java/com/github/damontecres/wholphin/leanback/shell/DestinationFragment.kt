@@ -80,6 +80,9 @@ abstract class DestinationFragment : Fragment() {
     /** The view that had focus when this screen was hidden, restored by [onScreenFocus] */
     internal var lastFocused: View? = null
 
+    /** [lastFocused] when a page was pushed on top of this one; restored (once) when that page is popped */
+    internal var focusToRestore: View? = null
+
     /**
      * True while this screen is the visible top page (set by the shell). A screen whose content arrives after
      * [onScreenFocus] (data loading) checks it before taking focus for that content.
@@ -105,7 +108,8 @@ abstract class DestinationFragment : Fragment() {
      * focus on a specific view first time (eg the Play button), call super for the restore case.
      */
     open fun onScreenFocus(restoring: Boolean) {
-        val last = lastFocused
+        val last = focusToRestore ?: lastFocused
+        focusToRestore = null
         if (restoring && last != null && last.isAttachedToWindow && last.isShown && last.requestFocus()) return
         view?.let { root ->
             // restoreDefaultFocus is API 26+; before that the first focusable descendant takes focus

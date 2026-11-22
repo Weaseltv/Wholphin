@@ -250,7 +250,12 @@ internal class NavHost(
         } else {
             if (oldTop != null) tx.setCustomAnimations(R.animator.lb_shell_page_enter, R.animator.lb_shell_page_hold)
             removed.forEach { tx.remove(it.fragment) }
-            if (removed.isEmpty() && oldTop != null) tx.hide(oldTop.fragment)
+            if (removed.isEmpty() && oldTop != null) {
+                // What to restore when this page is shown again: taken now, because when the page above is removed
+                // later, Android moves focus into this page by itself and that would overwrite lastFocused
+                oldTop.fragment.focusToRestore = oldTop.fragment.lastFocused
+                tx.hide(oldTop.fragment)
+            }
             for (i in common until stack.size) {
                 val entry = create(stack, i)
                 tx.add(container.id, entry.fragment, entry.key)

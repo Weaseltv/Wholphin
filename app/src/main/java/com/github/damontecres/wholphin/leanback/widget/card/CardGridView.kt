@@ -177,7 +177,16 @@ class CardGridView(
         // The letter bar takes the page's section accent (LocalNeonSectionAccent)
         pageStyle?.let { alphabet.setAccent(it.sectionAccent) }
         @Suppress("UNCHECKED_CAST")
-        val typed = (adapter as? CardGridAdapter<T>)?.takeIf { it.presenter === presenter } ?: CardGridAdapter(presenter)
+        val existing = adapter as? CardGridAdapter<T>
+        val typed =
+            when {
+                existing == null -> CardGridAdapter(presenter)
+                existing.presenter === presenter -> existing
+                // The same call site's presenter (pages build one per update): keep the adapter, so Leanback keeps the
+                // selected position and focus, and rebind the cards with the new presenter
+                existing.presenter.javaClass == presenter.javaClass -> existing.also { it.presenter = presenter }
+                else -> CardGridAdapter(presenter)
+            }
         typed.callbacks =
             CardCallbacks(
                 onClick = { i, item ->
@@ -211,6 +220,15 @@ class CardGridView(
             previouslyFocusedIndex = 0
             typed.setItems(items)
             grid.selectedPosition = focusedIndex
+        } else if (items !== typed.items && grid.hasFocus() && items.isNotEmpty()) {
+            // A new list in place of the shown one (eg a page refreshing on return) while a card has focus: keep focus
+            // on the card at the same position once the new list is laid out (the rebind dropped it before)
+            val keep = focusedIndex.coerceIn(0, items.size - 1)
+            typed.setItems(items)
+            grid.setSelectedPosition(
+                keep,
+                ViewHolderTask { holder -> if (!holder.itemView.hasFocus()) holder.itemView.requestFocus() },
+            )
         } else {
             typed.setItems(items)
         }

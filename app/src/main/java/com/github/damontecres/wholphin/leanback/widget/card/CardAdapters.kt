@@ -290,9 +290,16 @@ class CardRowAdapter<T : Any>(
  * focus. Reading an item happens only when its card is bound, as the Compose grid read only composed items.
  */
 class CardGridAdapter<T : CardGridItem>(
-    val presenter: CardPresenter<T>,
+    presenter: CardPresenter<T>,
     var callbacks: CardCallbacks<T> = CardCallbacks(),
 ) : RecyclerView.Adapter<CardViewHolder>() {
+    /**
+     * How cards are made and bound. The grid may swap in a presenter from the same call site (a page builds a new one on
+     * every update) without replacing the adapter, which would reset the grid's position and drop focus.
+     */
+    var presenter: CardPresenter<T> = presenter
+        internal set
+
     var items: List<T?> = emptyList()
         private set
     private var count = 0
