@@ -230,7 +230,7 @@ class CollectionDetailsFragment : DetailPageFragment() {
             }
 
         // The focused item's header: an invisible focus target above the items brings the collection header back
-        private val hiddenFocus = HiddenFocusView(context) { showCollectionHeader() }
+        private val hiddenFocus = HiddenFocusView(context) { viewport.post { showCollectionHeader() } }
         private val itemHeader = FocusedItemHeaderView(context)
         private val itemFitted =
             FittedDetailHeaderLayout(context).apply {
@@ -385,13 +385,15 @@ class CollectionDetailsFragment : DetailPageFragment() {
         }
 
         private fun showCollectionHeader() {
+            if (!itemsContentHasFocus) return
             itemsContentHasFocus = false
-            itemBlock.visibility = View.GONE
+            // Focus moves to the buttons before the item header (holding the focus target) goes away
             collectionBlock.visibility = View.VISIBLE
+            buttons.restoreTarget?.requestFocus()
+            itemBlock.visibility = View.GONE
             swapIn(collectionBlock)
             focusedItem = state?.collection
             state?.collection?.let { setBackdrop(it) }
-            buttons.restoreTarget?.requestFocus()
         }
 
         private fun bindItemHeader() {

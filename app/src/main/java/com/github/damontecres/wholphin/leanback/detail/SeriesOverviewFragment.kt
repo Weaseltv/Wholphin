@@ -96,7 +96,7 @@ class SeriesOverviewFragment : DetailPageFragment() {
 
     private var page: OverviewPage? = null
     private var userDto: UserDto? = null
-    private var activations = 0
+    private var cameBackFromPage = false
     private var resumedPage = false
 
     /** The season tab chosen: focus its first episode once its episodes load (`requestFocusAfterSeason`) */
@@ -155,9 +155,15 @@ class SeriesOverviewFragment : DetailPageFragment() {
         super.onDestroyView()
     }
 
+    override fun onHiddenChanged(hidden: Boolean) {
+        if (hidden) cameBackFromPage = true
+        super.onHiddenChanged(hidden)
+    }
+
     override fun onPageActive() {
-        // Coming back to the page reloads the season's episodes (the page used to be composed again)
-        if (activations++ > 0) {
+        // Coming back from a page on top reloads the season's episodes (the page used to be composed again)
+        if (cameBackFromPage) {
+            cameBackFromPage = false
             val seasons = viewModel.state.value.seasons
             if (seasons.isNotEmpty()) {
                 seasons.getOrNull(position.seasonTabIndex)?.let { viewModel.loadEpisodes(it.id, it.indexNumber) }

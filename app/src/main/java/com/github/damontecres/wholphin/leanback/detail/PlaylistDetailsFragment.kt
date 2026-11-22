@@ -297,7 +297,7 @@ class PlaylistDetailsFragment : DetailPageFragment() {
                     clipToPadding = false
                 }
             val header =
-                FractionColumn(context, 1f, 8f).apply {
+                FractionColumn(context, .25f, 8f).apply {
                     setPadding(0, context.dp(80), 0, 0)
                     val buttons =
                         LinearLayout(context).apply {
@@ -325,13 +325,13 @@ class PlaylistDetailsFragment : DetailPageFragment() {
                     addView(focusedOverview, LinearLayout.LayoutParams(MATCH, WRAP))
                 }
             // The header is a quarter of the row; 24dp, then the list panel (16dp in) takes the rest
-            row.addView(header, LinearLayout.LayoutParams(0, WRAP, .25f))
+            row.addView(header, LinearLayout.LayoutParams(MATCH, WRAP))
             listPanel.addView(list, FrameLayout.LayoutParams(MATCH, MATCH))
             listPanel.addView(loadingView, FrameLayout.LayoutParams(MATCH, MATCH))
             listPanel.addView(emptyView, FrameLayout.LayoutParams(MATCH, MATCH))
             row.addView(
                 listPanel,
-                LinearLayout.LayoutParams(0, MATCH, .75f).apply {
+                LinearLayout.LayoutParams(0, MATCH, 1f).apply {
                     marginStart = context.dp(24 + 16)
                     bottomMargin = context.dp(32)
                 },
