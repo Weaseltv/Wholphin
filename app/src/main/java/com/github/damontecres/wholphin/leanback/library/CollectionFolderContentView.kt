@@ -105,6 +105,7 @@ class CollectionFolderContentView(
     /** The page title (hidden by tabbed pages and while scrolled down) */
     var showTitle: Boolean = true
         set(value) {
+            if (field == value) return
             field = value
             state?.let { bindHeader(it) }
         }
@@ -272,25 +273,27 @@ class CollectionFolderContentView(
             }
 
             is DataLoadingState.Success -> {
-                if (shownItemKind != KIND_SUCCESS) {
-                    shownItemKind = KIND_SUCCESS
-                    showOverlay(null)
-                    successColumn.visibility = VISIBLE
-                }
+                val entered = shownItemKind != KIND_SUCCESS
+                shownItemKind = KIND_SUCCESS
+                if (entered) successColumn.visibility = VISIBLE
                 bindHeader(state)
                 bindItems(state, st.data)
+                // Only now, with the new content holding focus, remove the page's loading picture (removing a focused
+                // view first would drop focus out of the page)
+                if (entered) showOverlay(null)
             }
         }
         viewOptionsDialog?.takeIf { it.isShowing }?.update(state.viewOptions)
     }
 
     private fun showOverlay(view: View?) {
-        pageOverlay?.let { removeView(it) }
+        val old = pageOverlay
         pageOverlay = view
         if (view != null) {
-            successColumn.visibility = GONE
             addView(view, LayoutParams(MATCH, MATCH))
+            successColumn.visibility = GONE
         }
+        old?.let { removeView(it) }
     }
 
     private fun isCollectionsLayout(item: BaseItem?): Boolean =
@@ -442,6 +445,7 @@ class CollectionFolderContentView(
                     clickedRandom = false
                     clickedGroup = false
                 }
+                removeStaleContent()
             }
         }
     }
@@ -458,14 +462,23 @@ class CollectionFolderContentView(
 
     private fun focusItems(): Boolean = gridView?.focusGrid() ?: listView?.focusList() ?: false
 
+    /** Show [view] in the content area; it is added before the old content goes, so focus never leaves the page */
     private fun replaceContent(view: View) {
         changesJob?.cancel()
-        contentHolder.removeAllViews()
+        val old = (0 until contentHolder.childCount).map { contentHolder.getChildAt(it) }
         gridView = null
         listView = null
         shownItems = null
         shownType = null
         contentHolder.addView(view, FrameLayout.LayoutParams(MATCH, MATCH))
+        old.forEach { contentHolder.removeView(it) }
+    }
+
+    private val staleContent = mutableListOf<View>()
+
+    private fun removeStaleContent() {
+        staleContent.forEach { contentHolder.removeView(it) }
+        staleContent.clear()
     }
 
     private fun cardLook(item: BaseItem?): LibraryCardLook =
@@ -489,20 +502,19 @@ class CollectionFolderContentView(
         val callbacks = gridCallbacks(state)
         val owner = fragment.viewLifecycleOwner
         val prefs = fragment.preferences.appPreferences
-        if (entered || type != shownType) {
-            if (type != shownType || (gridView == null && listView == null)) {
-                changesJob?.cancel()
-                contentHolder.removeAllViews()
-                gridView = null
-                listView = null
-                if (type == ViewOptionsType.GRID) {
-                    gridView = LibraryGridView(context).also { contentHolder.addView(it, FrameLayout.LayoutParams(MATCH, MATCH)) }
-                } else {
-                    listView = LibraryListView(context).also { contentHolder.addView(it, FrameLayout.LayoutParams(MATCH, MATCH)) }
-                }
-                shownType = type
-                shownItems = null
+        if (type != shownType || (gridView == null && listView == null)) {
+            changesJob?.cancel()
+            // The old content (loading picture, the other layout) goes once the new one is in place and focused
+            staleContent += (0 until contentHolder.childCount).map { contentHolder.getChildAt(it) }
+            gridView = null
+            listView = null
+            if (type == ViewOptionsType.GRID) {
+                gridView = LibraryGridView(context).also { contentHolder.addView(it, FrameLayout.LayoutParams(MATCH, MATCH)) }
+            } else {
+                listView = LibraryListView(context).also { contentHolder.addView(it, FrameLayout.LayoutParams(MATCH, MATCH)) }
             }
+            shownType = type
+            shownItems = null
         }
         val viewOptions = if (isCollectionsLayout(item)) state.viewOptions.copy(showTitles = false) else state.viewOptions
         gridView?.setItems(

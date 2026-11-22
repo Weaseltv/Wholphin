@@ -198,12 +198,13 @@ class RecommendedContentView(
     }
 
     private fun showOverlay(view: View?) {
-        overlay?.let { removeView(it) }
+        val old = overlay
         overlay = view
         if (view != null) {
-            rowsView?.visibility = GONE
             addView(view, LayoutParams(MATCH, MATCH))
+            rowsView?.visibility = GONE
         }
+        old?.let { removeView(it) }
     }
 
     override fun onShown(firstTime: Boolean) {
@@ -347,6 +348,8 @@ class RecommendedContentView(
 
         private fun focusRow(index: Int) {
             list.setSelectedPosition(index) { holder -> holder.itemView.requestFocus() }
+            // Before the row is laid out the list holds focus and hands it to the row (Leanback)
+            if (!list.hasFocus()) list.requestFocus()
         }
 
         /** Focus the rows at the last focused row (the tab was shown again) */

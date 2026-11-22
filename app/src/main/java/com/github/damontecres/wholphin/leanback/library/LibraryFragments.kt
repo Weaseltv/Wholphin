@@ -9,6 +9,9 @@ import android.widget.LinearLayout
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.github.damontecres.wholphin.preferences.AppThemeColors
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.filter.DefaultFilterOptions
 import com.github.damontecres.wholphin.data.filter.DefaultTvFilterOptions
@@ -66,6 +69,70 @@ abstract class LibraryFragment : DestinationFragment() {
     protected val errorViewModel: ErrorViewModel by viewModels()
 
     private var visibleNow = false
+    private var pageRootView: FrameLayout? = null
+    private val viewJobs = mutableListOf<Job>()
+    private var builtTheme: AppThemeColors? = null
+    private var themeDirty = false
+
+    /** Build the page's views (called again when the app theme changes, with the ViewModels kept) */
+    protected abstract fun createContent(): View
+
+    /** The page's style changed (side menu, Home settings) without a theme change */
+    protected open fun onStyleChanged(style: PageStyle) {}
+
+    /** Collect while the page's current views live (cancelled when they are rebuilt or destroyed) */
+    protected fun <T> Flow<T>.collectInView(block: suspend (T) -> Unit) {
+        viewJobs += collectWhileStarted(block)
+    }
+
+    final override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View =
+        FrameLayout(requireContext())
+            .apply {
+                // The page container never clips the cards' focus glow
+                clipChildren = false
+                clipToPadding = false
+            }.also { pageRootView = it }
+
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
+        super.onViewCreated(view, savedInstanceState)
+        buildContent()
+    }
+
+    private fun buildContent() {
+        val root = pageRootView ?: return
+        viewJobs.forEach { it.cancel() }
+        viewJobs.clear()
+        root.removeAllViews()
+        builtTheme = AppTheme.theme
+        themeDirty = false
+        root.addView(createContent(), FrameLayout.LayoutParams(MATCH, MATCH))
+    }
+
+    /**
+     * A new theme rebuilds the views (they hold its colours), at once while the page shows, else when it shows again;
+     * other style changes rebind the cards.
+     */
+    final override fun onPageStyleChanged(style: PageStyle) {
+        if (AppTheme.theme != builtTheme) {
+            if (isTopScreen && visibleNow) buildContent() else themeDirty = true
+        } else {
+            onStyleChanged(style)
+        }
+    }
+
+    override fun onDestroyView() {
+        viewJobs.forEach { it.cancel() }
+        viewJobs.clear()
+        pageRootView = null
+        super.onDestroyView()
+    }
 
     /** An assisted ViewModel kept under [key] in this page's store (several of one class on a tabbed page) */
     protected inline fun <reified VM : ViewModel, reified F : Any> keyedViewModel(
@@ -75,14 +142,6 @@ abstract class LibraryFragment : DestinationFragment() {
         val extras = defaultViewModelCreationExtras.withCreationCallback<F> { create(it) }
         return ViewModelProvider(viewModelStore, defaultViewModelProviderFactory, extras)[key, VM::class.java]
     }
-
-    /** A page root: a frame that never clips the cards' focus glow */
-    protected fun pageRoot(child: View): FrameLayout =
-        FrameLayout(requireContext()).apply {
-            clipChildren = false
-            clipToPadding = false
-            addView(child, FrameLayout.LayoutParams(MATCH, MATCH))
-        }
 
     override fun onResume() {
         super.onResume()
@@ -102,6 +161,7 @@ abstract class LibraryFragment : DestinationFragment() {
     private fun setPageVisible(visible: Boolean) {
         if (visible == visibleNow) return
         visibleNow = visible
+        if (visible && themeDirty) buildContent()
         if (visible) onPageVisible() else onPageHidden()
     }
 
@@ -149,11 +209,7 @@ class CollectionFolderFragment : LibraryFragment() {
     private var content: CollectionFolderContentView? = null
     private var shownBefore = false
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?,
-    ): View {
+    override fun createContent(): View {
         val view =
             CollectionFolderContentView(
                 context = requireContext(),
@@ -182,7 +238,12 @@ class CollectionFolderFragment : LibraryFragment() {
                 errorViewModel = errorViewModel,
             )
         content = view
-        return pageRoot(view)
+        view.pageStyle = pageStyle
+        viewModel.state.collectInView { view.bind(it, viewModel.position) }
+        viewModel.homeSettingsService.currentSettings.collectInView {
+            view.streamingAppearance = streamingAppearanceFrom(viewModel)
+        }
+        return view
     }
 
     private fun onClickItem(
@@ -218,20 +279,7 @@ class CollectionFolderFragment : LibraryFragment() {
         }
     }
 
-    override fun onViewCreated(
-        view: View,
-        savedInstanceState: Bundle?,
-    ) {
-        super.onViewCreated(view, savedInstanceState)
-        val content = content ?: return
-        content.pageStyle = pageStyle
-        viewModel.state.collectWhileStarted { content.bind(it, viewModel.position) }
-        viewModel.homeSettingsService.currentSettings.collectWhileStarted {
-            content.streamingAppearance = streamingAppearanceFrom(viewModel)
-        }
-    }
-
-    override fun onPageStyleChanged(style: PageStyle) {
+    override fun onStyleChanged(style: PageStyle) {
         content?.pageStyle = style
     }
 
@@ -278,12 +326,9 @@ abstract class TabbedLibraryFragment : LibraryFragment() {
     protected var page: LibraryTabbedPageView? = null
     private val foldersByTab = HashMap<Int, CollectionFolderViewModel>()
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?,
-    ): View {
+    override fun createContent(): View {
         val neon = AppTheme.isNeon
+        foldersByTab.clear()
         val view =
             LibraryTabbedPageView(
                 context = requireContext(),
@@ -296,20 +341,12 @@ abstract class TabbedLibraryFragment : LibraryFragment() {
                 clockEndPaddingDp = if (preferences.appPreferences.interfacePreferences.showClock) 184f else 0f,
             )
         page = view
-        return pageRoot(view)
-    }
-
-    override fun onViewCreated(
-        view: View,
-        savedInstanceState: Bundle?,
-    ) {
-        super.onViewCreated(view, savedInstanceState)
-        val page = page ?: return
-        page.onTabClick = tabViewModel::updateSelectedTabIndex
-        tabViewModel.state.collectWhileStarted { index ->
-            if (index in tabTitles.indices) page.select(index)
+        view.onTabClick = tabViewModel::updateSelectedTabIndex
+        tabViewModel.state.collectInView { index ->
+            if (index in tabTitles.indices) view.select(index)
         }
-        tabViewModel.isShowClock.collectWhileStarted { page.setClockEndPaddingDp(if (it) 184f else 0f) }
+        tabViewModel.isShowClock.collectInView { view.setClockEndPaddingDp(if (it) 184f else 0f) }
+        return view
     }
 
     /** `showTabs = showHeader` */
@@ -317,7 +354,7 @@ abstract class TabbedLibraryFragment : LibraryFragment() {
         page?.setShowTabs(show)
     }
 
-    override fun onPageStyleChanged(style: PageStyle) {
+    override fun onStyleChanged(style: PageStyle) {
         page?.onPageStyleChanged()
     }
 
@@ -353,7 +390,7 @@ abstract class TabbedLibraryFragment : LibraryFragment() {
                 headerBox = HeaderDimens.recommended(),
                 onFocusPosition = { pos -> showTabs(pos.row < 1) },
             )
-        viewModel.state.collectWhileStarted { content.bind(it) }
+        viewModel.state.collectInView { content.bind(it) }
         return content
     }
 
@@ -409,8 +446,8 @@ abstract class TabbedLibraryFragment : LibraryFragment() {
             )
         content.showTitle = false
         content.pageStyle = pageStyle
-        viewModel.state.collectWhileStarted { content.bind(it, viewModel.position) }
-        viewModel.homeSettingsService.currentSettings.collectWhileStarted {
+        viewModel.state.collectInView { content.bind(it, viewModel.position) }
+        viewModel.homeSettingsService.currentSettings.collectInView {
             content.streamingAppearance = streamingAppearanceFrom(viewModel)
         }
         return object : LibraryTabContent {
@@ -442,7 +479,7 @@ abstract class TabbedLibraryFragment : LibraryFragment() {
         val viewModel: GenreViewModel =
             keyedViewModel<GenreViewModel, GenreViewModel.Factory>("genres") { it.create(itemId, types) }
         val content = GenreGridContentView(requireContext(), this, errorViewModel, viewModel, itemId, types, collectionType)
-        viewModel.state.collectWhileStarted { content.bind(it) }
+        viewModel.state.collectInView { content.bind(it) }
         return content
     }
 
@@ -451,7 +488,7 @@ abstract class TabbedLibraryFragment : LibraryFragment() {
         val viewModel: StudioViewModel =
             keyedViewModel<StudioViewModel, StudioViewModel.Factory>("studios") { it.create(itemId, types) }
         val content = StudioGridContentView(requireContext(), this, errorViewModel, viewModel, itemId, types)
-        viewModel.state.collectWhileStarted { content.bind(it) }
+        viewModel.state.collectInView { content.bind(it) }
         return content
     }
 }
@@ -540,12 +577,12 @@ class ItemGridFragment : LibraryFragment() {
     private var title: LibraryGridTitleView? = null
     private var kind = -1
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?,
-    ): View {
+    override fun createContent(): View {
         val context = requireContext()
+        kind = -1
+        overlay = null
+        shownItems = null
+        changesJob?.cancel()
         val titleView = LibraryGridTitleView(context)
         val gridView = CardGridView(context)
         val col =
@@ -560,25 +597,26 @@ class ItemGridFragment : LibraryFragment() {
         title = titleView
         grid = gridView
         column = col
-        return pageRoot(col).also { root = it }
-    }
-
-    override fun onViewCreated(
-        view: View,
-        savedInstanceState: Bundle?,
-    ) {
-        super.onViewCreated(view, savedInstanceState)
-        viewModel.state.collectWhileStarted { state -> bind(state.items) }
+        val box =
+            FrameLayout(context).apply {
+                clipChildren = false
+                clipToPadding = false
+                addView(col, FrameLayout.LayoutParams(MATCH, MATCH))
+            }
+        root = box
+        viewModel.state.collectInView { state -> bind(state.items) }
+        return box
     }
 
     private fun showOverlay(view: View?) {
         val root = root ?: return
-        overlay?.let { root.removeView(it) }
+        val old = overlay
         overlay = view
         if (view != null) {
-            column?.visibility = View.GONE
             root.addView(view, FrameLayout.LayoutParams(MATCH, MATCH))
+            column?.visibility = View.GONE
         }
+        old?.let { root.removeView(it) }
     }
 
     private val presenter =
@@ -605,7 +643,6 @@ class ItemGridFragment : LibraryFragment() {
             is DataLoadingState.Success -> {
                 val entered = kind != 2
                 kind = 2
-                if (entered) showOverlay(null)
                 column?.visibility = View.VISIBLE
                 val grid = grid ?: return
                 title?.bind(gridDestination.title.getString(requireContext()), pageStyle.sectionAccent)
@@ -638,13 +675,15 @@ class ItemGridFragment : LibraryFragment() {
                             grid.observeChanges(viewLifecycleOwner, it.changes)
                         }
                 }
-                // LaunchedEffect(Unit) { focusRequester.tryRequestFocus() } once the items are there
+                // LaunchedEffect(Unit) { focusRequester.tryRequestFocus() } once the items are there, then the loading
+                // picture goes
                 if (entered && isTopScreen) grid.grid.requestFocus()
+                if (entered) showOverlay(null)
             }
         }
     }
 
-    override fun onPageStyleChanged(style: PageStyle) {
+    override fun onStyleChanged(style: PageStyle) {
         grid?.refresh()
     }
 

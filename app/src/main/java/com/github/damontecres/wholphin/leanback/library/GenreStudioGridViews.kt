@@ -84,21 +84,23 @@ abstract class NameCardGridContentView(
             is DataLoadingState.Success -> {
                 val entered = kind != KIND_SUCCESS
                 kind = KIND_SUCCESS
-                if (entered) showOverlay(null)
                 grid.visibility = VISIBLE
                 bindGrid(item.data)
+                // LaunchedEffect(Unit) { gridFocusRequester.tryRequestFocus() }, before the loading picture goes
                 if (entered && fragment.isTopScreen && isShown) grid.grid.requestFocus()
+                if (entered) showOverlay(null)
             }
         }
     }
 
     private fun showOverlay(view: View?) {
-        overlay?.let { removeView(it) }
+        val old = overlay
         overlay = view
         if (view != null) {
-            grid.visibility = GONE
             addView(view, LayoutParams(MATCH, MATCH))
+            grid.visibility = GONE
         }
+        old?.let { removeView(it) }
     }
 
     override fun onShown(firstTime: Boolean) {
