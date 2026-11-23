@@ -59,6 +59,17 @@ Found on the Shield (2026-11-22, second pass):
 - Playback is part of every device test, on every account, with both players (Settings → Advanced → Playback Backend).
   MPV draws on its own surface: a screenshot taken before its first frame is black, and its media session reports no
   position, so read MPV's state from logcat (`MpvLogger`, "playback restart complete").
+- The open side menu (480px) lies over the page's left edge in both directions: UP/DOWN from a page searches only the
+  page, and UP/DOWN inside the menu searches only the menu (`AppShell.route`). Without the second rule, Up from Search
+  found Watchlist's ALL tab before the profile row, so a kid couldn't reach Select user from that page.
+- The series page follows the player's queue: the player records each episode it starts
+  (`ActivePlaybackRegistry.lastEpisode`) and the page selects it on return (`SeriesViewModel.onBackFromPage`).
+- Kids' Collections loads every collection in one request (for its groups), and the kid rules check each one with a
+  request of its own: 386 for Riley. Every request is a ~0.3 s round trip through NC1; home devices route that way on
+  purpose, like customers. The checks run 16 at a time (`KidContentGuard.MAX_CONCURRENT_LOOKUPS`, each with its turn
+  before its time budget starts), and the Jellyfin API client allows 20 requests per server (`AppModule`; OkHttp's
+  default is 5). Cold first visit on the Shield: about 80 s one at a time, 37 s with 4, 27 s with 8, 14–17 s with 16.
+  The rest is Jellyfin's own list query (~4 s). Don't drop the checks: the app hides more than Jellyfin's ratings do.
 - A Compose `LaunchedEffect` inside a page that only composes once something exists (the player, a loaded item) runs
   after that thing exists. In a Fragment, `onViewCreated` runs before it: start such work when the flow first emits it
   (`PlaybackFragment.updateDensity` threw "lateinit property player" on every playback start until 2026-11-22).

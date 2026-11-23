@@ -727,7 +727,13 @@ internal class AppShell(
                     }
                 }
 
-                View.FOCUS_UP, View.FOCUS_DOWN, View.FOCUS_LEFT -> {
+                View.FOCUS_UP, View.FOCUS_DOWN -> {
+                    // Within the menu only: the open menu lies over the page's left edge, so a search from Search
+                    // found a page's top controls (eg Watchlist's ALL tab) before the profile row above it
+                    FocusFinder.getInstance().findNextFocus(menu, focused, direction) ?: focused
+                }
+
+                View.FOCUS_LEFT -> {
                     if (result != null && menu.contains(result)) result else focused
                 }
 
