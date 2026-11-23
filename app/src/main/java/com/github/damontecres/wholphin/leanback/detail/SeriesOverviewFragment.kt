@@ -158,18 +158,20 @@ class SeriesOverviewFragment : DetailPageFragment() {
     }
 
     override fun onHiddenChanged(hidden: Boolean) {
-        if (hidden) cameBackFromPage = true
+        if (hidden && !cameBackFromPage) {
+            cameBackFromPage = true
+            viewModel.onLeavePage()
+        }
         super.onHiddenChanged(hidden)
     }
 
     override fun onPageActive() {
-        // Coming back from a page on top reloads the season's episodes (the page used to be composed again)
+        // Coming back from a page on top reloads the season's episodes (the page used to be composed again), selecting
+        // the episode the player's queue moved on to
         if (cameBackFromPage) {
             cameBackFromPage = false
-            val seasons = viewModel.state.value.seasons
-            if (seasons.isNotEmpty()) {
-                seasons.getOrNull(position.seasonTabIndex)?.let { viewModel.loadEpisodes(it.id, it.indexNumber) }
-            }
+            page?.forgetClickedEpisode()
+            viewModel.onBackFromPage(position.seasonTabIndex)
         }
         if (viewModel.state.value.series is DataLoadingState.Success) {
             resumedPage = true
@@ -494,6 +496,11 @@ class SeriesOverviewFragment : DetailPageFragment() {
             } else {
                 requestFocusAfterSeason = true
             }
+        }
+
+        /** Back from another page the episode row may show another episode: the page's position counts again */
+        fun forgetClickedEpisode() {
+            epPosition = -1
         }
 
         /** After Watched in the footer, focus goes back to the episode row's last clicked card */

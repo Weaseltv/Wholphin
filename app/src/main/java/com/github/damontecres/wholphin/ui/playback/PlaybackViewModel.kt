@@ -560,6 +560,13 @@ class PlaybackViewModel
                 this@PlaybackViewModel.itemId = item.id
 
                 val base = item.data
+                // The series page behind the player selects the episode the queue moved on to
+                val seriesId = base.seriesId
+                if (playlistItem is PlaylistItem.Media && base.type == BaseItemKind.EPISODE && seriesId != null) {
+                    activePlaybackRegistry.episodeStarted(
+                        ActivePlaybackRegistry.PlayedEpisode(base.id, seriesId, base.seasonId, base.parentIndexNumber, base.indexNumber),
+                    )
+                }
 
                 // Use the explicitly requested playback parameters or else check if the database has some
                 val requested = requestedItemPlayback?.takeIf { it.itemId == base.id }
