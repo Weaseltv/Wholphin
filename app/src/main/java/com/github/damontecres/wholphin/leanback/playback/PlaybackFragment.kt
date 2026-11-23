@@ -145,6 +145,9 @@ class PlaybackFragment : DestinationFragment() {
     private var content: Content? = null
     private var released = false
 
+    /** The player whose screen density MPV's subtitles were last sized for */
+    private var densityPlayer: PlayerInstance? = null
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -165,15 +168,19 @@ class PlaybackFragment : DestinationFragment() {
         super.onViewCreated(view, savedInstanceState)
         released = false
         viewModel.state.collectWhileStarted { render(it) }
-        viewModel.currentPlayer.collectWhileStarted { render(viewModel.state.value) }
+        viewModel.currentPlayer.collectWhileStarted { instance ->
+            render(viewModel.state.value)
+            // LaunchedEffect(density) ran once the page had a player; before that the view model has none to ask
+            if (instance != null && instance !== densityPlayer) {
+                densityPlayer = instance
+                viewModel.updateDensity(resources.displayMetrics.density, resources.configuration.fontScale)
+            }
+        }
         viewModel.subtitleSearchState.collectWhileStarted { content?.onSubtitleSearch(it) }
         viewModel.controllerViewState.visible.collectWhileStarted { content?.onControlsVisible(it) }
         viewModel.currentUserDto.collectWhileStarted { user ->
             content?.hasSubtitleDownloadPermission = user?.policy?.let { it.isAdministrator || it.enableSubtitleManagement } == true
         }
-        // LaunchedEffect(density): size MPV subtitles for this screen
-        val metrics = resources.displayMetrics
-        viewModel.updateDensity(metrics.density, resources.configuration.fontScale)
     }
 
     private fun render(state: PlaybackState) {

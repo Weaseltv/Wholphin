@@ -56,6 +56,12 @@ Found on the Shield (2026-11-22, second pass):
   without screenshots in between.
 - Demo accounts for device tests (Alex, Sam, kid Riley) and their rules are described by the TV user-guide thread; the
   logins live outside git in `~/.config/weaseltv-guides/`. Never use the owner's own profile for tests.
+- Playback is part of every device test, on every account, with both players (Settings → Advanced → Playback Backend).
+  MPV draws on its own surface: a screenshot taken before its first frame is black, and its media session reports no
+  position, so read MPV's state from logcat (`MpvLogger`, "playback restart complete").
+- A Compose `LaunchedEffect` inside a page that only composes once something exists (the player, a loaded item) runs
+  after that thing exists. In a Fragment, `onViewCreated` runs before it: start such work when the flow first emits it
+  (`PlaybackFragment.updateDensity` threw "lateinit property player" on every playback start until 2026-11-22).
 
 Testing without the Shield: the TV-sized emulator AVD `weasel_tv_audit_api36` (x86_64; build with
 `./scripts/build-alpha.sh --abi x86_64`), started headless with `emulator -avd weasel_tv_audit_api36 -no-window`.
