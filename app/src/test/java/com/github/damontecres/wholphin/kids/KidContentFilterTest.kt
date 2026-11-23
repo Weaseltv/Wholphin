@@ -1,6 +1,7 @@
 package com.github.damontecres.wholphin.kids
 
 import com.github.damontecres.wholphin.kids.KidContentRules.ItemFacts
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -22,8 +23,13 @@ class KidContentFilterTest {
         val facts: Map<String, ItemFacts> = emptyMap(),
         val boxSets: Map<String, Boolean> = emptyMap(),
         val fail: Boolean = false,
+        /** How long each box set check takes */
+        val boxSetDelayMillis: Long = 0,
     ) : KidFactsLoader {
         val asked = mutableListOf<Set<String>>()
+        val boxSetsAsked = mutableListOf<String>()
+        private var inFlight = 0
+        var maxInFlight = 0
 
         override suspend fun items(
             ids: Collection<String>,
@@ -40,6 +46,11 @@ class KidContentFilterTest {
             fresh: Boolean,
         ): Boolean {
             if (fail) throw IllegalStateException("offline")
+            boxSetsAsked.add(id)
+            inFlight++
+            maxInFlight = maxOf(maxInFlight, inFlight)
+            if (boxSetDelayMillis > 0) delay(boxSetDelayMillis)
+            inFlight--
             return boxSets[id] == true
         }
     }
@@ -258,6 +269,23 @@ class KidContentFilterTest {
             assertEquals(listOf("kept"), ids(result.root))
             val failing = KidResponseFilter(2, FakeLoader(fail = true)).filter(queryResult(listOf(boxSet("kept"))))
             assertEquals(emptyList<String>(), ids(failing.root))
+        }
+
+    @Test
+    fun `a response's box sets are checked side by side and keep their order`() =
+        runTest {
+            fun boxSet(id: String) = """{"Id":"$id","Name":"$id","ServerId":"s","Type":"BoxSet","IsFolder":true}"""
+            val sets = listOf("a", "b", "c", "d", "e")
+            val loader =
+                FakeLoader(boxSets = mapOf("a" to true, "b" to false, "c" to true, "d" to false, "e" to true), boxSetDelayMillis = 100)
+            val result = KidResponseFilter(2, loader).filter(queryResult(sets.map(::boxSet) + boxSet("a")))
+            // Same verdicts and order as one at a time; a box set listed twice is checked once
+            assertEquals(listOf("a", "c", "e", "a"), ids(result.root))
+            assertEquals(2, result.removedFromList)
+            assertEquals(sets, loader.boxSetsAsked)
+            // Started together rather than one after another
+            assertEquals(sets.size, loader.maxInFlight)
+            assertEquals(100L, testScheduler.currentTime)
         }
 
     @Test
