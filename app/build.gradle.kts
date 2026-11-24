@@ -104,7 +104,11 @@ private fun Provider<String>.getInt() = get().toInt()
 
 // User-guide capture builds (see GUIDE_CAPTURE below) are Alpha-only.
 val guideCapture =
-    providers.gradleProperty("WeaselPlexGuideCapture").map { it.toBoolean() }.orElse(false).get()
+    providers
+        .gradleProperty("WeaselPlexGuideCapture")
+        .map { it.toBoolean() }
+        .orElse(false)
+        .get()
 if (guideCapture &&
     gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) }
 ) {
