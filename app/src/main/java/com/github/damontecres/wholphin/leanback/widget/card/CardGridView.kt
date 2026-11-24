@@ -15,6 +15,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import androidx.appcompat.widget.AppCompatTextView
+import androidx.core.view.doOnNextLayout
 import androidx.leanback.widget.BaseGridView
 import androidx.leanback.widget.GridLayoutManager
 import androidx.leanback.widget.VerticalGridView
@@ -159,6 +160,16 @@ class CardGridView(
 
         grid.cardGrid = this
         alphabet.onLetter = ::jumpToLetter
+        grid.addOnScrollListener(
+            object : RecyclerView.OnScrollListener() {
+                override fun onScrollStateChanged(
+                    recyclerView: RecyclerView,
+                    newState: Int,
+                ) {
+                    if (newState == RecyclerView.SCROLL_STATE_IDLE && refreshWhenSettled) refresh()
+                }
+            },
+        )
     }
 
     /**
@@ -238,12 +249,22 @@ class CardGridView(
         onItemCountChanged(items.size)
     }
 
-    /** The list changed in place (a page loaded): rebind the cards shown */
+    /**
+     * The list changed in place (a page loaded): rebind the cards shown. While the grid scrolls this waits until it
+     * settles: rebinding lays the grid out mid-animation, and the scroll then jumps.
+     */
     fun refresh() {
         val a = adapter ?: return
+        if (grid.scrollState != RecyclerView.SCROLL_STATE_IDLE) {
+            refreshWhenSettled = true
+            return
+        }
+        refreshWhenSettled = false
         a.refresh()
         onItemCountChanged(a.items.size)
     }
+
+    private var refreshWhenSettled = false
 
     /** Refresh whenever [changes] emits (eg `RequestPager.changes`) while [owner] is started */
     fun observeChanges(
@@ -383,15 +404,33 @@ class CardGridView(
         if (!down && event.keyCode != KeyEvent.KEYCODE_DPAD_UP) return false
         val columns = config.columns
         // The selection moves at once, so repeats keep counting from the destination before it is laid out
-        val from = grid.selectedPosition.takeIf { it >= 0 } ?: focusedIndex
+        val from = pendingTarget.takeIf { it >= 0 } ?: grid.selectedPosition.takeIf { it >= 0 } ?: focusedIndex
         val nextRow = from / columns + if (down) 1 else -1
         if (nextRow < 0) return false // Leave for the toolbar
         if (nextRow * columns >= itemsSize) return true
         val target = (nextRow * columns + from % columns).coerceAtMost(itemsSize - 1)
         focusOn(target)
-        grid.setSelectedPositionSmooth(target)
+        if (grid.isLayoutRequested) {
+            // Leanback drops the animation for a selection made while a layout is pending, and the grid then jumps
+            // there; select once the layout is done (after it: during it the layout still counts as pending)
+            if (pendingTarget < 0) {
+                grid.doOnNextLayout {
+                    grid.post {
+                        val t = pendingTarget
+                        pendingTarget = -1
+                        if (t in 0 until itemsSize) grid.setSelectedPositionSmooth(t)
+                    }
+                }
+            }
+            pendingTarget = target
+        } else {
+            grid.setSelectedPositionSmooth(target)
+        }
         return true
     }
+
+    /** A selection waiting for a pending layout ([previewGridKey]), or -1 */
+    private var pendingTarget = -1
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (super.dispatchKeyEvent(event)) return true

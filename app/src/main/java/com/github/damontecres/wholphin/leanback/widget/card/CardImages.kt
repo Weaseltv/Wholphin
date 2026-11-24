@@ -3,6 +3,7 @@ package com.github.damontecres.wholphin.leanback.widget.card
 import android.content.Context
 import android.graphics.Matrix
 import android.graphics.drawable.Drawable
+import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.appcompat.widget.AppCompatImageView
 import coil3.dispose
@@ -191,9 +192,33 @@ open class CardImageView(
         setImageDrawable(null)
     }
 
+    /** True while a drawable is set into this view and its size does not depend on the drawable */
+    private var swappingAtFixedSize = false
+
     override fun setImageDrawable(drawable: Drawable?) {
-        super.setImageDrawable(drawable)
+        swappingAtFixedSize = hasFixedSize()
+        try {
+            super.setImageDrawable(drawable)
+        } finally {
+            swappingAtFixedSize = false
+        }
         updateMatrix()
+    }
+
+    /**
+     * A poster arriving has a new size, so ImageView asks every parent up to the grid to lay out again. A grid that lays
+     * out while it scrolls skips its smooth scroll and then jumps (owner's recording, 2026-11-24). When this view's own
+     * size is fixed, nothing moves: ImageView fits the new drawable itself, so the request is skipped.
+     */
+    override fun requestLayout() {
+        if (swappingAtFixedSize) return
+        super.requestLayout()
+    }
+
+    private fun hasFixedSize(): Boolean {
+        val lp = layoutParams ?: return false
+        return isLaidOut && width > 0 && height > 0 &&
+            lp.width != ViewGroup.LayoutParams.WRAP_CONTENT && lp.height != ViewGroup.LayoutParams.WRAP_CONTENT
     }
 
     override fun setFrame(
