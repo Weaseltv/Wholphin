@@ -103,7 +103,10 @@ class ViewMoreSpec(
 /** A card's ViewHolder; [card] is the card view */
 class CardViewHolder(
     val card: BaseCardView,
-) : RecyclerView.ViewHolder(card)
+) : RecyclerView.ViewHolder(card) {
+    /** Bound without its item (a grid's page still loading): [CardGridAdapter.fillLoaded] binds it once loaded */
+    internal var placeholder = false
+}
 
 /** Long adapter ids for presenter keys, stable for the adapter's life */
 internal class StableIds {
@@ -218,51 +221,69 @@ class CardRowAdapter<T : Any>(
         return holder
     }
 
+    /**
+     * The card's listeners act through the adapter it is bound to now, not the one that created it: the rows of a page
+     * can share one pool of cards ([CardViewPool]), so a card made for one row may be bound in another later.
+     */
     private fun wire(
         holder: CardViewHolder,
         frame: View,
     ) {
-        frame.setOnClickListener {
-            val pos = holder.bindingAdapterPosition
-            when (val e = entries.getOrNull(pos)) {
-                is Entry.Card -> {
-                    e.item?.let { callbacks.onClick?.invoke(pos, it) }
-                }
-
-                Entry.More -> {
-                    viewMore?.onClick?.invoke()
-                }
-
-                null -> {}
-            }
-        }
+        frame.setOnClickListener { holder.rowAdapter()?.click(holder) }
         frame.setOnLongClickListener {
-            val pos = holder.bindingAdapterPosition
-            val e = entries.getOrNull(pos)
-            if (e is Entry.Card) e.item?.let { callbacks.onLongClick?.invoke(pos, it) }
+            holder.rowAdapter()?.longClick(holder)
             // Consumed either way: a long press never also clicks (the old onLongClick = {} did the same)
             true
         }
-        frame.setOnFocusChangeListener { _, hasFocus ->
-            if (!hasFocus) return@setOnFocusChangeListener
-            val pos = holder.bindingAdapterPosition
-            when (val e = entries.getOrNull(pos)) {
-                is Entry.Card -> {
-                    callbacks.onFocus?.invoke(pos, e.item)
-                }
+        frame.setOnFocusChangeListener { _, hasFocus -> if (hasFocus) holder.rowAdapter()?.focus(holder) }
+        frame.setOnKeyListener { _, _, event -> holder.rowAdapter()?.key(holder, event) ?: false }
+    }
 
-                Entry.More -> {
-                    viewMore?.onFocus?.invoke()
-                }
+    private fun CardViewHolder.rowAdapter(): CardRowAdapter<*>? = bindingAdapter as? CardRowAdapter<*>
 
-                null -> {}
+    private fun click(holder: CardViewHolder) {
+        val pos = holder.bindingAdapterPosition
+        when (val e = entries.getOrNull(pos)) {
+            is Entry.Card -> {
+                e.item?.let { callbacks.onClick?.invoke(pos, it) }
             }
+
+            Entry.More -> {
+                viewMore?.onClick?.invoke()
+            }
+
+            null -> {}
         }
-        frame.setOnKeyListener { _, _, event ->
-            val pos = holder.bindingAdapterPosition
-            val e = entries.getOrNull(pos)
-            if (e is Entry.Card) callbacks.onKey?.invoke(pos, e.item, event) ?: false else false
+    }
+
+    private fun longClick(holder: CardViewHolder) {
+        val pos = holder.bindingAdapterPosition
+        val e = entries.getOrNull(pos)
+        if (e is Entry.Card) e.item?.let { callbacks.onLongClick?.invoke(pos, it) }
+    }
+
+    private fun focus(holder: CardViewHolder) {
+        val pos = holder.bindingAdapterPosition
+        when (val e = entries.getOrNull(pos)) {
+            is Entry.Card -> {
+                callbacks.onFocus?.invoke(pos, e.item)
+            }
+
+            Entry.More -> {
+                viewMore?.onFocus?.invoke()
+            }
+
+            null -> {}
         }
+    }
+
+    private fun key(
+        holder: CardViewHolder,
+        event: KeyEvent,
+    ): Boolean {
+        val pos = holder.bindingAdapterPosition
+        val e = entries.getOrNull(pos)
+        return if (e is Entry.Card) callbacks.onKey?.invoke(pos, e.item, event) ?: false else false
     }
 
     override fun onBindViewHolder(
@@ -382,7 +403,35 @@ class CardGridAdapter<T : CardGridItem>(
         holder: CardViewHolder,
         position: Int,
     ) {
-        presenter.bind(holder.card, itemAt(position), position, cellWidthPx)
+        val item = itemAt(position)
+        holder.placeholder = item == null
+        presenter.bind(holder.card, item, position, cellWidthPx)
+    }
+
+    /**
+     * A page loaded while [grid] scrolls: bind the cards shown as placeholders whose items have loaded, without laying
+     * the grid out ([CardVerticalGrid.rebindInPlace]; a grid laid out while it scrolls jumps), and mark the cards
+     * outside the shown range to rebind when they are shown, which does not lay the grid out either. The grid still
+     * refreshes once it settles. Until 2026-11-24 the shown cards stayed placeholders until then, so a held DOWN
+     * scrolled through rows of empty cards.
+     */
+    internal fun fillLoaded(grid: CardVerticalGrid) {
+        var first = Int.MAX_VALUE
+        var last = -1
+        for (i in 0 until grid.childCount) {
+            val holder = grid.getChildViewHolder(grid.getChildAt(i)) as? CardViewHolder ?: continue
+            val position = holder.layoutPosition
+            if (position !in 0 until count) continue
+            first = minOf(first, position)
+            last = maxOf(last, position)
+            if (!holder.placeholder) continue
+            val item = itemAt(position) ?: continue
+            if (presenter.viewType(item, position) != holder.itemViewType) continue
+            grid.rebindInPlace(holder) { onBindViewHolder(holder, position) }
+        }
+        if (last < 0) return
+        if (first > 0) notifyItemRangeChanged(0, first, REFRESH)
+        if (last < count - 1) notifyItemRangeChanged(last + 1, count - 1 - last, REFRESH)
     }
 
     override fun onViewRecycled(holder: CardViewHolder) = presenter.recycle(holder.card)

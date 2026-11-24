@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.drawable.Drawable
+import android.text.Layout
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
@@ -142,6 +143,10 @@ internal fun captionText(
         this.maxLines = maxLines
         if (maxLines == 1) isSingleLine = true
         ellipsize = TextUtils.TruncateAt.END
+        // Simple line breaks without hyphenation, as the Compose captions had: much cheaper to lay out for every card
+        // that scrolls in (TextView's default before Android 13 hyphenates and optimises the breaks)
+        breakStrategy = Layout.BREAK_STRATEGY_SIMPLE
+        hyphenationFrequency = Layout.HYPHENATION_FREQUENCY_NONE
         val pad = context.dp(4)
         setPaddingRelative(pad, 0, pad, 0)
     }

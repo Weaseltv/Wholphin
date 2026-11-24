@@ -27,6 +27,7 @@ import com.github.damontecres.wholphin.data.model.PlaylistItem
 import com.github.damontecres.wholphin.leanback.theme.AppTheme
 import com.github.damontecres.wholphin.leanback.theme.TextRole
 import com.github.damontecres.wholphin.leanback.theme.dp
+import com.github.damontecres.wholphin.leanback.widget.card.steadyWhenHeld
 import com.github.damontecres.wholphin.services.ImageUrlService
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.playback.AnalyticsState
@@ -504,6 +505,8 @@ internal class ChapterRowView(
         grid.setRowHeight(context.dp(ChapterCardView.HEIGHT_DP.toInt()))
         grid.adapter = ChapterAdapter()
         grid.selectedPosition = chapterIndex
+        // Steady while a key is held; nothing laid out past the ends, which this strip does not clip
+        grid.steadyWhenHeld(interceptKeys = false) { 0f }
         grid.setOnKeyInterceptListener { event ->
             // focusProperties { up = hidden box }: UP goes back to the controller
             if (event.action == KeyEvent.ACTION_DOWN && PlaybackKeys.isUp(event)) {
@@ -621,6 +624,8 @@ internal class QueueRowView(
         grid.setRowHeight(LayoutParams.WRAP_CONTENT)
         grid.focusScrollStrategy = BaseGridView.FOCUS_SCROLL_ITEM
         grid.adapter = QueueAdapter()
+        // Steady while a key is held; nothing laid out past the ends, which this strip does not clip
+        grid.steadyWhenHeld(interceptKeys = false) { 0f }
         grid.setOnKeyInterceptListener { event ->
             if (event.action == KeyEvent.ACTION_DOWN && PlaybackKeys.isUp(event)) {
                 onChangeState(nextState)

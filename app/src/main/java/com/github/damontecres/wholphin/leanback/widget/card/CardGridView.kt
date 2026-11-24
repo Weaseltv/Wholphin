@@ -250,13 +250,15 @@ class CardGridView(
     }
 
     /**
-     * The list changed in place (a page loaded): rebind the cards shown. While the grid scrolls this waits until it
-     * settles: rebinding lays the grid out mid-animation, and the scroll then jumps.
+     * The list changed in place (a page loaded): rebind the cards shown. While the grid scrolls, a full rebind waits
+     * until it settles (it lays the grid out mid-animation, and the scroll then jumps); the placeholders shown are filled
+     * in at once without a layout ([CardGridAdapter.fillLoaded]).
      */
     fun refresh() {
         val a = adapter ?: return
         if (grid.scrollState != RecyclerView.SCROLL_STATE_IDLE) {
             refreshWhenSettled = true
+            if (a.items.size == a.itemCount) a.fillLoaded(grid)
             return
         }
         refreshWhenSettled = false
@@ -351,11 +353,13 @@ class CardGridView(
     ) {
         if (index !in 0 until itemsSize) return
         focusOn(index)
+        // A row move still waiting for a layout (previewGridKey) must not follow the jump
+        pendingTarget = -1
         val task =
             ViewHolderTask { holder ->
                 if (focus) ((holder as? CardViewHolder)?.card?.frame ?: holder.itemView).requestFocus()
             }
-        if (smooth) grid.setSelectedPositionSmooth(index, task) else grid.setSelectedPosition(index, task)
+        if (smooth) grid.setSelectedPositionSmooth(index, task) else grid.jumpToPosition(index, task)
     }
 
     private fun jumpRows(): Int {
@@ -409,6 +413,8 @@ class CardGridView(
         if (nextRow < 0) return false // Leave for the toolbar
         if (nextRow * columns >= itemsSize) return true
         val target = (nextRow * columns + from % columns).coerceAtMost(itemsSize - 1)
+        // A held key waits for the grid to catch up with its last step (HeldKeys)
+        if (event.repeatCount > 0 && (pendingTarget >= 0 || grid.isCatchingUp(from, target - from))) return true
         focusOn(target)
         if (grid.isLayoutRequested) {
             // Leanback drops the animation for a selection made while a layout is pending, and the grid then jumps
@@ -540,6 +546,12 @@ class CardVerticalGrid(
         itemAlignmentOffset = 0
         itemAlignmentOffsetPercent = 0f
         isItemAlignmentOffsetWithPadding = false
+        // The grid's size never follows its cards: changes to cards out of view then never lay it out
+        setHasFixedSize(true)
+        // Steady while a key is held; WeaselTV's UP / DOWN skip repeats in CardGridView.previewGridKey, other themes here
+        setRecycledViewPool(CardViewPool())
+        steadyWhenHeld(interceptKeys = false)
+        setOnKeyInterceptListener { skipHeldRepeat(it, columnsCount) }
     }
 
     /**
@@ -615,6 +627,40 @@ class CardVerticalGrid(
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (cardGrid?.previewGridKey(event) == true) return true
         return super.dispatchKeyEvent(event)
+    }
+
+    /** True while [rebindInPlace] binds a card: its layout requests stop at the card */
+    private var rebinding = false
+
+    override fun requestLayout() {
+        if (rebinding) return
+        super.requestLayout()
+    }
+
+    /**
+     * Run [bind] on [holder]'s card and lay the card out again in place, without laying out the grid (which would make
+     * a running scroll jump). A card whose size changes with its new content needs the grid laid out after all.
+     */
+    internal fun rebindInPlace(
+        holder: RecyclerView.ViewHolder,
+        bind: () -> Unit,
+    ) {
+        val card = holder.itemView
+        rebinding = true
+        try {
+            bind()
+        } finally {
+            rebinding = false
+        }
+        if (!card.isLayoutRequested) return
+        val lp = card.layoutParams
+        val widthSpec = MeasureSpec.makeMeasureSpec(if (lp != null && lp.width >= 0) lp.width else card.width, MeasureSpec.EXACTLY)
+        card.measure(widthSpec, MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+        if (card.measuredWidth == card.width && card.measuredHeight == card.height) {
+            card.layout(card.left, card.top, card.right, card.bottom)
+        } else {
+            super.requestLayout()
+        }
     }
 
     /** The first card at least partly visible, or -1 */

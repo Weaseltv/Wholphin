@@ -40,6 +40,7 @@ import com.github.damontecres.wholphin.leanback.widget.card.CardImages
 import com.github.damontecres.wholphin.leanback.widget.card.ItemImageState
 import com.github.damontecres.wholphin.leanback.widget.card.ItemImageView
 import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
+import com.github.damontecres.wholphin.leanback.widget.card.steadyWhenHeld
 import com.github.damontecres.wholphin.leanback.widget.control.AppButton
 import com.github.damontecres.wholphin.leanback.widget.control.AppListItem
 import com.github.damontecres.wholphin.leanback.widget.control.ErrorView
@@ -486,6 +487,7 @@ class PlaylistDetailsFragment : DetailPageFragment() {
                 clipToOwnHeight()
                 // Leaving at either end reaches focusSearch below (to Play); a Leanback list keeps focus at its ends
                 (layoutManager as? GridLayoutManager)?.setFocusOutAllowed(true, true)
+                steadyWhenHeld()
             }
 
             override fun focusSearch(

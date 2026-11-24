@@ -24,10 +24,12 @@ import com.github.damontecres.wholphin.leanback.widget.card.CardCallbacks
 import com.github.damontecres.wholphin.leanback.widget.card.CardRowAdapter
 import com.github.damontecres.wholphin.leanback.widget.card.CardRowStyle
 import com.github.damontecres.wholphin.leanback.widget.card.CardRowView
+import com.github.damontecres.wholphin.leanback.widget.card.CardViewPool
 import com.github.damontecres.wholphin.leanback.widget.card.PlaceholderRowView
 import com.github.damontecres.wholphin.leanback.widget.card.ViewMoreSpec
 import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
 import com.github.damontecres.wholphin.leanback.widget.card.isPlayKeyUp
+import com.github.damontecres.wholphin.leanback.widget.card.steadyWhenHeld
 import com.github.damontecres.wholphin.leanback.widget.control.CircularProgressView
 import com.github.damontecres.wholphin.ui.coachmark.CoachMarkIds
 import com.github.damontecres.wholphin.ui.coachmark.CoachMarkTour
@@ -210,6 +212,12 @@ class HomeRowsView(
 
     // Per row key: card adapter, last selected card, measured row and title heights
     private val cardAdapters = HashMap<Any, CardRowAdapter<BaseItem>>()
+
+    /**
+     * The rows' cards, shared: a row scrolled into view takes the cards of rows scrolled out instead of creating its own
+     * (every row's [HomeCardPresenter] makes the same card for a view type)
+     */
+    private val cardPool = CardViewPool()
     private val selectedCards = HashMap<Any, Int>()
     private val rowHeights = HashMap<Any, Int>()
     private val titleHeights = HashMap<Any, Int>()
@@ -714,6 +722,7 @@ class HomeRowsView(
 
         init {
             container.holder = this
+            cardRow?.strip?.setRecycledViewPool(cardPool)
             cardRow?.let { container.addView(it, LayoutParams(MATCH, WRAP)) }
             placeholder?.let { container.addView(it, LayoutParams(MATCH, WRAP)) }
             if (type == TYPE_EMPTY) container.layoutParams = RecyclerView.LayoutParams(MATCH, 0)
@@ -882,6 +891,7 @@ class HomeRowsView(
             setPadding(0, 0, 0, context.dp(CardDimens.HEIGHT_2X3_DP))
             // Rows scrolled up must not draw over the header (the Compose LazyColumn clipped them)
             clipToOwnHeight()
+            steadyWhenHeld()
         }
 
         override fun requestChildFocus(

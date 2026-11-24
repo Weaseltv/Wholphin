@@ -52,6 +52,7 @@ import com.github.damontecres.wholphin.leanback.widget.card.GridCardView
 import com.github.damontecres.wholphin.leanback.widget.card.GridScrollMode
 import com.github.damontecres.wholphin.leanback.widget.card.WatchedIconView
 import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
+import com.github.damontecres.wholphin.leanback.widget.card.steadyWhenHeld
 import com.github.damontecres.wholphin.leanback.widget.control.AppListItem
 import com.github.damontecres.wholphin.leanback.widget.control.ListLeading
 import com.github.damontecres.wholphin.leanback.widget.text.FittedDetailHeaderLayout
@@ -344,6 +345,7 @@ class LibraryListView(
         list.windowAlignment = BaseGridView.WINDOW_ALIGN_BOTH_EDGE
         list.focusScrollStrategy = BaseGridView.FOCUS_SCROLL_ITEM
         list.adapter = adapter
+        list.steadyWhenHeld()
         row.addView(list, LayoutParams(0, MATCH, 1f))
         row.addView(
             alphabet,

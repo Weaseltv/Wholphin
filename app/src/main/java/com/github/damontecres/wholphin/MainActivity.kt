@@ -27,6 +27,7 @@ import com.github.damontecres.wholphin.leanback.shell.NavHost
 import com.github.damontecres.wholphin.leanback.shell.NavHostState
 import com.github.damontecres.wholphin.leanback.shell.OrphanPageFragment
 import com.github.damontecres.wholphin.leanback.shell.ScreenHost
+import com.github.damontecres.wholphin.leanback.widget.card.HeldKeys
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.PlayerBackend
 import com.github.damontecres.wholphin.preferences.UserPreferences
@@ -334,6 +335,8 @@ class MainActivity :
     private val injectedLongPress = InjectedLongPress()
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // Lists scroll steadily while an arrow key is held
+        HeldKeys.onKeyEvent(event)
         // The coach-mark tour takes the remote while it runs, so nothing moves underneath it
         if (coachMarkTour.onKey(event)) return true
         // OK long-pressed by a phone remote app or adb arrives as one flagged event: open the long-click action

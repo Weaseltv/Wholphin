@@ -30,11 +30,13 @@ import com.github.damontecres.wholphin.leanback.widget.card.CardPresenter
 import com.github.damontecres.wholphin.leanback.widget.card.CardRowAdapter
 import com.github.damontecres.wholphin.leanback.widget.card.CardRowStyle
 import com.github.damontecres.wholphin.leanback.widget.card.CardRowView
+import com.github.damontecres.wholphin.leanback.widget.card.CardViewPool
 import com.github.damontecres.wholphin.leanback.widget.card.GenreCardView
 import com.github.damontecres.wholphin.leanback.widget.card.PlaceholderRowView
 import com.github.damontecres.wholphin.leanback.widget.card.StudioCardView
 import com.github.damontecres.wholphin.leanback.widget.card.ViewMoreSpec
 import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
+import com.github.damontecres.wholphin.leanback.widget.card.steadyWhenHeld
 import com.github.damontecres.wholphin.leanback.widget.control.ErrorView
 import com.github.damontecres.wholphin.leanback.widget.control.LoadingPageView
 import com.github.damontecres.wholphin.leanback.widget.dialog.ContextMenuHelper
@@ -272,6 +274,9 @@ class RecommendedContentView(
         private var position = RowColumn(-1, -1)
         private var firstFocused = false
         private val rowAdapters = HashMap<Int, CardRowAdapter<BaseItem>>()
+
+        /** The rows' cards, shared between rows (every row's [HomeCardPresenter] makes the same card for a view type) */
+        private val cardPool = CardViewPool()
         private val rowSelections = HashMap<Int, Int>()
         private val rowHeights = HashMap<Int, Int>()
         private val titleHeights = HashMap<Int, Int>()
@@ -304,6 +309,7 @@ class RecommendedContentView(
             list.itemAlignmentOffsetPercent = 0f
             list.isItemAlignmentOffsetWithPadding = false
             list.adapter = adapter
+            list.steadyWhenHeld()
             addView(
                 list,
                 LayoutParams(MATCH, 0, 1f).apply {
@@ -567,7 +573,7 @@ class RecommendedContentView(
             ): RowHolder {
                 val view: View =
                     when (viewType) {
-                        TYPE_ROW -> CardRowView(parent.context)
+                        TYPE_ROW -> CardRowView(parent.context).also { it.strip.setRecycledViewPool(cardPool) }
                         TYPE_PLACEHOLDER -> PlaceholderRowView(parent.context)
                         else -> View(parent.context)
                     }
