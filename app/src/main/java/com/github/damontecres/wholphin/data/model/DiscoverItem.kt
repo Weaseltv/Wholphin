@@ -2,7 +2,6 @@
 
 package com.github.damontecres.wholphin.data.model
 
-import androidx.compose.runtime.Stable
 import com.github.damontecres.wholphin.api.seerr.model.MovieMovieIdRatingsGet200Response
 import com.github.damontecres.wholphin.api.seerr.model.TvTvIdRatingsGet200Response
 import com.github.damontecres.wholphin.ui.detail.CardGridItem
@@ -91,7 +90,6 @@ enum class RequestStatus(
 /**
  * An item provided by a discovery service (ie Seerr). It may exist on the JF server as well, see [availability].
  */
-@Stable
 @Serializable
 data class DiscoverItem(
     val id: Int,

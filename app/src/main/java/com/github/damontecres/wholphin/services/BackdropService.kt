@@ -3,8 +3,6 @@ package com.github.damontecres.wholphin.services
 import android.content.Context
 import android.graphics.Bitmap
 import android.util.LruCache
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.isSpecified
 import androidx.core.graphics.drawable.toBitmap
 import androidx.datastore.core.DataStore
 import androidx.palette.graphics.Palette
@@ -144,6 +142,16 @@ class BackdropService
         }
 
         /**
+         * Show [result] again, as it was (a page that was covered came back); pending loads are dropped
+         */
+        suspend fun restore(result: BackdropResult) {
+            requestMutex.withLock {
+                ++requestVersion
+                _backdropFlow.value = result
+            }
+        }
+
+        /**
          * Remove the backdrop, such as when switching pages
          */
         suspend fun clearBackdrop() {
@@ -243,10 +251,11 @@ class BackdropService
                 return b > r && (b + g) > (r * 1.5f)
             }
 
+        /** The swatch's colour at [alpha] as ARGB, or transparent */
         private fun toColor(
             swatch: Palette.Swatch?,
             alpha: Float,
-        ): Color = swatch?.rgb?.let(::Color)?.copy(alpha = alpha) ?: Color.Transparent
+        ): Int = swatch?.rgb?.let { (it and 0x00FFFFFF) or ((alpha * 255).toInt() shl 24) } ?: 0
 
         /**
          * Extracts colors from a bitmap using Android's Palette API.
@@ -312,18 +321,20 @@ class BackdropService
 
 /**
  * The result from determining the backdrop URL and extracted colors for the dynamic backdrop
+ *
+ * Colours are ARGB ints (no-Compose UI, 2026-11-22); null is "unspecified" (the dynamic backdrop is off).
  */
 data class BackdropResult(
     val itemId: String?,
     val imageUrl: String?,
-    val primaryColor: Color = Color.Unspecified,
-    val secondaryColor: Color = Color.Unspecified,
-    val tertiaryColor: Color = Color.Unspecified,
+    val primaryColor: Int? = null,
+    val secondaryColor: Int? = null,
+    val tertiaryColor: Int? = null,
 ) {
     val hasColors: Boolean =
-        primaryColor.isSpecified ||
-            secondaryColor.isSpecified ||
-            tertiaryColor.isSpecified
+        primaryColor != null ||
+            secondaryColor != null ||
+            tertiaryColor != null
 
     companion object {
         val NONE =
@@ -335,14 +346,14 @@ data class BackdropResult(
 }
 
 /**
- * The colors extracted from an image
+ * The colors extracted from an image, as ARGB ints; null is unspecified
  */
 data class ExtractedColors(
-    val primary: Color,
-    val secondary: Color,
-    val tertiary: Color,
+    val primary: Int?,
+    val secondary: Int?,
+    val tertiary: Int?,
 ) {
     companion object {
-        val DEFAULT = ExtractedColors(Color.Unspecified, Color.Unspecified, Color.Unspecified)
+        val DEFAULT = ExtractedColors(null, null, null)
     }
 }

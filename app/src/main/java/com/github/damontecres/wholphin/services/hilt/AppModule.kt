@@ -17,6 +17,7 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.android.androidDevice
@@ -133,9 +134,23 @@ object AppModule {
         @StandardOkHttpClient okHttpClient: OkHttpClient,
         kidContentGuard: KidContentGuard,
     ) = CoroutineContextApiClientFactory(
-        OkHttpFactory(okHttpClient),
+        OkHttpFactory(
+            // Jellyfin API calls only, with their own queue: OkHttp's default of 5 requests to one server at a time
+            // held the kid rules' collection checks (a round trip each) to 4 at once, so a kid's Collections page took
+            // over half a minute. Shares the connection pool; other clients keep their own limits
+            okHttpClient
+                .newBuilder()
+                .dispatcher(Dispatcher().apply { maxRequestsPerHost = MAX_API_REQUESTS_PER_SERVER })
+                .build(),
+        ),
         contentGuard = kidContentGuard.takeIf { BuildConfig.KID_PROFILES_ENABLED },
     )
+
+    /**
+     * Jellyfin API requests in flight to one server at once ([KidContentGuard] lookups take up to 16 of them). The
+     * server speaks HTTP/2, so they share one connection
+     */
+    const val MAX_API_REQUESTS_PER_SERVER = 20
 
     @Provides
     @Singleton

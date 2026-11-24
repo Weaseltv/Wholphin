@@ -2,7 +2,6 @@
 
 package com.github.damontecres.wholphin.ui.nav
 
-import androidx.navigation3.runtime.NavKey
 import com.github.damontecres.wholphin.data.filter.DiscoverFilter
 import com.github.damontecres.wholphin.data.model.BaseItem
 import com.github.damontecres.wholphin.data.model.CollectionFolderFilter
@@ -34,7 +33,7 @@ import java.util.UUID
 @Serializable
 sealed class Destination(
     val fullScreen: Boolean = false,
-) : NavKey {
+) {
     @Serializable
     data class Home(
         val id: Long = 0L,

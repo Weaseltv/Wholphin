@@ -12,6 +12,7 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
@@ -41,7 +42,9 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
+import java.util.Collections
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -52,7 +55,7 @@ class KidContentGuardTest {
         val items: Map<String, String>,
         var token: String?,
     ) : ApiClient() {
-        val requests = mutableListOf<Pair<String, Map<String, Any?>>>()
+        val requests: MutableList<Pair<String, Map<String, Any?>>> = Collections.synchronizedList(mutableListOf())
 
         /** Box set children by parent id, served in pages */
         var children: Map<String, List<String>> = emptyMap()
@@ -62,6 +65,13 @@ class KidContentGuardTest {
 
         /** How long each box set children request takes */
         var childrenDelayMillis = 0L
+
+        /** How long each box set children request takes, suspended rather than blocking (so others can run) */
+        var childrenSuspendMillis = 0L
+        private val childrenInFlight = AtomicInteger()
+
+        /** The most box set children requests that were under way at once */
+        val maxChildrenInFlight = AtomicInteger()
         var listResponse: String = """{"Items":[],"TotalRecordCount":0}"""
         var contentType = "application/json; charset=utf-8"
 
@@ -104,6 +114,14 @@ class KidContentGuardTest {
                             """{"Items":[${ids.mapNotNull { items[it] }.joinToString(",")}],"TotalRecordCount":${ids.size}}"""
                         } else if (parentId != null) {
                             if (childrenDelayMillis > 0) Thread.sleep(childrenDelayMillis)
+                            if (childrenSuspendMillis > 0) {
+                                maxChildrenInFlight.accumulateAndGet(childrenInFlight.incrementAndGet(), ::maxOf)
+                                try {
+                                    delay(childrenSuspendMillis)
+                                } finally {
+                                    childrenInFlight.decrementAndGet()
+                                }
+                            }
                             val all = children[parentId].orEmpty()
                             val start = queryParameters["startIndex"] as? Int ?: 0
                             val limit = queryParameters["limit"] as? Int ?: all.size
@@ -652,5 +670,21 @@ class KidContentGuardTest {
             // Not cached: with time enough it is shown
             guard.boxSetTime = 10.seconds
             assertEquals(listOf("t1"), ids(api.get("/Items", query = mapOf("fields" to null))))
+        }
+
+    @Test
+    fun `a response's box sets are checked side by side, and waiting for a turn uses none of the time budget`() =
+        runTest {
+            // Real time here: room for the first request's start-up cost
+            guard.boxSetTime = 1.seconds
+            val moonstruck = items.getValue(key(moonstruckId))
+            // Box sets of 400 ms each, three rounds of turns (1.2 s): longer than one box set's budget
+            val sets = (0 until KidContentGuard.MAX_CONCURRENT_LOOKUPS * 2 + 2).map { "set$it" }
+            server.children = sets.associateWith { listOf(moonstruck) }
+            server.childrenSuspendMillis = 400
+            server.listResponse = """{"Items":[${sets.joinToString(",") { boxSet(it) }}],"TotalRecordCount":${sets.size}}"""
+            assertEquals(sets, ids(api.get("/Items", query = mapOf("fields" to null))))
+            assertEquals(KidContentGuard.MAX_CONCURRENT_LOOKUPS, server.maxChildrenInFlight.get())
+            assertEquals(sets.size, probes())
         }
 }

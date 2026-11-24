@@ -1,11 +1,9 @@
 package com.github.damontecres.wholphin.ui
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import coil3.EventListener
 import coil3.ImageLoader
+import coil3.SingletonImageLoader
 import coil3.annotation.ExperimentalCoilApi
-import coil3.compose.setSingletonImageLoaderFactory
 import coil3.disk.DiskCache
 import coil3.disk.directory
 import coil3.memory.MemoryCache
@@ -29,44 +27,47 @@ import okhttp3.OkHttpClient
 import timber.log.Timber
 import kotlin.time.ExperimentalTime
 
-@Composable
-fun CoilConfig(
-    prefs: AppPreferences,
-    okHttpClient: OkHttpClient,
-    debugLogging: Boolean,
-    enableCache: Boolean = true,
-) = CoilConfig(
-    diskCacheSizeBytes =
-        prefs.advancedPreferences.imageDiskCacheSizeBytes.let {
-            if (it < AppPreference.ImageDiskCacheSize.min * AppPreference.MEGA_BIT) {
-                AppPreference.ImageDiskCacheSize.defaultValue * AppPreference.MEGA_BIT
-            } else {
-                it
-            }
-        },
-    okHttpClient = okHttpClient,
-    debugLogging = debugLogging,
-    enableCache = enableCache,
-)
-
 /**
- * Configure Coil image loading
+ * Configure Coil image loading for the whole app (no-Compose UI, 2026-11-22: was the `CoilConfig` composable).
+ *
+ * Sets the factory of Coil's singleton [ImageLoader], so `imageView.load(...)` and `context.imageLoader` everywhere use
+ * it. Like Compose's `setSingletonImageLoaderFactory`, it does nothing once the singleton has been created, so the
+ * first call (when the preferences are first read) decides the disk cache size until the app restarts.
  */
-@OptIn(ExperimentalTime::class, ExperimentalCoilApi::class)
-@Composable
-fun CoilConfig(
-    diskCacheSizeBytes: Long,
-    okHttpClient: OkHttpClient,
-    debugLogging: Boolean,
-    enableCache: Boolean = true,
-) {
-    val client =
-        remember(okHttpClient, debugLogging) {
-            // Speed plan step 10 (2026-11): pictures get a request queue of their own. They shared one with page data,
-            // the player and theme songs, five requests per server at a time, so a screen of posters could hold up the
-            // page's own data and the other way round. The shared limit is not raised: page data keeps its five, and
-            // pictures get five of their own, over the same connections
-            val images = okHttpClient.newBuilder().dispatcher(Dispatcher())
+object CoilConfig {
+    /** [prefs]' disk cache size, or the default when it's below the minimum */
+    fun install(
+        prefs: AppPreferences,
+        okHttpClient: OkHttpClient,
+        debugLogging: Boolean,
+        enableCache: Boolean = true,
+    ) = install(
+        diskCacheSizeBytes =
+            prefs.advancedPreferences.imageDiskCacheSizeBytes.let {
+                if (it < AppPreference.ImageDiskCacheSize.min * AppPreference.MEGA_BIT) {
+                    AppPreference.ImageDiskCacheSize.defaultValue * AppPreference.MEGA_BIT
+                } else {
+                    it
+                }
+            },
+        okHttpClient = okHttpClient,
+        debugLogging = debugLogging,
+        enableCache = enableCache,
+    )
+
+    @OptIn(ExperimentalTime::class, ExperimentalCoilApi::class)
+    fun install(
+        diskCacheSizeBytes: Long,
+        okHttpClient: OkHttpClient,
+        debugLogging: Boolean,
+        enableCache: Boolean = true,
+    ) {
+        // Speed plan step 10 (2026-11): pictures get a request queue of their own. They shared one with page data,
+        // the player and theme songs, five requests per server at a time, so a screen of posters could hold up the
+        // page's own data and the other way round. The shared limit is not raised: page data keeps its five, and
+        // pictures get five of their own, over the same connections
+        val images = okHttpClient.newBuilder().dispatcher(Dispatcher())
+        val client =
             if (debugLogging) {
                 images
                     .addInterceptor {
@@ -80,39 +81,39 @@ fun CoilConfig(
             } else {
                 images.build()
             }
-        }
-    setSingletonImageLoaderFactory { ctx ->
-        Timber.i("Image diskCacheSizeBytes=$diskCacheSizeBytes")
-        ImageLoader
-            .Builder(ctx)
-            .apply {
-                if (enableCache) {
-                    memoryCache(MemoryCache.Builder().maxSizePercent(ctx).build())
-                    diskCache(
-                        DiskCache
-                            .Builder()
-                            .directory(ctx.cacheDir.resolve("coil3_image_cache"))
-                            .maxSizeBytes(diskCacheSizeBytes)
-                            .build(),
+        SingletonImageLoader.setSafe { ctx ->
+            Timber.i("Image diskCacheSizeBytes=$diskCacheSizeBytes")
+            ImageLoader
+                .Builder(ctx)
+                .apply {
+                    if (enableCache) {
+                        memoryCache(MemoryCache.Builder().maxSizePercent(ctx).build())
+                        diskCache(
+                            DiskCache
+                                .Builder()
+                                .directory(ctx.cacheDir.resolve("coil3_image_cache"))
+                                .maxSizeBytes(diskCacheSizeBytes)
+                                .build(),
+                        )
+                    } else {
+                        memoryCache(null)
+                        diskCache(null)
+                    }
+                }.crossfade(false)
+                // Speed plan step 0: counts where each image came from, for the log only
+                .eventListenerFactory { NavTimingImageListener() }
+                .logger(if (debugLogging) DebugLogger() else null)
+                .components {
+                    add(
+                        OkHttpNetworkFetcherFactory(
+                            cacheStrategy = { WholphinCacheStrategy(CacheControlCacheStrategy()) },
+                            callFactory = { client },
+                            // Disable connectivity checker which may be unreliable for VPNs and/or some versions of Android
+                            connectivityChecker = { ConnectivityChecker { true } },
+                        ),
                     )
-                } else {
-                    memoryCache(null)
-                    diskCache(null)
-                }
-            }.crossfade(false)
-            // Speed plan step 0: counts where each image came from, for the log only
-            .eventListenerFactory { NavTimingImageListener() }
-            .logger(if (debugLogging) DebugLogger() else null)
-            .components {
-                add(
-                    OkHttpNetworkFetcherFactory(
-                        cacheStrategy = { WholphinCacheStrategy(CacheControlCacheStrategy()) },
-                        callFactory = { client },
-                        // Disable connectivity checker which may be unreliable for VPNs and/or some versions of Android
-                        connectivityChecker = { ConnectivityChecker { true } },
-                    ),
-                )
-            }.build()
+                }.build()
+        }
     }
 }
 

@@ -5,9 +5,9 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.HomeRowConfig
 import com.github.damontecres.wholphin.data.model.HomeRowViewOptions
 import com.github.damontecres.wholphin.data.model.JustWatchHomeList
+import com.github.damontecres.wholphin.leanback.theme.NeonSections
+import com.github.damontecres.wholphin.leanback.theme.libraryAccent
 import com.github.damontecres.wholphin.ui.main.settings.Library
-import com.github.damontecres.wholphin.ui.theme.NeonSectionPalette
-import com.github.damontecres.wholphin.ui.theme.libraryAccent
 import org.jellyfin.sdk.model.api.CollectionType
 import java.util.UUID
 
@@ -50,7 +50,7 @@ object WeaselHomeRows {
     ): Boolean {
         if (collectionType != CollectionType.MOVIES && collectionType != CollectionType.TVSHOWS) return false
         val accent = libraryAccent(name, collectionType)
-        return accent != NeonSectionPalette.StandUpComedy.border && accent != NeonSectionPalette.Sports.border
+        return accent != NeonSections.StandUpComedy.border && accent != NeonSections.Sports.border
     }
 
     /**

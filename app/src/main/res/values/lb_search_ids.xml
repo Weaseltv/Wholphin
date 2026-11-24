@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- No-Compose Search area (leanback.search) -->
+    <item name="lb_search_voice_button" type="id" />
+    <item name="lb_search_field" type="id" />
+    <item name="lb_search_view_options" type="id" />
+    <item name="lb_search_results" type="id" />
+    <item name="lb_search_request_4k" type="id" />
+    <item name="lb_search_request_submit" type="id" />
+    <item name="lb_search_request_submit_bottom" type="id" />
+    <item name="lb_search_request_profile" type="id" />
+    <item name="lb_search_request_folder" type="id" />
+    <item name="lb_search_request_select_all" type="id" />
+</resources>

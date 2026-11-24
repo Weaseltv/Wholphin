@@ -45,6 +45,27 @@ class ActivePlaybackRegistry
          */
         val active: StateFlow<Handler?> = _active
 
+        /** An episode that started playing: which series, season and episode it was */
+        data class PlayedEpisode(
+            val itemId: UUID,
+            val seriesId: UUID,
+            val seasonId: UUID?,
+            val seasonNumber: Int?,
+            val episodeNumber: Int?,
+        )
+
+        private val _lastEpisode = MutableStateFlow<PlayedEpisode?>(null)
+
+        /**
+         * The episode that most recently started playing, a new object for every start (compare by identity). A series
+         * page left for the player follows it when it comes back, so episodes played from the queue end up selected.
+         */
+        val lastEpisode: StateFlow<PlayedEpisode?> = _lastEpisode
+
+        fun episodeStarted(episode: PlayedEpisode) {
+            _lastEpisode.value = episode
+        }
+
         fun register(handler: Handler) {
             _active.value = handler
         }

@@ -17,6 +17,7 @@ import com.github.damontecres.wholphin.data.model.Trailer
 import com.github.damontecres.wholphin.data.model.coversEpisodeNumber
 import com.github.damontecres.wholphin.data.model.mergeRepeated
 import com.github.damontecres.wholphin.preferences.AppPreferences
+import com.github.damontecres.wholphin.services.ActivePlaybackRegistry
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.ExtrasService
 import com.github.damontecres.wholphin.services.FavoriteWatchManager
@@ -111,6 +112,7 @@ class SeriesViewModel
         private val backdropService: BackdropService,
         private val seerrService: SeerrService,
         private val mediaManagementService: MediaManagementService,
+        private val activePlaybackRegistry: ActivePlaybackRegistry,
         @Assisted val seriesId: UUID,
         @Assisted val seasonEpisodeIds: SeasonEpisodeIds?,
         @Assisted val seriesPageType: SeriesPageType,
@@ -314,6 +316,76 @@ class SeriesViewModel
                 viewModelScope.launchDefault { backdropService.submit(item) }
                 viewModelScope.launchDefault {
                     themeSongPlayer.playThemeFor(seriesId)
+                }
+            }
+        }
+
+        /** The episode that had last started playing when the page went behind another one */
+        private var episodeWhenLeft: ActivePlaybackRegistry.PlayedEpisode? = null
+
+        /** The page is going behind another page (the player, a person, ...) */
+        fun onLeavePage() {
+            episodeWhenLeft = activePlaybackRegistry.lastEpisode.value
+        }
+
+        /**
+         * Back on the page: the season's episodes are loaded again (watched marks, progress). If an episode of this series
+         * started playing meanwhile, as when the player's queue moves on, that episode is selected instead, in its own
+         * season. Episodes played before the page was left don't count.
+         */
+        fun onBackFromPage(seasonTabIndex: Int) {
+            val seasons = state.value.seasons
+            val played =
+                activePlaybackRegistry.lastEpisode.value?.takeIf { it !== episodeWhenLeft && it.seriesId == seriesId }
+            val playedSeasonId = played?.seasonId
+            if (played == null || playedSeasonId == null) {
+                seasons.getOrNull(seasonTabIndex)?.let { loadEpisodes(it.id, it.indexNumber) }
+                return
+            }
+            viewModelScope.launchIO(ExceptionHandler(true)) {
+                val seasonIndex =
+                    (seasons as? ApiRequestPager<*>)?.let {
+                        findIndexByNumberOrIdFast(
+                            targetNum = played.seasonNumber,
+                            targetId = playedSeasonId,
+                            list = it,
+                            parentId = null,
+                            parentIndex = null,
+                        )
+                    } ?: seasons.indexOfFirst { it?.id == playedSeasonId }
+                if (seasonIndex < 0) {
+                    // Not one of the page's seasons
+                    withContext(WholphinDispatchers.Main) {
+                        seasons.getOrNull(seasonTabIndex)?.let { loadEpisodes(it.id, it.indexNumber) }
+                    }
+                    return@launchIO
+                }
+                val episodes =
+                    try {
+                        loadEpisodesInternal(playedSeasonId, played.seasonNumber, played.itemId, played.episodeNumber)
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: Exception) {
+                        Timber.e(ex, "Error loading episodes for $seriesId for season $playedSeasonId")
+                        EpisodeList.Error(ex)
+                    }
+                val newSeason = (state.value.episodes as? EpisodeList.Success)?.seasonId != playedSeasonId
+                // Together on the main thread, so the page sees the new position with the new episodes: the episode row
+                // scrolls to the position it has when the list arrives
+                withContext(WholphinDispatchers.Main) {
+                    position.value =
+                        SeriesOverviewPosition(seasonIndex, (episodes as? EpisodeList.Success)?.initialEpisodeIndex ?: 0)
+                    _state.update {
+                        if (newSeason) {
+                            it.copy(episodes = episodes, peopleInEpisode = PeopleInItem(), extras = emptyList())
+                        } else {
+                            it.copy(episodes = episodes)
+                        }
+                    }
+                }
+                if (newSeason) {
+                    val extras = extrasService.getExtras(playedSeasonId)
+                    _state.update { it.copy(extras = extras) }
                 }
             }
         }

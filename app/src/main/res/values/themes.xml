@@ -2,5 +2,10 @@
 
     <style name="Theme.Wholphin" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="android:colorBackground">@android:color/background_dark</item>
+        <!-- No-Compose UI: Leanback Preference panels (and their list/edit dialogs, which read these from the activity
+             theme, not from the fragment's inflater) use the settings preference theme; Leanback's layouts also
+             reference defaultBrandColor, which only Theme.Leanback defines. -->
+        <item name="preferenceTheme">@style/lb_settings_PreferenceTheme</item>
+        <item name="defaultBrandColor">@android:color/transparent</item>
     </style>
 </resources>

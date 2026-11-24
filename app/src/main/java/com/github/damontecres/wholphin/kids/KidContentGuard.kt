@@ -66,6 +66,13 @@ class KidContentGuard
 
         private val lookupPermits = Semaphore(MAX_CONCURRENT_LOOKUPS)
 
+        /**
+         * Turns for box set traversals ([Loader.boxSetHasVisibleChild]): as many as there are lookup permits, so a
+         * traversal under way finds one free for each of its requests (one at a time). Only top-level traversals take
+         * a turn; the ones nested in them never wait for one.
+         */
+        private val boxSetTurns = Semaphore(MAX_CONCURRENT_LOOKUPS)
+
         @Volatile
         private var cache: UserCache? = null
 
@@ -487,15 +494,32 @@ class KidContentGuard
                 fresh: Boolean,
             ): Boolean {
                 if (maxLevel == null || !nestedBoxSets) return false
-                val topLevel = this.traversal == null
-                val traversal = this.traversal ?: Traversal(clock() + boxSetTime.inWholeMilliseconds)
+                val parent = this.traversal
                 if (id in ancestors || ancestors.size >= MAX_BOX_SET_DEPTH) {
-                    traversal.cutOffs++
+                    parent?.cutOffs++
                     return false
                 }
                 // Whether a child is visible depends on the level too
                 val cacheKey = "$id:$maxLevel"
                 if (!fresh) userCache.boxSets.valid(cacheKey)?.let { return it.value }
+                if (parent != null) return decideBoxSet(id, maxLevel, fresh, cacheKey, parent, topLevel = false)
+                // A response's box sets are decided side by side, [MAX_CONCURRENT_LOOKUPS] at a time across the app.
+                // Each one's budget starts when its turn comes, so waiting for a turn never hides a box set
+                return boxSetTurns.withPermit {
+                    // Decided meanwhile, by another response with the same box set
+                    if (!fresh) userCache.boxSets.valid(cacheKey)?.let { return@withPermit it.value }
+                    decideBoxSet(id, maxLevel, fresh, cacheKey, Traversal(clock() + boxSetTime.inWholeMilliseconds), topLevel = true)
+                }
+            }
+
+            private suspend fun decideBoxSet(
+                id: String,
+                maxLevel: Int,
+                fresh: Boolean,
+                cacheKey: String,
+                traversal: Traversal,
+                topLevel: Boolean,
+            ): Boolean {
                 val cutOffsBefore = traversal.cutOffs
                 val visible =
                     try {
@@ -596,7 +620,13 @@ class KidContentGuard
         companion object {
             /** How long lookups decide lists; playback never uses them (review round 1: 2 minutes) */
             val CACHE_TTL = 2.minutes
-            private const val MAX_CONCURRENT_LOOKUPS = 4
+
+            /**
+             * Lookup requests in flight at once. The Jellyfin client sends at most 20 requests to a server at a time
+             * (`AppModule.MAX_API_REQUESTS_PER_SERVER`), so this leaves four for the page's own requests. Each lookup is
+             * a few milliseconds of server work; nearly all of its time is the round trip (about 0.3 s through NC1)
+             */
+            internal const val MAX_CONCURRENT_LOOKUPS = 16
             private const val LOOKUP_BATCH = 40
             private const val BOX_SET_PAGE = 100
 

@@ -1,6 +1,5 @@
 package com.github.damontecres.wholphin.preferences
 
-import androidx.compose.ui.graphics.toArgb
 import androidx.datastore.core.CorruptionException
 import androidx.datastore.core.Serializer
 import com.github.damontecres.wholphin.ui.preferences.subtitle.SubtitleSettings
@@ -240,13 +239,13 @@ inline fun AppPreferences.updateExperimentalPreferences(block: ExperimentalPrefe
 
 fun SubtitlePreferences.Builder.resetSubtitles() {
     fontSize = SubtitleSettings.FontSize.defaultValue.toInt()
-    fontColor = SubtitleSettings.FontColor.defaultValue.toArgb()
+    fontColor = SubtitleSettings.FontColor.defaultValue
     fontBold = SubtitleSettings.FontBold.defaultValue
     fontItalic = SubtitleSettings.FontItalic.defaultValue
     fontOpacity = SubtitleSettings.FontOpacity.defaultValue.toInt()
-    edgeColor = SubtitleSettings.EdgeColor.defaultValue.toArgb()
+    edgeColor = SubtitleSettings.EdgeColor.defaultValue
     edgeStyle = SubtitleSettings.EdgeStylePref.defaultValue
-    backgroundColor = SubtitleSettings.BackgroundColor.defaultValue.toArgb()
+    backgroundColor = SubtitleSettings.BackgroundColor.defaultValue
     backgroundOpacity = SubtitleSettings.BackgroundOpacity.defaultValue.toInt()
     backgroundStyle = SubtitleSettings.BackgroundStylePref.defaultValue
     margin = SubtitleSettings.Margin.defaultValue.toInt()

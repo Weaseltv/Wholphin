@@ -348,3 +348,16 @@ episodes as two (Parks and Recreation S06E01-02, S06E21-22, S07E12-13), so Jelly
 - The ready pop-up still comes from Seerr only, so these shows get the "some episodes" pop-up but no "ready" one.
 - Deployed 2026-11-04 (backup `progress.js.bak-20261104-librarycomplete`); request 88 went
   `confirming_availability -> ready library_complete` at once.
+
+## No snapshot reads on a healthy stream (2026-11-21)
+
+The TV read `/progress/v1/snapshot` whenever its stream had been quiet for a second (NC1 2026-11-20: 686 snapshot
+reads against 33 streams, up to 48 a minute from one home). The service already pushes every change within about a
+second, so that was wasted load against NC1's per-home limit (10 a second, burst 80). Owner asked for it to stop.
+
+- While the stream is open and has its snapshot, the TV only listens. A dead socket ends through the 40-s read
+  timeout (the service pings every 15 s).
+- Still kept: the 15-s wait for the stream's snapshot (first one, and after `status` `ok`), and the `/snapshot`
+  fallback loop when the stream fails or is unsupported.
+- An event from a different `boot` (service restarted) now ends the stream; the reopened stream starts with a
+  fresh snapshot.
