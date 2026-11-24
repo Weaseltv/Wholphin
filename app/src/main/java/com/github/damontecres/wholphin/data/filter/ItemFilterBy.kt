@@ -155,6 +155,7 @@ data object OfficialRatingFilter : ItemFilterBy<List<String>> {
 enum class FilterVideoType(
     val readable: String,
 ) {
+    /** No longer offered or applied (owner, 2026-11-23); kept so saved filters that name it still load */
     FOUR_K("4K"),
     HD("HD"),
     SD("SD"),

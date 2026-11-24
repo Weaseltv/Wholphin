@@ -10,7 +10,6 @@ import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.UserProfileSettings
 import com.github.damontecres.wholphin.services.BackdropService
 import com.github.damontecres.wholphin.services.NavigationManager
-import com.github.damontecres.wholphin.services.ScreensaverService
 import com.github.damontecres.wholphin.ui.combineTriple
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import com.github.damontecres.wholphin.ui.launchIO
@@ -40,7 +39,6 @@ class UserPreferencesViewModel
         val preferenceDataStore: DataStore<AppPreferences>,
         val navigationManager: NavigationManager,
         val backdropService: BackdropService,
-        val screensaverService: ScreensaverService,
         private val serverRepository: ServerRepository,
     ) : ViewModel() {
         private val mutex = Mutex()

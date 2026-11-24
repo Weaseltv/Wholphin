@@ -21,7 +21,6 @@
     <string name="file_size">Storlek</string>
     <string name="genres">Genrer</string>
     <string name="episodes">Episoder</string>
-    <string name="favorites">Favoriter</string>
     <string name="library">Bibliotek</string>
     <string name="more">Mer</string>
     <string name="no_results">Inga resultat</string>
@@ -38,7 +37,6 @@
     <string name="recently_added">Nyligen tillagt</string>
     <string name="recently_released">Nyligen släppt</string>
     <string name="recommended">Rekommenderat</string>
-    <string name="remove_favorite">Ta bort favorit</string>
     <string name="restart">Starta om</string>
     <string name="resume">Fortsätt</string>
     <string name="save">Spara</string>
@@ -158,8 +156,6 @@
         <item quantity="one">%d sekund</item>
         <item quantity="other">%d sekunder</item>
     </plurals>
-    <string name="add_favorite">Favorit</string>
-    <string name="compose_error_message_title">Ett fel uppstod! Tryck på knappen för att skicka loggar till din server.</string>
     <string name="confirm">Bekräfta</string>
     <string name="continue_watching">Fortsätt titta</string>
     <string name="critic_rating">Kritikerbetyg</string>
@@ -267,7 +263,6 @@
     <string name="subtitle_margin">Marginal</string>
     <string name="enter_pin">Skriv in PIN</string>
     <string name="sign_in_auto">Logga in automatiskt</string>
-    <string name="use_server_credentials">Logga in via server</string>
     <string name="enter_server_address">Ange server-adress</string>
     <string name="voice_error_network">Nätverksfel</string>
     <string name="voice_error_unknown">Okänt fel</string>
@@ -298,11 +293,6 @@
     <string name="yellow">Gul</string>
     <string name="purple">Lila</string>
     <string name="black">Svart</string>
-    <string name="for_all_ages">För alla åldrar</string>
-    <string name="up_to_age">Upp till %s år</string>
-    <string name="screensaver">Skärmsläckare</string>
-    <string name="screensaver_settings">Inställningar Skärmsläckare</string>
-    <string name="start_screensaver">Starta skärmsläckare</string>
     <string name="photos">Bilder</string>
     <string name="settings_saved">Inställningar sparade</string>
     <string name="rotate_left">Rotera vänster</string>
@@ -312,7 +302,6 @@
     <string name="no_limit">Ingen gräns</string>
     <string name="add_row">Lägg till rad</string>
     <string name="press_back_to_cancel">Tryck bakåt för att avbryta</string>
-    <string name="duration">Längd</string>
     <string name="orange">Orange</string>
     <string name="blue">Blå</string>
     <string name="backdrop_style_dynamic">Bild med dynamisk färg</string>
@@ -320,15 +309,10 @@
     <string name="backdrop_display">Bakgrundsstil</string>
     <string name="edge_size">Kantstorlek</string>
     <string name="quick_connect_code_error">Koden måste vara 6 siffror</string>
-    <string name="quick_connect_code">Ange Quick Connect-kod</string>
     <string name="quick_connect_success">Enheten har auktoriserats</string>
-    <string name="quick_connect_summary">Auktorisera en annan enhet att logga in på ditt konto</string>
     <string name="recently_released_in">Nyligen släppt i %1$s</string>
     <string name="green">Grön</string>
     <string name="profile">Profil</string>
-    <string name="quick_connect">Snabbanslutning</string>
-    <string name="remove_seerr_server">Ta bort Seerr-server</string>
-    <string name="request_4k">Begär i 4K</string>
     <string name="request">Begär</string>
     <string name="remember_selected_tab">Kom ihåg vald flik</string>
     <string name="refresh_rate_switching">Växling av uppdateringsfrekvens</string>
@@ -348,8 +332,6 @@
     <string name="pin_too_short">PIN måste vara minst 4 tecken</string>
     <string name="overwrite_server_settings">Skriv över inställningar på servern?</string>
     <string name="overwrite_local_settings">Skriv över lokala inställningar?</string>
-    <string name="seerr_integration">Seerr-integration</string>
-    <string name="send_app_logs">Skicka apploggar till aktuell server</string>
     <string name="select_all">Markera alla</string>
     <string name="seerr_server_added">Seerr-server tillagd</string>
     <string name="seerr_login">Logga in på Seerr</string>
@@ -369,7 +351,6 @@
     <string name="search_and_download">Sök och ladda ner</string>
     <string name="saturation">Mättnad</string>
     <string name="save_for_album">Spara till album</string>
-    <string name="save_to_server">Spara till serverns användarprofil</string>
     <string name="sample_rate">Samplingsfrekvens</string>
     <string name="sample_rate_unit">Hz</string>
     <string name="voice_error_server">Serverfel</string>
@@ -411,9 +392,6 @@
     <string name="customize_home">Anpassa startsidan</string>
     <string name="customize_home_summary">Välj rader och bilder på startsidan</string>
     <string name="delete_item">Är du säker på att du vill radera detta objekt?</string>
-    <string name="discover">Upptäck</string>
-    <string name="display_preset_compact">Wholphin Kompakt</string>
-    <string name="display_preset_default">Wholphin Standard</string>
     <string name="display_presets">Visningsförinställningar</string>
     <string name="display_presets_description">Inbyggda förinställningar för att snabbt styla alla rader</string>
     <string name="display_preset_episode_thumbnails">Avsnittsminiatyrer</string>
@@ -448,7 +426,6 @@
     <string name="view_options_type_list_compact">Kompakt lista</string>
     <string name="enter_url_api_key">Ange URL och API-nyckel</string>
     <string name="no_subtitles_found">Inga externa undertexter hittades</string>
-    <string name="in_app_screensaver">Använd skärmsläckare i appen</string>
     <string name="lyricist">Textförfattare</string>
     <string name="arranger">Arrangör</string>
     <string name="mixer">Mixare</string>
@@ -458,7 +435,6 @@
     <string name="music_videos">Musikvideor</string>
     <string name="sort">Sortera</string>
     <string name="subtitle_delay">Undertextfördröjning</string>
-    <string name="start_after">Starta efter</string>
     <string name="apply_all_rows">Tillämpa på alla rader</string>
     <string name="continue_watching_click_summary_on">Spela vid klick</string>
     <string name="continue_watching_click_summary_off">Visa detaljer vid klick</string>
@@ -472,8 +448,6 @@
     <string name="remove_next_up">Ta bort serien från Fortsätt titta</string>
     <string name="view_removed_next_up">Visa serier som tagits bort från Fortsätt titta</string>
     <string name="view_more">Visa mer</string>
-    <string name="discover_tv">Upptäck TV-serier</string>
-    <string name="discover_movies">Upptäck filmer</string>
     <plurals name="days">
         <item quantity="one">%s dag</item>
         <item quantity="other">%s dagar</item>
@@ -517,7 +491,6 @@
     <string name="voice_error_no_match">Inget tal kändes igen</string>
     <string name="voice_error_busy">Röstigenkänning upptagen</string>
     <string name="will_remove_pin">Kommer att ta bort PIN-koden</string>
-    <string name="favorite_items_title">Favoritmarkera %s</string>
     <string name="play_slideshow">Spela bildspel</string>
     <string name="prefer_logos">Föredra att visa logotyper för titlar</string>
     <string name="brightness">Ljusstyrka</string>
@@ -558,14 +531,9 @@
     <string name="stop_slideshow">Stoppa bildspelet</string>
     <string name="slideshow_at_beginning">I början</string>
     <string name="no_more_images">Inga fler bilder</string>
-    <string name="load_from_web_client">Ladda från webbklient</string>
     <string name="for_episodes">För episoder</string>
     <string name="increase_all_cards_size">Öka storleken för alla kort</string>
     <string name="decrease_all_cards_size">Minska storleken för alla kort</string>
-    <string name="animate">Animera</string>
-    <string name="max_age_rating">Maximal åldersgräns</string>
-    <string name="include_types_summary">Vilka typer av objekt ska bilder visas för</string>
-    <string name="updated_toast">Wholphin har uppdaterats till %s</string>
     <string name="last_played">Senast visat</string>
     <string name="root_folder">Huvudkatalog</string>
     <string name="popularity">Populäritet</string>
@@ -588,10 +556,7 @@
     <string name="interlaced">Sammanflätad</string>
     <string name="level">Nivå</string>
     <string name="mpv_conf">Redigera mpv.conf</string>
-    <string name="profile_specific_settings_from_server">Profilinställningar från server</string>
-    <string name="no_max">Ingen övre gräns</string>
     <string name="include_types">Inkludera typer</string>
-    <string name="load_from_server">Ladda från serverns användarprofil</string>
     <string name="pin_digits_hint">[0–9]</string>
     <string name="disable_audio_offload">Stäng av hårdvaruavlastning</string>
     <string name="disable_audio_offload_summary">Stänga av ljudavlastning kan hjälpa uppspelning som fryser på vissa enheter</string>

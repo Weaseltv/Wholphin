@@ -37,12 +37,12 @@ import com.github.damontecres.wholphin.services.DeviceProfileService
 import com.github.damontecres.wholphin.services.HomeSettingsService
 import com.github.damontecres.wholphin.services.IntentResult
 import com.github.damontecres.wholphin.services.IntentService
+import com.github.damontecres.wholphin.services.KeepScreenOnService
 import com.github.damontecres.wholphin.services.LatestNextUpSchedulerService
 import com.github.damontecres.wholphin.services.NavDrawerService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.PlaybackLifecycleObserver
 import com.github.damontecres.wholphin.services.RefreshRateService
-import com.github.damontecres.wholphin.services.ScreensaverService
 import com.github.damontecres.wholphin.services.ServerEventListener
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.SetupNavigationManager
@@ -161,7 +161,7 @@ class MainActivity :
     lateinit var datePlayedInvalidationService: DatePlayedInvalidationService
 
     @Inject
-    lateinit var screensaverService: ScreensaverService
+    lateinit var keepScreenOnService: KeepScreenOnService
 
     @Inject lateinit var requestStatusRepository: com.github.damontecres.wholphin.services.RequestStatusRepository
     private var requestStatusJob: Job? = null
@@ -245,7 +245,7 @@ class MainActivity :
                 Timber.e(ex, "Error with settings flag secure")
             }.launchIn(lifecycleScope)
 
-        screensaverService.keepScreenOn
+        keepScreenOnService.keepScreenOn
             .onEach { keepScreenOn ->
                 Timber.v("keepScreenOn: %s", keepScreenOn)
                 withContext(WholphinDispatchers.Main) {
@@ -281,7 +281,6 @@ class MainActivity :
                     navigationManager = navigationManager,
                     setupNavigationManager = setupNavigationManager,
                     backdropService = backdropService,
-                    screensaverService = screensaverService,
                     updateChecker = updateChecker,
                     requestStatusRepository = requestStatusRepository,
                     coachMarkTour = coachMarkTour,
@@ -335,27 +334,13 @@ class MainActivity :
     private val injectedLongPress = InjectedLongPress()
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (screensaverService.state.value.run { show || showDim }) {
-            screensaverService.stop(false)
-            screensaverService.pulse()
-            if (profileChooserLock.enabled &&
-                profileChooserLock.multiProfile.value &&
-                !profileChooserLock.chooserShowing
-            ) {
-                // Waking the in-app screensaver counts as a return to the app (plan 4.5)
-                viewModel.lockToChooser()
-            }
-            return true
-        } else {
-            screensaverService.pulse()
-            // The coach-mark tour takes the remote while it runs, so nothing moves underneath it
-            if (coachMarkTour.onKey(event)) return true
-            // OK long-pressed by a phone remote app or adb arrives as one flagged event: open the long-click action
-            if (injectedLongPress.onKey(event, currentFocus?.findFocus())) return true
-            // Then the top page's own key handling (the old page-level onPreviewKeyEvent), then normal dispatch
-            if (::shell.isInitialized && shell.dispatchPreviewKey(event)) return true
-            return super.dispatchKeyEvent(event)
-        }
+        // The coach-mark tour takes the remote while it runs, so nothing moves underneath it
+        if (coachMarkTour.onKey(event)) return true
+        // OK long-pressed by a phone remote app or adb arrives as one flagged event: open the long-click action
+        if (injectedLongPress.onKey(event, currentFocus?.findFocus())) return true
+        // Then the top page's own key handling (the old page-level onPreviewKeyEvent), then normal dispatch
+        if (::shell.isInitialized && shell.dispatchPreviewKey(event)) return true
+        return super.dispatchKeyEvent(event)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -368,9 +353,6 @@ class MainActivity :
         Timber.d("onResume")
         profileChooserLock.onActivityResumed()
         viewModel.appResume()
-        lifecycleScope.launchDefault {
-            screensaverService.pulse()
-        }
         if (::shell.isInitialized) shell.onWindowFocusChanged()
     }
 
@@ -393,7 +375,6 @@ class MainActivity :
         super.onStop()
         Timber.d("onStop")
         profileChooserLock.onActivityStopped(externalPlayer = playExternalViewModel.launched.value)
-        screensaverService.stop(true)
         tvProviderSchedulerService.launchOneTimeRefresh()
     }
 
@@ -831,19 +812,6 @@ class MainActivityViewModel
                 setupNavigationManager.navigateTo(SetupDestination.AppContent(current))
             } else {
                 setupNavigationManager.navigateTo(SetupDestination.ServerList)
-            }
-        }
-
-        /** The in-app screensaver was woken on a TV with more than one profile: back to the profile screen */
-        fun lockToChooser() {
-            viewModelScope.launchDefault {
-                mutex.withLock {
-                    val serverId =
-                        serverRepository.current.value
-                            ?.server
-                            ?.id ?: profileChooserLock.lastProfile?.server?.id
-                    showChooser(serverId)
-                }
             }
         }
 

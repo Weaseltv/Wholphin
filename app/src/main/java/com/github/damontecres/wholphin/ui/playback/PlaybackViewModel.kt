@@ -50,13 +50,13 @@ import com.github.damontecres.wholphin.services.DatePlayedService
 import com.github.damontecres.wholphin.services.DeviceProfileService
 import com.github.damontecres.wholphin.services.HomeFreshness
 import com.github.damontecres.wholphin.services.ImageUrlService
+import com.github.damontecres.wholphin.services.KeepScreenOnService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.PlayRequestMapper
 import com.github.damontecres.wholphin.services.PlayerFactory
 import com.github.damontecres.wholphin.services.PlaylistCreationResult
 import com.github.damontecres.wholphin.services.PlaylistCreator
 import com.github.damontecres.wholphin.services.RefreshRateService
-import com.github.damontecres.wholphin.services.ScreensaverService
 import com.github.damontecres.wholphin.services.StreamChoiceService
 import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.VolumeService
@@ -160,7 +160,7 @@ class PlaybackViewModel
         val streamChoiceService: StreamChoiceService,
         private val userPreferencesService: UserPreferencesService,
         private val imageUrlService: ImageUrlService,
-        private val screensaverService: ScreensaverService,
+        private val keepScreenOnService: KeepScreenOnService,
         private val activePlaybackRegistry: ActivePlaybackRegistry,
         private val volumeService: VolumeService,
         private val kidContentGuard: KidContentGuard,
@@ -245,7 +245,7 @@ class PlaybackViewModel
             initJob =
                 viewModelScope.launchIO {
                     addCloseable {
-                        screensaverService.keepScreenOn(false)
+                        keepScreenOnService.keepScreenOn(false)
                         disconnectPlayer()
                     }
                     init()
@@ -1821,7 +1821,7 @@ class PlaybackViewModel
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
-            screensaverService.keepScreenOn(isPlaying)
+            keepScreenOnService.keepScreenOn(isPlaying)
         }
 
         override fun onAvailableCommandsChanged(availableCommands: Player.Commands) {

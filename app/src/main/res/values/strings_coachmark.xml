@@ -11,9 +11,9 @@
     <string name="coach_next">Next</string>
     <string name="coach_done">Done</string>
     <string name="coach_skip">Skip tour</string>
-    <string name="coach_hint_first">OK to continue · ◀ ▶ to choose · BACK to leave</string>
-    <string name="coach_hint">OK to continue · ◀ ▶ to choose · BACK for the previous step</string>
-    <string name="coach_hint_last">OK to finish · BACK for the previous step</string>
+    <string name="coach_hint_first">OK to continue · ◀ ▶ to choose · Back to leave</string>
+    <string name="coach_hint">OK to continue · ◀ ▶ to choose · Back for the previous step</string>
+    <string name="coach_hint_last">OK to finish · Back for the previous step</string>
 
     <!-- Steps (owner's exact wording, 2026-10-26) -->
     <string name="coach_welcome_title">Quick tour</string>

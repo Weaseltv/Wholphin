@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">Über diese App</string>
-    <string name="add_favorite">Zu Favoriten hinzufügen</string>
     <string name="add_server">Server hinzufügen</string>
     <string name="add_user">Benutzer hinzufügen</string>
     <string name="audio">Ton</string>
@@ -80,7 +79,6 @@
     <string name="choose_stream">%1$s wählen</string>
     <string name="clear_image_cache">Bilder-Cache leeren</string>
     <string name="community_rating">Community-Bewertung</string>
-    <string name="compose_error_message_title">Ein Fehler ist aufgetreten! Drücke die Taste um Logs an deinen Server zu senden.</string>
     <string name="directed_by">Regie von %1$s</string>
     <string name="disabled">Deaktiviert</string>
     <string name="discovered_servers">Gefundene Server</string>
@@ -90,7 +88,6 @@
     <string name="episodes">Episoden</string>
     <string name="error_loading_collection">Fehler beim Laden der Sammlung %1$s</string>
     <string name="external_track">Extern</string>
-    <string name="favorites">Favoriten</string>
     <string name="file_size">Größe</string>
     <string name="forced_track">Erzwungen</string>
     <string name="genres">Genre</string>
@@ -122,7 +119,6 @@
     <string name="queue">Warteschlange</string>
     <string name="recap">Rückblick</string>
     <string name="recently_released">Zuletzt veröffentlicht</string>
-    <string name="remove_favorite">Nicht favorisieren</string>
     <string name="search_and_download"><![CDATA[Suchen & Herunterladen]]></string>
     <string name="show_debug_info">Debug-Infos anzeigen</string>
     <string name="download_and_update"><![CDATA[Herunterladen & Aktualisieren]]></string>
@@ -260,7 +256,6 @@
     <string name="nav_drawer_switch_on_focus">Navigationsmenü-Seiten beim Fokus wechseln</string>
     <string name="playback_overrides">Wiedergabe überschreiben</string>
     <string name="seek_bar_steps">Zeitleistensprünge</string>
-    <string name="send_app_logs">Sende Logs zum aktuellen Server</string>
     <string name="send_crash_reports_summary">Versucht zum letzten verbundenen Server zu senden</string>
     <string name="skip_back_preference">Zurückspringen</string>
     <string name="player_backend">Wiedergabe-Backend</string>
@@ -316,7 +311,6 @@
     <string name="play_trailer">Trailer abspielen</string>
     <string name="local">Lokal</string>
     <string name="verbose_logging">Detailliertes Protokoll</string>
-    <string name="use_server_credentials">Login via Server</string>
     <string name="press_enter_to_confirm">Drücke die mittlere Taste zur Bestätigung</string>
     <string name="image_cache_size">Größe des Festplatten-Caches für Bilder (MB)</string>
     <string name="cast_and_crew"><![CDATA[Besetzung & Mitwirkende]]></string>
@@ -344,15 +338,12 @@
     <string name="layout">Layout</string>
     <string name="sample_rate">Abtastrate</string>
     <string name="dts">DTS</string>
-    <string name="discover">Entdecke</string>
     <string name="request">Anfrage</string>
     <string name="pending">Ausstehend</string>
-    <string name="seerr_integration">Seerr-Integration</string>
     <string name="seerr_server_added">Seerr-Server hinzugefügt</string>
     <string name="password">Passwort</string>
     <string name="username">Benutzername</string>
     <string name="url">URL</string>
-    <string name="request_4k">In 4K anfragen</string>
     <string name="dts_x">DTS:X</string>
     <string name="dts_hd">DTS:HD</string>
     <string name="dts_hd_ma">DTS:HD MA</string>
@@ -381,7 +372,6 @@
     <string name="video_range">Videobereich</string>
     <string name="video_range_type">Videobereich-Typ</string>
     <string name="clear_track_choices">Spur-Auswahl löschen</string>
-    <string name="remove_seerr_server">Seerr-Server entfernen</string>
     <string name="software_decoding_av1">AV1 Software-Dekodierung</string>
     <string name="anamorphic">Anamorph</string>
     <string name="color_space">Farbraum</string>
@@ -419,15 +409,12 @@
     <string name="slideshow_duration">Dauer der Diashow</string>
     <string name="play_videos_during_slideshow">Videos während der Diashow abspielen</string>
     <string name="max_days_next_up">Max. Tage in \"Als Nächstes\"</string>
-    <string name="quick_connect">Quick Connect</string>
     <plurals name="minutes">
         <item quantity="one">%s Minute</item>
         <item quantity="other">%s Minuten</item>
     </plurals>
     <string name="interlaced">Interlaced</string>
     <string name="nal">NAL</string>
-    <string name="quick_connect_summary">Gewähre anderen Geräten Zugang zu deinem Account</string>
-    <string name="quick_connect_code">Quick Connect-Code eingeben</string>
     <string name="no_limit">Keine Begrenzung</string>
     <string name="add_row">Reihe hinzufügen</string>
     <string name="genres_in">Genres in %1$s</string>
@@ -443,7 +430,6 @@
     <string name="for_episodes">Für Folgen</string>
     <string name="display_presets_description">Vorlagen um schnell alle Reihen zu gestalten</string>
     <string name="customize_home_summary">Wähle Reihen und Bilder auf der Homepage</string>
-    <string name="start_after">Starte nach</string>
     <string name="display_preset_series_thumb">Serien-Vorschaubilder</string>
     <string name="display_preset_episode_thumbnails">Episoden-Vorschaubilder</string>
     <string name="seerr_login">Am Seerr-Server einloggen</string>
@@ -451,17 +437,8 @@
     <string name="show_media_management">Medienmanagement-Optionen anzeigen</string>
     <string name="decrease_all_cards_size">Größe für alle Karten reduzieren</string>
     <string name="settings_saved">Einstellungen gespeichert</string>
-    <string name="max_age_rating">Maximale Altersfreigabe</string>
-    <string name="no_max">Keine Begrenzung</string>
-    <string name="for_all_ages">Ohne Altersbeschränkung</string>
-    <string name="up_to_age">Bis %s Jahre</string>
-    <string name="screensaver">Bildschirmschoner</string>
-    <string name="screensaver_settings">Bildschirmschoner Einstellungen</string>
-    <string name="start_screensaver">Bildschirmschoner starten</string>
-    <string name="duration">Dauer</string>
     <string name="photos">Fotos</string>
     <string name="include_types">Medientypen einschließen</string>
-    <string name="include_types_summary">Für welche Medientypen sollen Bilder angezeigt werden</string>
     <string name="content_scale_fit">Angepasst</string>
     <string name="content_scale_crop">Zugeschnitten</string>
     <string name="content_scale_fill">Ausgefüllt</string>
@@ -493,11 +470,8 @@
     <string name="seerr_local_user">Lokaler Benutzer</string>
     <string name="search_for">Suche %s</string>
     <string name="display_presets">Design-Vorlagen</string>
-    <string name="animate">Animieren</string>
     <string name="content_scale_fill_width">Breite ausfüllen</string>
     <string name="content_scale_fill_height">Höhe ausfüllen</string>
-    <string name="display_preset_default">Wholphin Standard</string>
-    <string name="display_preset_compact">Wholphin Kompakt</string>
     <string name="volume_lowest">Niedrigste</string>
     <string name="volume_low">Niedrig</string>
     <string name="volume_medium">Mittel</string>
@@ -508,7 +482,6 @@
     <string name="black">Schwarz</string>
     <string name="backdrop_style_image">Nur Bild</string>
     <string name="series_continueing">Aktuell</string>
-    <string name="in_app_screensaver">Integrierten Bildschirmschoner nutzen</string>
     <string name="delete_item">Bist du sicher, dass du diesen Eintrag löschen möchtest?</string>
     <string name="actor">Darsteller</string>
     <string name="composer">Komponist</string>
@@ -518,11 +491,7 @@
     <string name="conductor">Dirigent</string>
     <string name="lyricist">Liedtexter</string>
     <string name="artist">Künstler</string>
-    <string name="favorite_items_title">Favorisierte %s</string>
     <string name="home_rows">Startseiten-Reihen</string>
-    <string name="load_from_server">Vom Server-Benutzerprofil laden</string>
-    <string name="save_to_server">Im Server-Benutzerprofil speichern</string>
-    <string name="load_from_web_client">Vom Webclient laden</string>
     <string name="increase_all_cards_size">Größe für alle Karten erhöhen</string>
     <string name="use_thumb_images">Vorschaubilder benutzen</string>
     <string name="no_subtitles_found">Es wurden keine Untertitel gefunden</string>
@@ -546,12 +515,9 @@
     <string name="continue_string">Fortfahren</string>
     <string name="separate_types">Verschiedene Arten</string>
     <string name="prefer_logos">Bevorzugt Logo statt Titel anzeigen</string>
-    <string name="updated_toast">Wholphin aktualisiert auf %s</string>
     <string name="remove_continue_watching">Von \"Weiterschauen\" entfernen</string>
     <string name="remove_next_up">Serie aus \"Als Nächstes anschauen\" entfernen</string>
     <string name="view_more">Mehr anzeigen</string>
-    <string name="discover_tv">TV-Serien entdecken</string>
-    <string name="discover_movies">Filme entdecken</string>
     <string name="studios_in">Studios in %1$s</string>
     <string name="view_removed_next_up">Serien anzeigen, die von \"Als Nächstes anschauen\" entfernt wurden</string>
     <string name="next_up_never">Nie</string>
@@ -638,7 +604,6 @@
     <string name="prefer_ac3_for_surround">AC3 für Surround Sound bevorzugen</string>
     <string name="blocklisted">Auf Blockliste hinzugefügt</string>
     <string name="unavailable">Nicht verfügbar</string>
-    <string name="profile_specific_settings_from_server">Benutzerprofil-Einstellungen auf dem Server</string>
     <string name="subtitle_mode">Modus Untertitel</string>
     <string name="use_user_profile">Nutze deine Profileinstellungen</string>
     <string name="subtitle_mode_default">Standard</string>
@@ -672,9 +637,6 @@
     <string name="season_episode_number_padded">S%1$02dF%2$s</string>
     <string name="episode_number_short">F%1$s</string>
     <string name="season_number">Staffel %1$d</string>
-    <string name="dim_after_delay">Bildschirm nach Verzögerung dimmen</string>
-    <string name="dim_percentage">Dimmen in Prozent</string>
-    <string name="dim_screen">Bildschirm dimmen</string>
     <string name="photo_albums">Fotoalben</string>
     <string name="no_favorites_found">Keine Favoriten vorhanden!</string>
 </resources>

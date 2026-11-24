@@ -327,7 +327,7 @@ class IntentServiceTest {
                     mediaSourceId = "abc",
                     startIndex = 1,
                 )
-            // What RemotePlaybackService.createLaunchIntent builds for the screensaver
+            // A playback intent with the server and user it is for
             val intent =
                 Intent(IntentService.ACTION_PLAYBACK).apply {
                     PlayRequestMapper.toIntentParams(request)!!.forEach { (key, value) -> putExtra(key, value) }

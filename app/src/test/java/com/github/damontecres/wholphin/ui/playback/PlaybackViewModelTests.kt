@@ -24,13 +24,13 @@ import com.github.damontecres.wholphin.services.ActivePlaybackRegistry
 import com.github.damontecres.wholphin.services.DatePlayedService
 import com.github.damontecres.wholphin.services.DeviceProfileService
 import com.github.damontecres.wholphin.services.ImageUrlService
+import com.github.damontecres.wholphin.services.KeepScreenOnService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.PlayerCreation
 import com.github.damontecres.wholphin.services.PlayerFactory
 import com.github.damontecres.wholphin.services.PlaylistCreationResult
 import com.github.damontecres.wholphin.services.PlaylistCreator
 import com.github.damontecres.wholphin.services.RefreshRateService
-import com.github.damontecres.wholphin.services.ScreensaverService
 import com.github.damontecres.wholphin.services.StreamChoiceService
 import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.VolumeService
@@ -105,7 +105,7 @@ class PlaybackViewModelTests {
     private val mockStreamChoiceService = mockk<StreamChoiceService>(relaxed = true)
     private val mockUserPreferencesService = mockk<UserPreferencesService>(relaxed = true)
     private val mockImageUrlService = mockk<ImageUrlService>(relaxed = true)
-    private val mockScreensaverService = mockk<ScreensaverService>(relaxed = true)
+    private val mockKeepScreenOnService = mockk<KeepScreenOnService>(relaxed = true)
     private val activePlaybackRegistry = ActivePlaybackRegistry()
     private val mockVolumeService = mockk<VolumeService>(relaxed = true)
 
@@ -134,7 +134,7 @@ class PlaybackViewModelTests {
             streamChoiceService = mockStreamChoiceService,
             userPreferencesService = mockUserPreferencesService,
             imageUrlService = mockImageUrlService,
-            screensaverService = mockScreensaverService,
+            keepScreenOnService = mockKeepScreenOnService,
             activePlaybackRegistry = activePlaybackRegistry,
             volumeService = mockVolumeService,
             kidContentGuard =

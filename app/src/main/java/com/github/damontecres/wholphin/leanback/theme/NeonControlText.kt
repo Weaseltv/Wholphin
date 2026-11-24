@@ -97,7 +97,7 @@ object NeonType {
     /** Clocks, timecodes and count labels: Exo 2 SemiBold */
     fun numeral(sizeSp: Float) = exo(sizeSp, 600, 1.2f, 0f, ControlTextStyle.of(TextRole.TITLE_MEDIUM, sizeSp = sizeSp))
 
-    /** The wordmark: rail 20, sign-in 34, screensaver 36 */
+    /** The wordmark: rail 20, sign-in 34 */
     fun wordmark(sizeSp: Float) = header(sizeSp, ControlTextStyle.of(TextRole.TITLE_LARGE, sizeSp = sizeSp, weight = 800))
 
     /** 12 / 700 / upper / tracking 0.16em */

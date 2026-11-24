@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">Om</string>
-    <string name="add_favorite">Favoritt</string>
     <string name="add_server">Legg til server</string>
     <string name="add_user">Legg til brukar</string>
     <string name="audio">Lyd</string>
@@ -22,7 +21,6 @@
     <string name="clear_image_cache">Tøm biletmellomlager</string>
     <string name="commercial">Reklame</string>
     <string name="community_rating">Brukarvurdering</string>
-    <string name="compose_error_message_title">Ein feil har oppstått! Trykk på knappen for å sende loggar til servaren din.</string>
     <string name="continue_watching">Hald fram med å sjå</string>
     <string name="critic_rating">Meldevurdering</string>
     <string name="decimal_seconds">%.1f sekund</string>
@@ -37,7 +35,6 @@
     <string name="episodes">Episodar</string>
     <string name="error_loading_collection">Feil ved lasting av samling %1$s</string>
     <string name="external_track">Ekstern</string>
-    <string name="favorites">Favorittar</string>
     <string name="file_size">Storleik</string>
     <string name="forced_track">Tvungen</string>
     <string name="genres">Sjangrar</string>
@@ -86,7 +83,6 @@
     <string name="recently_added">Sist lagt til</string>
     <string name="recently_released">Sist utgitt</string>
     <string name="recommended">Tilrådd</string>
-    <string name="remove_favorite">Fjern favoritt</string>
     <string name="restart">Start på nytt</string>
     <string name="resume">Hald fram</string>
     <string name="save">Lagre</string>
@@ -217,7 +213,6 @@
     <string name="rewatch_next_up">Tillat gjensjåing i \'Neste\'</string>
     <string name="seek_bar_steps">Steglengde for søkelinje</string>
     <string name="send_app_logs_summary">Nyttig for feilsøking</string>
-    <string name="send_app_logs">Send app-loggar til gjeldande servar</string>
     <string name="send_crash_reports_summary">Vil prøve å sende til sist tilkopla servar</string>
     <string name="send_crash_reports">Send krasjrapportar</string>
     <string name="settings">Innstillingar</string>
@@ -268,7 +263,6 @@
     <string name="verbose_logging">Detaljert logging</string>
     <string name="enter_pin">Tast inn PIN</string>
     <string name="sign_in_auto">Logg inn automatisk</string>
-    <string name="use_server_credentials">Logg inn via servar</string>
     <string name="press_enter_to_confirm">Trykk i midten for å bekrefte</string>
     <string name="require_pin_code">Krev PIN for profil</string>
     <string name="confirm_pin">Bekreft PIN</string>
@@ -364,7 +358,6 @@
     <string name="voice_error_start_failed">Klarte ikkje starta talegjenkjenning</string>
     <string name="voice_error_timeout">Tidsavbrot for talegjenkjenning</string>
     <string name="retry">Prøv på nytt</string>
-    <string name="favorite_items_title">Favoritt %s</string>
     <string name="resolution_switching">Oppløysingsbyte</string>
     <string name="local">Lokal</string>
     <string name="play_trailer">Spel trailer</string>
@@ -379,15 +372,9 @@
     <string name="dts">DTS</string>
     <string name="force_dovi_profile_7">Direkteavspeling av Dolby Vision-profil 7</string>
     <string name="force_dovi_profile_7_summary">Ignorerer kompatibilitetssjekk på eininga</string>
-    <string name="discover">Oppdag</string>
     <string name="request">Be om</string>
     <string name="pending">Ventar</string>
-    <string name="seerr_integration">Seerr-integrasjon</string>
-    <string name="remove_seerr_server">Fjern Seerr-tenar</string>
     <string name="seerr_server_added">Seerr-tenar lagt til</string>
-    <string name="quick_connect">Hurtigkopling</string>
-    <string name="quick_connect_summary">Gi ei anna eining tilgang til å logge inn på kontoen din</string>
-    <string name="quick_connect_code">Skriv inn hurtigkoplingskode</string>
     <string name="quick_connect_code_error">Koden må vere 6 siffer</string>
     <string name="quick_connect_success">Eininga fekk tilgang</string>
     <string name="password">Passord</string>
@@ -396,7 +383,6 @@
     <string name="trending">Populært no</string>
     <string name="upcoming_movies">Kommande filmar</string>
     <string name="upcoming_tv">Kommande TV-seriar</string>
-    <string name="request_4k">Be om i 4K</string>
     <string name="software_decoding_av1">AV1-programvaredekoding</string>
     <string name="hdr_subtitle_style">HDR-tekststil</string>
     <string name="image_subtitle_opacity">Gjennomsiktigheit for bilettekst</string>
@@ -429,9 +415,6 @@
     <string name="apply_all_rows">Bruk på alle radene</string>
     <string name="customize_home">Tilpass heim-sida</string>
     <string name="home_rows">Rader på heim-sida</string>
-    <string name="load_from_server">Last frå brukarprofil på tenaren</string>
-    <string name="save_to_server">Lagre til brukarprofil på tenaren</string>
-    <string name="load_from_web_client">Last frå nettklient</string>
     <string name="use_series">Bruk bilete av serien</string>
     <string name="add_row_for">Legg til rad for %1$s</string>
     <string name="overwrite_server_settings">Overskrive innstillingane på tenaren?</string>
@@ -445,26 +428,13 @@
     <string name="display_presets">Visingsval</string>
     <string name="display_presets_description">Innebygde val for å raskt endre stilen på alle radene</string>
     <string name="customize_home_summary">Vel rader og bilete på heim-sida</string>
-    <string name="start_after">Start etter</string>
-    <string name="animate">Animer</string>
-    <string name="max_age_rating">Maks aldersgrense</string>
-    <string name="no_max">Ingen maksgrense</string>
-    <string name="for_all_ages">For alle aldrar</string>
-    <string name="up_to_age">Opp til %s år</string>
-    <string name="screensaver">Skjermsparar</string>
-    <string name="screensaver_settings">Innstillingar for skjermsparar</string>
-    <string name="start_screensaver">Start skjermsparar</string>
-    <string name="duration">Varigheit</string>
     <string name="photos">Bilete</string>
     <string name="include_types">Inkluder typar</string>
-    <string name="include_types_summary">Kva typar element det skal visast bilete for</string>
     <string name="content_scale_fit">Tilpass</string>
     <string name="content_scale_crop">Beskjer</string>
     <string name="content_scale_fill">Fyll</string>
     <string name="content_scale_fill_width">Fyll breidde</string>
     <string name="content_scale_fill_height">Fyll høgde</string>
-    <string name="display_preset_default">Wholphin-standard</string>
-    <string name="display_preset_compact">Wholphin-kompakt</string>
     <string name="display_preset_series_thumb">Miniatyrbilete for seriar</string>
     <string name="display_preset_episode_thumbnails">Miniatyrbilete for episodar</string>
     <string name="volume_lowest">Lågast</string>
@@ -512,7 +482,6 @@
     <string name="search_and_download_subtitles">Søk og last ned undertekstar</string>
     <string name="no_subtitles_found">Fann ingen eksterne undertekstar</string>
     <string name="series_continueing">No</string>
-    <string name="in_app_screensaver">Bruk skjermsparar i appen</string>
     <string name="delete_item">Er du sikker på at du vil sletta dette elementet?</string>
     <string name="show_media_management">Vis alternativ for mediehandsaming</string>
     <string name="actor">Skodespelar</string>

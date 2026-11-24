@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">Sobre</string>
-    <string name="add_favorite">Favoritar</string>
     <string name="add_server">Adicionar Servidor</string>
     <string name="add_user">Adicionar Usuário</string>
     <string name="audio">Áudio</string>
@@ -16,7 +15,6 @@
     <string name="collections">Coleções</string>
     <string name="commercial">Comerciais</string>
     <string name="community_rating">Avaliação da comunidade</string>
-    <string name="compose_error_message_title">Ocorreu um erro! Aperte o botão para enviar os logs para seu servidor.</string>
     <string name="confirm">Confirmar</string>
     <string name="continue_watching">Continue assistindo</string>
     <string name="critic_rating">Avaliação dos críticos</string>
@@ -36,7 +34,6 @@
     <string name="episodes">Episódios</string>
     <string name="error_loading_collection">Erro ao carregar a coleção %1$s</string>
     <string name="external_track">Externo</string>
-    <string name="favorites">Favoritos</string>
     <string name="file_size">Tamanho</string>
     <string name="forced_track">Forçado</string>
     <string name="genres">Gêneros</string>
@@ -95,7 +92,6 @@
     <string name="recently_added">Recentemente adicionado</string>
     <string name="recently_released">Recentemente Publicado</string>
     <string name="recommended">Recomendado</string>
-    <string name="remove_favorite">Desfavoritar</string>
     <string name="restart">Reiniciar</string>
     <string name="resume">Continuar</string>
     <string name="save">Salvar</string>
@@ -223,7 +219,6 @@
         <item quantity="many">Curtas</item>
         <item quantity="other">Curtas</item>
     </plurals>
-    <string name="favorite_items_title">Favoritar %s</string>
     <plurals name="downloads">
         <item quantity="one">%s download</item>
         <item quantity="many">%s downloads</item>
@@ -277,7 +272,6 @@
     <string name="rewatch_next_up">Habilitar reassistir em a seguir</string>
     <string name="seek_bar_steps">Passos da barra de busca</string>
     <string name="send_app_logs_summary">Útil para depuração</string>
-    <string name="send_app_logs">Enviar os registros do aplicativo para o servidor atual</string>
     <string name="send_crash_reports_summary">Tentativa de envio para o último servidor conectado</string>
     <string name="send_crash_reports">Enviar Relatórios de Falhas</string>
     <string name="settings">Configurações</string>
@@ -325,7 +319,6 @@
     <string name="verbose_logging">Registro extenso</string>
     <string name="enter_pin">Insira o PIN</string>
     <string name="sign_in_auto">Entrar automaticamente</string>
-    <string name="use_server_credentials">Autenticar via servidor</string>
     <string name="press_enter_to_confirm">Aperte o botão central para confirmar</string>
     <string name="require_pin_code">Exigir PIN para o perfil</string>
     <string name="confirm_pin">Confirmar o PIN</string>
@@ -393,15 +386,9 @@
     <string name="dts">DTS</string>
     <string name="force_dovi_profile_7">Reprodução direta de Dolby Vision Profile 7</string>
     <string name="force_dovi_profile_7_summary">Ignorar checagens de compatibilidade de dispositivo</string>
-    <string name="discover">Descobrir</string>
     <string name="request">Solicitar</string>
     <string name="pending">Pendente</string>
-    <string name="seerr_integration">Integração com o Seerr</string>
-    <string name="remove_seerr_server">Remover Servidor Seerr</string>
     <string name="seerr_server_added">Servidor Seerr adicionado</string>
-    <string name="quick_connect">Conexão Rápida</string>
-    <string name="quick_connect_summary">Autorizar outro dispositivo a se autenticar com sua conta</string>
-    <string name="quick_connect_code">Insira o código de conexão rápida</string>
     <string name="quick_connect_code_error">O código deve ter 6 dígitos</string>
     <string name="quick_connect_success">Dispositivo autorizado com sucesso</string>
     <string name="password">Senha</string>
@@ -410,7 +397,6 @@
     <string name="trending">Tendências</string>
     <string name="upcoming_movies">Filmes Lançados em Breve</string>
     <string name="upcoming_tv">Programas de TV Lançados em Breve</string>
-    <string name="request_4k">Solicitar em 4K</string>
     <string name="software_decoding_av1">Decodificação de AV1 via software</string>
     <string name="upgrade_mpv_toast">MPV é o reprodutor padrão, exceto para HDR\nVocê pode alterar isso nas configurações.</string>
     <string name="hdr_subtitle_style">Estilo da legenda HDR</string>
@@ -449,9 +435,6 @@
     <string name="avc">AVC</string>
     <string name="save_for_album">Salvar para álbum</string>
     <string name="home_rows">Linhas iniciais</string>
-    <string name="load_from_server">Carregar a partir do perfil de usuário no servidor</string>
-    <string name="save_to_server">Salvar para o perfil de usuário no servidor</string>
-    <string name="load_from_web_client">Carregar a partir do cliente web</string>
     <string name="use_series">Usar imagem da série</string>
     <string name="add_row_for">Adicionar linha para %1$s</string>
     <string name="overwrite_server_settings">Sobrescrever configurações no servidor?</string>
@@ -465,26 +448,13 @@
     <string name="display_presets">Predefinições de exibição</string>
     <string name="display_presets_description">Predefinições embutidas para estilizar rapidamente todas as linhas</string>
     <string name="customize_home_summary">Escolher linhas e imagens na página inicial</string>
-    <string name="start_after">Iniciar após</string>
-    <string name="animate">Animar</string>
-    <string name="max_age_rating">Classificação etária máxima</string>
-    <string name="no_max">Sem máximo</string>
-    <string name="for_all_ages">Para todas as idades</string>
-    <string name="up_to_age">Até a idade %s</string>
-    <string name="screensaver">Protetor de tela</string>
-    <string name="screensaver_settings">Configurações do protetor de tela</string>
-    <string name="start_screensaver">Iniciar o protetor de tela</string>
-    <string name="duration">Duração</string>
     <string name="photos">Fotos</string>
     <string name="include_types">Incluir tipos</string>
-    <string name="include_types_summary">Para quais tipos de itens mostrar imagens</string>
     <string name="content_scale_fit">Ajustar</string>
     <string name="content_scale_crop">Cortar</string>
     <string name="content_scale_fill">Preencher</string>
     <string name="content_scale_fill_width">Preencher largura</string>
     <string name="content_scale_fill_height">Preencher altura</string>
-    <string name="display_preset_default">Padrão do Wholphin</string>
-    <string name="display_preset_compact">Wholphin Compacto</string>
     <string name="display_preset_series_thumb">Prévia das imagens das séries</string>
     <string name="display_preset_episode_thumbnails">Prévias das imagens do episódio</string>
     <string name="volume_lowest">Mais baixo</string>
@@ -530,7 +500,6 @@
     <string name="seerr_local_user">Usuário local</string>
     <string name="no_subtitles_found">Nenhuma legenda remota encontrada</string>
     <string name="series_continueing">Presente</string>
-    <string name="in_app_screensaver">Usar protetor de tela do aplicativo</string>
     <string name="delete_item">Tem certeza que quer apagar este item?</string>
     <string name="show_media_management">Mostrar opções de gerenciamento de mídia</string>
     <string name="actor">Ator</string>
@@ -571,13 +540,10 @@
     <string name="select_all">Selecionar todos</string>
     <string name="separate_types">Tipos separados</string>
     <string name="prefer_logos">Preferir a exibição de logos para títulos</string>
-    <string name="updated_toast">Wholphin atualizado para %s</string>
     <string name="remove_continue_watching">Remover de continuar assistindo</string>
     <string name="remove_next_up">Remover série de a seguir</string>
     <string name="view_removed_next_up">Ver séries removidas de a seguir</string>
     <string name="view_more">Ver mais</string>
-    <string name="discover_tv">Descobrir programas de TV</string>
-    <string name="discover_movies">Descobrir Filmes</string>
     <string name="studios_in">Estúdios em %1$s</string>
     <string name="last_played">Reproduzido por último</string>
     <string name="system_default">Padrão do sistema</string>
@@ -619,7 +585,6 @@
     <string name="duration_hours">%1$dh</string>
     <string name="duration_minutes">%1$dm</string>
     <string name="duration_seconds">%1$ds</string>
-    <string name="profile_specific_settings_from_server">Configuração de Perfil de Usuário do servidor</string>
     <string name="time_left">%1$s left</string>
     <string name="featurettes_title">Conteúdos extras</string>
     <string name="shorts_title">Curtos</string>

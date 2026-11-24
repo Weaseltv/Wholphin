@@ -23,7 +23,12 @@
          different reading ("things I loved").
 
          NOTE: `discovered_servers` is deliberately NOT changed - that is server
-         discovery on the sign-in screen and has nothing to do with this tab. -->
+         discovery on the sign-in screen and has nothing to do with this tab.
+
+         Translations of these labels (and of the display presets and the updated toast above) were
+         deleted from app/src/main/res/values-*/ on 2026-11-23: Android prefers a translation over this
+         flavor's default, so German showed "Favoriten" and UK English "Favourites". Every language now
+         shows these names. Don't add translations back. -->
     <string name="discover">Requests</string>
     <string name="discover_tv">Request TV Shows</string>
     <string name="discover_movies">Request Movies</string>

@@ -132,7 +132,6 @@
     <string name="year">年份</string>
     <string name="remove">移除</string>
     <string name="about">關於</string>
-    <string name="add_favorite">加入我的最愛</string>
     <string name="add_server">新增伺服器</string>
     <string name="add_user">新增使用者</string>
     <string name="audio">音訊</string>
@@ -147,7 +146,6 @@
     <string name="collections">系列</string>
     <string name="commercial">廣告</string>
     <string name="community_rating">IMDb 評分</string>
-    <string name="compose_error_message_title">發生錯誤！請按下按鈕將日誌傳送到您的伺服器。</string>
     <string name="confirm">確認</string>
     <string name="continue_watching">繼續觀看</string>
     <string name="critic_rating">影評人評分</string>
@@ -164,7 +162,6 @@
     <string name="enabled">已啟用</string>
     <string name="enter_server_url">輸入伺服器 IP 位址或 URL</string>
     <string name="episodes">單集</string>
-    <string name="favorites">我的最愛</string>
     <string name="go_to_series">前往劇集</string>
     <string name="go_to">前往</string>
     <string name="hide_controller_timeout">隱藏播放控制列</string>
@@ -185,7 +182,6 @@
     <string name="playback">播放</string>
     <string name="recap">前情提要</string>
     <string name="recently_added_in">最近新增於 %1$s</string>
-    <string name="remove_favorite">移出我的最愛</string>
     <string name="resume">繼續播放</string>
     <string name="search_and_download"><![CDATA[搜尋並下載]]></string>
     <string name="studios">製作公司</string>
@@ -257,7 +253,6 @@
     <string name="skip_previews_behavior">跳過預告方式</string>
     <string name="skip_recap_behavior">跳過前情提要方式</string>
     <string name="send_crash_reports_summary">將嘗試傳送至最近連線的伺服器</string>
-    <string name="send_app_logs">傳送程式日誌到目前伺服器</string>
     <string name="send_app_logs_summary">有助於偵錯</string>
     <string name="subtitle_margin">邊距</string>
     <string name="verbose_logging">詳細日誌記錄</string>
@@ -268,7 +263,6 @@
     <string name="discard_change">放棄變更？</string>
     <string name="enter_pin">輸入 PIN 碼</string>
     <string name="sign_in_auto">自動登入</string>
-    <string name="use_server_credentials">透過伺服器登入</string>
     <string name="press_enter_to_confirm">按下中間鍵確認</string>
     <string name="confirm_pin">確認 PIN 碼</string>
     <string name="incorrect">錯誤</string>
@@ -342,11 +336,8 @@
     <string name="dts">DTS</string>
     <string name="force_dovi_profile_7">直接播放杜比視界 Profile 7</string>
     <string name="force_dovi_profile_7_summary">忽略設備相容性檢查</string>
-    <string name="discover">探索</string>
     <string name="request">請求</string>
     <string name="pending">待處理</string>
-    <string name="seerr_integration">Seerr 整合</string>
-    <string name="remove_seerr_server">移除 Seerr 伺服器</string>
     <string name="seerr_server_added">已新增 Seerr 伺服器</string>
     <string name="password">密碼</string>
     <string name="username">帳號</string>
@@ -354,7 +345,6 @@
     <string name="trending">當前趨勢</string>
     <string name="upcoming_movies">即將上映的電影</string>
     <string name="upcoming_tv">即將播出的電視劇</string>
-    <string name="request_4k">請求 4K 版本</string>
     <string name="only_forced_subtitles">僅強制字幕</string>
     <string name="clear_track_choices">清除音軌/字幕選擇</string>
     <string name="voice_search">語音搜尋</string>
@@ -404,9 +394,6 @@
     <string name="send_media_info_log_to_server">將媒體訊息日誌傳送到伺服器</string>
     <string name="no_limit">無限制</string>
     <string name="max_days_next_up">接下來播放的保留天數</string>
-    <string name="quick_connect">快速連線</string>
-    <string name="quick_connect_summary">授權其他裝置登入您的帳號</string>
-    <string name="quick_connect_code">輸入快速連線驗證碼</string>
     <string name="quick_connect_code_error">驗證碼必須為6位數</string>
     <string name="quick_connect_success">裝置授權成功</string>
     <string name="genres_in">%1$s 類型</string>
@@ -423,9 +410,6 @@
     <string name="customize_home_summary">選擇首頁要顯示的項目及圖片樣式</string>
     <string name="height">高度</string>
     <string name="customize_home">自訂首頁</string>
-    <string name="load_from_server">從伺服器載入設定</string>
-    <string name="save_to_server">保存設定到伺服器</string>
-    <string name="load_from_web_client">從網頁版載入設定</string>
     <string name="use_series">使用劇集圖片</string>
     <string name="overwrite_server_settings">覆蓋伺服器上的設定？</string>
     <string name="overwrite_local_settings">覆蓋本地設定？</string>
@@ -466,9 +450,6 @@
     <string name="background_style_boxed">長方底框</string>
     <string name="prefer_mpv">優先使用 MPV</string>
     <string name="player_backend_options_subtitles_prefer_mpv">僅 HDR 使用 ExoPlayer 播放</string>
-    <string name="favorite_items_title">我的最愛的 %s</string>
-    <string name="display_preset_default">Wholphin 預設樣式</string>
-    <string name="display_preset_compact">Wholphin 緊湊樣式</string>
     <string name="display_preset_series_thumb">劇集縮圖樣式</string>
     <string name="display_preset_episode_thumbnails">單集縮圖樣式</string>
     <string name="aspect_ratios_poster">海報 (2:3)</string>
@@ -490,20 +471,8 @@
     <plurals name="minutes">
         <item quantity="other">%s 分鐘</item>
     </plurals>
-    <string name="start_after">啟動時間</string>
-    <string name="animate">動態效果</string>
-    <string name="max_age_rating">年齡分級上限</string>
-    <string name="no_max">不限制</string>
-    <string name="for_all_ages">適合所有年齡</string>
-    <string name="up_to_age">最高至 %s 歲</string>
-    <string name="screensaver">螢幕保護程式</string>
-    <string name="screensaver_settings">螢幕保護程式設定</string>
-    <string name="start_screensaver">立即開始</string>
-    <string name="duration">切換間隔</string>
     <string name="photos">照片</string>
     <string name="include_types">包含類型</string>
-    <string name="include_types_summary">要顯示圖片的類型</string>
-    <string name="in_app_screensaver">使用內建螢幕保護程式</string>
     <string name="guest_star">客串演員</string>
     <string name="actor">演員</string>
     <string name="composer">作曲</string>
@@ -527,10 +496,7 @@
     <string name="continue_string">繼續</string>
     <string name="separate_types">依類型分開顯示</string>
     <string name="prefer_logos">優先顯示圖像標題</string>
-    <string name="updated_toast">Wholphin 已更新至 %s</string>
     <string name="view_more">查看更多</string>
-    <string name="discover_tv">探索電視劇</string>
-    <string name="discover_movies">探索電影</string>
     <string name="remove_continue_watching">從繼續觀看中移除</string>
     <string name="remove_next_up">從接下來播放中移除劇集</string>
     <string name="view_removed_next_up">查看從接下來播放中移除的劇集</string>
@@ -616,7 +582,6 @@
     <string name="unavailable">無法請求</string>
     <string name="prefer_ac3_for_surround_summary"><![CDATA[將非立體聲音訊轉碼為 AC3/杜比數位格式]]></string>
     <string name="prefer_ac3_for_surround">使用 AC3 處理環繞音效</string>
-    <string name="profile_specific_settings_from_server">由伺服器提供的個人化設定</string>
     <string name="subtitle_mode">字幕模式</string>
     <string name="use_user_profile">使用伺服器設定</string>
     <string name="subtitle_mode_default">預設</string>
@@ -645,9 +610,6 @@
     <string name="user_views">使用者檢視方式</string>
     <string name="disable_audio_offload">停用音訊硬體卸載</string>
     <string name="disable_audio_offload_summary">停用音訊解碼卸載或許可以解決某些裝置的播放卡住問題</string>
-    <string name="dim_after_delay">閒置後調暗螢幕</string>
-    <string name="dim_percentage">調暗程度</string>
-    <string name="dim_screen">螢幕調暗</string>
     <string name="no_favorites_found">未添加任何最愛項目！</string>
     <string name="photo_albums">相簿</string>
     <string name="duration_hours_seconds">%1$d小時%2$d分</string>
@@ -656,6 +618,5 @@
     <string name="episode_number_short">第 %1$s 集</string>
     <string name="season_number">第 %1$d 季</string>
     <string name="remove_from_playlist">從播放清單中移除</string>
-    <string name="login_not_authorized">您目前無存取此伺服器的權限</string>
     <string name="login_credentials_expired">登入憑證已過期，請重新登入</string>
 </resources>

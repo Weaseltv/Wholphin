@@ -318,6 +318,5 @@ class RemotePlaybackServiceTest {
             verify(exactly = 0) { navigationManager.navigateTo(any()) }
             verify(exactly = 0) { navigationManager.replaceTop(any()) }
             verify(exactly = 0) { setupNavigationManager.navigateTo(any()) }
-            assertEquals(null, service.createLaunchIntent(playRequest(listOf(UUID.randomUUID()))))
         }
 }

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">Про застосунок</string>
-    <string name="add_favorite">Улюблене</string>
     <string name="add_server">Додати сервер</string>
     <string name="add_user">Додати користувача</string>
     <string name="audio">Аудіо</string>
@@ -16,7 +15,6 @@
     <string name="collections">Колекції</string>
     <string name="commercial">Реклама</string>
     <string name="community_rating">Оцінка спільноти</string>
-    <string name="compose_error_message_title">Сталася помилка! Натисніть кнопку, щоб надіслати звіт на ваш сервер.</string>
     <string name="confirm">Підтвердити</string>
     <string name="continue_watching">Продовжити перегляд</string>
     <string name="critic_rating">Оцінка критиків</string>
@@ -37,7 +35,6 @@
     <string name="episodes">Епізоди</string>
     <string name="error_loading_collection">Помилка під час завантаження колекції %1$s</string>
     <string name="external_track">Зовнішній</string>
-    <string name="favorites">Улюблені</string>
     <string name="file_size">Розмір</string>
     <string name="forced_track">Примусові</string>
     <string name="genres">Жанри</string>
@@ -98,7 +95,6 @@
     <string name="recently_added">Нещодавно додано</string>
     <string name="recently_released">Нещодавно випущено</string>
     <string name="recommended">Рекомендовано</string>
-    <string name="remove_favorite">Не улюблений</string>
     <string name="restart">Перезавантаження</string>
     <string name="resume">Відновити</string>
     <string name="save">Зберегти</string>
@@ -299,7 +295,6 @@
     <string name="rewatch_next_up">Увімкнути повторний перегляд як наступне</string>
     <string name="seek_bar_steps">Кроки пошуку</string>
     <string name="send_app_logs_summary">Корисно для налагодження</string>
-    <string name="send_app_logs">Надіслати журнали програми на поточний сервер</string>
     <string name="send_crash_reports_summary">Спробує надіслати на останній підключений сервер</string>
     <string name="send_crash_reports">Надіслати звіти про збій</string>
     <string name="settings">Налаштування</string>
@@ -350,7 +345,6 @@
     <string name="verbose_logging">Детальне ведення журналу</string>
     <string name="enter_pin">Ведіть PIN</string>
     <string name="sign_in_auto">Автоматичний вхід</string>
-    <string name="use_server_credentials">Увійти через сервер</string>
     <string name="press_enter_to_confirm">Натисніть по центру для підтвердження</string>
     <string name="require_pin_code">Вимагати PIN для профілю</string>
     <string name="confirm_pin">Підтвердити PIN</string>
@@ -422,11 +416,8 @@
     <string name="dts">DTS</string>
     <string name="force_dovi_profile_7">Пряме відтворення Dolby Vision Profile 7</string>
     <string name="force_dovi_profile_7_summary">Ігноруваии перевірку сумісності пристроїв</string>
-    <string name="discover">Відкрийте для себе</string>
     <string name="request">Запит</string>
     <string name="pending">В очікувані</string>
-    <string name="seerr_integration">Seerr інтеграція</string>
-    <string name="remove_seerr_server">Видалити Seerr Server</string>
     <string name="seerr_server_added">Seerr сервер додано</string>
     <string name="password">Пароль</string>
     <string name="username">Нік</string>
@@ -434,7 +425,6 @@
     <string name="trending">Популярні</string>
     <string name="upcoming_movies">Заплановані Фільми</string>
     <string name="upcoming_tv">Заплановані Серіали</string>
-    <string name="request_4k">Запит в 4К</string>
     <string name="software_decoding_av1">Програмне декодування AV1</string>
     <string name="upgrade_mpv_toast">MPV тепер є плеєром за замовчуванням, за винятком для HDR.\nВи можете змінити це в налаштуваннях.</string>
     <string name="hdr_subtitle_style">HDR субтитри</string>
@@ -458,16 +448,12 @@
     <string name="zoom_out">Зменшити</string>
     <string name="slideshow_duration">Тривалість слайд-шоу</string>
     <string name="play_videos_during_slideshow">Відтворення відео під час слайд-шоу</string>
-    <string name="favorite_items_title">Улюблені %s</string>
     <plurals name="days">
         <item quantity="one">%s день</item>
         <item quantity="few">%s дні</item>
         <item quantity="many">%s днів</item>
         <item quantity="other">%s днів</item>
     </plurals>
-    <string name="quick_connect">Швидке підключення</string>
-    <string name="quick_connect_summary">Дозвольте іншому пристрою увійти у ваш обліковий запис</string>
-    <string name="quick_connect_code">Введіть код швидкого підключення</string>
     <string name="quick_connect_code_error">Код повинен складатися з 6 цифр</string>
     <string name="quick_connect_success">Пристрій успішно авторизовано</string>
     <string name="send_media_info_log_to_server">Надіслати інформацію про медіа на сервер</string>
@@ -480,9 +466,6 @@
     <string name="apply_all_rows">Застосувати для всіх рядків</string>
     <string name="customize_home">Змінити головну сторінку</string>
     <string name="home_rows">Рядки на головній сторінці</string>
-    <string name="load_from_server">Завантажувати профіль користувача з сереверу</string>
-    <string name="save_to_server">Зберегти профіль користувача на сервер</string>
-    <string name="load_from_web_client">Завантажити з веб клієнта</string>
     <string name="use_series">Використовувати зображення серіалу</string>
     <string name="add_row_for">Додати рядок для %1$s</string>
     <string name="overwrite_server_settings">Перезаписати налаштування на сервері?</string>
@@ -526,25 +509,13 @@
     <string name="visible_ui">Видимий</string>
     <string name="hidden_ui">Прихований</string>
     <string name="results">Результати</string>
-    <string name="start_after">Почати після</string>
-    <string name="animate">Анімація</string>
-    <string name="max_age_rating">Обмеження за віком</string>
-    <string name="no_max">Без обмежень</string>
-    <string name="for_all_ages">Для будь-якого віку</string>
-    <string name="up_to_age">До %s років</string>
-    <string name="screensaver">Заставка</string>
-    <string name="screensaver_settings">Налаштування заставки</string>
-    <string name="start_screensaver">Запустити заставку</string>
-    <string name="duration">Тривалість</string>
     <string name="photos">Фото</string>
     <string name="include_types">Включити типи</string>
-    <string name="include_types_summary">Для яких типів елементів показувати зображення</string>
     <string name="content_scale_fit">Вписати</string>
     <string name="content_scale_crop">Обрізати</string>
     <string name="content_scale_fill">Заповнити</string>
     <string name="content_scale_fill_width">Заповнити по ширині</string>
     <string name="content_scale_fill_height">Заповнити по висоті</string>
-    <string name="display_preset_default">Wholphin за замовчуванням</string>
     <string name="display_preset_series_thumb">Мініатюри серіалів</string>
     <string name="display_preset_episode_thumbnails">Мініатюри серій</string>
     <string name="volume_lowest">Найнижча</string>
@@ -597,7 +568,6 @@
     <string name="search_and_download_subtitles"><![CDATA[Пошук та завантаження субтитрів]]></string>
     <string name="no_subtitles_found">Віддалених субтитрів не знайдено</string>
     <string name="series_continueing">Дотепер</string>
-    <string name="in_app_screensaver">Використовувати вбудовану заставку</string>
     <string name="delete_item">Ви впевнені, що хочете видалити цей елемент?</string>
     <string name="show_media_management">Показувати параметри керування медіа</string>
     <string name="search_for">Шукати %s</string>
@@ -621,13 +591,10 @@
     <string name="select_all">Вибрати все</string>
     <string name="separate_types">Розділяти типи</string>
     <string name="prefer_logos">Надавати перевагу логотипам для назв</string>
-    <string name="updated_toast">Wholphin оновлено до %s</string>
     <string name="remove_continue_watching">Видалити з «Продовжити перегляд»</string>
     <string name="remove_next_up">Видалити серіал з «Далі»</string>
     <string name="view_removed_next_up">Переглянути серіали, видалені з «Далі»</string>
     <string name="view_more">Переглянути більше</string>
-    <string name="discover_tv">Знайти ТВ-шоу</string>
-    <string name="discover_movies">Знайти фільми</string>
     <string name="studios_in">Студії у %1$s</string>
     <string name="last_played">Останні відтворені</string>
     <string name="system_default">Системне за замовчуванням</string>
@@ -652,5 +619,4 @@
     <string name="tomatoes">Томати</string>
     <string name="sort">Сортування</string>
     <string name="split_into_separate_rows">Розділити на окремі рядки</string>
-    <string name="display_preset_compact">Wholphin компактний</string>
 </resources>

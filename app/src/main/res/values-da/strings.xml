@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">Om</string>
-    <string name="add_favorite">Favorit</string>
     <string name="add_server">Tilføj server</string>
     <string name="add_user">Tilføj bruger</string>
     <string name="audio">Lyd</string>
@@ -15,7 +14,6 @@
     <string name="collection">Samling</string>
     <string name="collections">Samlinger</string>
     <string name="community_rating">Brugerbedømmelse</string>
-    <string name="compose_error_message_title">Der opstod en fejl! Tryk på knappen for at sende logfiler til din server.</string>
     <string name="confirm">Bekræft</string>
     <string name="continue_watching">Fortsæt med at se</string>
     <string name="critic_rating">Kritikerbedømmelse</string>
@@ -36,7 +34,6 @@
     <string name="episodes">Episoder</string>
     <string name="error_loading_collection">Fejl ved indlæsning af samling %1$s</string>
     <string name="external_track">Ekstern</string>
-    <string name="favorites">Favoritter</string>
     <string name="file_size">Størrelse</string>
     <string name="forced_track">Tvunget</string>
     <string name="genres">Genrer</string>
@@ -93,7 +90,6 @@
     <string name="recently_added">Nyligt tilføjet</string>
     <string name="recently_released">Nyligt udgivet</string>
     <string name="recommended">Anbefalet</string>
-    <string name="remove_favorite">Fjern fra favoritter</string>
     <string name="restart">Genstart</string>
     <string name="resume">Fortsæt</string>
     <string name="save">Gem</string>
@@ -269,7 +265,6 @@
     <string name="rewatch_next_up">Tillad gensening i Næste</string>
     <string name="seek_bar_steps">Trin på afspilningslinjen</string>
     <string name="send_app_logs_summary">Nyttig til fejlfinding</string>
-    <string name="send_app_logs">Send app-logfiler til den aktuelle server</string>
     <string name="send_crash_reports_summary">Vil forsøge at sende til den sidst tilsluttede server</string>
     <string name="send_crash_reports">Send nedbrudsrapporter</string>
     <string name="settings">Indstillinger</string>
@@ -320,7 +315,6 @@
     <string name="verbose_logging">Detaljeret logning</string>
     <string name="enter_pin">Indtast PIN-kode</string>
     <string name="sign_in_auto">Log ind automatisk</string>
-    <string name="use_server_credentials">Log ind via serveren</string>
     <string name="press_enter_to_confirm">Tryk på midten for at bekræfte</string>
     <string name="require_pin_code">Kræv PIN-kode til profil</string>
     <string name="confirm_pin">Bekræft PIN-kode</string>
@@ -391,15 +385,9 @@
     <string name="dts">DTS</string>
     <string name="force_dovi_profile_7">Afspil Dolby Vision-profil 7 direkte</string>
     <string name="force_dovi_profile_7_summary">Ignorerer kontrol af enhedskompatibilitet</string>
-    <string name="discover">Udforsk</string>
     <string name="request">Ønsk</string>
     <string name="pending">Afventer</string>
-    <string name="seerr_integration">Seerr-integration</string>
-    <string name="remove_seerr_server">Fjern Seerr-server</string>
     <string name="seerr_server_added">Seerr-server tilføjet</string>
-    <string name="quick_connect">Quick Connect</string>
-    <string name="quick_connect_summary">Godkend en anden enhed til at logge ind på din konto</string>
-    <string name="quick_connect_code">Indtast Quick Connect-kode</string>
     <string name="quick_connect_code_error">Koden skal være på 6 cifre</string>
     <string name="quick_connect_success">Enheden blev godkendt</string>
     <string name="password">Adgangskode</string>
@@ -408,7 +396,6 @@
     <string name="trending">Populært lige nu</string>
     <string name="upcoming_movies">Kommende film</string>
     <string name="upcoming_tv">Kommende tv-serier</string>
-    <string name="request_4k">Ønsk i 4K</string>
     <string name="software_decoding_av1">AV1-softwareafkodning</string>
     <string name="upgrade_mpv_toast">MPV er nu standardafspilleren, undtagen ved HDR.\nDu kan ændre dette i indstillingerne.</string>
     <string name="hdr_subtitle_style">HDR-undertekststil</string>
@@ -442,9 +429,6 @@
     <string name="apply_all_rows">Anvend på alle rækker</string>
     <string name="customize_home">Tilpas startsiden</string>
     <string name="home_rows">Rækker på startsiden</string>
-    <string name="load_from_server">Indlæs fra serverens brugerprofil</string>
-    <string name="save_to_server">Gem i serverens brugerprofil</string>
-    <string name="load_from_web_client">Indlæs fra webklienten</string>
     <string name="use_series">Brug seriens billede</string>
     <string name="add_row_for">Tilføj række for %1$s</string>
     <string name="overwrite_server_settings">Overskriv indstillinger på serveren?</string>
@@ -466,7 +450,6 @@
     <string name="duration_minutes">%1$dm</string>
     <string name="duration_seconds">%1$ds</string>
     <string name="movies_title">Film</string>
-    <string name="profile_specific_settings_from_server">Profilindstillinger fra serveren</string>
     <string name="time_left">%1$s tilbage</string>
     <string name="trailers_title">Trailere</string>
     <string name="tv_shows_title">TV-serier</string>
@@ -480,7 +463,6 @@
     <string name="scenes_title">Scener</string>
     <string name="featurettes_title">Featurettes</string>
     <string name="shorts_title">Kort</string>
-    <string name="favorite_items_title">Favorit %s</string>
     <plurals name="minutes">
         <item quantity="one">%s minut</item>
         <item quantity="other">%s minutter</item>
@@ -498,26 +480,13 @@
     <string name="results">Resultater</string>
     <string name="prefer_ac3_for_surround_summary"><![CDATA[Transkod ikke-stereolyd til AC3/Dolby Digital]]></string>
     <string name="prefer_ac3_for_surround">Brug AC3 til surroundlyd</string>
-    <string name="start_after">Start efter</string>
-    <string name="animate">Animér</string>
-    <string name="max_age_rating">Maks. aldersgrænse</string>
-    <string name="no_max">Ingen maks.</string>
-    <string name="for_all_ages">For alle aldre</string>
-    <string name="up_to_age">Op til %s år</string>
-    <string name="screensaver">Pauseskærm</string>
-    <string name="screensaver_settings">Pauseskærmsindstillinger</string>
-    <string name="start_screensaver">Start pauseskærm</string>
-    <string name="duration">Varighed</string>
     <string name="photos">Billeder</string>
     <string name="include_types">Inkluder typer</string>
-    <string name="include_types_summary">Hvilke typer elementer der skal vises billeder for</string>
     <string name="content_scale_fit">Tilpas</string>
     <string name="content_scale_crop">Beskær</string>
     <string name="content_scale_fill">Fyld</string>
     <string name="content_scale_fill_width">Fyld bredde</string>
     <string name="content_scale_fill_height">Fyld højde</string>
-    <string name="display_preset_default">Wholphin-standard</string>
-    <string name="display_preset_compact">Wholphin kompakt</string>
     <string name="display_preset_series_thumb">Seriens miniaturebilleder</string>
     <string name="display_preset_episode_thumbnails">Episode-miniaturebilleder</string>
     <string name="volume_lowest">Laveste</string>
@@ -596,20 +565,16 @@
     <string name="people_title">Personer</string>
     <string name="samples_title">Smagsprøver</string>
     <string name="volume_full">Maks.</string>
-    <string name="in_app_screensaver">Brug appens egen pauseskærm</string>
     <string name="music_videos">Musikvideoer</string>
     <string name="show_backdrop">Vis baggrundsbillede</string>
     <string name="continue_string">Fortsæt</string>
     <string name="select_all">Vælg alle</string>
     <string name="separate_types">Adskil typer</string>
     <string name="prefer_logos">Foretræk logoer som titler</string>
-    <string name="updated_toast">Wholphin er opdateret til %s</string>
     <string name="remove_continue_watching">Fjern fra Fortsæt med at se</string>
     <string name="remove_next_up">Fjern serien fra Næste</string>
     <string name="view_removed_next_up">Vis serier fjernet fra Næste</string>
     <string name="view_more">Vis mere</string>
-    <string name="discover_tv">Udforsk TV-serier</string>
-    <string name="discover_movies">Udforsk film</string>
     <string name="studios_in">Studier i %1$s</string>
     <string name="system_default">Systemstandard</string>
     <string name="ass_subtitle_mode_transcode">Brænd ind/transkod på serveren</string>
@@ -667,9 +632,6 @@
     <string name="books">Bøger</string>
     <string name="audio_books">Lydbøger</string>
     <string name="server_version_not_supported">Serverversionen understøttes ikke</string>
-    <string name="dim_after_delay">Dæmp skærmen efter ventetid</string>
-    <string name="dim_percentage">Dæmpning (%)</string>
-    <string name="dim_screen">Dæmp skærmen</string>
     <string name="photo_albums">Fotoalbummer</string>
     <string name="no_favorites_found">Ingen favoritter fundet!</string>
 </resources>

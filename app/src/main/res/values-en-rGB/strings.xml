@@ -1,13 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="add_favorite">Favourite</string>
-    <string name="favorites">Favourites</string>
     <string name="license_info">Licence information</string>
-    <string name="remove_favorite">Unfavourite</string>
     <string name="voice_error_no_match">No speech recognised</string>
     <string name="one_click_pause_summary_on">Press D-Pad centre to pause/play</string>
     <string name="italic_font">Italicise font</string>
-    <string name="favorite_items_title">Favourite %s</string>
     <string name="nav_drawer_pins">Customise Navigation Drawer Items</string>
     <string name="skip_commercials_behavior">Skip commercials behaviour</string>
     <string name="skip_intro_behavior">Skip intro behaviour</string>
@@ -21,7 +17,6 @@
     <string name="color_space">Colour space</string>
     <string name="color_transfer">Colour transfer</string>
     <string name="color_primaries">Colour primaries</string>
-    <string name="quick_connect_summary">Authorise another device to log in to your account</string>
     <string name="quick_connect_success">Device authorised successfully</string>
     <string name="contrast">Contrast</string>
     <string name="customize_home">Customise home page</string>

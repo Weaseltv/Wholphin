@@ -417,7 +417,7 @@ class UpdateChecker
                         }
                     } else {
                         Timber.v("Request failed for ${release.downloadUrl}: ${it.code}")
-                        showToast(context, "Error downloading the apk: ${it.code}")
+                        showToast(context, "The update couldn't download. (Error ${it.code})")
                     }
                 }
             }

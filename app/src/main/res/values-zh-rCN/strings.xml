@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">关于</string>
-    <string name="add_favorite">收藏</string>
     <string name="add_server">添加服务器</string>
     <string name="add_user">添加用户</string>
     <string name="audio">音频</string>
@@ -16,7 +15,6 @@
     <string name="collections">合集</string>
     <string name="commercial">广告</string>
     <string name="community_rating">社区评分</string>
-    <string name="compose_error_message_title">发生错误！请按下按钮将日志发送到您的服务器。</string>
     <string name="confirm">确认</string>
     <string name="continue_watching">继续观看</string>
     <string name="critic_rating">影评人评分</string>
@@ -35,7 +33,6 @@
     <string name="episodes">剧集</string>
     <string name="error_loading_collection">加载合集 %1$s 时出错</string>
     <string name="external_track">外部</string>
-    <string name="favorites">收藏</string>
     <string name="file_size">大小</string>
     <string name="forced_track">强制</string>
     <string name="genres">类型</string>
@@ -84,7 +81,6 @@
     <string name="recently_added">最近添加</string>
     <string name="recently_released">最近发行</string>
     <string name="recommended">推荐</string>
-    <string name="remove_favorite">取消收藏</string>
     <string name="restart">从头播放</string>
     <string name="resume">继续播放</string>
     <string name="save">保存</string>
@@ -217,7 +213,6 @@
     <string name="rewatch_next_up">在即将播放中重复观看</string>
     <string name="seek_bar_steps">进度条步进值</string>
     <string name="send_app_logs_summary">用于调试</string>
-    <string name="send_app_logs">将应用日志发送到当前服务器</string>
     <string name="send_crash_reports_summary">将尝试发送到最后连接的服务器</string>
     <string name="send_crash_reports">发送崩溃报告</string>
     <string name="settings">设置</string>
@@ -268,7 +263,6 @@
     <string name="verbose_logging">详细日志记录</string>
     <string name="enter_pin">输入 PIN 码</string>
     <string name="sign_in_auto">自动登录</string>
-    <string name="use_server_credentials">通过服务器登录</string>
     <string name="press_enter_to_confirm">按中心键确认</string>
     <string name="require_pin_code">配置需要 PIN 码</string>
     <string name="confirm_pin">确认 PIN 码</string>
@@ -344,18 +338,14 @@
     <string name="dts">DTS</string>
     <string name="force_dovi_profile_7">直通播放杜比视界配置文件 7</string>
     <string name="force_dovi_profile_7_summary">忽略设备兼容性检查</string>
-    <string name="discover">发现</string>
     <string name="request">请求</string>
     <string name="pending">待处理</string>
-    <string name="seerr_integration">Seerr 集成</string>
-    <string name="remove_seerr_server">移除 Seerr 服务器</string>
     <string name="password">密码</string>
     <string name="username">用户名</string>
     <string name="url">URL</string>
     <string name="trending">热门趋势</string>
     <string name="upcoming_movies">即将上映的电影</string>
     <string name="upcoming_tv">即将播出的电视节目</string>
-    <string name="request_4k">请求 4K 版本</string>
     <string name="seerr_server_added">Seerr 服务器已添加</string>
     <string name="voice_search">语音搜索</string>
     <string name="voice_starting">开始</string>
@@ -404,9 +394,6 @@
     </plurals>
     <string name="no_limit">无限制</string>
     <string name="max_days_next_up">即将播放中的最大天数</string>
-    <string name="quick_connect">快速连接</string>
-    <string name="quick_connect_summary">授权其他设备登录您的账号</string>
-    <string name="quick_connect_code">输入快速连接代码</string>
     <string name="quick_connect_code_error">代码必须为六位数字</string>
     <string name="quick_connect_success">设备授权成功</string>
     <string name="add_row">添加行</string>
@@ -416,9 +403,6 @@
     <string name="apply_all_rows">应用到所有行</string>
     <string name="customize_home">自定义首页</string>
     <string name="home_rows">首页行</string>
-    <string name="load_from_server">从服务器用户配置加载</string>
-    <string name="save_to_server">保存到服务器用户配置</string>
-    <string name="load_from_web_client">从网络客户端加载</string>
     <string name="use_series">使用剧集图片</string>
     <string name="add_row_for">为 %1$s 添加行</string>
     <string name="overwrite_server_settings">覆盖服务器上的设置？</string>
@@ -432,14 +416,11 @@
     <string name="display_presets">显示预设</string>
     <string name="display_presets_description">可快速设置所有行样式的内置预设</string>
     <string name="customize_home_summary">选择首页上的行和图片</string>
-    <string name="favorite_items_title">收藏的 %s</string>
     <string name="content_scale_fit">适应</string>
     <string name="content_scale_crop">裁剪</string>
     <string name="content_scale_fill">填充</string>
     <string name="content_scale_fill_width">填充宽度</string>
     <string name="content_scale_fill_height">填充高度</string>
-    <string name="display_preset_default">Wholphin 默认</string>
-    <string name="display_preset_compact">Wholphin 紧凑</string>
     <string name="display_preset_series_thumb">剧集缩略图</string>
     <string name="display_preset_episode_thumbnails">分集缩略图</string>
     <string name="purple">紫色</string>
@@ -490,20 +471,8 @@
     <plurals name="minutes">
         <item quantity="other">%s 分钟</item>
     </plurals>
-    <string name="animate">动画</string>
-    <string name="start_after">启动时间</string>
-    <string name="max_age_rating">最高年龄分级</string>
-    <string name="no_max">无上限</string>
-    <string name="for_all_ages">所有年龄</string>
-    <string name="up_to_age">最高至 %s 岁</string>
-    <string name="screensaver">屏幕保护程序</string>
-    <string name="screensaver_settings">屏幕保护程序设置</string>
-    <string name="start_screensaver">启动屏幕保护程序</string>
-    <string name="duration">时长</string>
     <string name="photos">照片</string>
     <string name="include_types">包含类型</string>
-    <string name="include_types_summary">要显示图片的项目类型</string>
-    <string name="in_app_screensaver">使用应用内屏幕保护程序</string>
     <string name="actor">演员</string>
     <string name="composer">作曲</string>
     <string name="writer">编剧</string>
@@ -527,10 +496,7 @@
     <string name="continue_string">继续</string>
     <string name="separate_types">分离类型</string>
     <string name="prefer_logos">优先显示标题图标</string>
-    <string name="updated_toast">Wholphin 已更新至 %s</string>
     <string name="view_more">查看更多</string>
-    <string name="discover_tv">发现电视节目</string>
-    <string name="discover_movies">发现电影</string>
     <string name="remove_continue_watching">从继续观看中移除</string>
     <string name="remove_next_up">从即将播放中移除剧集</string>
     <string name="view_removed_next_up">查看已从即将播放中移除的剧集</string>
@@ -616,7 +582,6 @@
     <string name="unavailable">不可用</string>
     <string name="prefer_ac3_for_surround_summary"><![CDATA[将非立体声音频转码为 AC3/杜比数字]]></string>
     <string name="prefer_ac3_for_surround">使用 AC3 处理环绕声音频</string>
-    <string name="profile_specific_settings_from_server">来自服务器的用户配置设置</string>
     <string name="subtitle_mode">字幕模式</string>
     <string name="use_user_profile">使用您的配置设置</string>
     <string name="subtitle_mode_default">默认</string>
@@ -645,9 +610,6 @@
     <string name="server_version_not_supported">服务器版本不支持</string>
     <string name="disable_audio_offload">禁用音频硬件分流</string>
     <string name="disable_audio_offload_summary">禁用分流音频解码可能会解决某些设备上的播放卡顿问题</string>
-    <string name="dim_after_delay">延迟后调暗屏幕</string>
-    <string name="dim_percentage">调暗百分比</string>
-    <string name="dim_screen">调暗屏幕</string>
     <string name="photo_albums">相册</string>
     <string name="no_favorites_found">未找到收藏！</string>
 </resources>

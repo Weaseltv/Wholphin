@@ -73,7 +73,7 @@ date. Watch now opens the matching-quality library title; Details remains when
 no matching library ID is known. Cancel acts on the exact owned request.
 
 The nonmodal chip waits for a resumed, focused application window, browsing,
-no screensaver/dimming, no dialog and no focused editable field. It takes primary
+no dialog and no focused editable field. It takes primary
 focus after saving the focused page/rail region and its child, suppresses OK keys pressed before
 its 700 ms guard, and restores focus on dismissal/Back/one minute without input.
 The bottom-right poster card is flat and square, with a one-pixel Requests-teal

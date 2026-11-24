@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">O aplikaciji</string>
-    <string name="add_favorite">Dodaj med priljubljene</string>
     <string name="add_server">Dodaj strežnik</string>
     <string name="add_user">Dodaj uporabnika</string>
     <string name="audio">Zvok</string>
@@ -16,7 +15,6 @@
     <string name="collections">Zbirke</string>
     <string name="commercial">Komercialno</string>
     <string name="community_rating">Ocena skupnosti</string>
-    <string name="compose_error_message_title">Prišlo je do napake! Pritisnite gumb, da pošljete napako na strežnik.</string>
     <string name="confirm">Potrdi</string>
     <string name="continue_watching">Nadaljujte z gledanjem</string>
     <string name="critic_rating">Ocena kritikov</string>
@@ -37,7 +35,6 @@
     <string name="episodes">Epizode</string>
     <string name="error_loading_collection">Napaka nalaganja kolekcij %1$s</string>
     <string name="external_track">Zunanji</string>
-    <string name="favorites">Priljubleni</string>
     <string name="file_size">Velikost</string>
     <string name="forced_track">Prisiljeno</string>
     <string name="genres">Žanre</string>
@@ -94,7 +91,6 @@
     <string name="recently_added">Nedavno dodano</string>
     <string name="recently_released">Nedavno izdano</string>
     <string name="recommended">Priporočeno</string>
-    <string name="remove_favorite">Odstrani iz priljubljenih</string>
     <string name="restart">Zaženi znova</string>
     <string name="resume">Nadaljuj</string>
     <string name="save">Shrani</string>
@@ -219,7 +215,6 @@
         <item quantity="one">Kratki filmi</item>
         <item quantity="other">Kratki filmi</item>
     </plurals>
-    <string name="favorite_items_title">Dodaj %s med priljubljene</string>
     <plurals name="downloads">
         <item quantity="one">%s prenos</item>
         <item quantity="two">%s prenosa</item>
@@ -284,7 +279,6 @@
     <string name="rewatch_next_up">Omogoči ponovno predvajanje v vrsti</string>
     <string name="seek_bar_steps">Koraki za iskalno vrstico</string>
     <string name="send_app_logs_summary">Koristno pri odpravljanju napak</string>
-    <string name="send_app_logs">Pošlji dnevnike aplikacije na trenutni strežnik</string>
     <string name="send_crash_reports_summary">Poskusil bom poslati na zadnji povezani strežnik</string>
     <string name="send_crash_reports">Pošlji poročila o napakah</string>
     <string name="settings">Nastavitve</string>
@@ -335,7 +329,6 @@
     <string name="verbose_logging">Podrobno beleženje</string>
     <string name="enter_pin">Vnesite PIN</string>
     <string name="sign_in_auto">Samodejna prijava</string>
-    <string name="use_server_credentials">Prijava prek strežnika</string>
     <string name="press_enter_to_confirm">Pritisnite sredinski gumb za potrditev</string>
     <string name="require_pin_code">Zahtevaj PIN za profil</string>
     <string name="confirm_pin">Potrdi PIN</string>
@@ -406,15 +399,9 @@
     <string name="dts">DTS</string>
     <string name="force_dovi_profile_7">Neposredno predvajanje v formatu Dolby Vision Profile 7</string>
     <string name="force_dovi_profile_7_summary">Preskoči preverjanje združljivosti naprav</string>
-    <string name="discover">Odkrij</string>
     <string name="request">Zahteva</string>
     <string name="pending">V postopku</string>
-    <string name="seerr_integration">Integracija Seerr</string>
-    <string name="remove_seerr_server">Odstrani strežnik Seerr</string>
     <string name="seerr_server_added">Dodan strežnik Seerr</string>
-    <string name="quick_connect">Hitro povezava</string>
-    <string name="quick_connect_summary">Dovoli drugi napravi, da se prijavi v tvoj račun</string>
-    <string name="quick_connect_code">Vnesite kodo za hitro povezavo</string>
     <string name="quick_connect_code_error">Koda mora imeti 6 številk</string>
     <string name="quick_connect_success">Naprava je bila uspešno odobrena</string>
     <string name="password">Geslo</string>
@@ -423,7 +410,6 @@
     <string name="trending">V trendu</string>
     <string name="upcoming_movies">Prihajajoči filmi</string>
     <string name="upcoming_tv">Prihajajoče televizijske oddaje</string>
-    <string name="request_4k">Zahtevaj v 4K</string>
     <string name="software_decoding_av1">Programsko dekodiranje AV1</string>
     <string name="upgrade_mpv_toast">MPV je zdaj privzeti predvajalnik, razen za HDR.\nTo lahko spremenite v nastavitvah.</string>
     <string name="hdr_subtitle_style">Slog podnapisov HDR</string>
@@ -457,9 +443,6 @@
     <string name="apply_all_rows">Uporabi za vse vrstice</string>
     <string name="customize_home">Prilagodi domačo stran</string>
     <string name="home_rows">Vrstice v domači strani</string>
-    <string name="load_from_server">Naloži profil uporabnika s strežnika</string>
-    <string name="save_to_server">Shrani v profil uporabnika na strežniku</string>
-    <string name="load_from_web_client">Naloži iz spletnega odjemalca</string>
     <string name="use_series">Uporabi sliko iz serije</string>
     <string name="add_row_for">Dodaj vrstico za %1$s</string>
     <string name="overwrite_server_settings">Želiš prepisati nastavitve na strežniku?</string>
@@ -473,26 +456,13 @@
     <string name="display_presets">Prednastavitve zaslona</string>
     <string name="display_presets_description">Vgrajene prednastavitve za hitro oblikovanje vseh vrstic</string>
     <string name="customize_home_summary">Izberite vrstice in slike na domači strani</string>
-    <string name="start_after">Začni po</string>
-    <string name="animate">Animiraj</string>
-    <string name="max_age_rating">Najvišja starostna omejitev</string>
-    <string name="no_max">Brez maksimuma</string>
-    <string name="for_all_ages">Za vse starosti</string>
-    <string name="up_to_age">Do starosti %s</string>
-    <string name="screensaver">Ohranjevalnik zaslona</string>
-    <string name="screensaver_settings">Nastavitve ohranjevalnika zaslona</string>
-    <string name="start_screensaver">Zaženi ohranjevalnik zaslona</string>
-    <string name="duration">Trajanje</string>
     <string name="photos">Slike</string>
     <string name="include_types">Vključi vrste</string>
-    <string name="include_types_summary">Za katere vrste predmetov naj se prikažejo slike</string>
     <string name="content_scale_fit">Fit</string>
     <string name="content_scale_crop">Obreži</string>
     <string name="content_scale_fill">Napolni</string>
     <string name="content_scale_fill_width">Napolni širino</string>
     <string name="content_scale_fill_height">Napolni višino</string>
-    <string name="display_preset_default">Privzete nastavitve Wholpin-a</string>
-    <string name="display_preset_compact">Kompakten Wholpin</string>
     <string name="display_preset_series_thumb">Thumb slike TV serij</string>
     <string name="display_preset_episode_thumbnails">Episode Thumbnail images</string>
     <string name="volume_lowest">Najnižja</string>
@@ -542,7 +512,6 @@
     <string name="search_and_download_subtitles">Išči in prenesi podnapise</string>
     <string name="no_subtitles_found">Ni bilo najdenih podnapisov</string>
     <string name="series_continueing">danes</string>
-    <string name="in_app_screensaver">Uporabite ohranjevalnik zaslona aplikacije</string>
     <string name="delete_item">Ali ste prepričani, da želite izbrisati ta element?</string>
     <string name="show_media_management">Prikaži možnosti za upravljanje medijev</string>
     <string name="search_for">Išči za %s</string>
@@ -566,13 +535,10 @@
     <string name="select_all">Izberi vse</string>
     <string name="separate_types">Ločene vrste</string>
     <string name="prefer_logos">Prikazuj logotipe za naslove</string>
-    <string name="updated_toast">Wholphin posodobljen na %s</string>
     <string name="remove_continue_watching">Odstrani iz nadaljevanja gledanja</string>
     <string name="remove_next_up">Odstrani serijo iz nadaljevanja gledanja</string>
     <string name="view_removed_next_up">Ogled serije, odstranjene iz naslednjega gledanja</string>
     <string name="view_more">Poglej več</string>
-    <string name="discover_tv">Odkrijte TV oddaje</string>
-    <string name="discover_movies">Odkrijte filme</string>
     <string name="studios_in">Studii v %1$s</string>
     <string name="last_played">Nazadnje predvajano</string>
     <string name="system_default">Privzete nastavitve sistema</string>

@@ -11,7 +11,6 @@ import com.github.damontecres.wholphin.data.SeerrServerDao
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.SeerrAuthMethod
-import com.github.damontecres.wholphin.data.model.SeerrPermission
 import com.github.damontecres.wholphin.data.model.SeerrServer
 import com.github.damontecres.wholphin.data.model.SeerrUser
 import com.github.damontecres.wholphin.data.model.hasPermission
@@ -471,17 +470,7 @@ data class CurrentSeerr(
     val user: SeerrUser,
     val config: SeerrUserConfig,
     val serverConfig: PublicSettings,
-) {
-    val request4kMovieEnabled: Boolean
-        get() =
-            (serverConfig.movie4kEnabled ?: false) &&
-                config.hasPermission(SeerrPermission.REQUEST_4K_MOVIE)
-
-    val request4kTvEnabled: Boolean
-        get() =
-            (serverConfig.series4kEnabled ?: false) &&
-                config.hasPermission(SeerrPermission.REQUEST_4K_TV)
-}
+)
 
 /**
  * WeaselFin: the whole silent Quick Connect exchange.

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="add_favorite">Shto si të preferuar</string>
     <string name="add_server">Shto server</string>
     <string name="add_user">Shto përdorues</string>
     <string name="collection">Koleksion</string>
