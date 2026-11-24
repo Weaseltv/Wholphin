@@ -233,13 +233,15 @@ class FilterButton(
         nested?.refresh()
     }
 
+    /** [text] is [R.string.remove_all_filters] at the top of the filter list, "Remove" inside one filter */
     private fun removeRow(
         context: Context,
         elevationDp: Float,
+        text: Int = R.string.remove,
         onClick: () -> Unit,
     ): DropdownMenuItemView =
         DropdownMenuItemView(context, elevationDp).apply {
-            setText(context.getString(R.string.remove))
+            setText(context.getString(text))
             setLeadingIcon(R.drawable.lb_widget_ctl_ic_delete, tint = 0xCCFF0000.toInt())
             val palette = AppTheme.palette
             onContentColor = { textView.setTextColor(if (isFocused) palette.onError else palette.error) }
@@ -252,7 +254,7 @@ class FilterButton(
         val count = current.countFilters(filterOptions)
         if (count > 0) {
             menu.addView(
-                removeRow(context, 3f) {
+                removeRow(context, 3f, R.string.remove_all_filters) {
                     onFilterChange(current.delete(filterOptions))
                     menu.dismiss()
                 },

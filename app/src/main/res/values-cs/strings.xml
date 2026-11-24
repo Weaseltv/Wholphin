@@ -531,7 +531,6 @@
         <item quantity="other">%s minut</item>
     </plurals>
     <string name="require_login">Požaduje přihlášení pro profil</string>
-    <string name="pin_digits_hint">[0–9]</string>
     <string name="disable_audio_offload">Vypnout hardwarové zpracování zvuku</string>
     <string name="disable_audio_offload_summary">Vypnutí hardwarového dekódování zvuku může u některých zařízení vyřešit zamrzání přehrávání</string>
     <string name="combined_search_results">Společné výsledky vyhledávání</string>

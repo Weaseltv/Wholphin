@@ -468,7 +468,6 @@
         <item quantity="other">%s minutter</item>
     </plurals>
     <string name="require_login">Kræv login for profil</string>
-    <string name="pin_digits_hint">[0–9]</string>
     <string name="disable_audio_offload">Deaktiver hardware-offload af lyd</string>
     <string name="disable_audio_offload_summary">Deaktivering af hardware-offload for lyddekodning kan afhjælpe frysninger under afspilning på nogle enheder</string>
     <string name="combined_search_results">Kombinerede søgeresultater</string>

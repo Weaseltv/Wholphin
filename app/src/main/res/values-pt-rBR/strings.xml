@@ -593,7 +593,6 @@
         <item quantity="other">Trailers</item>
     </plurals>
     <string name="require_login">Exigir login para o perfil</string>
-    <string name="pin_digits_hint">0-9</string>
     <string name="disable_audio_offload">Desativar aceleração de hardware de áudio</string>
     <string name="disable_audio_offload_summary">Desativar a aceleração de hardware de áudio pode corrigir travamentos durante a reprodução em alguns dispositivos</string>
     <string name="prefer_ac3_for_surround_summary"><![CDATA[Transcodificar áudio não estéreo para AC3/Dolby Digital]]></string>

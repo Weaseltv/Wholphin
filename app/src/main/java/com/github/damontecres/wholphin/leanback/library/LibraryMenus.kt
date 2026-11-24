@@ -282,7 +282,7 @@ class FilterMenuController<F, O : FilterBy<F, *>>(
         parentMenu = menu
         if (selection.count(current, filterOptions) > 0) {
             menu.addView(
-                removeRow(3f) {
+                removeRow(3f, R.string.remove_all_filters) {
                     onFilterChange(selection.delete(current, filterOptions))
                     // Closes everything without telling onShow, as before
                     dropDown = false
@@ -337,12 +337,14 @@ class FilterMenuController<F, O : FilterBy<F, *>>(
         if (dropDown) showParent()
     }
 
+    /** [text] is [R.string.remove_all_filters] at the top of the filter list, "Remove" inside one filter */
     private fun removeRow(
         elevationDp: Float,
+        text: Int = R.string.remove,
         onClick: () -> Unit,
     ): DropdownMenuItemView =
         DropdownMenuItemView(context, elevationDp).apply {
-            setText(context.getString(R.string.remove))
+            setText(context.getString(text))
             setLeadingIcon(R.drawable.lb_widget_ctl_ic_delete, tint = withAlpha(0xFFFF0000.toInt(), .8f))
             val row = this
             onContentColor = {

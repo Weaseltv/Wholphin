@@ -547,7 +547,6 @@
     <string name="ass_subtitle_playback">Lecture des sous-titres SSA/ASS</string>
     <string name="external_player">Lecteur externe</string>
     <string name="system_default">Paramètres système par défaut</string>
-    <string name="pin_digits_hint">[0-9]</string>
     <string name="combined_search_results">Résultats de recherche combinés</string>
     <string name="combined_search_results_on">Afficher tous les résultats dans une seule liste</string>
     <string name="combined_search_results_off">Afficher les résultats par catégorie</string>

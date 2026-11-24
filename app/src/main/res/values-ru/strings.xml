@@ -442,7 +442,6 @@
     <string name="interviews_title">Интервью</string>
     <string name="scenes_title">Сцены</string>
     <string name="require_login">Требуется логин для профиля</string>
-    <string name="pin_digits_hint">[0–9]</string>
     <string name="avc">AVC</string>
     <string name="sdr">SDR</string>
     <string name="hdr10">HDR10</string>

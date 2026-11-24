@@ -56,15 +56,13 @@ internal enum class SettingsPinOutcome { WRONG, OTHER }
 internal fun PinCheckResult.settingsOutcome(): SettingsPinOutcome =
     if (this == PinCheckResult.Correct) SettingsPinOutcome.OTHER else SettingsPinOutcome.WRONG
 
-/** The PIN character a remote key stands for, or null (OK never is) */
+/** The PIN character a remote key stands for, or null (OK never is). Arrows only: number keys never count (owner, 2026-11-24). */
 private fun pinPress(keyCode: Int): Char? =
     when (keyCode) {
         KeyEvent.KEYCODE_DPAD_UP -> 'U'
         KeyEvent.KEYCODE_DPAD_RIGHT -> 'R'
         KeyEvent.KEYCODE_DPAD_DOWN -> 'D'
         KeyEvent.KEYCODE_DPAD_LEFT -> 'L'
-        in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 -> '0' + (keyCode - KeyEvent.KEYCODE_0)
-        in KeyEvent.KEYCODE_NUMPAD_0..KeyEvent.KEYCODE_NUMPAD_9 -> '0' + (keyCode - KeyEvent.KEYCODE_NUMPAD_0)
         else -> null
     }
 
@@ -152,9 +150,6 @@ internal class SettingsPinDialog(
             field = value
             renderBoxes()
         }
-
-    /** False while choosing a new PIN, which is arrows only */
-    var allowDigits: Boolean = true
     var lockedUntilMillis: Long = 0L
 
     var pinTitle: CharSequence? = context.getString(R.string.enter_pin)
@@ -269,8 +264,7 @@ internal class SettingsPinDialog(
             KeyEvent.ACTION_UP -> {
                 if (pressed == code) {
                     pressed = null
-                    // A number key while choosing a new PIN isn't a press at all
-                    val press = pinPress(code)?.takeIf { allowDigits || it in PinRules.ARROWS }
+                    val press = pinPress(code)
                     when {
                         !accepting() -> {}
 
@@ -553,8 +547,6 @@ internal class SettingsSetPinFlow(
                 },
             )
         dialog.length = if (state == PinFlowState.ENTER_PIN_TO_REMOVE) PinRules.entryLength(currentPin) else PinRules.LENGTH
-        // A new PIN is arrows only; the current one is checked as saved
-        dialog.allowDigits = state == PinFlowState.ENTER_PIN_TO_REMOVE
         dialog.lockedUntilMillis = if (state == PinFlowState.ENTER_PIN_TO_REMOVE) lockedUntil else 0L
         dialog.message = message
     }

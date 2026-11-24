@@ -589,7 +589,6 @@
     <string name="video_tunneling">Videotunneling</string>
     <string name="interviews_title">Interviews</string>
     <string name="scenes_title">Scenes</string>
-    <string name="pin_digits_hint">[0-9]</string>
     <string name="dts_x">DTS:X</string>
     <string name="override_user_profile_settings">Meer instellingen gebruikersprofiel</string>
     <string name="d_pad_seek_mode_title">"D-pad  zoekbalk"</string>

@@ -496,7 +496,6 @@
     <string name="combined_search_results_off">แสดงผลลัพธ์ตามหมวดหมู่</string>
     <string name="results">ผลลัพธ์</string>
     <string name="combined_search_results_on">แสดงผลลัพธ์ในรายการเดียว</string>
-    <string name="pin_digits_hint">[0-9]</string>
     <string name="system_default">ค่าเริ่มต้นของระบบ</string>
     <string name="ass_subtitle_mode_transcode">ฝังคำบรรยายลงในวิดีโอโดยการแปลงบนเซิร์ฟเวอร์</string>
     <string name="ass_subtitle_playback">การแสดงคำบรรยาย SSA/ASS</string>

@@ -556,7 +556,6 @@
     <string name="level">Nivå</string>
     <string name="mpv_conf">Redigera mpv.conf</string>
     <string name="include_types">Inkludera typer</string>
-    <string name="pin_digits_hint">[0–9]</string>
     <string name="disable_audio_offload">Stäng av hårdvaruavlastning</string>
     <string name="disable_audio_offload_summary">Stänga av ljudavlastning kan hjälpa uppspelning som fryser på vissa enheter</string>
     <string name="codec">Codec</string>

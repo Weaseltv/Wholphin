@@ -552,7 +552,6 @@
     <string name="skip_behavior_summary">Per intro, titoli di coda e altro</string>
     <string name="play_with">Riproduci con</string>
     <string name="transcoding">Trascodifica</string>
-    <string name="pin_digits_hint">[0–9]</string>
     <string name="results">Risultati</string>
     <string name="require_login">Richiedi login per il profilo</string>
     <string name="combined_search_results">Risultati di ricerca combinati</string>

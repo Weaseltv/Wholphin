@@ -441,11 +441,13 @@ internal class DiscoverFilterButton(
         onFilterChange(newFilter)
     }
 
+    /** [text] is [R.string.remove_all_filters] at the top of the filter list, "Remove" inside one filter */
     private fun removeRow(
         target: AppDropdownMenu,
+        text: Int = R.string.remove,
         onClick: () -> Unit,
     ) {
-        val row = target.addItem(context.getString(R.string.remove), leadingIcon = R.drawable.lb_widget_ctl_ic_delete) { onClick() }
+        val row = target.addItem(context.getString(text), leadingIcon = R.drawable.lb_widget_ctl_ic_delete) { onClick() }
         row.setLeadingIcon(R.drawable.lb_widget_ctl_ic_delete, withAlpha(0xFFFF0000.toInt(), .8f))
         row.onContentColor = { _ ->
             row.textView.setTextColor(if (row.isFocused) AppTheme.palette.onError else AppTheme.palette.error)
@@ -457,7 +459,7 @@ internal class DiscoverFilterButton(
         val m = AppDropdownMenu(button, containerColor = AppTheme.palette.surfaceAtElevation(3f))
         menu = m
         if (current.countFilters(options) > 0) {
-            removeRow(m) {
+            removeRow(m, R.string.remove_all_filters) {
                 change(current.delete(options))
                 m.dismiss()
             }

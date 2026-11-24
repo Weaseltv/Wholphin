@@ -404,7 +404,6 @@
         <item quantity="other">Personer</item>
     </plurals>
     <string name="require_login">Krev innlogging for profil</string>
-    <string name="pin_digits_hint">[0-9]</string>
     <string name="disable_audio_offload">Deaktiver avlasting av lydmaskinvare</string>
     <string name="disable_audio_offload_summary">Deaktivering av lyddekodingavlasting kan fikse fryst bilde ved avspilling på noen enheter</string>
     <string name="combined_search_results">Kombinert søkeresultater</string>

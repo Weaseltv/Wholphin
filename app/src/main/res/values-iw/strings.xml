@@ -564,7 +564,6 @@
     <string name="anamorphic">אנאמורפי</string>
     <string name="image_subtitle_opacity">אטימות כתוביות מבוססות־תמונה</string>
     <string name="slideshow_at_beginning">מההתחלה</string>
-    <string name="pin_digits_hint">[0–9]</string>
     <string name="combined_search_results">תוצאות חיפוש ממוזגות</string>
     <string name="combined_search_results_on">הצג את כל התוצאות ברשימה אחת</string>
     <string name="combined_search_results_off">הצג תוצאות לפי קטגוריה</string>

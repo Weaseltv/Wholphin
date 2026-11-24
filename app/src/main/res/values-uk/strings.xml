@@ -501,7 +501,6 @@
         <item quantity="other">%s хвилин</item>
     </plurals>
     <string name="require_login">Запитувати пароль для профілю</string>
-    <string name="pin_digits_hint">[0-9]</string>
     <string name="combined_search_results">Спільні результати пошуку</string>
     <string name="combined_search_results_on">Показувати всі результати одним списком</string>
     <string name="combined_search_results_off">Показувати результати за категоріями</string>
