@@ -54,6 +54,7 @@ import com.github.damontecres.wholphin.leanback.widget.text.TimeDisplayView
 import com.github.damontecres.wholphin.ui.components.ContextMenu
 import com.github.damontecres.wholphin.ui.components.ContextMenuActions
 import com.github.damontecres.wholphin.ui.data.BoxSetSortOptions
+import com.github.damontecres.wholphin.ui.data.getStringRes
 import com.github.damontecres.wholphin.ui.detail.PlaylistDetailsState
 import com.github.damontecres.wholphin.ui.detail.PlaylistViewModel
 import com.github.damontecres.wholphin.ui.formatDateTime
@@ -78,8 +79,9 @@ import org.jellyfin.sdk.model.api.MediaType
 import org.jellyfin.sdk.model.extensions.ticks
 
 /**
- * The playlist page (PlaylistDetails.kt): the page title, then on the left (a quarter of the width, 80dp down) Play and
- * Shuffle, the filter and sort buttons and the focused entry's title, subtitle, date (episodes) and overview; on the
+ * The playlist page (PlaylistDetails.kt): the page title, then on the left (a quarter of the width, or wider when its
+ * buttons need it; level with the first entry) Play and Shuffle, the filter and sort buttons and the focused entry's
+ * title, subtitle, date (episodes) and overview (as many lines as fit); on the
  * right the entries in a panel: number, picture, title and subtitle (scrolling while focused), runtime and end time,
  * then the move up / down buttons (when the list is in its own order, unfiltered and editable) and More.
  *
@@ -236,7 +238,13 @@ class PlaylistDetailsFragment : DetailPageFragment() {
                 viewModel.loadItems(filter, viewModel.state.value.filterAndSort.sortAndDirection)
             }
         private val sortButton =
-            SortButton(context, BoxSetSortOptions, collapsed = false) { sort ->
+            SortButton(
+                context,
+                BoxSetSortOptions,
+                collapsed = false,
+                // The playlist's own order is "Playlist order", not "Default"
+                labelFor = { if (it == ItemSortBy.DEFAULT) R.string.playlist_order else getStringRes(it) },
+            ) { sort ->
                 viewModel.loadItems(viewModel.state.value.filterAndSort.filter, sort)
             }
         private val focusedTitle =
@@ -263,6 +271,15 @@ class PlaylistDetailsFragment : DetailPageFragment() {
                 // `enabled = false`: never focusable
                 isFocusable = false
                 isClickable = false
+                // Starts on the same edge as the title and buttons (no side inset)
+                textView.setPadding(0, textView.paddingTop, 0, textView.paddingBottom)
+                // As many whole lines as fit above the bottom margin, then "…"
+                addOnLayoutChangeListener { v, _, top, _, bottom, _, oldTop, _, oldBottom ->
+                    if (bottom - top == oldBottom - oldTop) return@addOnLayoutChangeListener
+                    val space = bottom - top - textView.paddingTop - textView.paddingBottom
+                    val lines = (space / textView.lineHeight.coerceAtLeast(1)).coerceAtLeast(1)
+                    if (lines != maxLines) v.post { maxLines = lines }
+                }
             }
 
         // Right: the entries
@@ -298,36 +315,54 @@ class PlaylistDetailsFragment : DetailPageFragment() {
                     clipChildren = false
                     clipToPadding = false
                 }
+            val buttons =
+                LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    clipChildren = false
+                    showDividers = LinearLayout.SHOW_DIVIDER_MIDDLE
+                    dividerDrawable = SpaceDrawable(context.dp(8))
+                    addView(playButton)
+                    addView(shuffleButton)
+                }
+            val filters =
+                LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    clipChildren = false
+                    showDividers = LinearLayout.SHOW_DIVIDER_MIDDLE
+                    dividerDrawable = SpaceDrawable(context.dp(8))
+                    addView(filterButton.button)
+                    addView(sortButton.button)
+                }
+            // Button labels stay on one line ("SHUFFLE" split into "SHUFF / LE" in a quarter-width column)
+            listOf(playButton, shuffleButton).forEach { it.labelView.isSingleLine = true }
             val header =
-                FractionColumn(context, .25f, 8f).apply {
-                    setPadding(0, context.dp(80), 0, 0)
-                    val buttons =
-                        LinearLayout(context).apply {
-                            orientation = LinearLayout.HORIZONTAL
-                            clipChildren = false
-                            showDividers = LinearLayout.SHOW_DIVIDER_MIDDLE
-                            dividerDrawable = SpaceDrawable(context.dp(8))
-                            addView(playButton)
-                            addView(shuffleButton)
-                        }
+                object : FractionColumn(context, 1f, 8f) {
+                    // A quarter of the row, or wider when the buttons need it
+                    override fun onMeasure(
+                        widthMeasureSpec: Int,
+                        heightMeasureSpec: Int,
+                    ) {
+                        val available = MeasureSpec.getSize(widthMeasureSpec)
+                        val unspecified = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+                        buttons.measure(unspecified, unspecified)
+                        filters.measure(unspecified, unspecified)
+                        val needed = maxOf(buttons.measuredWidth, filters.measuredWidth) + paddingLeft + paddingRight
+                        val w = maxOf(available / 4, needed).coerceAtMost(available)
+                        super.onMeasure(MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY), heightMeasureSpec)
+                    }
+                }.apply {
+                    // Play starts level with the first entry (the list's top padding), not 80dp lower
+                    setPadding(0, context.dp(MenuDialog.DIALOG_LIST_EDGE_DP), 0, 0)
                     addView(buttons, LinearLayout.LayoutParams(WRAP, WRAP))
-                    val filters =
-                        LinearLayout(context).apply {
-                            orientation = LinearLayout.HORIZONTAL
-                            clipChildren = false
-                            showDividers = LinearLayout.SHOW_DIVIDER_MIDDLE
-                            dividerDrawable = SpaceDrawable(context.dp(8))
-                            addView(filterButton.button)
-                            addView(sortButton.button)
-                        }
                     addView(filters, LinearLayout.LayoutParams(WRAP, WRAP))
                     addView(focusedTitle, LinearLayout.LayoutParams(MATCH, WRAP))
                     addView(focusedSubtitle, LinearLayout.LayoutParams(MATCH, WRAP))
                     addView(focusedDate, LinearLayout.LayoutParams(MATCH, WRAP))
-                    addView(focusedOverview, LinearLayout.LayoutParams(MATCH, WRAP))
+                    // The overview takes the space left, ending at the list panel's bottom margin
+                    addView(focusedOverview, LinearLayout.LayoutParams(MATCH, 0, 1f).apply { bottomMargin = context.dp(32) })
                 }
-            // The header is a quarter of the row; 24dp, then the list panel (16dp in) takes the rest
-            row.addView(header, LinearLayout.LayoutParams(MATCH, WRAP))
+            // The header is a quarter of the row (wider if its buttons need it); 24dp, then the list panel (16dp in)
+            row.addView(header, LinearLayout.LayoutParams(WRAP, MATCH))
             listPanel.addView(list, FrameLayout.LayoutParams(MATCH, MATCH))
             listPanel.addView(loadingView, FrameLayout.LayoutParams(MATCH, MATCH))
             listPanel.addView(emptyView, FrameLayout.LayoutParams(MATCH, MATCH))
@@ -529,7 +564,7 @@ class PlaylistDetailsFragment : DetailPageFragment() {
                 position: Int,
             ) {
                 val item = if (position in 0 until count) data[position] else null
-                holder.row.bind(position, item, canMove, position > 0, position < count - 1)
+                holder.row.bind(position, item, canMove, position > 0, position < count - 1, count)
             }
 
             private val refreshPayload = Any()
@@ -545,7 +580,9 @@ class PlaylistDetailsFragment : DetailPageFragment() {
             private val number =
                 AppCompatTextView(context).apply {
                     applyTextRole(TextRole.LABEL_LARGE)
+                    gravity = Gravity.END
                 }
+            private var numberWidthPx = -1
             private val image = ItemImageView(context)
             private val duration = AppCompatTextView(context).apply { applyTextRole(TextRole.LABEL_LARGE) }
             private val endsAt = AppCompatTextView(context).apply { applyTextRole(TextRole.BODY_SMALL) }
@@ -629,9 +666,18 @@ class PlaylistDetailsFragment : DetailPageFragment() {
                 canMove: Boolean,
                 moveUpAllowed: Boolean,
                 moveDownAllowed: Boolean,
+                count: Int,
             ) {
                 this.index = index
                 this.item = item
+                // Every row's number is as wide as the widest one, so pictures and titles line up ("1." vs "10.")
+                val digits = count.coerceAtLeast(1).toString().length
+                val digitWidth = (0..9).maxOf { number.paint.measureText(it.toString()) }
+                val numberWidth = kotlin.math.ceil(digitWidth * digits + number.paint.measureText(".")).toInt()
+                if (numberWidth != numberWidthPx) {
+                    numberWidthPx = numberWidth
+                    number.setWidth(numberWidth)
+                }
                 listItem.setHeadline(item?.title ?: "")
                 listItem.setSupporting(item?.subtitle ?: "", reserveLine = true)
                 number.text = "${index + 1}."
@@ -711,7 +757,7 @@ class PlaylistDetailsFragment : DetailPageFragment() {
 }
 
 /**
- * `GridTitle` (playlist page): WeaselTV: the "Library" eyebrow, the title uppercase in the page title type (shrinking to
+ * `GridTitle` (playlist page): WeaselTV: the "Playlist" eyebrow, the title uppercase in the page title type (shrinking to
  * fit, 16dp in, clear of the clock), then the section rule reaching the page gutters; other themes: displaySmall
  * centred on one line.
  */
@@ -741,7 +787,7 @@ class GridTitleView(
         clipToPadding = false
         if (neon) {
             val inset = context.dp(16)
-            eyebrow.applyNeonEyebrow(context.getString(R.string.library), pageAccent())
+            eyebrow.applyNeonEyebrow(context.getString(R.string.playlist), pageAccent())
             addView(
                 eyebrow,
                 LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {

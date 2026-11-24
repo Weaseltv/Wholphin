@@ -77,9 +77,10 @@ internal fun sortLabel(
     context: Context,
     sort: SortAndDirection,
     allCaps: Boolean,
+    labelFor: (ItemSortBy) -> Int = ::getStringRes,
 ): CharSequence {
     val caret = context.getString(if (sort.direction == SortOrder.ASCENDING) R.string.fa_caret_up else R.string.fa_caret_down)
-    val name = context.getString(getStringRes(sort.sort)).let { if (allCaps) it.uppercase() else it }
+    val name = context.getString(labelFor(sort.sort)).let { if (allCaps) it.uppercase() else it }
     return SpannableStringBuilder()
         .append(caret, TypefaceSpanCompat(AppFonts.icons(context)), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         .append(" ")
@@ -89,13 +90,15 @@ internal fun sortLabel(
 /**
  * `SortByButton`: [collapsed] is the sort icon that shows the current sort while focused (`ExpandableSortButton`);
  * otherwise a text button "▲ Name". OK opens the sort options (the current one shows its direction; choosing it again
- * reverses it); holding OK reverses the current sort.
+ * reverses it); holding OK reverses the current sort. [labelFor] names each sort (the playlist page calls its own
+ * order "Playlist order").
  */
 class SortButton(
     context: Context,
     private val sortOptions: List<ItemSortBy>,
     private val collapsed: Boolean,
     private val allCaps: Boolean = AppTheme.isNeon,
+    private val labelFor: (ItemSortBy) -> Int = ::getStringRes,
     private val onSortChange: (SortAndDirection) -> Unit,
 ) {
     private var current: SortAndDirection? = null
@@ -137,9 +140,9 @@ class SortButton(
                 sizeSp = 16f,
                 boxDp = if (button.isFocused) MIN_BUTTON_DP - 12f else MIN_BUTTON_DP,
             )
-            button.setLabel(context.getString(getStringRes(current.sort)), allCaps = true)
+            button.setLabel(context.getString(labelFor(current.sort)), allCaps = true)
         } else {
-            button.setLabel(sortLabel(context, current, allCaps))
+            button.setLabel(sortLabel(context, current, allCaps, labelFor))
         }
     }
 
@@ -148,7 +151,7 @@ class SortButton(
         val context = button.context
         val menu = AppDropdownMenu(button)
         sortOptions.forEach { option ->
-            val row = menu.addItem(context.getString(getStringRes(option))) {}
+            val row = menu.addItem(context.getString(labelFor(option))) {}
             if (option == cur.sort) {
                 val caret =
                     AppCompatTextView(context).apply {
