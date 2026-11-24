@@ -87,7 +87,8 @@ class EpisodeNumberRangesTest {
         assertEquals("S4 E1-2 - Exit 9B / Starter Pack", base.subtitle)
         assertEquals("S04E01-02 - Exit 9B / Starter Pack", base.subtitleLong)
         assertTrue(
-            base.ui.quickDetails.basic.text
+            base.ui.quickDetailsText.parts
+                .joinToString(" • ")
                 .contains("S4 E1-2"),
         )
         assertEquals("S4 E1-2", KidTitlePage.episodeCode(pair))

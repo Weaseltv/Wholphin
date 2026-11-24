@@ -2,7 +2,6 @@ package com.github.damontecres.wholphin.data.model
 
 import android.content.Context
 import androidx.annotation.StringRes
-import androidx.compose.runtime.Stable
 import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.ui.isNotNullOrBlank
 import org.jellyfin.sdk.api.client.ApiClient
@@ -15,7 +14,6 @@ import org.jellyfin.sdk.model.api.PersonKind
 /**
  * Represents a person in some media such as an actor or director
  */
-@Stable
 data class Person(
     val id: UUID,
     val name: String?,

@@ -1732,6 +1732,8 @@ class HomeSettingsService
                             GetItemsRequestHandler
                                 .execute(api, request)
                                 .content.items
+                                // A show with no episodes the profile can see is "played" to the server (kids Watch Again)
+                                .let { items -> if (request.isPlayed == true) items.filter(KidHomeCollections::reallyPlayed) else items }
                                 .map { BaseItem(it, row.viewOptions.useSeries) }
                         }
                     Success(

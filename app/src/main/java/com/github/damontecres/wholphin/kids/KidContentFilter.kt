@@ -4,6 +4,9 @@ import com.github.damontecres.wholphin.kids.KidContentRules.Decision
 import com.github.damontecres.wholphin.kids.KidContentRules.HideReason
 import com.github.damontecres.wholphin.kids.KidContentRules.ItemFacts
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -208,7 +211,20 @@ class KidResponseFilter(
                 .filterNot { it in seriesInResponse }
                 .toSet()
         val series = seriesInResponse + (if (seriesIds.isEmpty()) emptyMap() else loadItems(seriesIds))
-        val boxSets = HashMap<String, Boolean>()
+        // Each box set needs lookups of its own: all of them are started at once, in the response's order, and the
+        // loader decides how many run at a time (one after another, a page of 100 collections took over a minute)
+        val boxSets: Map<String, Boolean> =
+            if (boxSetsAsRowSources) {
+                emptyMap()
+            } else {
+                val ids =
+                    objects
+                        .mapNotNull { resolved[it] }
+                        .filter { it.type == KidContentRules.BOX_SET }
+                        .mapNotNull { it.id }
+                        .distinct()
+                coroutineScope { ids.map { id -> async { id to boxSetVisible(id) } }.awaitAll().toMap() }
+            }
         resolved.forEach { (obj, item) ->
             decisions[obj] =
                 when {
@@ -218,7 +234,7 @@ class KidResponseFilter(
 
                     item.type == KidContentRules.BOX_SET -> {
                         val id = item.id
-                        val visible = id != null && (boxSetsAsRowSources || boxSets.getOrPut(id) { boxSetVisible(id) })
+                        val visible = id != null && (boxSetsAsRowSources || boxSets[id] == true)
                         KidContentRules.decideBoxSet(visible)
                     }
 

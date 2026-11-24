@@ -27,8 +27,9 @@ data class VideoFilter(
     @param:IntRange(0, 200) val blue: Int = COLOR_DEFAULT,
     @param:IntRange(0, 250) val blur: Int = 0,
 ) {
+    /** The image colour filter shown in the slideshow ([createViewColorMatrix]) */
     @Ignore
-    val colorMatrix: androidx.compose.ui.graphics.ColorMatrix = createComposeColorMatrix()
+    val colorMatrix: ColorMatrix = createViewColorMatrix()
 
     companion object {
         const val COLOR_DEFAULT = 100
@@ -179,30 +180,26 @@ data class VideoFilter(
         return matrix
     }
 
-    @OptIn(UnstableApi::class)
-    fun createComposeColorMatrix(): androidx.compose.ui.graphics.ColorMatrix {
-        val matrix =
-            androidx.compose.ui.graphics
-                .ColorMatrix()
+    /**
+     * The slideshow's image colour matrix (no-Compose UI, 2026-11-22: was a Compose `ColorMatrix`, same maths).
+     *
+     * Saturation first; an RGB adjustment replaces it (the old `setToScale` reset the matrix); then contrast and
+     * brightness are multiplied in. All of these are diagonal or commute, so the order of the products is the same.
+     */
+    fun createViewColorMatrix(): ColorMatrix {
+        val matrix = ColorMatrix()
 
         if (saturation != COLOR_DEFAULT) {
-            matrix.setToSaturation(saturation / 100f)
+            matrix.setSaturation(saturation / 100f)
         }
         if (hasRgb()) {
-            matrix.setToScale(
-                redScale = red / 100f,
-                greenScale = green / 100f,
-                blueScale = blue / 100f,
-                alphaScale = 1f,
-            )
+            matrix.setScale(red / 100f, green / 100f, blue / 100f, 1f)
         }
         if (hasContrast()) {
             val scale = contrast / 100.0f
-            val tempMatrix =
-                androidx.compose.ui.graphics
-                    .ColorMatrix()
-            tempMatrix.setToScale(scale, scale, scale, 1f)
-            matrix.timesAssign(tempMatrix)
+            val tempMatrix = ColorMatrix()
+            tempMatrix.setScale(scale, scale, scale, 1f)
+            matrix.postConcat(tempMatrix)
         }
         if (hasBrightness()) {
             val b = brightness / 100.0f
@@ -211,10 +208,7 @@ data class VideoFilter(
             m[6] = b
             m[12] = b
             m[18] = 1f
-            val tempMatrix =
-                androidx.compose.ui.graphics
-                    .ColorMatrix(m)
-            matrix.timesAssign(tempMatrix)
+            matrix.postConcat(ColorMatrix(m))
         }
         // TODO hue
         // TODO blur

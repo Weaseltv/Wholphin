@@ -11,7 +11,6 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.ksp)
-    alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     alias(libs.plugins.room)
     alias(libs.plugins.protobuf)
@@ -374,7 +373,6 @@ configure<ApplicationExtension> {
 
     buildFeatures {
         buildConfig = true
-        compose = true
     }
 
     splits {
@@ -541,15 +539,17 @@ tasks.matching { it.name == "preWeaselfinAlphaBuild" }.configureEach {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.compose.ui)
-    implementation(libs.androidx.compose.ui.graphics)
-    implementation(libs.androidx.compose.ui.tooling.preview)
-    implementation(libs.androidx.compose.runtime)
-    implementation(libs.androidx.tv.foundation)
-    implementation(libs.androidx.tv.material)
+    // No-Compose UI (2026-11-22): Leanback / RecyclerView / Views, Settings on Leanback Preference
+    implementation(libs.androidx.leanback)
+    implementation(libs.androidx.leanback.grid)
+    implementation(libs.androidx.leanback.preference)
+    implementation(libs.androidx.preference)
+    implementation(libs.androidx.recyclerview)
+    implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.fragment.ktx)
+    implementation(libs.coil.view)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.datastore)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.protobuf.kotlin.lite)
@@ -563,11 +563,9 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer.hls)
     implementation(libs.androidx.media3.exoplayer.dash)
     implementation(libs.androidx.media3.ui)
-    implementation(libs.androidx.media3.ui.compose)
     implementation(libs.ass.media)
 
     implementation(libs.coil.core)
-    implementation(libs.coil.compose)
     implementation(libs.coil.network.cachecontrol)
     implementation(libs.coil.network.okhttp)
     implementation(libs.coil.gif)
@@ -580,18 +578,12 @@ dependencies {
     // QR code for "Sign in with theweasel.tv" in the Quick Connect dialog (pure Java).
     implementation(libs.zxing.core)
 
-    implementation(libs.androidx.navigation3.ui)
-    implementation(libs.androidx.navigation3.runtime)
-    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
-    implementation(libs.androidx.material3.adaptive.navigation3)
     implementation(libs.kotlinx.serialization.core)
     implementation(libs.kotlinx.serialization.json)
 
     implementation(libs.hilt.android)
     implementation(libs.androidx.room.common.jvm)
     implementation(libs.androidx.room.ktx)
-    implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.preference.ktx)
     implementation(libs.androidx.room.testing)
     implementation(libs.androidx.palette.ktx)
@@ -604,10 +596,6 @@ dependencies {
     implementation(libs.timber)
     implementation(libs.slf4j2.timber)
     implementation(libs.aboutlibraries.core)
-    implementation(libs.aboutlibraries.compose.m3)
-    implementation(libs.multiplatform.markdown.renderer)
-    implementation(libs.multiplatform.markdown.renderer.m3)
-    implementation(libs.programguide)
     implementation(libs.acra.http)
     implementation(libs.acra.dialog)
     implementation(libs.acra.limiter)
@@ -657,17 +645,12 @@ dependencies {
         implementation(project(":wholphin-mpv-stub"))
     }
 
-    debugImplementation(libs.androidx.compose.ui.test.manifest)
-    debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.mockk.android)
     testImplementation(libs.mockk.agent)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.androidx.core.testing)
     testImplementation(libs.robolectric)
     testImplementation(libs.hilt.android.testing)
-    testImplementation(libs.androidx.compose.ui.test.junit4)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.mockk.android)
     androidTestImplementation(libs.hilt.android.testing)
-    androidTestImplementation(libs.androidx.compose.ui.test.manifest)
 }

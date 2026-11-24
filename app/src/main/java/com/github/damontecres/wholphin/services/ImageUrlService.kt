@@ -1,7 +1,5 @@
 package com.github.damontecres.wholphin.services
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import com.github.damontecres.wholphin.data.model.BaseItem
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.imageApi
@@ -197,21 +195,6 @@ class ImageUrlService
         }
 
         fun getUserImageUrl(userId: UUID) = api.imageApi.getUserImageUrl(userId)
-
-        /**
-         * Just a convenient way to get the image URL and remember it
-         */
-        @Composable
-        fun rememberImageUrl(
-            item: BaseItem?,
-            imageType: ImageType = ImageType.PRIMARY,
-        ) = remember(item, imageType) {
-            if (item != null) {
-                getItemImageUrl(item, imageType)
-            } else {
-                null
-            }
-        }
 
         companion object {
             private const val QUALITY = 96

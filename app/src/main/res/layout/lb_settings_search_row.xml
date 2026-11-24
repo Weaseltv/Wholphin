@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A search field at the top of a settings level (the language picker's filter); the field takes the focus -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:descendantFocusability="afterDescendants"
+    android:focusable="false"
+    android:paddingBottom="8dp">
+
+    <EditText
+        android:id="@+id/lb_settings_search_field"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:imeOptions="actionSearch"
+        android:importantForAutofill="no"
+        android:inputType="text|textNoSuggestions"
+        android:singleLine="true" />
+</FrameLayout>

@@ -1,7 +1,6 @@
 package com.github.damontecres.wholphin.ui.detail.collection
 
 import android.content.Context
-import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.damontecres.wholphin.BuildConfig
@@ -707,7 +706,6 @@ class CollectionViewModel
         }
     }
 
-@Stable
 data class CollectionState(
     val loadingState: LoadingState = LoadingState.Pending,
     val collection: BaseItem? = null,
