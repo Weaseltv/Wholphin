@@ -541,7 +541,6 @@
     <string name="last_played">Laatst afgespeeld</string>
     <string name="ass_subtitle_mode_exoplayer">Direct afspelen met de ingebouwde ExoPlayer</string>
     <string name="ass_subtitle_mode_transcode">Ondertitels inbranden/transcoderen op de server</string>
-    <string name="cinema_mode">Bioscoop modus</string>
     <string name="show_more">Laat %1$s meer zien</string>
     <string name="transcoding">Transcoderen</string>
     <string name="user_interface_language">Taal van de gebruikersinterface</string>

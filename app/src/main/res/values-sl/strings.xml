@@ -546,7 +546,6 @@
     <string name="ass_subtitle_mode_exoplayer">Neposredno predvajanje z vgrajenim predvajalnikom ExoPlayer</string>
     <string name="ass_subtitle_mode_transcode">Pretvorba na strežniku</string>
     <string name="ass_subtitle_playback">Predvajanje podnapisov SSA/ASS</string>
-    <string name="cinema_mode">Kino način</string>
     <string name="show_more">Pokaži %1$s več</string>
     <string name="skip_behavior">Delovanje preskokov</string>
     <string name="skip_behavior_summary">Za uvodne napise, napise ob koncu filma itd.</string>

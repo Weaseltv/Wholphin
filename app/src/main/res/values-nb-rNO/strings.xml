@@ -531,7 +531,6 @@
     <string name="ass_subtitle_mode_exoplayer">Direkteavspilling med ExoPlayer innebygd</string>
     <string name="ass_subtitle_mode_transcode">Brenn/transkode på tjener</string>
     <string name="ass_subtitle_playback">SSA/ASS avspilling av undertekst</string>
-    <string name="cinema_mode">Kinomodus</string>
     <string name="show_more">Vis %1$s mer</string>
     <string name="skip_behavior">Hopp over oppførsel</string>
     <string name="skip_behavior_summary">For introer, rulletekst, etc</string>

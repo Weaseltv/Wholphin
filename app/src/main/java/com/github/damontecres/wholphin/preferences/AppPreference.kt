@@ -466,18 +466,6 @@ sealed interface AppPreference<Pref, T> {
                 summaryOff = R.string.disabled,
             )
 
-        val CinemaMode =
-            AppSwitchPreference<AppPreferences>(
-                title = R.string.cinema_mode,
-                defaultValue = true,
-                getter = { it.playbackPreferences.cinemaMode },
-                setter = { prefs, value ->
-                    prefs.updatePlaybackPreferences { cinemaMode = value }
-                },
-                summaryOn = R.string.enabled,
-                summaryOff = R.string.disabled,
-            )
-
         val RemoteControl =
             AppSwitchPreference<AppPreferences>(
                 title = R.string.remote_control,
@@ -1253,7 +1241,6 @@ val advancedPreferences =
                     listOf(
                         AppPreference.OneClickPause,
                         AppPreference.ControllerTimeout,
-                        AppPreference.CinemaMode,
                         AppPreference.RemoteControl,
                         AppPreference.GlobalContentScale,
                         AppPreference.SkipSegments,

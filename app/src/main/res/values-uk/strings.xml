@@ -602,7 +602,6 @@
     <string name="ass_subtitle_mode_exoplayer">Пряме відтворення через вбудований ExoPlayer</string>
     <string name="ass_subtitle_mode_transcode">Вшивати/транскодувати на сервері</string>
     <string name="ass_subtitle_playback">Відтворення субтитрів SSA/ASS</string>
-    <string name="cinema_mode">Режим кінотеатру</string>
     <string name="show_more">Показати ще %1$s</string>
     <string name="skip_behavior">Поведінка пропуску</string>
     <string name="skip_behavior_summary">Для інтро, титрів тощо</string>

@@ -86,7 +86,9 @@ message PlaybackPreferences {
   bool refresh_rate_switching = 22;
   bool resolution_switching = 23;
   string external_player = 24;
-  bool cinema_mode = 25;
+  // 25 held the removed Cinema mode switch (2026-11-24); stored files may still carry it, so it is never reused
+  reserved 25;
+  reserved "cinema_mode";
   DpadSeekMode dpad_seek_mode = 26;
   // Whether other devices may start & control playback on this one ("Play On")
   bool remote_control_enabled = 27;

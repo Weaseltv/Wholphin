@@ -552,7 +552,6 @@
     <string name="combined_search_results_on">Afficher tous les résultats dans une seule liste</string>
     <string name="combined_search_results_off">Afficher les résultats par catégorie</string>
     <string name="results">Résultats</string>
-    <string name="cinema_mode">Mode cinéma</string>
     <string name="show_more">Afficher %1$s de plus</string>
     <string name="skip_behavior">Comportement de saut</string>
     <string name="skip_behavior_summary">Pour les génériques d\'ouverture, les génériques de fin, etc</string>

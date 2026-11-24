@@ -551,7 +551,6 @@
     <string name="ass_subtitle_mode_exoplayer">Reprodução direta com ExoPlayer embarcado</string>
     <string name="ass_subtitle_mode_transcode">Gravar/transcodificar no servidor</string>
     <string name="ass_subtitle_playback">Reprodução de legenda SSA/ASS</string>
-    <string name="cinema_mode">Modo cinema</string>
     <string name="show_more">Mostrar mais %1$s</string>
     <string name="skip_behavior">Comportamento de pulo</string>
     <string name="skip_behavior_summary">Para introduções, créditos, e etc</string>

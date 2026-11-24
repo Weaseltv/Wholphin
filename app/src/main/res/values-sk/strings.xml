@@ -608,7 +608,6 @@
     <string name="ass_subtitle_mode_exoplayer">Priame prehrávanie s vstavaným ExoPlayerom</string>
     <string name="ass_subtitle_mode_transcode">Vypáliť titulky/prekódovať na serveri</string>
     <string name="ass_subtitle_playback">Prehrávanie titulkov SSA/ASS</string>
-    <string name="cinema_mode">Kino režim</string>
     <string name="show_more">Zobraziť ďalších %1$s</string>
     <string name="skip_behavior">Správanie pri preskočení</string>
     <string name="skip_behavior_summary">Pre intrá, titulky a podobne</string>

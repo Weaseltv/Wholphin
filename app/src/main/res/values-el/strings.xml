@@ -229,7 +229,6 @@
     <string name="override_user_profile_settings">Περισσότερες ρυθμίσεις του προφίλ χρήστη</string>
     <string name="override_user_profile_settings_summary">Παράκαμψη των ρυθμίσεων του προφίλ χρήστη στον διακομιστή</string>
     <string name="any_language">Οποιαδήποτε γλώσσα</string>
-    <string name="cinema_mode">Λειτουργία σινεμά</string>
     <string name="download_and_update"><![CDATA[Λήψη και ενημέρωση]]></string>
     <plurals name="movies">
         <item quantity="one">Ταινία</item>

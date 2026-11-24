@@ -786,7 +786,6 @@
     <string name="ass_subtitle_mode_exoplayer">Direct play with ExoPlayer built-in</string>
     <string name="ass_subtitle_mode_transcode">Burn in/transcode on server</string>
     <string name="ass_subtitle_playback">SSA/ASS subtitle playback</string>
-    <string name="cinema_mode">Cinema mode</string>
     <string name="remote_control">Play On from other devices</string>
     <string name="remote_control_summary_on">Other apps signed in as you can start and control playback here</string>
     <string name="remote_control_summary_off">This device is hidden from Play On in other apps</string>

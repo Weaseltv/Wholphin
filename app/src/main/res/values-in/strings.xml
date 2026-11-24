@@ -509,7 +509,6 @@
     <string name="ass_subtitle_mode_exoplayer">Putar langsung dengan bawaan ExoPlayer</string>
     <string name="ass_subtitle_mode_transcode">Burn-in/transkode di server</string>
     <string name="ass_subtitle_playback">Pemutaran subtitle SSA/ASS</string>
-    <string name="cinema_mode">Mode bioskop</string>
     <string name="show_more">Tampilkan %1$s lagi</string>
     <string name="transcoding">Transkode</string>
     <string name="play_with">Putar dengan</string>

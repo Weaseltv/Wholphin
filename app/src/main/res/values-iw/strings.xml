@@ -542,7 +542,6 @@
     <string name="ass_subtitle_mode_exoplayer">ניגון ישיר עם ExoPlayer</string>
     <string name="ass_subtitle_mode_transcode">צרוב/המר קידוד בשרת</string>
     <string name="ass_subtitle_playback">ניגון כתוביות SSA/ASS</string>
-    <string name="cinema_mode">מצב קולנוע</string>
     <string name="show_more">הצג עוד %1$s</string>
     <string name="skip_behavior">התנהגות דילוג</string>
     <string name="skip_behavior_summary">עבור פתיחים, כתוביות סיום וכו\'</string>

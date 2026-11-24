@@ -448,34 +448,11 @@ class PlaybackViewModel
 
             viewModelScope.launch(ExceptionHandler()) { controllerViewState.observe() }
 
-            val intros =
-                // If not resuming playback & cinema mode is enabled, get potential intros
-                if (positionMs == 0L && preferences.appPreferences.playbackPreferences.cinemaMode) {
-                    api.userLibraryApi
-                        .getIntros(
-                            itemId = playlistItem.id,
-                            userId = serverRepository.currentUser?.id,
-                        ).content.items
-                        .map {
-                            PlaylistItem.Intro(BaseItem(it))
-                        }
-                } else {
-                    emptyList()
-                }
-            val firstItem =
-                if (intros.isNotEmpty()) {
-                    Timber.v("Got %s intros", intros.size)
-                    _state.update {
-                        it.copy(playlist = Playlist(intros + it.playlist.items))
-                    }
-                    intros.first()
-                } else {
-                    playlistItem
-                }
-
+            // Cinema mode (server pre-roll intros before a movie) was removed (owner, 2026-11-24):
+            // the server has no pre-roll plugin, so asking for intros only delayed every fresh start.
             val played =
                 play(
-                    firstItem,
+                    playlistItem,
                     positionMs,
                     forceTranscoding,
                 )

@@ -578,7 +578,6 @@
     <string name="studios_in">Studier i %1$s</string>
     <string name="system_default">Systemstandard</string>
     <string name="ass_subtitle_mode_transcode">Brænd ind/transkod på serveren</string>
-    <string name="cinema_mode">Biograftilstand</string>
     <string name="show_more">Vis %1$s mere</string>
     <string name="skip_behavior">Indstillinger for overspringning</string>
     <string name="skip_behavior_summary">For introer, rulletekster osv.</string>

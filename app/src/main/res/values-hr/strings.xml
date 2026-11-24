@@ -598,7 +598,6 @@
     <string name="ass_subtitle_mode_exoplayer">Izravna reprodukcija s ExoPlayer ugrađenim</string>
     <string name="ass_subtitle_mode_transcode">Ugradi/transkodiraj na poslužitelju</string>
     <string name="ass_subtitle_playback">Reprodukcija SSA/ASS titlova</string>
-    <string name="cinema_mode">Kino način</string>
     <string name="show_more">Prikaži %1$s više</string>
     <string name="skip_behavior">Ponašanje preskakanja</string>
     <string name="skip_behavior_summary">Za uvode, špice itd.</string>

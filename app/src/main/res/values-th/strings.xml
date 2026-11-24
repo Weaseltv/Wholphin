@@ -500,7 +500,6 @@
     <string name="system_default">ค่าเริ่มต้นของระบบ</string>
     <string name="ass_subtitle_mode_transcode">ฝังคำบรรยายลงในวิดีโอโดยการแปลงบนเซิร์ฟเวอร์</string>
     <string name="ass_subtitle_playback">การแสดงคำบรรยาย SSA/ASS</string>
-    <string name="cinema_mode">รูปแบบโรงภาพยนตร์</string>
     <string name="transcoding">แปลงไฟล์</string>
     <plurals name="downloads">
         <item quantity="other">%s ดาวน์โหลด</item>
