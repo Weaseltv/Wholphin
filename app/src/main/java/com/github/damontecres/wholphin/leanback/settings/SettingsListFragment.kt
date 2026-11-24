@@ -53,6 +53,12 @@ interface SettingsListHost {
         fragment: SettingsListFragment,
         grid: VerticalGridView,
     ) {}
+
+    /**
+     * Whether the level whose list was just created should take the focus (it replaced the focused level in the
+     * panel); answering true uses the request up
+     */
+    fun takeFocusForNewLevel(): Boolean = false
 }
 
 /**
@@ -170,6 +176,9 @@ class SettingsListFragment : BaseLeanbackPreferenceFragmentCompat() {
         if (page.wrapAroundRows) grid.setOnKeyInterceptListener { event -> wrapAround(grid, event) }
         selectFirstRowIfNeeded(grid)
         page.onListViewCreated(this, grid)
+        // Replacing a level removes the focused row with the old level's view and nothing hands the focus on, so a
+        // level opened or closed from inside the panel takes it (Home settings' levels were left with no focus)
+        if (page.takeFocusForNewLevel()) view.post { if (isAdded && grid.isAttachedToWindow) grid.requestFocus() }
     }
 
     override fun onStart() {
