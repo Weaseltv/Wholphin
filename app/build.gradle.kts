@@ -101,6 +101,19 @@ kotlin {
 
 private fun Provider<String>.getInt() = get().toInt()
 
+// User-guide capture builds (see GUIDE_CAPTURE below) are Alpha-only.
+val guideCapture =
+    providers
+        .gradleProperty("WeaselPlexGuideCapture")
+        .map { it.toBoolean() }
+        .orElse(false)
+        .get()
+if (guideCapture &&
+    gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) }
+) {
+    throw GradleException("WeaselPlexGuideCapture is only allowed for Alpha builds, never a release")
+}
+
 configure<ApplicationExtension> {
     namespace = "com.github.damontecres.wholphin"
     compileSdk = libs.versions.compileSdk.getInt()
@@ -114,6 +127,11 @@ configure<ApplicationExtension> {
         testInstrumentationRunner = "com.github.damontecres.wholphin.test.WholphinTestRunner"
 
         buildConfigField("long", "BUILD_TIME", System.currentTimeMillis().toString())
+
+        // User-guide capture build: when true, the app never sets FLAG_SECURE, so PIN and
+        // kid-profile screens can be captured on the spare capture Shield. Off unless the
+        // Alpha is built with -PWeaselPlexGuideCapture=true; release builds refuse it.
+        buildConfigField("boolean", "GUIDE_CAPTURE", "false")
 
         // WeaselFin: pinned server URL. Blank for every upstream flavor so behaviour is
         // unchanged; only the `weaselfin` flavor overrides it. Declared here so
@@ -256,6 +274,7 @@ configure<ApplicationExtension> {
             versionNameSuffix = "-alpha"
             matchingFallbacks += "debug"
             buildConfigField("boolean", "UPDATING_ENABLED", "false")
+            buildConfigField("boolean", "GUIDE_CAPTURE", guideCapture.toString())
         }
     }
     flavorDimensions += "version"
