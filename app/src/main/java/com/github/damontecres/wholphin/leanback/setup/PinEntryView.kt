@@ -26,23 +26,16 @@ import timber.log.Timber
 import kotlin.math.max
 import kotlin.math.min
 
-/** The PIN character a remote key stands for, or null when it isn't part of a PIN (OK never is); `pinPress` */
+/**
+ * The PIN character a remote key stands for, or null when it isn't part of a PIN (OK never is); `pinPress`.
+ * Arrows only: number keys never count, not even when checking a saved PIN (owner, 2026-11-24).
+ */
 internal fun pinPressFor(keyCode: Int): Char? =
     when (keyCode) {
         KeyEvent.KEYCODE_DPAD_UP -> 'U'
         KeyEvent.KEYCODE_DPAD_RIGHT -> 'R'
         KeyEvent.KEYCODE_DPAD_DOWN -> 'D'
         KeyEvent.KEYCODE_DPAD_LEFT -> 'L'
-        KeyEvent.KEYCODE_0, KeyEvent.KEYCODE_NUMPAD_0 -> '0'
-        KeyEvent.KEYCODE_1, KeyEvent.KEYCODE_NUMPAD_1 -> '1'
-        KeyEvent.KEYCODE_2, KeyEvent.KEYCODE_NUMPAD_2 -> '2'
-        KeyEvent.KEYCODE_3, KeyEvent.KEYCODE_NUMPAD_3 -> '3'
-        KeyEvent.KEYCODE_4, KeyEvent.KEYCODE_NUMPAD_4 -> '4'
-        KeyEvent.KEYCODE_5, KeyEvent.KEYCODE_NUMPAD_5 -> '5'
-        KeyEvent.KEYCODE_6, KeyEvent.KEYCODE_NUMPAD_6 -> '6'
-        KeyEvent.KEYCODE_7, KeyEvent.KEYCODE_NUMPAD_7 -> '7'
-        KeyEvent.KEYCODE_8, KeyEvent.KEYCODE_NUMPAD_8 -> '8'
-        KeyEvent.KEYCODE_9, KeyEvent.KEYCODE_NUMPAD_9 -> '9'
         else -> null
     }
 
@@ -54,7 +47,6 @@ internal fun Context.pinPromptFor(name: String?): CharSequence? =
 internal data class PinEntryConfig(
     val onSubmit: suspend (String) -> PinOutcome,
     val length: Int = PinRules.LENGTH,
-    val allowDigits: Boolean = true,
     val lockedUntilMillis: Long = 0L,
     /** null: no title; the default is "Enter PIN" */
     val title: String? = DEFAULT_TITLE,
@@ -249,8 +241,7 @@ internal class PinEntryView(
         if (!isPinKey && !isEnterKeyCode(keyCode)) return super.onKeyUp(keyCode, event)
         if (pressed == keyCode) {
             pressed = null
-            // A number key while choosing a new PIN isn't a press at all
-            val press = pinPressFor(keyCode)?.takeIf { config.allowDigits || it in PinRules.ARROWS }
+            val press = pinPressFor(keyCode)
             when {
                 !accepting() -> {}
 
@@ -433,8 +424,6 @@ internal class SetPinFlow(
                     },
                 ),
             length = if (s == State.ENTER_PIN_TO_REMOVE) PinRules.entryLength(currentPin) else PinRules.LENGTH,
-            // A new PIN is arrows only; the current one is checked as saved
-            allowDigits = s == State.ENTER_PIN_TO_REMOVE,
             lockedUntilMillis = if (s == State.ENTER_PIN_TO_REMOVE) lockedUntil else 0L,
             message = message,
             onSubmit = { typed -> submit(s, typed) },

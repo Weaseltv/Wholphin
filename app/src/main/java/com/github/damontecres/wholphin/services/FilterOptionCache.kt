@@ -145,7 +145,8 @@ class FilterOptionCache
             }
 
             VideoTypeFilter -> {
-                FilterVideoType.entries.map {
+                // 4K is never offered (owner, 2026-11-23)
+                FilterVideoType.entries.filter { it != FilterVideoType.FOUR_K }.map {
                     FilterValueOption(it.readable, it)
                 }
             }

@@ -466,18 +466,6 @@ sealed interface AppPreference<Pref, T> {
                 summaryOff = R.string.disabled,
             )
 
-        val CinemaMode =
-            AppSwitchPreference<AppPreferences>(
-                title = R.string.cinema_mode,
-                defaultValue = true,
-                getter = { it.playbackPreferences.cinemaMode },
-                setter = { prefs, value ->
-                    prefs.updatePlaybackPreferences { cinemaMode = value }
-                },
-                summaryOn = R.string.enabled,
-                summaryOff = R.string.disabled,
-            )
-
         val RemoteControl =
             AppSwitchPreference<AppPreferences>(
                 title = R.string.remote_control,
@@ -1091,12 +1079,6 @@ sealed interface AppPreference<Pref, T> {
                 summaryOn = R.string.enabled,
                 summaryOff = R.string.disabled,
             )
-
-        val ScreensaverSettings =
-            AppDestinationPreference<AppPreferences>(
-                title = R.string.screensaver_settings,
-                destination = Destination.Settings(PreferenceScreenOption.SCREENSAVER),
-            )
     }
 }
 
@@ -1128,7 +1110,6 @@ val basicPreferences =
                     AppPreference.PlayThemeMusic,
                     AppPreference.SubtitleStyle,
                     AppPreference.ThemeColors,
-                    AppPreference.ScreensaverSettings,
                 ),
         ),
         PreferenceGroup(
@@ -1260,7 +1241,6 @@ val advancedPreferences =
                     listOf(
                         AppPreference.OneClickPause,
                         AppPreference.ControllerTimeout,
-                        AppPreference.CinemaMode,
                         AppPreference.RemoteControl,
                         AppPreference.GlobalContentScale,
                         AppPreference.SkipSegments,
@@ -1337,32 +1317,6 @@ val advancedPreferences =
             ),
         )
     }
-
-val screensaverPreferences =
-    listOf(
-        PreferenceGroup(
-            title = R.string.screensaver,
-            preferences =
-                listOf(
-                    ScreensaverPreference.Enabled,
-                    ScreensaverPreference.StartDelay,
-                    ScreensaverPreference.Duration,
-                    ScreensaverPreference.ShowClock,
-                    ScreensaverPreference.Animate,
-                    ScreensaverPreference.MaxAge,
-                    ScreensaverPreference.ItemTypes,
-                    ScreensaverPreference.Start,
-                ),
-        ),
-        PreferenceGroup(
-            title = R.string.dim_screen,
-            preferences =
-                listOf(
-                    ScreensaverPreference.DimToggle,
-                    ScreensaverPreference.DimPercentage,
-                ),
-        ),
-    )
 
 data class AppSwitchPreference<Pref>(
     @get:StringRes override val title: Int,

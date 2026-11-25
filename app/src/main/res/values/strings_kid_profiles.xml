@@ -22,7 +22,7 @@
     <string name="pin_locked_out">Too many wrong tries. Try again in %1$d seconds.</string>
     <string name="set_pin_first">%1$s, set a PIN first. It keeps kids out of your profile.</string>
     <string name="set_pin_button">Set a PIN</string>
-    <string name="parent_locked">%1$s needs a PIN before adding kids on this TV. Sign in to that profile with another adult\'s PIN or with Quick Connect, then set a PIN in Settings.</string>
+    <string name="parent_locked">%1$s needs a PIN before adding kids on this TV. Sign in to that profile with another grown-up\'s PIN or with a code, then set a PIN in Settings.</string>
     <string name="kids_on_account">Kids on your account</string>
     <string name="sign_in_kid_on_tv">Sign in %1$s on this TV</string>
     <string name="create_new_kid">Create new</string>

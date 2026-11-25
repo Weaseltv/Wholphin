@@ -18,7 +18,6 @@ import com.github.damontecres.wholphin.leanback.theme.ControlColors
 import com.github.damontecres.wholphin.leanback.theme.ControlScales
 import com.github.damontecres.wholphin.leanback.theme.ControlStyles
 import com.github.damontecres.wholphin.leanback.theme.ControlSurfaceStyle
-import com.github.damontecres.wholphin.leanback.theme.NeonType
 import com.github.damontecres.wholphin.leanback.theme.TextRole
 import com.github.damontecres.wholphin.leanback.theme.applyTextRole
 import com.github.damontecres.wholphin.leanback.theme.applyTextStyle
@@ -36,8 +35,6 @@ import com.github.damontecres.wholphin.leanback.widget.dialog.DialogOptions
 import com.github.damontecres.wholphin.leanback.widget.dialog.MenuDialog
 import com.github.damontecres.wholphin.leanback.widget.dialog.MenuItem
 import com.github.damontecres.wholphin.leanback.widget.dialog.MenuListView
-import com.github.damontecres.wholphin.leanback.widget.text.FittedTitleView
-import com.github.damontecres.wholphin.leanback.widget.text.NeonRuleView
 import com.github.damontecres.wholphin.ui.detail.discover.MovieRequest
 import com.github.damontecres.wholphin.ui.detail.discover.RequestSeason
 import com.github.damontecres.wholphin.ui.detail.discover.SeerrProfile
@@ -292,9 +289,9 @@ internal abstract class RequestDialogBase(
 }
 
 /**
- * `RequestMovieDialog`: while the quality profiles and folders load, the loading view; with neither (and no 4K
- * server) the request is sent at once; with only a 4K server, a menu of Request / Request 4K; otherwise the title
- * ("Title (date)") over the 4K switch, Submit, and the profile and folder choosers.
+ * `RequestMovieDialog`: while the quality profiles and folders load, the loading view; with neither the request is
+ * sent at once; otherwise the title ("Title (date)") over Submit and the profile and folder choosers. There is no 4K
+ * choice (owner, 2026-11-23).
  */
 internal class RequestMovieDialog(
     context: Context,
@@ -304,8 +301,6 @@ internal class RequestMovieDialog(
     onSendLogs: () -> Unit,
 ) : RequestDialogBase(context, opener, onSendLogs) {
     private var data = SeerrRequestData()
-    private var request4kEnabled = false
-    private var is4k: Boolean? = null
     private var profile: SeerrProfile? = null
     private var folder: SeerrRootFolder? = null
     private var submitted = false
@@ -317,12 +312,9 @@ internal class RequestMovieDialog(
     fun update(
         loading: LoadingState,
         data: SeerrRequestData,
-        request4kEnabled: Boolean,
     ) {
-        val changed = data != this.data || request4kEnabled != this.request4kEnabled
+        val changed = data != this.data
         this.data = data
-        this.request4kEnabled = request4kEnabled
-        if (is4k == null && loading == LoadingState.Success) is4k = request4kEnabled
         if (changed) form = null
         showState(loading) { form ?: buildForm().also { form = it } }
     }
@@ -330,74 +322,21 @@ internal class RequestMovieDialog(
     override fun initialFocus(): View? = firstFocus
 
     private fun buildForm(): View? {
-        val noOptions = data.profiles.isEmpty() && data.rootFolders.isEmpty() && data.profiles4k.isEmpty() && data.rootFolders4k.isEmpty()
+        val noOptions = data.profiles.isEmpty() && data.rootFolders.isEmpty()
         if (noOptions) {
-            if (request4kEnabled) return menuForm()
             if (!submitted) {
                 submitted = true
-                onSubmit(MovieRequest(data, movie.id, false, null, null))
+                onSubmit(MovieRequest(data, movie.id, null, null))
             }
             return null
         }
         return optionsForm()
     }
 
-    /** `DialogPopupContent` with Request and Request 4K, in this panel */
-    private fun menuForm(): View {
-        val column =
-            LinearLayout(context).apply {
-                orientation = LinearLayout.VERTICAL
-                clipChildren = false
-                clipToPadding = false
-                setPadding(0, context.dp(MenuDialog.DIALOG_PADDING_DP - 16), 0, 0)
-            }
-        val pad = context.dp(MenuDialog.DIALOG_PADDING_DP - 16)
-        if (AppTheme.isNeon) {
-            column.addView(
-                FittedTitleView(context, maxLines = 3).apply {
-                    setStyledText(title.uppercase(), NeonType.dialogTitle())
-                    setTextColor(AppTheme.palette.onSurface)
-                    setPaddingRelative(pad, 0, pad, 0)
-                },
-                fullWidth(),
-            )
-            column.addView(NeonRuleView(context).apply { ruleAccent = accent }, fullWidth().apply { topMargin = context.dp(8) })
-        } else {
-            column.addView(titleText(context, title).apply { setPaddingRelative(pad, 0, pad, 0) }, fullWidth())
-        }
-        val list = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        listOf(false, true).forEach { fourK ->
-            val row =
-                AppListItem(context).apply {
-                    id = View.generateViewId()
-                    setHeadline(context.getString(if (fourK) R.string.request_4k else R.string.request))
-                    setOnClickListener { onSubmit(MovieRequest(data, movie.id, fourK, null, null)) }
-                }
-            if (!fourK) firstFocus = row
-            list.addView(
-                row,
-                fullWidth().apply {
-                    marginStart = pad
-                    marginEnd = pad
-                },
-            )
-        }
-        column.addView(
-            MenuListView(context).apply {
-                val edge = context.dp(MenuDialog.DIALOG_LIST_EDGE_DP)
-                setPadding(0, edge, 0, edge)
-                addView(list, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-            },
-            fullWidth(),
-        )
-        return column
-    }
-
     /** `RequestMovieWithOptions` */
     private fun optionsForm(): View {
-        val fourK = is4k ?: request4kEnabled
-        val profiles = if (fourK) data.profiles4k else data.profiles
-        val folders = if (fourK) data.rootFolders4k else data.rootFolders
+        val profiles = data.profiles
+        val folders = data.rootFolders
         if (profile == null || profile !in profiles) profile = profiles.defaultOf { it.default }
         if (folder == null || folder !in folders) folder = folders.defaultOf { it.default }
         val column =
@@ -421,31 +360,12 @@ internal class RequestMovieDialog(
                 clipToPadding = false
                 setPadding(0, 0, 0, context.dp(8))
             }
-        var first: View? = null
-        if (request4kEnabled) {
-            val toggle =
-                ClickSwitchView(context).apply {
-                    id = R.id.lb_search_request_4k
-                    label.setText(R.string.request_4k)
-                    checked = fourK
-                    setOnClickListener {
-                        is4k = !fourK
-                        profile = null
-                        folder = null
-                        rebuild()
-                    }
-                }
-            first = toggle
-            actions.addView(toggle, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-            actions.addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
-        }
         val submit =
             AppButton(context).apply {
                 id = R.id.lb_search_request_submit
                 setLabel(R.string.submit)
-                setOnClickListener { onSubmit(MovieRequest(data, movie.id, fourK, profile?.id, folder?.path)) }
+                setOnClickListener { onSubmit(MovieRequest(data, movie.id, profile?.id, folder?.path)) }
             }
-        if (first == null) first = submit
         actions.addView(submit, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         items.addView(actions, fullWidth())
         profile?.takeIf { profiles.isNotEmpty() }?.let { selected ->
@@ -474,7 +394,7 @@ internal class RequestMovieDialog(
             },
             fullWidth().apply { topMargin = context.dp(8) },
         )
-        firstFocus = first
+        firstFocus = submit
         return column
     }
 
@@ -485,8 +405,7 @@ internal class RequestMovieDialog(
 }
 
 /**
- * `RequestSeasonsDialog`: the title, the last submission error, then a list: the 4K switch and Submit (disabled with
- * nothing chosen, "Submitting…" while sending), the profile and folder choosers, a divider to the panel's edges,
+ * `RequestSeasonsDialog`: the title, the last submission error, then a list: Submit (disabled with nothing chosen, "Submitting…" while sending), the profile and folder choosers, a divider to the panel's edges,
  * "Seasons" with Select all, one row per season (status dot, name, episode count, switch; seasons already requested
  * or available are on and cannot be changed), and a second Submit after more than three seasons.
  */
@@ -500,11 +419,8 @@ internal class RequestSeasonsDialog(
 ) : RequestDialogBase(context, opener, onSendLogs) {
     private var data = SeerrRequestData()
     private var seasons: List<RequestSeason> = emptyList()
-    private var seasons4k: List<RequestSeason> = emptyList()
-    private var request4kEnabled = false
     private var submitting = false
     private var errorMessage: String? = null
-    private var is4k: Boolean? = null
     private var profile: SeerrProfile? = null
     private var folder: SeerrRootFolder? = null
     private var selectionFor: List<RequestSeason>? = null
@@ -517,24 +433,17 @@ internal class RequestSeasonsDialog(
         loading: LoadingState,
         data: SeerrRequestData,
         seasons: List<RequestSeason>,
-        seasons4k: List<RequestSeason>,
-        request4kEnabled: Boolean,
         submitting: Boolean,
         errorMessage: String?,
     ) {
         this.data = data
         this.seasons = seasons
-        this.seasons4k = seasons4k
-        this.request4kEnabled = request4kEnabled
         this.submitting = submitting
         this.errorMessage = errorMessage
-        if (is4k == null && loading == LoadingState.Success) is4k = request4kEnabled
         showState(loading) { buildForm() }
     }
 
     override fun initialFocus(): View? = firstFocus
-
-    private fun activeSeasons(): List<RequestSeason> = if (is4k == true) seasons4k else seasons
 
     /** The choices start over whenever the season list changes (the old `remember(seasons)`) */
     private fun resetSelection(list: List<RequestSeason>) {
@@ -564,7 +473,6 @@ internal class RequestSeasonsDialog(
                 data = data,
                 tvId = id,
                 seasons = selectedSeasons.toList(),
-                is4k = is4k == true,
                 profileId = profile?.id,
                 folder = folder?.path,
             ),
@@ -582,11 +490,10 @@ internal class RequestSeasonsDialog(
     private fun rebuild() = showState(LoadingState.Success) { buildForm() }
 
     private fun buildForm(): View {
-        val fourK = is4k == true
-        val list = activeSeasons()
+        val list = seasons
         resetSelection(list)
-        val profiles = if (fourK) data.profiles4k else data.profiles
-        val folders = if (fourK) data.rootFolders4k else data.rootFolders
+        val profiles = data.profiles
+        val folders = data.rootFolders
         if (profile == null || profile !in profiles) profile = profiles.defaultOf { it.default }
         if (folder == null || folder !in folders) folder = folders.defaultOf { it.default }
 
@@ -621,26 +528,7 @@ internal class RequestSeasonsDialog(
                 clipToPadding = false
                 setPadding(0, context.dp(8), 0, context.dp(8))
             }
-        var first: View? = null
-        if (request4kEnabled) {
-            val toggle =
-                ClickSwitchView(context).apply {
-                    id = R.id.lb_search_request_4k
-                    label.setText(R.string.request_4k)
-                    checked = fourK
-                    setOnClickListener {
-                        is4k = !fourK
-                        profile = null
-                        folder = null
-                        rebuild()
-                    }
-                }
-            first = toggle
-            actions.addView(toggle, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-            actions.addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
-        }
         val submit = submitButton(R.id.lb_search_request_submit)
-        if (first == null) first = submit
         actions.addView(submit, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         items.addView(actions, fullWidth())
         profile?.takeIf { profiles.isNotEmpty() }?.let { selected ->
@@ -719,7 +607,7 @@ internal class RequestSeasonsDialog(
             },
             fullWidth().apply { topMargin = context.dp(8) },
         )
-        firstFocus = first
+        firstFocus = submit
         return column
     }
 

@@ -77,9 +77,10 @@ internal fun sortLabel(
     context: Context,
     sort: SortAndDirection,
     allCaps: Boolean,
+    labelFor: (ItemSortBy) -> Int = ::getStringRes,
 ): CharSequence {
     val caret = context.getString(if (sort.direction == SortOrder.ASCENDING) R.string.fa_caret_up else R.string.fa_caret_down)
-    val name = context.getString(getStringRes(sort.sort)).let { if (allCaps) it.uppercase() else it }
+    val name = context.getString(labelFor(sort.sort)).let { if (allCaps) it.uppercase() else it }
     return SpannableStringBuilder()
         .append(caret, TypefaceSpanCompat(AppFonts.icons(context)), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         .append(" ")
@@ -89,13 +90,15 @@ internal fun sortLabel(
 /**
  * `SortByButton`: [collapsed] is the sort icon that shows the current sort while focused (`ExpandableSortButton`);
  * otherwise a text button "▲ Name". OK opens the sort options (the current one shows its direction; choosing it again
- * reverses it); holding OK reverses the current sort.
+ * reverses it); holding OK reverses the current sort. [labelFor] names each sort (the playlist page calls its own
+ * order "Playlist order").
  */
 class SortButton(
     context: Context,
     private val sortOptions: List<ItemSortBy>,
     private val collapsed: Boolean,
     private val allCaps: Boolean = AppTheme.isNeon,
+    private val labelFor: (ItemSortBy) -> Int = ::getStringRes,
     private val onSortChange: (SortAndDirection) -> Unit,
 ) {
     private var current: SortAndDirection? = null
@@ -137,9 +140,9 @@ class SortButton(
                 sizeSp = 16f,
                 boxDp = if (button.isFocused) MIN_BUTTON_DP - 12f else MIN_BUTTON_DP,
             )
-            button.setLabel(context.getString(getStringRes(current.sort)), allCaps = true)
+            button.setLabel(context.getString(labelFor(current.sort)), allCaps = true)
         } else {
-            button.setLabel(sortLabel(context, current, allCaps))
+            button.setLabel(sortLabel(context, current, allCaps, labelFor))
         }
     }
 
@@ -148,7 +151,7 @@ class SortButton(
         val context = button.context
         val menu = AppDropdownMenu(button)
         sortOptions.forEach { option ->
-            val row = menu.addItem(context.getString(getStringRes(option))) {}
+            val row = menu.addItem(context.getString(labelFor(option))) {}
             if (option == cur.sort) {
                 val caret =
                     AppCompatTextView(context).apply {
@@ -233,13 +236,15 @@ class FilterButton(
         nested?.refresh()
     }
 
+    /** [text] is [R.string.remove_all_filters] at the top of the filter list, "Remove" inside one filter */
     private fun removeRow(
         context: Context,
         elevationDp: Float,
+        text: Int = R.string.remove,
         onClick: () -> Unit,
     ): DropdownMenuItemView =
         DropdownMenuItemView(context, elevationDp).apply {
-            setText(context.getString(R.string.remove))
+            setText(context.getString(text))
             setLeadingIcon(R.drawable.lb_widget_ctl_ic_delete, tint = 0xCCFF0000.toInt())
             val palette = AppTheme.palette
             onContentColor = { textView.setTextColor(if (isFocused) palette.onError else palette.error) }
@@ -252,7 +257,7 @@ class FilterButton(
         val count = current.countFilters(filterOptions)
         if (count > 0) {
             menu.addView(
-                removeRow(context, 3f) {
+                removeRow(context, 3f, R.string.remove_all_filters) {
                     onFilterChange(current.delete(filterOptions))
                     menu.dismiss()
                 },

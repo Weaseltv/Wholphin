@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">Par</string>
-    <string name="add_favorite">Izlase</string>
     <string name="add_server">Pievienot Serveri</string>
     <string name="add_user">Pievienot Lietotāju</string>
     <string name="audio">Audio celiņš</string>
@@ -16,7 +15,6 @@
     <string name="collections">Kolekcijas</string>
     <string name="commercial">Reklāma</string>
     <string name="community_rating">Skatītāju vērtējums</string>
-    <string name="compose_error_message_title">Radās kļūda! Nospiediet pogu, lai sūtītu žurnālus uz savu serveri.</string>
     <string name="confirm">Apstiprināt</string>
     <string name="continue_watching">Turpināt skatīties</string>
     <string name="critic_rating">Kritiķu vērtējums</string>
@@ -37,7 +35,6 @@
     <string name="episodes">Sērijas</string>
     <string name="error_loading_collection">Kļūda, ielādējot kolekciju %1$s</string>
     <string name="external_track">Ārējais</string>
-    <string name="favorites">Izlases</string>
     <string name="file_size">Izmērs</string>
     <string name="forced_track">Piespiedu</string>
     <string name="genres">Žanri</string>
@@ -93,7 +90,6 @@
     <string name="recently_added">Nesen pievienots</string>
     <string name="recently_released">Nesen Iznācis</string>
     <string name="recommended">Ieteicamie</string>
-    <string name="remove_favorite">Noņemt no izlases</string>
     <string name="restart">Restartēt</string>
     <string name="resume">Turpināt</string>
     <string name="save">Saglabāt</string>
@@ -219,7 +215,6 @@
         <item quantity="zero">Īsie rullīši</item>
         <item quantity="other">Īsie rullīši</item>
     </plurals>
-    <string name="favorite_items_title">Izlase %s</string>
     <plurals name="downloads">
         <item quantity="zero">%s lejupielāžu</item>
         <item quantity="one">%s lejupielāde</item>
@@ -259,8 +254,6 @@
     <string name="green">Zaļš</string>
     <string name="blue">Zils</string>
     <string name="height">Augstums</string>
-    <string name="screensaver">Ekrānsaudzētājs</string>
-    <string name="duration">Ilgums</string>
     <string name="year">Gads</string>
     <string name="decade">Desmitgade</string>
     <string name="remove">Noņemt</string>
@@ -292,7 +285,6 @@
     <string name="dolby_digital">DD</string>
     <string name="dolby_digital_plus">DD+</string>
     <string name="dts">DTS</string>
-    <string name="discover">Atklāt</string>
     <string name="password">Parole</string>
     <string name="username">Lietotājvārds</string>
 </resources>

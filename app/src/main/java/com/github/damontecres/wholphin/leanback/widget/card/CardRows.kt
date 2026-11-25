@@ -416,6 +416,8 @@ class CardStripView(
                 ): Interpolator? = if (scrollMode == RowScrollMode.PIVOT) PIVOT_EASING else null
             },
         )
+        // A held LEFT / RIGHT scrolls steadily (HeldKeys)
+        steadyWhenHeld()
         applyScrollMode()
     }
 

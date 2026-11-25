@@ -134,7 +134,7 @@ class NeonLoadingMarkView(
         } else {
             val mascot = context.resources.getIdentifier("weaselplex_mascot", "drawable", context.packageName)
             if (mascot != 0) {
-                val size = context.dp(NeonSizes.SCREENSAVER_MARK)
+                val size = context.dp(NeonSizes.LOADING_MARK)
                 addView(MascotView(context, mascot), LayoutParams(size, size, Gravity.CENTER))
             }
         }

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">Névjegy</string>
-    <string name="add_favorite">Hozzáadás kedvencekhez</string>
     <string name="add_server">Szerver hozzáadása</string>
     <string name="add_user">Felhasználó hozzáadása</string>
     <string name="audio">Hang</string>
@@ -15,7 +14,6 @@
     <string name="collection">Gyűjtemény</string>
     <string name="collections">Gyűjtemények</string>
     <string name="community_rating">Közösségi értékelés</string>
-    <string name="compose_error_message_title">Hiba történt! Nyomja meg a gombot, hogy elküldje a naplófájlokat a szervernek.</string>
     <string name="confirm">Megerősít</string>
     <string name="critic_rating">Kritikusi értékelés</string>
     <string name="decimal_seconds">%.2f másodperc</string>
@@ -32,7 +30,6 @@
     <string name="episodes">Epizódok</string>
     <string name="error_loading_collection">Hiba a következő gyűjtemény betöltése során: %1$s</string>
     <string name="external_track">Külső</string>
-    <string name="favorites">Kedvencek</string>
     <string name="commercial">Reklám</string>
     <string name="continue_watching">Megtekintés folytatása</string>
     <string name="died">Elhunyt</string>
@@ -83,7 +80,6 @@
     <string name="recently_added">Nemrég hozzáadott</string>
     <string name="recently_released">Nemrég megjelent</string>
     <string name="recommended">Ajánlott</string>
-    <string name="remove_favorite">Törlés a kedvencekből</string>
     <string name="restart">Újraindítás</string>
     <string name="resume">Folytatás</string>
     <string name="save">Mentés</string>
@@ -233,7 +229,6 @@
     <string name="rewatch_next_up">Újranézés engedélyezése a Következő menüben</string>
     <string name="seek_bar_steps">Előre/hátra ugrás intervallum</string>
     <string name="send_app_logs_summary">Hibakereséshez hasznos</string>
-    <string name="send_app_logs">Naplófájlok küldése a jelenlegi szerverre</string>
     <string name="send_crash_reports_summary">Megpróbálja elküldeni az legutóbb csatlakozott szerverre</string>
     <string name="send_crash_reports">Összeomlási napló küldése</string>
     <string name="settings">Beállítások</string>
@@ -283,7 +278,6 @@
     <string name="verbose_logging">Részletes naplózás</string>
     <string name="enter_pin">Adja meg a PIN-kódot</string>
     <string name="sign_in_auto">Automatikus bejelentkezés</string>
-    <string name="use_server_credentials">Bejelentkezés szerveren keresztül</string>
     <string name="press_enter_to_confirm">Nyomja meg a középső gombot a megerősítéshez</string>
     <string name="require_pin_code">Kérjen PIN-kódot a profillal történő bejelentkezéshez</string>
     <string name="confirm_pin">PIN-kód megerősítése</string>

@@ -11,7 +11,6 @@ import com.github.damontecres.wholphin.data.model.ItemPlayback
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.Playlist
-import com.github.damontecres.wholphin.data.model.PlaylistItem
 import com.github.damontecres.wholphin.data.model.TrackIndex
 import com.github.damontecres.wholphin.kids.KidContentGuard
 import com.github.damontecres.wholphin.preferences.AppPreferences
@@ -24,13 +23,13 @@ import com.github.damontecres.wholphin.services.ActivePlaybackRegistry
 import com.github.damontecres.wholphin.services.DatePlayedService
 import com.github.damontecres.wholphin.services.DeviceProfileService
 import com.github.damontecres.wholphin.services.ImageUrlService
+import com.github.damontecres.wholphin.services.KeepScreenOnService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.PlayerCreation
 import com.github.damontecres.wholphin.services.PlayerFactory
 import com.github.damontecres.wholphin.services.PlaylistCreationResult
 import com.github.damontecres.wholphin.services.PlaylistCreator
 import com.github.damontecres.wholphin.services.RefreshRateService
-import com.github.damontecres.wholphin.services.ScreensaverService
 import com.github.damontecres.wholphin.services.StreamChoiceService
 import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.services.VolumeService
@@ -38,7 +37,6 @@ import com.github.damontecres.wholphin.test.TestTracks
 import com.github.damontecres.wholphin.test.movie
 import com.github.damontecres.wholphin.test.playlist
 import com.github.damontecres.wholphin.ui.nav.Destination
-import com.github.damontecres.wholphin.ui.successQueryResult
 import com.github.damontecres.wholphin.ui.successResponse
 import com.github.damontecres.wholphin.util.LoadingState
 import com.github.damontecres.wholphin.util.WholphinDispatchers
@@ -105,7 +103,7 @@ class PlaybackViewModelTests {
     private val mockStreamChoiceService = mockk<StreamChoiceService>(relaxed = true)
     private val mockUserPreferencesService = mockk<UserPreferencesService>(relaxed = true)
     private val mockImageUrlService = mockk<ImageUrlService>(relaxed = true)
-    private val mockScreensaverService = mockk<ScreensaverService>(relaxed = true)
+    private val mockKeepScreenOnService = mockk<KeepScreenOnService>(relaxed = true)
     private val activePlaybackRegistry = ActivePlaybackRegistry()
     private val mockVolumeService = mockk<VolumeService>(relaxed = true)
 
@@ -134,7 +132,7 @@ class PlaybackViewModelTests {
             streamChoiceService = mockStreamChoiceService,
             userPreferencesService = mockUserPreferencesService,
             imageUrlService = mockImageUrlService,
-            screensaverService = mockScreensaverService,
+            keepScreenOnService = mockKeepScreenOnService,
             activePlaybackRegistry = activePlaybackRegistry,
             volumeService = mockVolumeService,
             kidContentGuard =
@@ -259,7 +257,6 @@ class PlaybackViewModelTests {
     val movie = movie(name = "Test Movie 1")
     val movie2 = movie(name = "Test Movie 2")
     val movie3 = movie(name = "Test Movie 3")
-    val intro = movie(name = "Test Intro")
     val playlistItems =
         Playlist.fromMedia(listOf(BaseItem(movie), BaseItem(movie2), BaseItem(movie3)))
     val introSegmentMovie2 =
@@ -296,60 +293,10 @@ class PlaybackViewModelTests {
     }
 
     @Test
-    fun `Play intro first`() =
-        runTest(testDispatcher) {
-            setupPreferences {
-                cinemaMode = true
-            }
-            coEvery { mockUserLibraryApi.getItem(movie.id) } returns successResponse(movie)
-            coEvery { mockUserLibraryApi.getIntros(movie.id, any()) } returns
-                successQueryResult(listOf(intro))
-
-            val viewModel = createViewModel(Destination.Playback(movie.id, 0L))
-
-            val mediaItem = slot<MediaItem>()
-            verify(exactly = 1) { mockPlayer.setMediaItem(capture(mediaItem), any<Long>()) }
-            // Should be playing the intro
-            Assert.assertEquals(intro.id.toString(), mediaItem.captured.mediaId)
-            val state = viewModel.state.value
-            Assert.assertEquals(LoadingState.Success, state.loading)
-            Assert.assertEquals(mediaSource.id, state.currentMediaInfo.sourceId)
-        }
-
-    @Test
-    fun `Play two intros first`() =
-        runTest(testDispatcher) {
-            val movie = movie()
-            val intro = movie()
-            val intro2 = movie()
-            setupPreferences {
-                cinemaMode = true
-            }
-            coEvery { mockUserLibraryApi.getItem(movie.id) } returns successResponse(movie)
-            coEvery { mockUserLibraryApi.getIntros(movie.id, any()) } returns
-                successQueryResult(listOf(intro, intro2))
-
-            val viewModel = createViewModel(Destination.Playback(movie.id, 0L))
-
-            val mediaItem = slot<MediaItem>()
-            verify(exactly = 1) { mockPlayer.setMediaItem(capture(mediaItem), any<Long>()) }
-            // Should be playing the first intro
-            Assert.assertEquals(intro.id.toString(), mediaItem.captured.mediaId)
-            val state = viewModel.state.value
-            Assert.assertEquals(LoadingState.Success, state.loading)
-            Assert.assertEquals(mediaSource.id, state.currentMediaInfo.sourceId)
-            val playlist = state.playlist.items
-            Assert.assertEquals(2, playlist.size)
-            Assert.assertEquals(intro.id, playlist[0].id)
-            Assert.assertEquals(intro2.id, playlist[1].id)
-        }
-
-    @Test
-    fun `Don't play intro`() =
+    fun `Starting from the beginning never asks the server for intros`() =
         runTest(testDispatcher) {
             val movie = movie()
             setupPreferences {
-                cinemaMode = false
             }
             coEvery { mockUserLibraryApi.getItem(movie.id) } returns successResponse(movie)
 
@@ -369,7 +316,6 @@ class PlaybackViewModelTests {
     fun `Play explicit queue from a remote request`() =
         runTest(testDispatcher) {
             setupPreferences {
-                cinemaMode = false
             }
             coEvery { mockUserLibraryApi.getItem(movie2.id) } returns successResponse(movie2)
             coEvery { mockPlaylistCreator.createFromIds(listOf(movie2.id, movie3.id)) } returns
@@ -403,7 +349,6 @@ class PlaybackViewModelTests {
     fun `Requested streams take precedence over saved choices`() =
         runTest(testDispatcher) {
             setupPreferences {
-                cinemaMode = false
             }
             coEvery { mockUserLibraryApi.getItem(movie.id) } returns successResponse(movie)
             val saved = ItemPlayback(userId = user.rowId, itemId = movie.id, sourceId = UUID.randomUUID(), audioIndex = 9)
@@ -647,48 +592,6 @@ class PlaybackViewModelTests {
                 Assert.assertFalse(state.hasNext)
             }
             verify(exactly = 1) { mockNavigationManager.goBack() }
-        }
-
-    @Test
-    fun `Intro playback ends always play next`() =
-        runTest(testDispatcher) {
-            setupPreferences {
-                cinemaMode = true
-                showNextUpWhen = ShowNextUpWhen.NEXT_UP_NEVER
-                autoPlayNext = false
-            }
-            setupForPlaylist()
-            coEvery { mockUserLibraryApi.getItem(movie.id) } returns successResponse(movie)
-            coEvery { mockUserLibraryApi.getIntros(movie.id, any()) } returns
-                successQueryResult(listOf(intro))
-
-            val viewModel = createViewModel(Destination.PlaybackList(playlist.id))
-
-            viewModel.state.value.also { state ->
-                Assert.assertEquals(
-                    listOf(PlaylistItem.Intro(BaseItem(intro))) + playlistItems.items,
-                    state.playlist.items,
-                )
-                Assert.assertEquals(0, state.playlistIndex)
-                Assert.assertNull(state.nextUp)
-            }
-
-            viewModel.onPlaybackStateChanged(Player.STATE_ENDED)
-            testScheduler.advanceUntilIdle()
-
-            viewModel.state.value.also { state ->
-                Assert.assertEquals(1, state.playlistIndex)
-                Assert.assertNull(state.nextUp)
-            }
-            verify(exactly = 0) { mockNavigationManager.goBack() }
-
-            val mediaItems = mutableListOf<MediaItem>()
-            verify(exactly = 2) {
-                mockPlayer.setMediaItem(withArg { mediaItems.add(it) }, any<Long>())
-            }
-            Assert.assertEquals(2, mediaItems.size)
-            Assert.assertEquals(intro.id.toString(), mediaItems[0].mediaId)
-            Assert.assertEquals(movie.id.toString(), mediaItems[1].mediaId)
         }
 
     @Test

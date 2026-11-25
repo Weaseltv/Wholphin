@@ -6,13 +6,14 @@ package com.github.damontecres.wholphin.kids
  *
  * PINs are saved as plain text on the profile row, so the length of a saved PIN is known. A PIN saved
  * before this rule may be longer (the old minimum was 4, with no maximum): it keeps working, and its
- * entry shows as many boxes as it has presses, and number keys still count when checking it. The next PIN
- * set for that profile must be [LENGTH] arrows.
+ * entry shows as many boxes as it has presses. The next PIN set for that profile must be [LENGTH] arrows.
+ * Number keys never count, not even when checking a saved PIN (owner, 2026-11-24). No member has a PIN
+ * with digits: the builds that accepted number keys were never released publicly.
  */
 object PinRules {
     const val LENGTH = 4
 
-    /** The presses a new PIN is made of: up, down, left, right. Number keys only work for older saved PINs. */
+    /** The presses a PIN is made of: up, down, left, right. */
     const val ARROWS = "UDLR"
 
     /** How many presses to collect when checking [savedPin]: its own length, or [LENGTH] when unknown. */

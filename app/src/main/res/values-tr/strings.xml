@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">Hakkında</string>
-    <string name="add_favorite">Favori</string>
     <string name="add_server">Sunucu Ekle</string>
     <string name="add_user">Kullanıcı Ekle</string>
     <string name="audio">Ses</string>
@@ -16,7 +15,6 @@
     <string name="collections">Koleksiyonlar</string>
     <string name="commercial">Reklam</string>
     <string name="community_rating">Topluluk puanı</string>
-    <string name="compose_error_message_title">Bir hata oluştu! Günlükleri sunucunuza göndermek için düğmeye basın.</string>
     <string name="confirm">Onayla</string>
     <string name="continue_watching">İzlemeye devam et</string>
     <string name="critic_rating">Eleştirmen puanı</string>
@@ -37,7 +35,6 @@
     <string name="episodes">Bölümler</string>
     <string name="error_loading_collection">%1$s koleksiyonu yüklenirken bir hata oluştu</string>
     <string name="external_track">Harici</string>
-    <string name="favorites">Favoriler</string>
     <string name="file_size">Boyut</string>
     <string name="forced_track">Zorunlu</string>
     <string name="genres">Türler</string>
@@ -94,7 +91,6 @@
     <string name="recently_added">Son eklenen</string>
     <string name="recently_released">Son Çıkanlar</string>
     <string name="recommended">Önerilenler</string>
-    <string name="remove_favorite">Favorilerden kaldır</string>
     <string name="restart">Yeniden Başlat</string>
     <string name="resume">Sürdür</string>
     <string name="save">Kaydet</string>
@@ -266,7 +262,6 @@
     <string name="rewatch_next_up">Sıradaki bölümlerde tekrar izlemeyi etkinleştir</string>
     <string name="seek_bar_steps">İlerleme çubuğu adımları</string>
     <string name="send_app_logs_summary">Hata ayıklama için yararlıdır</string>
-    <string name="send_app_logs">Uygulama günlüklerini mevcut sunucuya gönder</string>
     <string name="send_crash_reports_summary">Son bağlanan sunucuya gönderilmeye çalışılacak</string>
     <string name="send_crash_reports">Hata raporlarını gönder</string>
     <string name="settings">Ayarlar</string>
@@ -315,7 +310,6 @@
     <string name="verbose_logging">Ayrıntılı günlükleme</string>
     <string name="enter_pin">PIN girin</string>
     <string name="sign_in_auto">Otomatik oturum aç</string>
-    <string name="use_server_credentials">Sunucu üzerinden giriş yap</string>
     <string name="press_enter_to_confirm">Onaylamak için orta tuşa basın</string>
     <string name="require_pin_code">Profil için PIN iste</string>
     <string name="confirm_pin">PIN\'i onayla</string>
@@ -388,11 +382,8 @@
     <string name="dts">DTS</string>
     <string name="force_dovi_profile_7">Dolby Vision Profil 7\'yi doğrudan oynat</string>
     <string name="force_dovi_profile_7_summary">Cihaz uyumluluk kontrollerini yoksay</string>
-    <string name="discover">Keşfet</string>
     <string name="request">İstek</string>
     <string name="pending">Beklemede</string>
-    <string name="seerr_integration">Seerr entegrasyonu</string>
-    <string name="remove_seerr_server">Seerr Sunucusunu Kaldır</string>
     <string name="seerr_server_added">Seerr sunucusu eklendi</string>
     <string name="password">Şifre</string>
     <string name="username">Kullanıcı adı</string>
@@ -400,7 +391,6 @@
     <string name="trending">Popüler</string>
     <string name="upcoming_movies">Yaklaşan Filmler</string>
     <string name="upcoming_tv">Yaklaşan Diziler</string>
-    <string name="request_4k">4K olarak iste</string>
     <string name="software_decoding_av1">AV1 yazılımsal kod çözme</string>
     <string name="upgrade_mpv_toast">HDR içerikler hariç varsayılan oynatıcı artık MPV. \nBu ayarı ayarlar bölümünden değiştirebilirsiniz.</string>
     <string name="hdr_subtitle_style">HDR Altyazı Stili</string>
@@ -431,9 +421,6 @@
     <string name="send_media_info_log_to_server">Medya bilgisini sunucuya gönder</string>
     <string name="no_limit">Sınırsız</string>
     <string name="max_days_next_up">Sıradaki bölümlerde kalacağı gün sayısı</string>
-    <string name="quick_connect">Hızlı Bağlan</string>
-    <string name="quick_connect_summary">Başka bir cihazın giriş yapmasına izin ver</string>
-    <string name="quick_connect_code">Hızlı Bağlan kodunu girin</string>
     <string name="quick_connect_code_error">Kod 6 haneli olmalıdır</string>
     <string name="quick_connect_success">Cihaz başarıyla yetkilendirildi</string>
     <string name="add_row">Satır ekle</string>
@@ -443,9 +430,6 @@
     <string name="apply_all_rows">Tüm satırlara uygula</string>
     <string name="customize_home">Ana ekranı özelleştir</string>
     <string name="home_rows">Ana ekran satırları</string>
-    <string name="load_from_server">Kullanıcı profilinden yükle</string>
-    <string name="save_to_server">Kullanıcı profiline kaydet</string>
-    <string name="load_from_web_client">Web istemcisinden yükle</string>
     <string name="use_series">Dizi görselini kullan</string>
     <string name="add_row_for">%1$s için satır ekle</string>
     <string name="overwrite_server_settings">Sunucudaki ayarların üzerine yazılsın mı?</string>
@@ -458,15 +442,12 @@
     <string name="settings_saved">Ayarlar kaydedildi</string>
     <string name="display_presets">Görüntü ön ayarları</string>
     <string name="display_presets_description">Tüm satırları hızlıca stilize etmek için hazır ayarlar</string>
-    <string name="favorite_items_title">Favori %s</string>
     <string name="customize_home_summary">Ana sayfadaki satırları ve görselleri seçin</string>
     <string name="content_scale_fit">Sığdır</string>
     <string name="content_scale_crop">Kırp</string>
     <string name="content_scale_fill">Doldur</string>
     <string name="content_scale_fill_width">Genişliği Doldur</string>
     <string name="content_scale_fill_height">Yüksekliği Doldur</string>
-    <string name="display_preset_default">Wholphin Varsayılan</string>
-    <string name="display_preset_compact">Wholphin Kompakt</string>
     <string name="display_preset_series_thumb">Dizi Küçük Resimleri</string>
     <string name="display_preset_episode_thumbnails">Bölüm Küçük Resimleri</string>
     <string name="volume_lowest">En Düşük</string>
@@ -518,20 +499,8 @@
         <item quantity="one">%s dakika</item>
         <item quantity="other">%s dakika</item>
     </plurals>
-    <string name="start_after">Başlama süresi</string>
-    <string name="animate">Oynatma Süresi</string>
-    <string name="max_age_rating">Maksimum yaş sınırı</string>
-    <string name="no_max">Sınır yok</string>
-    <string name="for_all_ages">Genel İzleyici</string>
-    <string name="up_to_age">%s yaşa kadar</string>
-    <string name="screensaver">Ekran koruyucu</string>
-    <string name="screensaver_settings">Ekran koruyucu ayarları</string>
-    <string name="start_screensaver">Ekran koruyucuyu başlat</string>
-    <string name="duration">Süre</string>
     <string name="photos">Fotoğraflar</string>
     <string name="include_types">İçerik türleri</string>
-    <string name="include_types_summary">Görsel gösterilecek öğe türleri</string>
-    <string name="in_app_screensaver">Uygulama içi ekran koruyucuyu kullan</string>
     <string name="actor">Aktör</string>
     <string name="composer">Besteci</string>
     <string name="writer">Yazar</string>
@@ -555,10 +524,7 @@
     <string name="continue_string">Devam et</string>
     <string name="separate_types">Farklı türler</string>
     <string name="prefer_logos">Başlık yerine logo göster</string>
-    <string name="updated_toast">Wholphin %s sürümüne güncellendi</string>
     <string name="view_more">Daha fazla göster</string>
-    <string name="discover_tv">Dizileri Keşfet</string>
-    <string name="discover_movies">Filmleri Keşfet</string>
     <string name="remove_continue_watching">İzlemeye devam et listesinden kaldır</string>
     <string name="remove_next_up">Sıradaki bölümlerden kaldır</string>
     <string name="view_removed_next_up">Sıradaki bölümlerden kaldırılan dizileri göster</string>
@@ -574,10 +540,8 @@
     <string name="skip_behavior">Atlama Davranışı</string>
     <string name="skip_behavior_summary">İntrolar, jenerikler vb. için</string>
     <string name="show_more">%1$s daha göster</string>
-    <string name="cinema_mode">Sinema Modu</string>
     <string name="transcoding">Kod dönüştürme</string>
     <string name="play_with">Şununla Oynat</string>
-    <string name="pin_digits_hint">[0-9]</string>
     <string name="combined_search_results">Birleştirilmiş arama sonuçları</string>
     <string name="combined_search_results_on">Tüm sonuçları tek listede göster</string>
     <string name="combined_search_results_off">Sonuçları kategoriye göre göster</string>
@@ -638,7 +602,6 @@
     <string name="unavailable">Mevcut Değil</string>
     <string name="prefer_ac3_for_surround_summary"><![CDATA[Stereo olmayan sesleri AC3/Dolby Digital\'e dönüştür]]></string>
     <string name="prefer_ac3_for_surround">Çevresel ses için AC3 kullan</string>
-    <string name="profile_specific_settings_from_server">Sunucudaki kullanıcı profili ayarları</string>
     <string name="subtitle_mode">Altyazı Modu</string>
     <string name="use_user_profile">Profil ayarlarını kullan</string>
     <string name="subtitle_mode_default">Varsayılan</string>
@@ -667,9 +630,6 @@
     <string name="server_version_not_supported">Sunucu sürümü desteklenmiyor</string>
     <string name="disable_audio_offload">Ses Donanım Hızlandırmasını Devre Dışı Bırak</string>
     <string name="disable_audio_offload_summary">Ses kod çözme işlemlerinin donanıma devredilmesini (offload) devre dışı bırakmak, bazı cihazlardaki oynatma donmalarını düzeltebilir</string>
-    <string name="dim_after_delay">Belirli bir süre sonra ekranı karart</string>
-    <string name="dim_percentage">Karartma yüzdesi</string>
-    <string name="dim_screen">Ekranı karart</string>
     <string name="duration_hours_seconds">%1$dsa %2$dsn</string>
     <string name="season_episode_number">S%1$d E%2$s</string>
     <string name="season_episode_number_padded">S%1$02dE%2$s</string>

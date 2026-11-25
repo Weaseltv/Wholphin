@@ -14,7 +14,6 @@ import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.data.model.SUPPORTED_HOME_PAGE_SETTINGS_VERSION
 import com.github.damontecres.wholphin.data.model.createGenreDestination
 import com.github.damontecres.wholphin.data.model.createStudioDestination
-import com.github.damontecres.wholphin.preferences.DefaultUserConfiguration
 import com.github.damontecres.wholphin.preferences.HomePagePreferences
 import com.github.damontecres.wholphin.ui.AspectRatio
 import com.github.damontecres.wholphin.ui.Cards
@@ -72,7 +71,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.client.extensions.libraryApi
-import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.model.UUID
 import org.jellyfin.sdk.model.api.BaseItemDto
@@ -914,106 +912,6 @@ class HomeSettingsService
                 )
             }
             return HomePageResolvedSettings(rowConfig)
-        }
-
-        /**
-         * Create home page settings from the user's web UI home page settings
-         */
-        suspend fun parseFromWebConfig(userId: UUID): HomePageResolvedSettings? {
-            val customPrefs =
-                displayPreferencesService
-                    .getDisplayPreferences(
-                        displayPreferencesId = "usersettings",
-                        userId = userId,
-                        client = "emby",
-                    ).customPrefs
-            val userDto by api.userApi.getUserById(userId)
-            val config = userDto.configuration ?: DefaultUserConfiguration
-            val libraries =
-                navDrawerService
-                    .getAllUserLibraries(userId)
-                    .sortedBy { homeLibraryOrder(it.name) }
-                    .filterNot {
-                        it.itemId in config.latestItemsExcludes
-                    }
-
-            return if (customPrefs.isNotEmpty()) {
-                var id = 0
-                val rowConfigs =
-                    (0..9)
-                        .mapNotNull { idx ->
-                            val sectionType =
-                                HomeSectionType.fromString(customPrefs["homesection$idx"]?.lowercase())
-                            Timber.v(
-                                "sectionType=$sectionType, %s",
-                                customPrefs["homesection$idx"]?.lowercase(),
-                            )
-                            val config =
-                                when (sectionType) {
-                                    HomeSectionType.RESUME -> {
-                                        HomeRowConfigDisplay(
-                                            id = id++,
-                                            title = ResStringProvider(R.string.continue_watching),
-                                            config = HomeRowConfig.ContinueWatching(),
-                                        )
-                                    }
-
-                                    HomeSectionType.NEXT_UP -> {
-                                        HomeRowConfigDisplay(
-                                            id = id++,
-                                            title = ResStringProvider(R.string.next_up),
-                                            config = HomeRowConfig.NextUp(),
-                                        )
-                                    }
-
-                                    HomeSectionType.LATEST_MEDIA -> {
-                                        // Handled below
-                                        null
-                                    }
-
-                                    // Unsupported
-                                    HomeSectionType.RESUME_AUDIO,
-                                    HomeSectionType.RESUME_BOOK,
-                                    -> {
-                                        null
-                                    }
-
-                                    HomeSectionType.SMALL_LIBRARY_TILES,
-                                    HomeSectionType.LIBRARY_BUTTONS,
-                                    HomeSectionType.NONE,
-                                    null,
-                                    -> {
-                                        null
-                                    }
-                                }
-                            if (sectionType == HomeSectionType.LATEST_MEDIA) {
-                                libraries.map { library ->
-                                    val viewOptions =
-                                        viewOptionsForCollectionType(library.collectionType)
-                                    HomeRowConfigDisplay(
-                                        id = id++,
-                                        title =
-                                            ResArgStringProvider(
-                                                R.string.recently_added_in,
-                                                library.name ?: "",
-                                            ),
-                                        config =
-                                            HomeRowConfig.RecentlyAdded(
-                                                parentId = library.itemId,
-                                                viewOptions = viewOptions,
-                                            ),
-                                    )
-                                }
-                            } else if (config != null) {
-                                listOf(config)
-                            } else {
-                                null
-                            }
-                        }.flatten()
-                HomePageResolvedSettings(rowConfigs)
-            } else {
-                null
-            }
         }
 
         /**
@@ -1953,26 +1851,6 @@ data class HomePageResolvedSettings(
 ) {
     companion object {
         val EMPTY = HomePageResolvedSettings(listOf())
-    }
-}
-
-// https://github.com/jellyfin/jellyfin/blob/v10.11.6/src/Jellyfin.Database/Jellyfin.Database.Implementations/Enums/HomeSectionType.cs
-// The server's two TV-tuner sections are left out: the app has no rows for them, so fromString returns null and they are skipped.
-enum class HomeSectionType(
-    val serialName: String,
-) {
-    NONE("none"),
-    SMALL_LIBRARY_TILES("smalllibrarytitles"),
-    LIBRARY_BUTTONS("librarybuttons"),
-    RESUME("resume"),
-    RESUME_AUDIO("resumeaudio"),
-    LATEST_MEDIA("latestmedia"),
-    NEXT_UP("nextup"),
-    RESUME_BOOK("resumebook"),
-    ;
-
-    companion object {
-        fun fromString(homeKey: String?) = homeKey?.let { entries.firstOrNull { it.serialName == homeKey } }
     }
 }
 

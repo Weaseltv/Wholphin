@@ -75,8 +75,6 @@ class DiscoverMovieViewModel
         val state: StateFlow<DiscoverMovieState> = _state
 
         val userConfig = seerrServerRepository.current.map { it?.config }
-        val request4kEnabled =
-            seerrServerRepository.current.map { it?.request4kMovieEnabled ?: false }
 
         private val resumeReload =
             ResumeReload(viewModelScope, init(), failed = { state.value.movie is DataLoadingState.Error }) { init() }
@@ -205,15 +203,12 @@ class DiscoverMovieViewModel
                     val created =
                         seerrService.api.requestApi.requestPost(
                             RequestPostRequest(
-                                is4k = request.is4k,
+                                // Never 4K (owner, 2026-11-23)
+                                is4k = false,
                                 mediaId = request.movieId,
                                 mediaType = RequestPostRequest.MediaType.MOVIE,
                                 serverId =
-                                    when {
-                                        request.profileId == null && request.folder == null -> null
-                                        request.is4k -> request.data.server4kId
-                                        else -> request.data.serverId
-                                    },
+                                    if (request.profileId == null && request.folder == null) null else request.data.serverId,
                                 profileId = request.profileId,
                                 rootFolder = request.folder,
                                 tags = emptyList(),

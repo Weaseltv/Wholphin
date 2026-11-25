@@ -15,6 +15,7 @@ import androidx.annotation.StringRes
 import androidx.leanback.widget.BaseGridView
 import androidx.leanback.widget.GridLayoutManager
 import androidx.leanback.widget.VerticalGridView
+import androidx.leanback.widget.ViewHolderTask
 import androidx.recyclerview.widget.RecyclerView
 import com.github.damontecres.wholphin.data.model.DiscoverItem
 import com.github.damontecres.wholphin.leanback.theme.AppTheme
@@ -26,6 +27,8 @@ import com.github.damontecres.wholphin.leanback.theme.dp
 import com.github.damontecres.wholphin.leanback.theme.resolveNeonScope
 import com.github.damontecres.wholphin.leanback.theme.withAlpha
 import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
+import com.github.damontecres.wholphin.leanback.widget.card.jumpToPosition
+import com.github.damontecres.wholphin.leanback.widget.card.steadyWhenHeld
 import com.github.damontecres.wholphin.leanback.widget.control.AppButton
 import com.github.damontecres.wholphin.leanback.widget.control.SearchEditTextBox
 import com.github.damontecres.wholphin.preferences.AppThemeColors
@@ -244,6 +247,7 @@ internal class PageRowsView(
         adapter = rowsAdapter
         // UP from the first row leaves the list (to the controls above), as the Compose list did; DOWN at the end stops
         (layoutManager as? GridLayoutManager)?.setFocusOutAllowed(true, false)
+        steadyWhenHeld()
     }
 
     /** The rows now shown, in order; views are re-used by identity */
@@ -260,11 +264,7 @@ internal class PageRowsView(
     ) {
         val index = rowsAdapter.rows.indexOf(row)
         if (index < 0) return
-        if (whenLaidOut == null) {
-            selectedPosition = index
-        } else {
-            setSelectedPosition(index) { _: RecyclerView.ViewHolder -> whenLaidOut() }
-        }
+        jumpToPosition(index, whenLaidOut?.let { ViewHolderTask { _ -> it() } })
     }
 
     private class Holder(

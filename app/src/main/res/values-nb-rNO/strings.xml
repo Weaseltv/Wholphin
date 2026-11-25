@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">Om</string>
-    <string name="add_favorite">Legg til favoritt</string>
     <string name="add_server">Legg til server</string>
     <string name="add_user">Legg til bruker</string>
     <string name="audio">Lyd</string>
@@ -16,7 +15,6 @@
     <string name="collections">Samlinger</string>
     <string name="commercial">Reklame</string>
     <string name="community_rating">Brukervurdering</string>
-    <string name="compose_error_message_title">En feil har oppstått! Trykk på knappen for å sende logger til serveren din.</string>
     <string name="confirm">Bekreft</string>
     <string name="continue_watching">Fortsett å se</string>
     <string name="critic_rating">Kritikervurdering</string>
@@ -32,7 +30,6 @@
     <string name="episodes">Episoder</string>
     <string name="error_loading_collection">Feil ved lasting av samling %1$s</string>
     <string name="external_track">Ekstern</string>
-    <string name="favorites">Favoritter</string>
     <string name="file_size">Størrelse</string>
     <string name="forced_track">Tvungen</string>
     <string name="genres">Sjangere</string>
@@ -82,7 +79,6 @@
     <string name="recently_added">Sist lagt til</string>
     <string name="recently_released">Sist utgitt</string>
     <string name="recommended">Anbefalt</string>
-    <string name="remove_favorite">Fjern favoritt</string>
     <string name="restart">Start på nytt</string>
     <string name="resume">Fortsett</string>
     <string name="save">Lagre</string>
@@ -232,7 +228,6 @@
     <string name="rewatch_next_up">Tillat gjensyn i \'Neste\'</string>
     <string name="seek_bar_steps">Steglengde for søkelinje</string>
     <string name="send_app_logs_summary">Nyttig for feilsøking</string>
-    <string name="send_app_logs">Send app-logger til gjeldende server</string>
     <string name="send_crash_reports_summary">Vil prøve å sende til sist tilkoblede server</string>
     <string name="send_crash_reports">Send krasjrapporter</string>
     <string name="settings">Innstillinger</string>
@@ -283,7 +278,6 @@
     <string name="verbose_logging">Detaljert logging</string>
     <string name="enter_pin">Tast inn PIN</string>
     <string name="sign_in_auto">Logg inn automatisk</string>
-    <string name="use_server_credentials">Logg inn via server</string>
     <string name="press_enter_to_confirm">Trykk i midten for å bekrefte</string>
     <string name="require_pin_code">Krev PIN for profil</string>
     <string name="confirm_pin">Bekreft PIN</string>
@@ -358,7 +352,6 @@
     <string name="duration_minutes">%1$dmin</string>
     <string name="duration_seconds">%1$ds</string>
     <string name="only_forced_subtitles">Bare Tvungne Undertekster</string>
-    <string name="profile_specific_settings_from_server">Brukerprofil instillinger fra server</string>
     <string name="voice_search">Stemmesøk</string>
     <string name="voice_starting">Begynner</string>
     <string name="voice_search_prompt">Snakk for å søke</string>
@@ -390,7 +383,6 @@
     <string name="samples_title">Prøver</string>
     <string name="featurettes_title">Novellefilmer</string>
     <string name="shorts_title">Kortfilmer</string>
-    <string name="favorite_items_title">Favoritt %s</string>
     <plurals name="days">
         <item quantity="one">%s dag</item>
         <item quantity="other">%s dager</item>
@@ -412,7 +404,6 @@
         <item quantity="other">Personer</item>
     </plurals>
     <string name="require_login">Krev innlogging for profil</string>
-    <string name="pin_digits_hint">[0-9]</string>
     <string name="disable_audio_offload">Deaktiver avlasting av lydmaskinvare</string>
     <string name="disable_audio_offload_summary">Deaktivering av lyddekodingavlasting kan fikse fryst bilde ved avspilling på noen enheter</string>
     <string name="combined_search_results">Kombinert søkeresultater</string>
@@ -431,14 +422,9 @@
     <string name="dts">DTS</string>
     <string name="force_dovi_profile_7">Direct play Dolby Vision Profile 7</string>
     <string name="force_dovi_profile_7_summary">Ignorer kompatibilitetsjekk av enheten</string>
-    <string name="discover">Oppdag</string>
     <string name="request">Forespørsel</string>
     <string name="pending">Venter</string>
-    <string name="seerr_integration">Seerr integrering</string>
-    <string name="remove_seerr_server">Fjern Seerr Tjener</string>
     <string name="seerr_server_added">Seerr tjener lagt til</string>
-    <string name="quick_connect">Rask Tilkobling</string>
-    <string name="quick_connect_summary">Autoriser annen enhet til å logge på kontoen din</string>
     <string name="for_episodes">For episoder</string>
     <string name="suggestions_for">Forslag for %1$s</string>
     <string name="increase_all_cards_size">Øk størrelsen for alle kort</string>
@@ -450,26 +436,13 @@
     <string name="customize_home_summary">Velg rader og bilder på hjemmesiden</string>
     <string name="prefer_ac3_for_surround_summary"><![CDATA[Transkode ikke-stereo lyd til AV3/Dolby Digital]]></string>
     <string name="prefer_ac3_for_surround">Bruk AC3 for surround sound lyd</string>
-    <string name="start_after">Start etter</string>
-    <string name="animate">Animer</string>
-    <string name="max_age_rating">Maks aldersgrense</string>
-    <string name="no_max">Ingen maks</string>
-    <string name="for_all_ages">For alle aldre</string>
-    <string name="up_to_age">Opp til %s år</string>
-    <string name="screensaver">Skjermsparer</string>
-    <string name="screensaver_settings">Innstillinger for skjermsparer</string>
-    <string name="start_screensaver">Start skjermsparer</string>
-    <string name="duration">Varighet</string>
     <string name="photos">Bilder</string>
     <string name="include_types">Inkluder typer</string>
-    <string name="include_types_summary">Hvilke elementer å vise bilder for</string>
     <string name="content_scale_fit">Tilpass</string>
     <string name="content_scale_crop">Beskjær</string>
     <string name="content_scale_fill">Fyll</string>
     <string name="content_scale_fill_width">Fyll bredde</string>
     <string name="content_scale_fill_height">Fyll høyde</string>
-    <string name="display_preset_default">Wholphin Standard</string>
-    <string name="display_preset_compact">Wholphin Kompakt</string>
     <string name="display_preset_series_thumb">Serieminiatyrbilder</string>
     <string name="display_preset_episode_thumbnails">Episodeminiatyrbilder</string>
     <string name="volume_lowest">Lavest</string>
@@ -523,7 +496,6 @@
     <string name="search_and_download_subtitles"><![CDATA[Søk og last ned undertekst]]></string>
     <string name="no_subtitles_found">Ingen eksterne undertekster ble funnet</string>
     <string name="series_continueing">Nåværende</string>
-    <string name="in_app_screensaver">Bruk appens skjermsparer</string>
     <string name="delete_item">Er du sikker på at du vil slette dette elementet?</string>
     <string name="show_media_management">Vis alternativ for behandling av medier</string>
     <string name="search_for">Søk %s</string>
@@ -547,13 +519,10 @@
     <string name="select_all">Velg alle</string>
     <string name="separate_types">Seperate typer</string>
     <string name="prefer_logos">Foretrekk å vise logoer for titler</string>
-    <string name="updated_toast">Wholphin oppdatert til %s</string>
     <string name="remove_continue_watching">Fjern fra fortsett å se</string>
     <string name="remove_next_up">Fjern serier fra neste</string>
     <string name="view_removed_next_up">Vis serier fjernet fra neste</string>
     <string name="view_more">Vis mer</string>
-    <string name="discover_tv">Oppdag TV-serier</string>
-    <string name="discover_movies">Oppdag Filmer</string>
     <string name="studios_in">Studioer i %1$s</string>
     <string name="last_played">Sist avspilt</string>
     <string name="system_default">System standard</string>
@@ -561,7 +530,6 @@
     <string name="ass_subtitle_mode_exoplayer">Direkteavspilling med ExoPlayer innebygd</string>
     <string name="ass_subtitle_mode_transcode">Brenn/transkode på tjener</string>
     <string name="ass_subtitle_playback">SSA/ASS avspilling av undertekst</string>
-    <string name="cinema_mode">Kinomodus</string>
     <string name="show_more">Vis %1$s mer</string>
     <string name="skip_behavior">Hopp over oppførsel</string>
     <string name="skip_behavior_summary">For introer, rulletekst, etc</string>
@@ -589,7 +557,6 @@
     <string name="experimental_settings">Eksperimentelle innstillinger</string>
     <string name="confirm_enable_experimental_title">Aktiver eksperimentelle innstillinger?</string>
     <string name="confirm_enable_experimental_body">Eksperimentelle innstillinger kan være ustabile!\n\nDisse kan fjernes eller endre i hvilken som helst versjon.</string>
-    <string name="quick_connect_code">Skriv inn Quick Connect kode</string>
     <string name="quick_connect_code_error">Kode må være 6 siffer</string>
     <string name="quick_connect_success">Enhet autorisering vellykket</string>
     <string name="password">Passord</string>
@@ -598,7 +565,6 @@
     <string name="trending">Trender</string>
     <string name="upcoming_movies">Kommende Filmer</string>
     <string name="upcoming_tv">Kommende TV-Serier</string>
-    <string name="request_4k">Forespør i 4K</string>
     <string name="software_decoding_av1">AV1 programvaredekoding</string>
     <string name="upgrade_mpv_toast">MPV er nå standardspiller utenom for HDR.\nDu kan endre dette i innstillinger.</string>
     <string name="hdr_subtitle_style">HDR undertekststil</string>
@@ -632,9 +598,6 @@
     <string name="apply_all_rows">Bruk på alle rader</string>
     <string name="customize_home">Tilpass hjemmesiden</string>
     <string name="home_rows">Hjemmerader</string>
-    <string name="load_from_server">Last inn fra tjeners brukerprofil</string>
-    <string name="save_to_server">Lagre på tjeners brukerprofil</string>
-    <string name="load_from_web_client">Last inn fra web-client</string>
     <string name="use_series">Bruk seriebilde</string>
     <string name="add_row_for">Legg til rad for %1$s</string>
     <string name="overwrite_server_settings">Overskriv innstillinger på tjener?</string>
@@ -667,9 +630,6 @@
     <string name="books">Bøker</string>
     <string name="audio_books">Lydbøker</string>
     <string name="server_version_not_supported">Tjenerversjon ikke støttet</string>
-    <string name="dim_after_delay">Dim skjerm etter forsinking</string>
-    <string name="dim_percentage">Dim prosent</string>
-    <string name="dim_screen">Dim skjerm</string>
     <string name="photo_albums">Fotoalbum</string>
     <string name="no_favorites_found">Ingen favoritter funnet!</string>
 </resources>

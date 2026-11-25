@@ -65,7 +65,6 @@ This is not a fork of the [official client](https://github.com/jellyfin/jellyfin
   - Quickly access video chapters & queue during playback
   - Optionally skip back a few seconds when resuming playback
 - Music video support
-- Cinema mode/pre-roll intro support (requires compatible server plugin such as [Intros](https://github.com/jellyfin/jellyfin-plugin-intros))
 - Auto play next episodes with pass out protection
 - Option for automatic refresh rate & resolution switching on supported displays
 - Trickplay (video preview) support

@@ -51,7 +51,7 @@ fun requestSubmissionError(error: Exception): String {
         }
 
         409 -> {
-            "The request service reported a conflict. Check My Requests before trying again. (Error 409)"
+            "The request service reported a conflict. Check your request list before trying again. (Error 409)"
         }
 
         429 -> {
@@ -63,14 +63,14 @@ fun requestSubmissionError(error: Exception): String {
         }
 
         in 500..599 -> {
-            "The request service couldn't finish this request. Check My Requests before trying again. (Error $status)"
+            "The request service couldn't finish this request. Check your request list before trying again. (Error $status)"
         }
 
         else -> {
             if (error is IOException) {
-                "Couldn't confirm whether your request was sent. Check My Requests before trying again."
+                "Couldn't confirm whether your request was sent. Check your request list before trying again."
             } else {
-                "Couldn't confirm the request result. Check My Requests before trying again."
+                "Couldn't confirm the request result. Check your request list before trying again."
             }
         }
     }

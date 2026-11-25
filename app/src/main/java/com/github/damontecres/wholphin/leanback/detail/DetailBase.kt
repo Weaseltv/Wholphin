@@ -31,6 +31,7 @@ import com.github.damontecres.wholphin.leanback.theme.dp
 import com.github.damontecres.wholphin.leanback.widget.card.CardGridAdapter
 import com.github.damontecres.wholphin.leanback.widget.card.CardRowStyle
 import com.github.damontecres.wholphin.leanback.widget.card.CardRowView
+import com.github.damontecres.wholphin.leanback.widget.card.steadyWhenHeld
 import com.github.damontecres.wholphin.leanback.widget.control.ErrorView
 import com.github.damontecres.wholphin.leanback.widget.control.LoadingPageView
 import com.github.damontecres.wholphin.leanback.widget.dialog.ContextMenuDialog
@@ -408,6 +409,7 @@ class DetailPageList(
             windowAlignmentOffsetPercent = 30f
         }
         adapter = listAdapter
+        steadyWhenHeld()
     }
 
     override fun onLayout(

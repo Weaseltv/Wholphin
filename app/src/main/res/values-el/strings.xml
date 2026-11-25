@@ -36,8 +36,6 @@
     <string name="genres">Είδη</string>
     <string name="collection">Συλλογή</string>
     <string name="collections">Συλλογές</string>
-    <string name="add_favorite">Αγαπημένο</string>
-    <string name="favorites">Αγαπημένα</string>
     <string name="suggestions">Προτάσεις</string>
     <string name="director">Σκηνοθέτης</string>
     <string name="studios">Στούντιο</string>
@@ -72,7 +70,6 @@
     <string name="clear_image_cache">Καθαρισμός μνήμης εικόνας</string>
     <string name="commercial">Διαφήμιση</string>
     <string name="community_rating">Αξιολόγηση κοινού</string>
-    <string name="compose_error_message_title">Ένα σφάλμα εμφανίστηκε! Πατήστε το κομπί για να στείλετε αρχείο καταγραφής στο διακομιστή.</string>
     <string name="confirm">Επικύρωση</string>
     <string name="continue_watching">Συνέχεια προβολής</string>
     <string name="critic_rating">Κριτική</string>
@@ -117,7 +114,6 @@
     <string name="recently_added">Πρόσφατες προσθήκες</string>
     <string name="recently_released">Πρόσφατης κυκλοφορίας</string>
     <string name="recommended">Προτεινόμενο</string>
-    <string name="remove_favorite">Αναίρεση αγαπημένου</string>
     <string name="restart">Επανεκκίνηση</string>
     <string name="resume">Συνέχισε</string>
     <string name="save">Αποθήκευση</string>
@@ -221,7 +217,6 @@
     <string name="only_forced_subtitles">Μόνο αναγκαστικοί υπότιτλοι</string>
     <string name="outro">Τίτλοι τέλους</string>
     <string name="voice_error_audio">Σφάλμα καταγραφής ήχου</string>
-    <string name="profile_specific_settings_from_server">Ρυθμίσεις του προφίλ χρήστη στο διακομιστή</string>
     <string name="subtitle_mode">Λειτουργία υποτίτλων</string>
     <string name="use_user_profile">Χρήση των ρυθμίσεων του προφίλ</string>
     <string name="subtitle_mode_default">Προεπιλογή</string>
@@ -234,7 +229,6 @@
     <string name="override_user_profile_settings">Περισσότερες ρυθμίσεις του προφίλ χρήστη</string>
     <string name="override_user_profile_settings_summary">Παράκαμψη των ρυθμίσεων του προφίλ χρήστη στον διακομιστή</string>
     <string name="any_language">Οποιαδήποτε γλώσσα</string>
-    <string name="cinema_mode">Λειτουργία σινεμά</string>
     <string name="download_and_update"><![CDATA[Λήψη και ενημέρωση]]></string>
     <plurals name="movies">
         <item quantity="one">Ταινία</item>
@@ -298,7 +292,6 @@
     <string name="nav_drawer_pins_summary">Διάλεξε τα προεπιλεγμένα αντικείμενα για εμφάνιση, θα γίνει απόκρυψη των υπόλοιπων</string>
     <string name="remember_selected_tab">Απομνημόνευση επιλεγμένων καρτελών</string>
     <string name="settings">Ρυθμίσεις</string>
-    <string name="discover">Ανακάλυψε</string>
     <string name="request">Αίτημα</string>
     <string name="pending">Εκκρεμί</string>
     <string name="password">Κωδικός</string>
@@ -329,8 +322,6 @@
     <string name="subtitle_edge_shadow">Σκιά</string>
     <string name="background_style_wrap">Αναδίπλωση</string>
     <string name="background_style_boxed">Πλαίσιο</string>
-    <string name="duration">Διάρκεια</string>
-    <string name="screensaver">Προστασία οθόνης</string>
     <string name="photos">Φωτογραφίες</string>
     <string name="actor">Ηθοποιός</string>
     <string name="composer">Συνθέτης</string>
@@ -370,6 +361,4 @@
     <string name="saturation">Κορεσμός</string>
     <string name="hue">Απόχρωση</string>
     <string name="subtitle_delay">Καθυστέρηση υποτίτλων</string>
-    <string name="discover_movies">Ανακάλυψε ταινίες</string>
-    <string name="discover_tv">Ανακάλυψε σειρές</string>
 </resources>

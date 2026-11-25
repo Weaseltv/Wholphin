@@ -19,8 +19,9 @@ data class WhatsNewEntry(
 
 /**
  * What's New bullets for each release, rewritten from its GitHub release notes for everyday
- * viewers: 3 to 5 short lines in US English. Add the new version's entry before tagging a
- * release. A version without an entry shows no pop-up.
+ * viewers: short lines in US English covering only the main changes. The pop-up scrolls when
+ * they don't all fit. Add the new version's entry before tagging a release. A version without
+ * an entry shows no pop-up.
  */
 private val notes1244 =
     listOf(
@@ -33,6 +34,17 @@ private val notes1244 =
 
 internal val WhatsNewNotes: Map<String, List<String>> =
     mapOf(
+        "1.2.50" to
+            listOf(
+                "WeaselPlex has been rebuilt for Android TV, and scrolling is smoother, even when you hold a button down.",
+                "New \"Remove all filters\" button at the top of every filter list.",
+                "The playlist page has a cleaner layout.",
+                "After watching episodes back to back, the show's page opens on the episode you got to.",
+                "Collections open much faster on kids' profiles.",
+                "Movies start sooner, and the Cinema mode setting has been removed.",
+                "WeaselPlex no longer has its own screensaver. Your TV's screensaver and sleep timer work as normal.",
+                "Requests no longer offer 4K.",
+            ),
         "1.2.49" to
             listOf(
                 "Home appears right away when you open WeaselPlex, then its rows update.",

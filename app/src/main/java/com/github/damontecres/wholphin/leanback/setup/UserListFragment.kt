@@ -22,7 +22,6 @@ import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.JellyfinServer
 import com.github.damontecres.wholphin.data.model.JellyfinUser
 import com.github.damontecres.wholphin.kids.PinRules
-import com.github.damontecres.wholphin.kids.ProfileKind
 import com.github.damontecres.wholphin.kids.profileKind
 import com.github.damontecres.wholphin.leanback.theme.AppFonts
 import com.github.damontecres.wholphin.leanback.theme.AppTheme
@@ -581,9 +580,8 @@ class UserListFragment : SetupFragment() {
                                 }
 
                                 PinPurpose.DELETE -> {
-                                    context.getString(
-                                        if (prompt.target.profileKind == ProfileKind.KID) R.string.remove_from_this_tv else R.string.delete,
-                                    )
+                                    // Grown-up or kid, the profile only leaves this TV; the account keeps it
+                                    context.getString(R.string.remove_from_this_tv)
                                 }
                             },
                         prompt = context.pinPromptFor(prompt.pinOwner.shownName),
@@ -778,8 +776,8 @@ class UserListFragment : SetupFragment() {
                 if (user.known) {
                     add(
                         MenuItem(
-                            // A kid's row is only this TV's sign-in; the kid stays on the account
-                            context.getString(if (kidViewModel.isKid(u)) R.string.remove_from_this_tv else R.string.delete),
+                            // A row is only this TV's sign-in; the profile stays on the account
+                            context.getString(R.string.remove_from_this_tv),
                             icon = R.drawable.lb_setup_ic_delete,
                             iconTint = withAlpha(0xFFFF0000.toInt(), .8f),
                         ) { viewModel.removeUser(u) },

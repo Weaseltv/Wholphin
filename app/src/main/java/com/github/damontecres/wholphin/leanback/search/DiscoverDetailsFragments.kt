@@ -44,7 +44,6 @@ class DiscoverMovieFragment : DiscoverDetailsFragment() {
         },
     )
     private var userConfig: SeerrUserConfig? = null
-    private var request4kEnabled = false
     private var requestDialog: RequestMovieDialog? = null
 
     override fun navigateTo(destination: Destination) = viewModel.navigateTo(destination)
@@ -56,10 +55,6 @@ class DiscoverMovieFragment : DiscoverDetailsFragment() {
         super.onViewCreated(view, savedInstanceState)
         viewModel.userConfig.collectWhileStarted {
             userConfig = it
-            render(viewModel.state.value)
-        }
-        viewModel.request4kEnabled.collectWhileStarted {
-            request4kEnabled = it
             render(viewModel.state.value)
         }
         viewModel.state.collectWhileStarted { render(it) }
@@ -144,7 +139,7 @@ class DiscoverMovieFragment : DiscoverDetailsFragment() {
                     ),
                 )
                 bindRows(state.people, state.similar, state.recommended)
-                requestDialog?.update(state.profileLoading, state.requestData, request4kEnabled)
+                requestDialog?.update(state.profileLoading, state.requestData)
             }
         }
     }
@@ -171,7 +166,7 @@ class DiscoverMovieFragment : DiscoverDetailsFragment() {
                         show()
                     }
                 val state = viewModel.state.value
-                requestDialog?.update(state.profileLoading, state.requestData, request4kEnabled)
+                requestDialog?.update(state.profileLoading, state.requestData)
             }
 
             override fun cancel() {
@@ -232,7 +227,6 @@ class DiscoverSeriesFragment : DiscoverDetailsFragment() {
             userConfig = it
             render(viewModel.state.value)
         }
-        viewModel.request4kEnabled.collectWhileStarted { render(viewModel.state.value) }
         viewModel.state.collectWhileStarted { render(it) }
     }
 
@@ -301,8 +295,6 @@ class DiscoverSeriesFragment : DiscoverDetailsFragment() {
             loading = state.profileLoading,
             data = state.requestData,
             seasons = state.seasons,
-            seasons4k = state.seasons4k,
-            request4kEnabled = viewModel.request4kEnabled.value,
             submitting = state.requestSubmitting,
             errorMessage = state.requestError,
         )

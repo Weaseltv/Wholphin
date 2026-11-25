@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">Rakenduse teave</string>
-    <string name="add_favorite">Lemmik</string>
     <string name="add_server">Lisa server</string>
     <string name="add_user">Lisa kasutaja</string>
     <string name="audio">Heli</string>
@@ -15,7 +14,6 @@
     <string name="collections">Kogumikud</string>
     <string name="commercial">Reklaam</string>
     <string name="community_rating">Kogukonna hinnang</string>
-    <string name="compose_error_message_title">Tekkis viga! Saatmaks logisid sinu serverisse klõpsa nuppu.</string>
     <string name="confirm">Kinnita</string>
     <string name="continue_watching">Jätka vaatamist</string>
     <string name="critic_rating">Kriitikute hinnang</string>
@@ -35,7 +33,6 @@
     <string name="episodes">Osad</string>
     <string name="error_loading_collection">Viga kogumiku laadimisel: %1$s</string>
     <string name="external_track">Väline</string>
-    <string name="favorites">Lemmikud</string>
     <string name="file_size">Suurus</string>
     <string name="forced_track">Jõustatud</string>
     <string name="genres">Žanrid</string>
@@ -84,7 +81,6 @@
     <string name="recently_added">Hiljuti lisatud</string>
     <string name="recently_released">Hiljuti avaldatud</string>
     <string name="recommended">Soovitatud</string>
-    <string name="remove_favorite">Eemalda lemmikute seast</string>
     <string name="restart">Käivita uuesti</string>
     <string name="resume">Jätka</string>
     <string name="save">Salvesta</string>
@@ -256,7 +252,6 @@
     <string name="remember_selected_tab">Jäta valitud vahekaardid meelde</string>
     <string name="seek_bar_steps">Kerimisriba sammud</string>
     <string name="send_app_logs_summary">Kasulik veaotsingu puhul</string>
-    <string name="send_app_logs">Saada rakenduse logid kasutatavale serverile</string>
     <string name="send_crash_reports_summary">Proovib saata viimatikasutatud serverile</string>
     <string name="send_crash_reports">Saada kokkujooksmise aruanded</string>
     <string name="update_available">Uuendus on saadaval</string>
@@ -283,7 +278,6 @@
     <string name="image_cache_size">Pildipuhvri suurus (MB)</string>
     <string name="enter_pin">Sisesta PIN-kood</string>
     <string name="sign_in_auto">Logi automaatselt sisse</string>
-    <string name="use_server_credentials">Logi sisse serveri abil</string>
     <string name="press_enter_to_confirm">Kinnitamiseks vajuta keskele</string>
     <string name="require_pin_code">Küsi profiili jaoks PIN-koodi</string>
     <string name="confirm_pin">Korda PIN-koodi</string>
@@ -361,18 +355,14 @@
     <string name="force_dovi_profile_7">Dolby Vision Profile 7 otseesitusega</string>
     <string name="force_dovi_profile_7_summary">Eirab seadme ühilduvuskontrolle</string>
     <string name="dts">DTS</string>
-    <string name="discover">Otsi ja leia</string>
     <string name="request">Päring</string>
     <string name="pending">Ootel</string>
-    <string name="seerr_integration">Seerri lõiming</string>
-    <string name="remove_seerr_server">Eemalda Seerri server</string>
     <string name="password">Salasõna</string>
     <string name="username">Kasutajanimi</string>
     <string name="url">Võrguaadress</string>
     <string name="trending">Populaarsust koguv</string>
     <string name="upcoming_movies">Lähiajal avaldatavad filmid</string>
     <string name="upcoming_tv">Lähiajal avaldatavad telesarjad ja -saated</string>
-    <string name="request_4k">Küsi 4K versiooni</string>
     <string name="seerr_server_added">Seerri server on lisatud</string>
     <string name="voice_search">Häälotsing</string>
     <string name="voice_starting">Alustan</string>
@@ -419,9 +409,6 @@
         <item quantity="one">%s päev</item>
         <item quantity="other">%s päeva</item>
     </plurals>
-    <string name="quick_connect">Kiirühendus</string>
-    <string name="quick_connect_summary">Luba muul seadmel logida sinu kasutajakontoga sisse</string>
-    <string name="quick_connect_code">Sisesta kiirühenduse kood</string>
     <string name="quick_connect_code_error">Kood peab olema kuuenumbriline</string>
     <string name="quick_connect_success">Seadme autentimine õnnestus</string>
     <string name="send_media_info_log_to_server">Salvesta meediumi infologi serverisse</string>
@@ -434,9 +421,6 @@
     <string name="apply_all_rows">Rakenda kõikidele ridadele</string>
     <string name="customize_home">Kohanda kodulehte</string>
     <string name="home_rows">Kodulehe/avalehe read</string>
-    <string name="load_from_server">Laadi kasutajaprofiil serverist</string>
-    <string name="save_to_server">Salvesta kasutajaprofiil serverisse</string>
-    <string name="load_from_web_client">Laadi veebikliendist</string>
     <string name="use_series">Kasuta sarja pilti</string>
     <string name="add_row_for">Lisa rida: %1$s</string>
     <string name="overwrite_server_settings">Kas kirjutad serveris leiduvad seadistused üle?</string>
@@ -450,7 +434,6 @@
     <string name="display_presets">Kuvamise eelseadistused</string>
     <string name="display_presets_description">Rakenduses kaasasolevad eelseadistused kõikide ridade kiireks muutmiseks</string>
     <string name="customize_home_summary">Vali kodulehe/avalehe read ja pildid</string>
-    <string name="favorite_items_title">Märgi %s lemmikuks</string>
     <plurals name="minutes">
         <item quantity="one">%s minut</item>
         <item quantity="other">%s minutit</item>
@@ -492,7 +475,6 @@
     <string name="seerr_local_user">Kohalik kasutaja</string>
     <string name="search_and_download_subtitles"><![CDATA[Subtiitrite otsing ja allalaadimine]]></string>
     <string name="no_subtitles_found">Kaugseadmest ei leidnunud subtiitreid</string>
-    <string name="in_app_screensaver">Kasuta rakendusesisest ekraanisäästjat</string>
     <string name="delete_item">Kas sa oled kindel, et soovid selle objekti kustutada?</string>
     <string name="show_media_management">Näida meediumi haldamise valikuid</string>
     <string name="actor">Näitleja</string>
@@ -510,9 +492,6 @@
     <string name="search_for">Otsi: %s</string>
     <string name="select_all">Vali kõik</string>
     <string name="background_style_boxed">Ruudustatud</string>
-    <string name="screensaver_settings">Ekraanisäästja seadistused</string>
-    <string name="start_screensaver">Käivita ekraanisäästja</string>
-    <string name="duration">Kestus</string>
     <string name="photos">Fotod</string>
     <string name="include_types">Kaasa tüübid</string>
     <string name="content_scale_fit">Sobita</string>
@@ -520,8 +499,6 @@
     <string name="content_scale_fill">Täida</string>
     <string name="content_scale_fill_width">Täida laiuses</string>
     <string name="content_scale_fill_height">Täida kõrguses</string>
-    <string name="display_preset_default">Wholphini vaikeseadistus</string>
-    <string name="display_preset_compact">Wholphini kompaktne vaade</string>
     <string name="display_preset_series_thumb">Sarja pisipildid</string>
     <string name="display_preset_episode_thumbnails">Osa pisipildid</string>
     <string name="volume_lowest">Vaikseim</string>
@@ -529,16 +506,8 @@
     <string name="volume_medium">Keskmine</string>
     <string name="volume_high">Vali</string>
     <string name="volume_full">Täisvaljus</string>
-    <string name="start_after">Käivita peale</string>
-    <string name="animate">Animeeri</string>
-    <string name="max_age_rating">Ülemine vanusepiirang</string>
-    <string name="no_max">Puudub</string>
-    <string name="for_all_ages">Sobilik kõikidele vanustele</string>
-    <string name="up_to_age">Kuni vanuseni %s</string>
-    <string name="screensaver">Ekraanisäästja</string>
     <string name="next_up_outro">Lõputiitrite ja lõpuklipi ajal</string>
     <string name="series_continueing">Jätkuv sari</string>
-    <string name="include_types_summary">Mis tüüpi objekte peaks piltide kontekstis näitama</string>
     <string name="album_artist">Albumi esitaja</string>
     <string name="album">Album</string>
     <string name="music_videos">Muusikavideod</string>
@@ -546,13 +515,10 @@
     <string name="continue_string">Jätka</string>
     <string name="separate_types">Eraldi tüübid</string>
     <string name="prefer_logos">Pealkirjade puhul eelista logode kuvamist</string>
-    <string name="updated_toast">Wholphin on uuendatud versioonini %s</string>
     <string name="remove_continue_watching">Eemalda „Jätka vaatamist“ valikust</string>
     <string name="remove_next_up">Eemalda sari valikust „Järgmisena esitamisel“</string>
     <string name="view_removed_next_up">Vaata sarja, mis sai eemaldatud valikust „Järgmisena esitamisel“</string>
     <string name="view_more">Vaata veel</string>
-    <string name="discover_tv">Leia telesaateid</string>
-    <string name="discover_movies">Leia filme</string>
     <string name="studios_in">Stuudiod: %1$s</string>
     <string name="last_played">Viimati esitatud</string>
     <string name="ass_subtitle_mode_libass">Otseesitus libass teegiga</string>
@@ -562,13 +528,11 @@
     <string name="next_up_never">Mitte kunagi</string>
     <string name="external_player">Väline meediapleier</string>
     <string name="system_default">Süsteemi vaikeväärtus</string>
-    <string name="cinema_mode">Kinovaade</string>
     <string name="show_more">Näita veel: %1$s tk</string>
     <string name="skip_behavior">Käitumine vahelejätmisel</string>
     <string name="skip_behavior_summary">Sissejuhatuste, lõputiitrite jmt jaoks</string>
     <string name="play_with">Esita rakendusega</string>
     <string name="transcoding">Teisendan</string>
-    <string name="pin_digits_hint">[0-9]</string>
     <string name="combined_search_results">Kombineeritud otsingutulemused</string>
     <string name="combined_search_results_on">Näita kõiki tulemusi ühe loendina</string>
     <string name="combined_search_results_off">Näita tulemusi kategooria alusel</string>
@@ -638,7 +602,6 @@
     <string name="unavailable">Pole saadaval</string>
     <string name="prefer_ac3_for_surround_summary"><![CDATA[Kodeeri mittestereoheli AC3/Dolby Digital vormingusse]]></string>
     <string name="prefer_ac3_for_surround">Kasuta ruumilise heli jaoks AC3 koodekit</string>
-    <string name="profile_specific_settings_from_server">Kasutajaprofiili seadistus serverist</string>
     <string name="subtitle_mode">Subtiitrite režiim</string>
     <string name="use_user_profile">Kasuta oma profiili seadistust</string>
     <string name="subtitle_mode_default">Vaikimisi</string>
@@ -667,9 +630,6 @@
     <string name="subtitles_hearing_impaired">SDH</string>
     <string name="disable_audio_offload">Lülita graafikaprotsessori kasutamine heli töötluseks välja</string>
     <string name="disable_audio_offload_summary">Kui lülita graafikaprotsessori kasutamise heli töötluseks välja, siis see võib mõnede seadmete puhul parandada taasesituse hangumise vead</string>
-    <string name="dim_after_delay">Hämarda ekraani peale viivitust</string>
-    <string name="dim_percentage">Hämardamise protsent</string>
-    <string name="dim_screen">Hämarda ekraani</string>
     <string name="photo_albums">Fotoalbumid</string>
     <string name="no_favorites_found">Ühtegi lemmikut ei leidu!</string>
     <string name="duration_hours_seconds">%1$d t %2$d sek</string>

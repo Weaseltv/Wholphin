@@ -8,7 +8,7 @@ Where things are (`app/src/main/java/com/github/damontecres/wholphin/leanback/`)
 
 | Package | What | Notes |
 |---|---|---|
-| `shell` | `MainActivity` content, `NavHost` (one fragment per back-stack entry), side menu, backdrop, setup layer, screensaver, tour, update / What's New prompts, request chips, `ScreenFactory`, `DestinationFragment` | [SHELL.md](SHELL.md) |
+| `shell` | `MainActivity` content, `NavHost` (one fragment per back-stack entry), side menu, backdrop, setup layer, tour, update / What's New prompts, request chips, `ScreenFactory`, `DestinationFragment` | [SHELL.md](SHELL.md) |
 | `theme` | `AppTheme`/`AppPalette` (all nine themes), `NeonColors`, `TextRole`, `Accents.kt` (`PageStyle`, section/type accents), Neon card and control recipes | |
 | `widget.card` | every card, `CardRowView`, `CardGridView`, image helpers, `clipToOwnHeight`, `requestSelectedFocus`, `AvatarImages` | [WIDGETS-CARDS.md](WIDGETS-CARDS.md) |
 | `widget.control`, `.dialog`, `.text` | buttons, tabs, inputs, dialogs, context menu, item info, loading/error, text widgets | [WIDGETS-CONTROLS.md](WIDGETS-CONTROLS.md) |
@@ -70,6 +70,20 @@ Found on the Shield (2026-11-22, second pass):
   before its time budget starts), and the Jellyfin API client allows 20 requests per server (`AppModule`; OkHttp's
   default is 5). Cold first visit on the Shield: about 80 s one at a time, 37 s with 4, 27 s with 8, 14–17 s with 16.
   The rest is Jellyfin's own list query (~4 s). Don't drop the checks: the app hides more than Jellyfin's ratings do.
+- A settings page that opens a level inside its own panel (`SettingsPageFragment.openScreen`/`openPanel`, eg Customize
+  Home's Settings and Display presets) replaces the focused level, and nothing hands the focus on: the new level takes
+  it (`SettingsListHost.takeFocusForNewLevel`). Until 2026-11-23 those levels opened with no focus at all, so the remote
+  did nothing. App Settings' levels are separate pages, which the shell focuses.
+- The app has no screensaver of its own and is not offered as the TV's screensaver (owner, 2026-11-23): the TV's own
+  screensaver and sleep timer apply. `KeepScreenOnService` keeps the screen on only while video or a slideshow plays.
+  Check it with `dumpsys window windows` (`KEEP_SCREEN_ON` in the activity window's flags).
+- Requests never offer 4K, and the library filter has no 4K choice (owner, 2026-11-23). Requests made in 4K before
+  still show their own status.
+- There is no Cinema mode (owner, 2026-11-24): playback never asks the server for pre-roll intros, and its proto
+  field is reserved. `PlaylistItem.Intro` stays only so upstream merges line up. Intro Skipper's "Skip intro" is a
+  different feature and stays.
+- PIN screens take arrows only, also when checking a saved PIN (owner, 2026-11-24): `pinPressFor` and SettingsPin's
+  `pinPress` map no number keys. Every filter list's top button is "Remove all filters" (`R.string.remove_all_filters`).
 - A Compose `LaunchedEffect` inside a page that only composes once something exists (the player, a loaded item) runs
   after that thing exists. In a Fragment, `onViewCreated` runs before it: start such work when the flow first emits it
   (`PlaybackFragment.updateDensity` threw "lateinit property player" on every playback start until 2026-11-22).

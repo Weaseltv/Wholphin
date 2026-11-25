@@ -42,13 +42,11 @@ import com.github.damontecres.wholphin.services.HomeSettingsService
 import com.github.damontecres.wholphin.services.NavDrawerService
 import com.github.damontecres.wholphin.services.NavigationManager
 import com.github.damontecres.wholphin.services.RequestStatusRepository
-import com.github.damontecres.wholphin.services.ScreensaverService
 import com.github.damontecres.wholphin.services.SetupDestination
 import com.github.damontecres.wholphin.services.SetupNavigationManager
 import com.github.damontecres.wholphin.services.UpdateChecker
 import com.github.damontecres.wholphin.services.WhatsNewService
 import com.github.damontecres.wholphin.ui.coachmark.CoachMarkTour
-import com.github.damontecres.wholphin.ui.components.ScreensaverViewModel
 import com.github.damontecres.wholphin.ui.launchIO
 import com.github.damontecres.wholphin.ui.nav.Destination
 import com.github.damontecres.wholphin.ui.nav.HOME_INDEX
@@ -75,7 +73,6 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The app frame without Compose (replaces `MainContent`, `ApplicationContent`, `NavDrawer`, `Backdrop` and the
@@ -83,8 +80,7 @@ import kotlin.time.Duration.Companion.milliseconds
  *
  * - setup layer: SetupDestination.Loading (spinner), the server list / profile chooser fragments
  *   (`leanback.setup.SetupScreens`), or the signed-in app layer, cross-fading over 700 ms like the old NavDisplay;
- * - app layer: backdrop, side menu, the pages ([NavHost]), the clock, request chips, the coach-mark tour;
- * - the in-app screensaver and its dim, over everything.
+ * - app layer: backdrop, side menu, the pages ([NavHost]), the clock, request chips, the coach-mark tour.
  *
  * The update and What's New popups are dialogs (their own windows). MainActivity creates one shell and forwards keys,
  * BACK and lifecycle; see `runbooks/no-compose/SHELL.md` for what screens get from it.
@@ -98,7 +94,6 @@ internal class AppShell(
         val navigationManager: NavigationManager,
         val setupNavigationManager: SetupNavigationManager,
         val backdropService: BackdropService,
-        val screensaverService: ScreensaverService,
         val updateChecker: UpdateChecker,
         val requestStatusRepository: RequestStatusRepository,
         val coachMarkTour: CoachMarkTour,
@@ -130,8 +125,6 @@ internal class AppShell(
     private val clock = ClockView(context)
     private val chipLayer = FrameLayout(context)
     private val coachOverlay = CoachMarkOverlayView(context, deps.coachMarkTour, deps.navigationManager)
-    private val screensaverLayer = FrameLayout(context)
-    private val dim = View(context)
 
     private val navHost =
         NavHost(
@@ -187,8 +180,6 @@ internal class AppShell(
 
     /** Scope of everything tied to the signed-in content; cancelled when it goes */
     private var appScope: CoroutineScope? = null
-    private var screensaverScope: CoroutineScope? = null
-    private var screensaverView: ScreensaverView? = null
     private var menuHideJob: Job? = null
 
     private val updatePrompt = UpdatePromptController(activity, deps.updateChecker, deps.navigationManager)
@@ -245,12 +236,6 @@ internal class AppShell(
         prefsLoading.visibility = View.GONE
         root.addView(prefsLoading, matchParent())
 
-        root.addView(screensaverLayer, matchParent())
-        screensaverLayer.visibility = View.GONE
-        dim.setBackgroundColor(0xFF000000.toInt())
-        dim.visibility = View.GONE
-        root.addView(dim, matchParent())
-
         menu.onOpenFractionChanged = { f -> slidePages(f) }
         coachOverlay.scope = activity.lifecycleScope
         root.viewTreeObserver.addOnGlobalFocusChangeListener { _, newFocus -> onGlobalFocus(newFocus) }
@@ -258,7 +243,7 @@ internal class AppShell(
 
     private fun matchParent() = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
 
-    /** Start following the preferences, setup destination, back stack, backdrop and screensaver */
+    /** Start following the preferences, setup destination, back stack and backdrop */
     fun start() {
         menu.listener = menuListener
         activity.lifecycle.addObserver(lifecycleObserver)
@@ -296,9 +281,6 @@ internal class AppShell(
                     b to p.appPreferences.interfacePreferences.backdropStyle
                 }.collect { (b, style) -> backdrop.bind(b, style) }
             }
-        }
-        scope.launch(Dispatchers.Main) {
-            deps.screensaverService.state.collect { onScreensaverState(it) }
         }
         scope.launch(Dispatchers.Main) {
             kidGuard.isKidOrUnknown.collect {
@@ -494,7 +476,6 @@ internal class AppShell(
                 host = chipLayer,
                 repository = deps.requestStatusRepository,
                 navigation = nav,
-                screensaver = deps.screensaverService,
                 ownerRowId = current.user.rowId,
                 presentationBlocked = tourActive,
                 lifecycle = activity.lifecycle,
@@ -552,7 +533,6 @@ internal class AppShell(
             }
 
             override fun onDestroy(owner: LifecycleOwner) {
-                stopScreensaver()
                 appScope?.cancel()
             }
         }
@@ -852,94 +832,6 @@ internal class AppShell(
 
     fun clearBackdrop() {
         activity.lifecycleScope.launchIO { deps.backdropService.clearBackdrop() }
-    }
-
-    // ---- Screensaver ----
-
-    private var dimShown = false
-    private var saverShown = false
-
-    private fun onScreensaverState(state: com.github.damontecres.wholphin.services.ScreensaverState) {
-        val prefs = preferences?.appPreferences?.interfacePreferences?.screensaverPreference
-        val showSaver = (state.enabled || state.enabledTemp) && state.show && prefs != null
-        if (showSaver != saverShown) {
-            saverShown = showSaver
-            if (showSaver) startScreensaver() else fadeOutScreensaver()
-        }
-        val showDim = state.showDim || (state.dimEnabled && state.show)
-        if (showDim != dimShown) {
-            dimShown = showDim
-            dim.animate().cancel()
-            if (showDim) {
-                val alpha = (prefs?.dimPercent ?: 0) / 100f
-                if (dim.visibility != View.VISIBLE) dim.alpha = 0f
-                dim.visibility = View.VISIBLE
-                dim
-                    .animate()
-                    .alpha(alpha)
-                    .setDuration(ScreensaverService.ENTER_MS)
-                    .setInterpolator(FAST_OUT_SLOW_IN)
-                    .start()
-            } else {
-                dim
-                    .animate()
-                    .alpha(0f)
-                    .setDuration(ScreensaverService.EXIT_MS)
-                    .setInterpolator(FAST_OUT_SLOW_IN)
-                    .withEndAction {
-                        if (!dimShown) dim.visibility = View.GONE
-                    }.start()
-            }
-        }
-    }
-
-    private fun startScreensaver() {
-        val prefs = preferences?.appPreferences?.interfacePreferences?.screensaverPreference ?: return
-        screensaverLayer.animate().cancel()
-        var view = screensaverView
-        if (view == null) {
-            view = ScreensaverView(context)
-            screensaverView = view
-            screensaverLayer.addView(view, matchParent())
-            val vm = ViewModelProvider(activity)[ScreensaverViewModel::class.java]
-            val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-            screensaverScope = scope
-            view.configure(
-                showClock = prefs.showClock,
-                duration = prefs.duration.milliseconds,
-                animate = prefs.animate,
-            )
-            view.start(scope, vm.currentItem)
-        }
-        if (screensaverLayer.visibility != View.VISIBLE) screensaverLayer.alpha = 0f
-        screensaverLayer.visibility = View.VISIBLE
-        screensaverLayer
-            .animate()
-            .alpha(1f)
-            .setDuration(ScreensaverService.ENTER_MS)
-            .setInterpolator(FAST_OUT_SLOW_IN)
-            .start()
-    }
-
-    private fun fadeOutScreensaver() {
-        screensaverLayer.animate().cancel()
-        screensaverLayer
-            .animate()
-            .alpha(0f)
-            .setDuration(ScreensaverService.EXIT_MS)
-            .setInterpolator(FAST_OUT_SLOW_IN)
-            .withEndAction {
-                if (!saverShown) stopScreensaver()
-            }.start()
-    }
-
-    private fun stopScreensaver() {
-        screensaverView?.stop()
-        screensaverScope?.cancel()
-        screensaverScope = null
-        screensaverLayer.removeAllViews()
-        screensaverView = null
-        screensaverLayer.visibility = View.GONE
     }
 
     // ---- Layouts with the focus rules ----

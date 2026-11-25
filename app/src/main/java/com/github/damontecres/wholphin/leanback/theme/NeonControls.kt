@@ -53,7 +53,7 @@ object NeonSizes {
     const val OPTIONS_MENU_WIDTH = 340f
     const val SEEK_BAR = 4f
     const val SEEK_THUMB = 14f
-    const val SCREENSAVER_MARK = 96f
+    const val LOADING_MARK = 96f
 }
 
 /** Neon Board glow elevations (dp) and alphas (`NeonBoard.GlowSpec`) */

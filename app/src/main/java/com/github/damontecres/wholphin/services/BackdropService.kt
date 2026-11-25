@@ -81,7 +81,7 @@ class BackdropService
          * [SHOWN_FRACTION] of the screen each way ([com.github.damontecres.wholphin.ui.nav.Backdrop]). With a maximum
          * size the server (Jellyfin 12.2, ImageProcessingOptions.HasDefaultOptions) still sends the original file
          * untouched when it is no bigger than this, and otherwise sends a smaller copy it makes once and keeps. Sized
-         * here and not in [ImageUrlService], whose addresses the screensaver also uses for full-screen pictures.
+         * here and not in [ImageUrlService], whose addresses other callers use at other sizes.
          */
         private fun atShownSize(url: String?): String? {
             if (url.isNullOrBlank()) return url

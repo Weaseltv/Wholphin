@@ -524,19 +524,6 @@ class TestMainActivityViewModel {
         }
 
     @Test
-    fun `Chooser lock - in-app screensaver wake shows the chooser`() =
-        runTest(testDispatcher) {
-            assumeKidProfiles()
-            every { serverRepository.current } returns MutableStateFlow(currentUser)
-
-            viewModel.lockToChooser()
-            advanceUntilIdle()
-
-            val last = capturedDestinations().last()
-            assertTrue("destination is ${last::class}", last is SetupDestination.UserList)
-        }
-
-    @Test
     fun `Chooser lock - deep link is held until a profile is picked`() =
         runTest(testDispatcher) {
             assumeKidProfiles()

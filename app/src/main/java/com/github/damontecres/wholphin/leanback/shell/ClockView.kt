@@ -67,8 +67,8 @@ object AppClock {
 }
 
 /**
- * The clock in the top end corner of pages with the side menu and of the screensaver (the old `TimeDisplay`): 18sp
- * body text in `onSurface`, 16dp from the top and 24dp from the side.
+ * The clock in the top end corner of pages with the side menu (the old `TimeDisplay`): 18sp body text in
+ * `onSurface`, 16dp from the top and 24dp from the side.
  */
 @SuppressLint("ViewConstructor")
 internal class ClockView(

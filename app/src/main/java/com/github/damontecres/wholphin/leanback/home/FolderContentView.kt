@@ -42,6 +42,7 @@ import com.github.damontecres.wholphin.leanback.widget.card.GridCardView
 import com.github.damontecres.wholphin.leanback.widget.card.GridScrollMode
 import com.github.damontecres.wholphin.leanback.widget.card.cardPresenter
 import com.github.damontecres.wholphin.leanback.widget.card.clipToOwnHeight
+import com.github.damontecres.wholphin.leanback.widget.card.steadyWhenHeld
 import com.github.damontecres.wholphin.leanback.widget.control.AppListItem
 import com.github.damontecres.wholphin.leanback.widget.control.CircularProgressView
 import com.github.damontecres.wholphin.leanback.widget.control.ErrorView
@@ -538,6 +539,7 @@ class FolderContentView(
             grid.setPadding(context.dp(16), edge, context.dp(16), edge)
             grid.windowAlignment = androidx.leanback.widget.BaseGridView.WINDOW_ALIGN_BOTH_EDGE
             grid.focusScrollStrategy = androidx.leanback.widget.BaseGridView.FOCUS_SCROLL_ITEM
+            grid.steadyWhenHeld()
             addView(grid, LayoutParams(0, MATCH, 1f))
         }
 

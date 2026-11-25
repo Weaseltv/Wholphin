@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">حول</string>
-    <string name="add_favorite">إضافة للمفضلة</string>
     <string name="add_server">إضافة خادم</string>
     <string name="add_user">إضافة مستخدم</string>
     <string name="audio">الصوت</string>
@@ -16,7 +15,6 @@
     <string name="collections">المجموعات</string>
     <string name="commercial">تجاري</string>
     <string name="community_rating">تقييم المجتمع</string>
-    <string name="compose_error_message_title">حدث خطأ! اضغط على الزر لإرسال السجلات إلى خادمك.</string>
     <string name="confirm">تأكيد</string>
     <string name="continue_watching">تابع المشاهدة</string>
     <string name="critic_rating">تقييم النقاد</string>
@@ -37,7 +35,6 @@
     <string name="episodes">الحلقات</string>
     <string name="error_loading_collection">خطأ في تحميل المجموعة %1$s</string>
     <string name="external_track">خارجي</string>
-    <string name="favorites">المفضلة</string>
     <string name="file_size">الحجم</string>
     <string name="forced_track">إجبارية</string>
     <string name="genres">الأنواع</string>
@@ -94,7 +91,6 @@
     <string name="recently_added">أُضيف مؤخرًا</string>
     <string name="recently_released">أحدث الإصدارات</string>
     <string name="recommended">مقترح</string>
-    <string name="remove_favorite">إزالة من المفضلة</string>
     <string name="restart">إعادة تشغيل</string>
     <string name="resume">استئناف</string>
     <string name="save">حفظ</string>

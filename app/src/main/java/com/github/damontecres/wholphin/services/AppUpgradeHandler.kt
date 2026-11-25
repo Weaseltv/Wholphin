@@ -14,7 +14,6 @@ import com.github.damontecres.wholphin.data.model.RememberedTab
 import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.AppPreferences
 import com.github.damontecres.wholphin.preferences.ExperimentalPreference
-import com.github.damontecres.wholphin.preferences.ScreensaverPreference
 import com.github.damontecres.wholphin.preferences.update
 import com.github.damontecres.wholphin.preferences.updateAdvancedPreferences
 import com.github.damontecres.wholphin.preferences.updateExperimentalPreferences
@@ -24,7 +23,6 @@ import com.github.damontecres.wholphin.preferences.updateMpvOptions
 import com.github.damontecres.wholphin.preferences.updatePhotoPreferences
 import com.github.damontecres.wholphin.preferences.updatePlaybackOverrides
 import com.github.damontecres.wholphin.preferences.updatePlaybackPreferences
-import com.github.damontecres.wholphin.preferences.updateScreensaverPreferences
 import com.github.damontecres.wholphin.preferences.updateSearchPreferences
 import com.github.damontecres.wholphin.preferences.updateSubtitlePreferences
 import com.github.damontecres.wholphin.ui.preferences.PreferencesViewModel
@@ -34,7 +32,6 @@ import com.github.damontecres.wholphin.ui.setup.seerr.migrateSeerrUrl
 import com.github.damontecres.wholphin.util.Version
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
-import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import timber.log.Timber
 import java.io.File
@@ -281,20 +278,6 @@ class AppUpgradeHandler
                 }
             }
 
-            if (previous.isEqualOrBefore(Version.fromString("0.5.3-0-g0"))) {
-                appPreferences.updateData {
-                    it.updateScreensaverPreferences {
-                        startDelay = ScreensaverPreference.DEFAULT_START_DELAY
-                        duration = ScreensaverPreference.DEFAULT_DURATION
-                        animate = ScreensaverPreference.Animate.defaultValue
-                        maxAgeFilter = ScreensaverPreference.DEFAULT_MAX_AGE
-                        clearItemTypes()
-                        addItemTypes(BaseItemKind.MOVIE.serialName)
-                        addItemTypes(BaseItemKind.SERIES.serialName)
-                    }
-                }
-            }
-
             if (previous.isEqualOrBefore(Version.fromString("0.5.4-0-g0"))) {
                 seerrServerDao.getServers().forEach {
                     val server = it.server
@@ -317,12 +300,6 @@ class AppUpgradeHandler
                     it.updatePlaybackOverrides {
                         assPlaybackMode = AppPreference.AssSubtitleMode.defaultValue
                     }
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("0.6.2-18-g0"))) {
-                appPreferences.updateData {
-                    it.updatePlaybackPreferences { cinemaMode = AppPreference.CinemaMode.defaultValue }
                 }
             }
 
@@ -395,14 +372,6 @@ class AppUpgradeHandler
                 appPreferences.updateData {
                     it.updateSubtitlePreferences {
                         useSeparateHdr = it.interfacePreferences.shouldEnableSeparateHdrToggle()
-                    }
-                }
-            }
-
-            if (previous.isEqualOrBefore(Version.fromString("1.0.6-0-g0"))) {
-                appPreferences.updateData {
-                    it.updateScreensaverPreferences {
-                        dimPercent = ScreensaverPreference.DimPercentage.defaultValue.toInt()
                     }
                 }
             }

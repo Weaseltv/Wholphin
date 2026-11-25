@@ -29,13 +29,11 @@ import com.github.damontecres.wholphin.preferences.ExoPlayerPreferences
 import com.github.damontecres.wholphin.preferences.ExperimentalPreference
 import com.github.damontecres.wholphin.preferences.MpvPreferences
 import com.github.damontecres.wholphin.preferences.PlayerBackend
-import com.github.damontecres.wholphin.preferences.ScreensaverPreference
 import com.github.damontecres.wholphin.preferences.SkipSegmentPreferences
 import com.github.damontecres.wholphin.preferences.advancedPreferences
 import com.github.damontecres.wholphin.preferences.basicPreferences
 import com.github.damontecres.wholphin.preferences.experimentalPreferences
 import com.github.damontecres.wholphin.preferences.kidHiddenPreferences
-import com.github.damontecres.wholphin.preferences.screensaverPreferences
 import com.github.damontecres.wholphin.preferences.updatePlaybackPreferences
 import com.github.damontecres.wholphin.services.Release
 import com.github.damontecres.wholphin.services.RequestStatusRepository
@@ -60,11 +58,11 @@ import javax.inject.Inject
 
 /**
  * Settings (`Destination.Settings`) on Leanback Preference (no-Compose UI, 2026-11-22): every
- * [PreferenceScreenOption] (basic, advanced, ExoPlayer, MPV, screensaver, skip segments, experimental), built from
+ * [PreferenceScreenOption] (basic, advanced, ExoPlayer, MPV, skip segments, experimental), built from
  * the definitions in `preferences/AppPreference.kt` with the special rows the old `PreferencesContent` had: install
  * update, installed version (release notes; long press opens Debug), the tour, image cache, side menu pins, profile
- * protection and the kid-protection switch-off, sign-in, request notifications, Seerr, Quick Connect, the
- * screensaver, external player, interface language, experimental features and mpv.conf.
+ * protection and the kid-protection switch-off, sign-in, request notifications, Seerr, Quick Connect,
+ * external player, interface language, experimental features and mpv.conf.
  *
  * The panel sits on the right 40%; while an "Install update" row has focus the release notes show beside it.
  */
@@ -327,7 +325,7 @@ class AppSettingsFragment : SettingsPageFragment() {
                             getString(
                                 when (viewModel.seerrConnection.value) {
                                     is SeerrConnectionStatus.Error -> R.string.voice_error_server
-                                    SeerrConnectionStatus.NotConfigured -> R.string.add_server
+                                    SeerrConnectionStatus.NotConfigured -> R.string.requests_not_connected
                                     is SeerrConnectionStatus.Expired -> R.string.pending
                                     is SeerrConnectionStatus.Success -> R.string.enabled
                                 },
@@ -346,14 +344,6 @@ class AppSettingsFragment : SettingsPageFragment() {
                             openPanel(QuickConnectPage())
                         }
                     }
-                }
-            }
-
-            ScreensaverPreference.Start -> {
-                SettingsClickPreference(ctx).apply {
-                    title = getString(pref.title)
-                    summary = pref.summary(ctx, null)
-                    onClick = { viewModel.screensaverService.start() }
                 }
             }
 
@@ -920,7 +910,6 @@ internal val PreferenceScreenOption.groups
             PreferenceScreenOption.ADVANCED -> advancedPreferences
             PreferenceScreenOption.EXO_PLAYER -> ExoPlayerPreferences
             PreferenceScreenOption.MPV -> MpvPreferences
-            PreferenceScreenOption.SCREENSAVER -> screensaverPreferences
             PreferenceScreenOption.SKIP_SEGMENTS -> SkipSegmentPreferences
             PreferenceScreenOption.EXPERIMENTAL -> experimentalPreferences
         }
@@ -933,7 +922,6 @@ internal val PreferenceScreenOption.titleRes: Int
             PreferenceScreenOption.ADVANCED -> R.string.advanced_settings
             PreferenceScreenOption.EXO_PLAYER -> R.string.exoplayer_options
             PreferenceScreenOption.MPV -> R.string.mpv_options
-            PreferenceScreenOption.SCREENSAVER -> R.string.screensaver_settings
             PreferenceScreenOption.SKIP_SEGMENTS -> R.string.skip_behavior
             PreferenceScreenOption.EXPERIMENTAL -> R.string.experimental_settings
         }

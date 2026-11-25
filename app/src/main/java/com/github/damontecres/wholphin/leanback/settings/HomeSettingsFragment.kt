@@ -709,11 +709,6 @@ class HomeSettingsFragment : SettingsPageFragment() {
             },
         )
         screen.addPreference(
-            click(fragment, "loadWeb", glyph(R.string.fa_download, R.string.load_from_web_client)) {
-                confirm(R.string.overwrite_local_settings) { viewModel.loadFromRemoteWeb() }
-            },
-        )
-        screen.addPreference(
             click(fragment, "reset", glyph(R.string.fa_arrows_rotate, R.string.reset)) {
                 confirm(R.string.overwrite_local_settings) { addRow(false) { viewModel.resetToDefault() } }
             },

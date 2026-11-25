@@ -169,9 +169,15 @@ abstract class SettingsPageFragment :
     /** Opens the level [key] in the panel (BACK returns to the current one) */
     fun openScreen(key: String) = openPanel(SettingsListFragment.newInstance(key))
 
+    /** A level that replaces the focused one in the panel takes the focus ([SettingsListHost.takeFocusForNewLevel]) */
+    private var levelTakesFocus = false
+
+    override fun takeFocusForNewLevel(): Boolean = levelTakesFocus.also { levelTakesFocus = false }
+
     /** Shows [fragment] in the panel above the current level */
     fun openPanel(fragment: Fragment) {
         if (childFragmentManager.isStateSaved) return
+        levelTakesFocus = ::panel.isInitialized && panel.hasFocus()
         childFragmentManager
             .beginTransaction()
             .setReorderingAllowed(true)
@@ -188,6 +194,7 @@ abstract class SettingsPageFragment :
     /** Closes the top level or dialog; false when the first level is showing */
     fun closePanel(): Boolean {
         if (childFragmentManager.backStackEntryCount == 0 || childFragmentManager.isStateSaved) return false
+        levelTakesFocus = ::panel.isInitialized && panel.hasFocus()
         childFragmentManager.popBackStack()
         return true
     }

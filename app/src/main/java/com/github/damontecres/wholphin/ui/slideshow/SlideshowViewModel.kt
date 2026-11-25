@@ -19,8 +19,8 @@ import com.github.damontecres.wholphin.kids.KidContentGuard
 import com.github.damontecres.wholphin.preferences.AppPreference
 import com.github.damontecres.wholphin.preferences.PlayerBackend
 import com.github.damontecres.wholphin.services.ImageUrlService
+import com.github.damontecres.wholphin.services.KeepScreenOnService
 import com.github.damontecres.wholphin.services.PlayerFactory
-import com.github.damontecres.wholphin.services.ScreensaverService
 import com.github.damontecres.wholphin.services.UserPreferencesService
 import com.github.damontecres.wholphin.ui.PhotoItemFields
 import com.github.damontecres.wholphin.ui.launchIO
@@ -69,7 +69,7 @@ class SlideshowViewModel
         private val serverRepository: ServerRepository,
         private val imageUrlService: ImageUrlService,
         private val userPreferencesService: UserPreferencesService,
-        private val screensaverService: ScreensaverService,
+        private val keepScreenOnService: KeepScreenOnService,
         private val kidContentGuard: KidContentGuard,
         @Assisted val slideshowSettings: Destination.Slideshow,
     ) : ViewModel(),
@@ -104,7 +104,7 @@ class SlideshowViewModel
 
         init {
             addCloseable {
-                screensaverService.keepScreenOn(false)
+                keepScreenOnService.keepScreenOn(false)
                 if (this@SlideshowViewModel::player.isInitialized) {
                     player.removeListener(this@SlideshowViewModel)
                     player.release()
@@ -342,7 +342,7 @@ class SlideshowViewModel
         private var slideshowJob: Job? = null
 
         fun startSlideshow() {
-            screensaverService.keepScreenOn(true)
+            keepScreenOnService.keepScreenOn(true)
             _state.update {
                 it.copy(enabled = true, paused = false)
             }
@@ -356,7 +356,7 @@ class SlideshowViewModel
         }
 
         fun stopSlideshow() {
-            screensaverService.keepScreenOn(false)
+            keepScreenOnService.keepScreenOn(false)
             slideshowJob?.cancel()
             _state.update {
                 it.copy(enabled = false, paused = false)

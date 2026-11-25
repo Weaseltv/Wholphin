@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">Tentang</string>
-    <string name="add_favorite">Favorit</string>
     <string name="add_server">Tambahkan Server</string>
     <string name="add_user">Tambahkan Pengguna</string>
     <string name="audio">Audio</string>
@@ -16,7 +15,6 @@
     <string name="collections">Koleksi</string>
     <string name="commercial">Komersial</string>
     <string name="community_rating">Rating Komunitas</string>
-    <string name="compose_error_message_title">Terjadi kesalahan! Tekan tombol untuk mengirim log ke server kamu.</string>
     <string name="confirm">Konfirmasi</string>
     <string name="continue_watching">Lanjutkan menonton</string>
     <string name="critic_rating">Rating Kritis</string>
@@ -34,7 +32,6 @@
     <string name="discovered_servers">Server Ditemukan</string>
     <string name="download_and_update"><![CDATA[Unduh &amp; Perbarui]]></string>
     <string name="external_track">Eksternal</string>
-    <string name="favorites">Favorit</string>
     <string name="disabled">Nonaktif</string>
     <string name="enabled">Aktif</string>
     <string name="genres">Genre</string>
@@ -84,7 +81,6 @@
     <string name="recently_added">Baru ditambahkan</string>
     <string name="recently_released">Baru Dirilis</string>
     <string name="recommended">Rekomendasi</string>
-    <string name="remove_favorite">Hapus dari Favorit</string>
     <string name="restart">Mulai ulang</string>
     <string name="resume">Lanjutkan</string>
     <string name="save">Simpan</string>
@@ -214,7 +210,6 @@
     <string name="rewatch_next_up">Aktifkan tonton ulang di antrean selanjutnya</string>
     <string name="seek_bar_steps">Interval Lompatan</string>
     <string name="send_app_logs_summary">Berguna untuk diagnostik</string>
-    <string name="send_app_logs">Kirim log aplikasi ke server saat ini</string>
     <string name="send_crash_reports_summary">Akan dikirim ke server yang terakhir terhubung</string>
     <string name="send_crash_reports">Kirim Laporan Crash</string>
     <string name="settings">Pengaturan</string>
@@ -267,7 +262,6 @@
     <string name="discard_change">Batalkan perubahan?</string>
     <string name="enter_pin">Masukkan PIN</string>
     <string name="sign_in_auto">Masuk secara otomatis</string>
-    <string name="use_server_credentials">Masuk via server</string>
     <string name="press_enter_to_confirm">Tekan tengah untuk konfirmasi</string>
     <string name="confirm_pin">Konfirmasi PIN</string>
     <string name="incorrect">Salah</string>
@@ -362,9 +356,6 @@
     <string name="dts">DTS</string>
     <string name="force_dovi_profile_7">Putar langsung Dolby Vision Profil 7</string>
     <string name="force_dovi_profile_7_summary">Abaikan pemeriksaan kompatibilitas perangkat</string>
-    <string name="discover">Jelajahi</string>
-    <string name="seerr_integration">Integrasi Seerr</string>
-    <string name="remove_seerr_server">Hapus Server Seerr</string>
     <string name="seerr_server_added">Server Seerr ditambahkan</string>
     <string name="password">Kata sandi</string>
     <string name="username">Nama pengguna</string>
@@ -372,7 +363,6 @@
     <string name="trending">Tren</string>
     <string name="upcoming_movies">Film Mendatang</string>
     <string name="upcoming_tv">Acara TV Mendatang</string>
-    <string name="request_4k">Minta dalam 4K</string>
     <string name="request">Minta</string>
     <string name="pending">Tertunda</string>
     <string name="software_decoding_av1">Dekode perangkat lunak AV1</string>
@@ -402,9 +392,6 @@
     <plurals name="days">
         <item quantity="other">%s hari</item>
     </plurals>
-    <string name="quick_connect">Koneksi Cepat</string>
-    <string name="quick_connect_summary">Izinkan perangkat lain untuk masuk ke akun kamu</string>
-    <string name="quick_connect_code">Masukkan kode Koneksi Cepat</string>
     <string name="quick_connect_code_error">Kode harus terdiri dari 6 digit</string>
     <string name="quick_connect_success">Perangkat berhasil diizinkan</string>
     <string name="no_limit">Tanpa batasan</string>
@@ -416,9 +403,6 @@
     <string name="apply_all_rows">Terapkan ke semua baris</string>
     <string name="customize_home">Kustomisasi beranda</string>
     <string name="home_rows">Baris beranda</string>
-    <string name="load_from_server">Muat dari profil pengguna server</string>
-    <string name="save_to_server">Simpan ke profil pengguna server</string>
-    <string name="load_from_web_client">Muat dari klien web</string>
     <string name="use_series">Gunakan gambar seri</string>
     <string name="add_row_for">Tambah baris untuk %1$s</string>
     <string name="overwrite_server_settings">Timpa pengaturan di server?</string>
@@ -432,26 +416,12 @@
     <string name="display_presets">Preset tampilan</string>
     <string name="display_presets_description">Preset bawaan untuk kustomisasi cepat semua baris</string>
     <string name="customize_home_summary">Pilih baris dan gambar di halaman beranda</string>
-    <string name="favorite_items_title">Favoritkan %s</string>
     <string name="artist">Artis</string>
     <plurals name="minutes">
         <item quantity="other">%s menit</item>
     </plurals>
-    <string name="start_after">Mulai setelah</string>
-    <string name="animate">Animasi</string>
-    <string name="max_age_rating">Rating usia maks</string>
-    <string name="no_max">Tidak ada maks</string>
-    <string name="for_all_ages">Untuk semua umur</string>
-    <string name="up_to_age">Maks. usia %s</string>
-    <string name="screensaver">Screensaver</string>
-    <string name="screensaver_settings">Pengaturan screensaver</string>
-    <string name="start_screensaver">Mulai screensaver</string>
-    <string name="duration">Durasi</string>
     <string name="photos">Foto</string>
     <string name="include_types">Sertakan jenis</string>
-    <string name="include_types_summary">Tampilkan gambar untuk jenis item</string>
-    <string name="display_preset_default">Wholphin Bawaan</string>
-    <string name="display_preset_compact">Wholphin Ringkas</string>
     <string name="display_preset_series_thumb">Gambar Thumbnail Seri</string>
     <string name="display_preset_episode_thumbnails">Gambar Thumbnail Episode</string>
     <string name="volume_lowest">Terendah</string>
@@ -496,7 +466,6 @@
     <string name="search_and_download_subtitles"><![CDATA[Cari &amp; unduh subtitel]]></string>
     <string name="no_subtitles_found">Subtitel remote tidak ditemukan</string>
     <string name="series_continueing">Tayang</string>
-    <string name="in_app_screensaver">Gunakan screensaver dalam aplikasi</string>
     <string name="actor">Aktor</string>
     <string name="composer">Komposer</string>
     <string name="writer">Penulis</string>
@@ -527,13 +496,10 @@
     <string name="show_backdrop">Tampilkan backdrop</string>
     <string name="continue_string">Lanjutkan</string>
     <string name="separate_types">Pisahkan jenis</string>
-    <string name="updated_toast">Wholphin diperbarui ke %s</string>
     <string name="remove_continue_watching">Hapus dari \"Lanjutkan menonton\"</string>
     <string name="remove_next_up">Hapus seri dari \"Berikutnya\"</string>
     <string name="view_removed_next_up">Lihat seri yang dihapus dari \"Berikutnya\"</string>
     <string name="view_more">Lihat semua</string>
-    <string name="discover_tv">Jelajahi acara TV</string>
-    <string name="discover_movies">Jelajahi film</string>
     <string name="studios_in">Studio dari %1$s</string>
     <string name="next_up_never">Tidak pernah</string>
     <string name="external_player">Pemutar eksternal</string>
@@ -543,13 +509,11 @@
     <string name="ass_subtitle_mode_exoplayer">Putar langsung dengan bawaan ExoPlayer</string>
     <string name="ass_subtitle_mode_transcode">Burn-in/transkode di server</string>
     <string name="ass_subtitle_playback">Pemutaran subtitle SSA/ASS</string>
-    <string name="cinema_mode">Mode bioskop</string>
     <string name="show_more">Tampilkan %1$s lagi</string>
     <string name="transcoding">Transkode</string>
     <string name="play_with">Putar dengan</string>
     <string name="skip_behavior_summary">Untuk intro, kredit, dll</string>
     <string name="skip_behavior">Perilaku lewati</string>
-    <string name="pin_digits_hint">[0–9]</string>
     <string name="combined_search_results">Hasil pencarian gabungan</string>
     <string name="combined_search_results_on">Tampilkan semua hasil dalam satu daftar</string>
     <string name="combined_search_results_off">Tampilkan hasil berdasarkan kategori</string>
@@ -615,7 +579,6 @@
     <string name="time_left">Sisa %1$s</string>
     <string name="prefer_ac3_for_surround_summary"><![CDATA[Transkode audio non-stereo ke AC3/Dolby Digital]]></string>
     <string name="unavailable">Tidak tersedia</string>
-    <string name="profile_specific_settings_from_server">Pengaturan profil pengguna dari server</string>
     <string name="subtitle_mode">Mode subtitel</string>
     <string name="use_user_profile">Gunakan pengaturan profil kamu</string>
     <string name="subtitle_mode_default">Default</string>
@@ -650,9 +613,6 @@
     <string name="books">Buku</string>
     <string name="audio_books">Buku audio</string>
     <string name="server_version_not_supported">Versi server tidak didukung</string>
-    <string name="dim_after_delay">Redupkan layar setelah penundaan</string>
-    <string name="dim_percentage">Persentase redup</string>
-    <string name="dim_screen">Redupkan layar</string>
     <string name="photo_albums">Album foto</string>
     <string name="no_favorites_found">Favorit tidak ditemukan!</string>
 </resources>

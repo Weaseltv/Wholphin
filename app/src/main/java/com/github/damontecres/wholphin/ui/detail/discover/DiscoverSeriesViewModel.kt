@@ -41,12 +41,10 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -75,10 +73,6 @@ class DiscoverSeriesViewModel
         val state: StateFlow<DiscoverSeriesState> = _state
 
         val userConfig = seerrServerRepository.current.map { it?.config }
-        val request4kEnabled =
-            seerrServerRepository.current
-                .map { it?.request4kTvEnabled ?: false }
-                .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
         init {
             init()
@@ -180,17 +174,8 @@ class DiscoverSeriesViewModel
             }
         }
 
+        /** The season list of the request dialog; requests are never 4K (owner, 2026-11-23), so 4K statuses are ignored */
         private suspend fun updateSeasonStatus(tv: TvDetails) {
-            if (request4kEnabled.first()) {
-                updateSeasonStatus(tv, true)
-            }
-            updateSeasonStatus(tv, false)
-        }
-
-        private suspend fun updateSeasonStatus(
-            tv: TvDetails,
-            is4k: Boolean,
-        ) {
             val currentUserId = seerrServerRepository.currentUserId.first()
             val seasonStatus = mutableMapOf<Int, RequestStatus>()
             val seasonAvailability = mutableMapOf<Int, SeerrAvailability>()
@@ -198,7 +183,7 @@ class DiscoverSeriesViewModel
             tv.seasons?.forEach {
                 it.seasonNumber?.let { seasonNumber ->
                     seasonStatus[seasonNumber] = RequestStatus.UNKNOWN
-                    val status = if (is4k) it.status4k else it.status
+                    val status = it.status
                     val availability =
                         SeerrAvailability.from(status) ?: SeerrAvailability.UNKNOWN
                     seasonAvailability[seasonNumber] = availability
@@ -206,7 +191,7 @@ class DiscoverSeriesViewModel
             }
             tv.mediaInfo?.seasons?.forEach {
                 it.seasonNumber?.let { seasonNumber ->
-                    val status = if (is4k) it.status4k else it.status
+                    val status = it.status
                     val availability =
                         SeerrAvailability.from(status) ?: SeerrAvailability.UNKNOWN
                     val current =
@@ -219,7 +204,7 @@ class DiscoverSeriesViewModel
 
             tv.mediaInfo
                 ?.requests
-                ?.filter { it.is4k == is4k }
+                ?.filter { it.is4k != true }
                 ?.forEach { req ->
                     req.seasons?.mapNotNull { season ->
                         season.seasonNumber?.let {
@@ -280,24 +265,8 @@ class DiscoverSeriesViewModel
                         )
                     }
                 }
-            Timber.v("Got %s seasons, is4k=%s", requestSeasons.size, is4k)
-//            requestSeasons.forEach {
-//                Timber.v(
-//                    "is4k=%s, season %s: availability=%s, status=%s, editable=%s",
-//                    is4k,
-//                    it.season.seasonNumber,
-//                    it.availability,
-//                    it.status,
-//                    it.editable,
-//                )
-//            }
-            _state.update {
-                if (is4k) {
-                    it.copy(seasons4k = requestSeasons)
-                } else {
-                    it.copy(seasons = requestSeasons)
-                }
-            }
+            Timber.v("Got %s seasons", requestSeasons.size)
+            _state.update { it.copy(seasons = requestSeasons) }
         }
 
         private suspend fun updateCanCancel() {
@@ -365,7 +334,7 @@ class DiscoverSeriesViewModel
                     val currentRequest =
                         tv.mediaInfo?.requests?.firstOrNull {
                             it.status == RequestStatus.PENDING.status &&
-                                it.is4k == request.is4k &&
+                                it.is4k != true &&
                                 it.requestedBy?.id == account.config.id
                         }
                     // Home loads again after a request is made or changed (speed plan step 16)
@@ -377,15 +346,12 @@ class DiscoverSeriesViewModel
                                 requestId = currentRequest.id.toString(),
                                 requestRequestIdPutRequest =
                                     RequestRequestIdPutRequest(
-                                        is4k = request.is4k,
+                                        // Never 4K (owner, 2026-11-23)
+                                        is4k = false,
                                         mediaType = RequestRequestIdPutRequest.MediaType.TV,
                                         seasons = request.seasons,
                                         serverId =
-                                            when {
-                                                request.profileId == null && request.folder == null -> null
-                                                request.is4k -> request.data.server4kId
-                                                else -> request.data.serverId
-                                            },
+                                            if (request.profileId == null && request.folder == null) null else request.data.serverId,
                                         profileId = request.profileId,
                                         rootFolder = request.folder,
                                     ),
@@ -394,16 +360,13 @@ class DiscoverSeriesViewModel
                             Timber.v("New request for %s seasons", request.seasons.size)
                             client.requestApi.requestPost(
                                 RequestPostRequest(
-                                    is4k = request.is4k,
+                                    // Never 4K (owner, 2026-11-23)
+                                    is4k = false,
                                     mediaId = request.tvId,
                                     mediaType = RequestPostRequest.MediaType.TV,
                                     seasons = request.seasons,
                                     serverId =
-                                        when {
-                                            request.profileId == null && request.folder == null -> null
-                                            request.is4k -> request.data.server4kId
-                                            else -> request.data.serverId
-                                        },
+                                        if (request.profileId == null && request.folder == null) null else request.data.serverId,
                                     profileId = request.profileId,
                                     rootFolder = request.folder,
                                     tags = emptyList(),
@@ -471,7 +434,6 @@ data class DiscoverSeriesState(
     val tvSeries: DataLoadingState<TvDetails> = DataLoadingState.Pending,
     val rating: DiscoverRating? = null,
     val seasons: List<RequestSeason> = emptyList(),
-    val seasons4k: List<RequestSeason> = emptyList(),
     val trailers: List<Trailer> = emptyList(),
     val people: List<DiscoverItem> = emptyList(),
     val similar: List<DiscoverItem> = emptyList(),

@@ -12,7 +12,6 @@ adds what the shell does around your screens.
 |---|---|
 | setup layer | `SetupDestination.Loading` (spinner), `ServerList` / `UserList` fragments from `leanback.setup.SetupScreens`, or the app layer; 700 ms cross-fades between them, like the old NavDisplay |
 | app layer (signed in) | `BackdropView`, `SideMenuView`, the pages (`NavHost`, container `R.id.lb_shell_pages`), the clock, request chips, the coach-mark tour overlay |
-| over everything | the in-app screensaver (`ScreensaverView`, also used by `WholphinDreamService`) and its dim |
 | own windows | the update popup and What's New (`ShellPrompts.kt`) |
 
 The app layer exists only while the setup destination is `AppContent(current)`. Leaving it (profile chooser, server
@@ -107,8 +106,8 @@ targets and scrolling are the shell's.
 
 ## 4. Keys and BACK
 
-- Key order: screensaver (wakes it and eats the key) → coach-mark tour → your `onPreviewKeyEvent(event)` (only while
-  focus is inside your page, as Compose preview handlers were) → normal View dispatch.
+- Key order: coach-mark tour → your `onPreviewKeyEvent(event)` (only while focus is inside your page, as Compose
+  preview handlers were) → normal View dispatch.
 - BACK: your `onBackPressed()` first (return true to consume an inner step). `OnBackPressedCallback`s you register
   with `viewLifecycleOwner` also run before the shell. Then the shell: More expanded → collapse it; on Home with the
   menu closed → open the menu on Home; otherwise `navigationManager.goBack()`; at the root the activity's default

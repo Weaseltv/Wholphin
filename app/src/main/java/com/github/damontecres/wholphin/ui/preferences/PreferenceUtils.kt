@@ -35,7 +35,6 @@ enum class PreferenceScreenOption {
     ADVANCED,
     EXO_PLAYER,
     MPV,
-    SCREENSAVER,
     SKIP_SEGMENTS,
     EXPERIMENTAL,
     ;

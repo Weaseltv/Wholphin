@@ -227,6 +227,7 @@ class SeerrService
             }
         }
 
+        /** The quality profiles and folders of the default non-4K Radarr or Sonarr; requests are never 4K (owner, 2026-11-23) */
         suspend fun getProfilesAndFolders(type: SeerrItemType): SeerrRequestData {
             var result = SeerrRequestData()
             val current = seerrServerRepository.current.firstOrNull()
@@ -236,9 +237,6 @@ class SeerrService
                     val radarr =
                         radarrs.firstOrNull { it.isDefault && !it.is4k }
                             ?: radarrs.firstOrNull { !it.is4k }
-                    val radarr4k =
-                        radarrs.firstOrNull { it.isDefault && it.is4k }
-                            ?: radarrs.firstOrNull { it.is4k }
 
                     if (radarr != null && radarr.id != null) {
                         val settings = api.serviceApi.serviceRadarrRadarrIdGet(radarr.id)
@@ -257,30 +255,11 @@ class SeerrService
                                 )
                         }
                     }
-                    if (radarr4k != null && radarr4k.id != null) {
-                        val settings = api.serviceApi.serviceRadarrRadarrIdGet(radarr4k.id)
-                        setProfilesAndFolder(
-                            settings.profiles,
-                            settings.rootFolders,
-                            settings.server?.activeProfileId,
-                            settings.server?.activeDirectory,
-                        ) { profiles, rootFolders ->
-                            result =
-                                result.copy(
-                                    server4kId = radarr4k.id,
-                                    profiles4k = profiles,
-                                    rootFolders4k = rootFolders,
-                                )
-                        }
-                    }
                 } else {
                     val sonarrs = api.serviceApi.serviceSonarrGet()
                     val sonarr =
                         sonarrs.firstOrNull { it.isDefault && !it.is4k }
                             ?: sonarrs.firstOrNull { !it.is4k }
-                    val sonarr4k =
-                        sonarrs.firstOrNull { it.isDefault && it.is4k }
-                            ?: sonarrs.firstOrNull { it.is4k }
 
                     if (sonarr != null && sonarr.id != null) {
                         val settings = api.serviceApi.serviceSonarrSonarrIdGet(sonarr.id)
@@ -296,22 +275,6 @@ class SeerrService
                                     serverId = sonarr.id,
                                     profiles = profiles,
                                     rootFolders = rootFolders,
-                                )
-                        }
-                    }
-                    if (sonarr4k != null && sonarr4k.id != null) {
-                        val settings = api.serviceApi.serviceSonarrSonarrIdGet(sonarr4k.id)
-                        setProfilesAndFolder(
-                            settings.profiles,
-                            settings.rootFolders,
-                            settings.server?.activeProfileId,
-                            settings.server?.activeDirectory,
-                        ) { profiles, rootFolders ->
-                            result =
-                                result.copy(
-                                    server4kId = sonarr4k.id,
-                                    profiles4k = profiles,
-                                    rootFolders4k = rootFolders,
                                 )
                         }
                     }

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">אודות</string>
-    <string name="add_favorite">הוספה למועדפים</string>
     <string name="add_server">הוסף שרת</string>
     <string name="add_user">הוסף משתמש</string>
     <string name="audio">שמע</string>
@@ -14,7 +13,6 @@
     <string name="collections">אוספים</string>
     <string name="commercial">מסחרי</string>
     <string name="community_rating">דירוג קהילתי</string>
-    <string name="compose_error_message_title">אירעה שגיאה! לחץ על הכפתור על מנת לשלוח יומני אירועים לשרת שלך.</string>
     <string name="confirm">אשר</string>
     <string name="continue_watching">המשך צפייה</string>
     <string name="critic_rating">דירוג מבקרים</string>
@@ -35,7 +33,6 @@
     <string name="switch_servers">החלף שרתים</string>
     <string name="search">חיפוש</string>
     <string name="home">דף הבית</string>
-    <string name="favorites">מועדפים</string>
     <plurals name="movies">
         <item quantity="one">סרט</item>
         <item quantity="two">סרטים</item>
@@ -159,7 +156,6 @@
     <string name="recently_added">נוסף לאחרונה</string>
     <string name="recently_released">שוחררו לאחרונה</string>
     <string name="recommended">מומלץ</string>
-    <string name="remove_favorite">הסרה ממועדפים</string>
     <string name="restart">התחל מחדש</string>
     <string name="resume">המשך ניגון</string>
     <string name="save">שמור</string>
@@ -279,7 +275,6 @@
         <item quantity="two">קטעים קצרים</item>
         <item quantity="other">קטעים קצרים</item>
     </plurals>
-    <string name="favorite_items_title">מועדפים: %s</string>
     <string name="ac3_supported">המכשיר תומך ב־AC3/Dolby Digital</string>
     <string name="advanced_settings">הגדרות מתקדמות</string>
     <string name="advanced_ui">ממשק מתקדם</string>
@@ -331,7 +326,6 @@
     <string name="jump_letters">#ABCDEFGHIJKLMNOPQRSTUVWXYZאבגדהוזחטיכלמנסעפצקרשת</string>
     <string name="seek_bar_steps">מדרגות דילוג בפס הניגון</string>
     <string name="send_app_logs_summary">שימושי לניפוי־שגיאות</string>
-    <string name="send_app_logs">שלח לוגים של האפליקציה לשרת הנוכחי</string>
     <string name="send_crash_reports_summary">ניסיון שליחה לשרת האחרון שחובר יתבצע</string>
     <string name="send_crash_reports">שלח דוחות קריסה</string>
     <string name="settings">הגדרות</string>
@@ -360,7 +354,6 @@
     <string name="subtitle_margin">שוליים</string>
     <string name="verbose_logging">תיעוד לוגים מפורט</string>
     <string name="enter_pin">הכנס PIN</string>
-    <string name="use_server_credentials">היכנס באמצעות השרת</string>
     <string name="press_enter_to_confirm">לחץ על האמצע כדי לאשר</string>
     <string name="require_pin_code">דרוש PIN לפרופילים</string>
     <string name="confirm_pin">אמת PIN</string>
@@ -415,22 +408,15 @@
     <string name="clear_track_choices">ניקוי בחירת רצועות</string>
     <string name="force_dovi_profile_7">ניגון ישיר של Dolby Vision Profile 7</string>
     <string name="force_dovi_profile_7_summary">התעלם מבדיקות תאימות של המכשיר</string>
-    <string name="discover">גלה</string>
     <string name="request">בקש</string>
     <string name="pending">ממתין</string>
-    <string name="seerr_integration">אינטגרציה עם Seerr</string>
-    <string name="remove_seerr_server">מחק שרת Seerr</string>
     <string name="seerr_server_added">נוסף שרת Seerr</string>
-    <string name="quick_connect">חיבור־מהיר</string>
-    <string name="quick_connect_summary">מתן הרשאה למכשיר נוסף להיכנס למשתמש שלך</string>
-    <string name="quick_connect_code">הכנס קוד לחיבור־מהיר</string>
     <string name="quick_connect_code_error">הקוד חייב להיות 6 ספרות</string>
     <string name="quick_connect_success">המכשיר אושר בהצלחה</string>
     <string name="url">כתובת</string>
     <string name="trending">פופולרי עכשיו</string>
     <string name="upcoming_movies">סרטים שיוצאים בקרוב</string>
     <string name="upcoming_tv">סדרות שיוצאות בקרוב</string>
-    <string name="request_4k">בקש ב־4K</string>
     <string name="software_decoding_av1">פענוח תוכנתי של AV1</string>
     <string name="upgrade_mpv_toast">נגן ברירת המחדל כעת הוא MPV חוץ מאשר ל־HDR.\nניתן לשנות זאת בהגדרות.</string>
     <string name="hdr_subtitle_style">סגנון כתוביות HDR</string>
@@ -462,9 +448,6 @@
     <string name="apply_all_rows">החל על כל השורות</string>
     <string name="customize_home">התאמה אישית של מסך הבית</string>
     <string name="home_rows">שורות במסך הבית</string>
-    <string name="load_from_server">טען מפרופיל המשתמש בשרת</string>
-    <string name="save_to_server">שמירה לפרופיל המשתמש בשרת</string>
-    <string name="load_from_web_client">טען מלקוח הדפדפן</string>
     <string name="use_series">השתמש בתמונה של הסדרה</string>
     <string name="add_row_for">הוסף שורה ל־%1$s</string>
     <string name="overwrite_server_settings">דריסת הגדרות בשרת?</string>
@@ -478,26 +461,13 @@
     <string name="display_presets">תבניות תצוגה</string>
     <string name="display_presets_description">תבניות מוטמעות לעיצוב מהיר של כל השורות</string>
     <string name="customize_home_summary">בחירת שורות ותמונות במסך הבית</string>
-    <string name="start_after">התחל אחרי</string>
-    <string name="animate">הנפש</string>
-    <string name="max_age_rating">דירוג גיל מקסימלי</string>
-    <string name="no_max">ללא מקסימום</string>
-    <string name="for_all_ages">לכל הגילאים</string>
-    <string name="up_to_age">עד גיל %s</string>
-    <string name="screensaver">שומר מסך</string>
-    <string name="screensaver_settings">הגדרות שומר־מסך</string>
-    <string name="start_screensaver">התחל שומר־מסך</string>
-    <string name="duration">משך</string>
     <string name="photos">תמונות</string>
     <string name="include_types">סוגי תוכן כלולים</string>
-    <string name="include_types_summary">עבור אילו סוגי פריטים להציג תמונות</string>
     <string name="content_scale_fit">התאמה לתצוגה</string>
     <string name="content_scale_crop">חיתוך לתצוגה</string>
     <string name="content_scale_fill">מתיחה לתצוגה</string>
     <string name="content_scale_fill_width">מתיחה לרוחב</string>
     <string name="content_scale_fill_height">מתיחה לגובה</string>
-    <string name="display_preset_default">ברירת המחדל של Wholphin</string>
-    <string name="display_preset_compact">Wholphin קומפקטי</string>
     <string name="display_preset_series_thumb">תמונות־ממוזערות של סדרה</string>
     <string name="display_preset_episode_thumbnails">תמונות־ממוזערות של פרק</string>
     <string name="bold_blue">כחול עז</string>
@@ -538,7 +508,6 @@
     <string name="search_and_download_subtitles"><![CDATA[חפש והורד כתוביות]]></string>
     <string name="no_subtitles_found">לא נמצאו כתוביות מקוונות</string>
     <string name="series_continueing">היום</string>
-    <string name="in_app_screensaver">השתמש בשומר מסך פנימי של האפליקציה</string>
     <string name="delete_item">האם אתה בטוח שאתה רוצה למחוק פריט זה?</string>
     <string name="show_media_management">הצגת אפשרויות לניהול מדיה</string>
     <string name="search_for">חיפוש %s</string>
@@ -562,13 +531,10 @@
     <string name="select_all">בחר הכול</string>
     <string name="separate_types">סוגים נפרדים</string>
     <string name="prefer_logos">העדף להציג לוגו על פני כותרת</string>
-    <string name="updated_toast">Wholphin עודכן ל־%s</string>
     <string name="remove_continue_watching">מחק מהמשך צפייה</string>
     <string name="remove_next_up">מחק סדרה מ־\"הבא בתור\"</string>
     <string name="view_removed_next_up">הצג סדרות שנמחקו מ־\"הבא בתור\"</string>
     <string name="view_more">הצג עוד</string>
-    <string name="discover_tv">גלה סדרות</string>
-    <string name="discover_movies">גלה סרטים</string>
     <string name="studios_in">אולפנים ב־%1$s</string>
     <string name="last_played">נוגן לאחרונה</string>
     <string name="system_default">ברירת מחדל של המערכת</string>
@@ -576,7 +542,6 @@
     <string name="ass_subtitle_mode_exoplayer">ניגון ישיר עם ExoPlayer</string>
     <string name="ass_subtitle_mode_transcode">צרוב/המר קידוד בשרת</string>
     <string name="ass_subtitle_playback">ניגון כתוביות SSA/ASS</string>
-    <string name="cinema_mode">מצב קולנוע</string>
     <string name="show_more">הצג עוד %1$s</string>
     <string name="skip_behavior">התנהגות דילוג</string>
     <string name="skip_behavior_summary">עבור פתיחים, כתוביות סיום וכו\'</string>
@@ -599,7 +564,6 @@
     <string name="anamorphic">אנאמורפי</string>
     <string name="image_subtitle_opacity">אטימות כתוביות מבוססות־תמונה</string>
     <string name="slideshow_at_beginning">מההתחלה</string>
-    <string name="pin_digits_hint">[0–9]</string>
     <string name="combined_search_results">תוצאות חיפוש ממוזגות</string>
     <string name="combined_search_results_on">הצג את כל התוצאות ברשימה אחת</string>
     <string name="combined_search_results_off">הצג תוצאות לפי קטגוריה</string>
@@ -675,7 +639,6 @@
     <string name="user_views">צפיות משתמש</string>
     <string name="books">ספרים</string>
     <string name="server_version_not_supported">גרסת השרת לא נתמכת</string>
-    <string name="profile_specific_settings_from_server">הגדרות פרופיל משתמש מהשרת</string>
     <string name="d_pad_seek_mode_title">מצב פס הניגון של כפתור הניווט</string>
     <string name="dpad_seek_mode_minimal_summary">פס ניגון קטן בתחתית המסך (ברירת מחדל)</string>
     <string name="dpad_seek_mode_trickplay_summary">פס ניגון עם תצוגת תמונות Trickplay</string>
@@ -689,9 +652,6 @@
     <string name="hash_matches">התאמות של פונקציית־גיבוב</string>
     <string name="disable_audio_offload_summary">השבתת פענוח אודיו בהורדה עשויה לתקן קפיאות בניגון במכשירים מסוימים</string>
     <string name="disable_audio_offload">השבתת פענוח אודיו בהורדה</string>
-    <string name="dim_after_delay">עמעם תצוגה אחרי השהייה</string>
-    <string name="dim_percentage">עוצמת העמעום</string>
-    <string name="dim_screen">עמעם תצוגה</string>
     <string name="photo_albums">אלבומי תמונות</string>
     <string name="no_favorites_found">לא נמצאו מועדפים!</string>
     <string name="duration_hours_seconds">%1$d שע\' %2$d שנ\'</string>

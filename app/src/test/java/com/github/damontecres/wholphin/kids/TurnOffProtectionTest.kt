@@ -81,7 +81,6 @@ class TurnOffProtectionTest {
                 preferenceDataStore = mockk(relaxed = true),
                 navigationManager = mockk(relaxed = true),
                 backdropService = mockk(relaxed = true),
-                screensaverService = mockk(relaxed = true),
                 serverRepository = serverRepository,
                 seerrServerRepository = mockk(relaxed = true),
                 updateChecker = mockk(relaxed = true),

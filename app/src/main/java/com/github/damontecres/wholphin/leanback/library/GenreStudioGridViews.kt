@@ -15,6 +15,7 @@ import com.github.damontecres.wholphin.leanback.widget.card.CardGridView
 import com.github.damontecres.wholphin.leanback.widget.card.GenreCardView
 import com.github.damontecres.wholphin.leanback.widget.card.StudioCardView
 import com.github.damontecres.wholphin.leanback.widget.card.cardPresenter
+import com.github.damontecres.wholphin.leanback.widget.card.jumpToPosition
 import com.github.damontecres.wholphin.leanback.widget.control.ErrorView
 import com.github.damontecres.wholphin.leanback.widget.control.LoadingPageView
 import com.github.damontecres.wholphin.ui.components.ErrorViewModel
@@ -106,7 +107,7 @@ abstract class NameCardGridContentView(
     override fun onShown(firstTime: Boolean) {
         // The old tab content started over at its first card when selected again (initialPosition = 0)
         if (!firstTime && kind == KIND_SUCCESS && fragment.isTopScreen) {
-            grid.grid.selectedPosition = 0
+            grid.grid.jumpToPosition(0)
             grid.grid.requestFocus()
         }
     }

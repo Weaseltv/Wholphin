@@ -32,8 +32,6 @@ import com.github.damontecres.wholphin.services.RequestStatusItem
 import com.github.damontecres.wholphin.services.RequestStatusRepository
 import com.github.damontecres.wholphin.services.RequestSubmission
 import com.github.damontecres.wholphin.services.RequestsState
-import com.github.damontecres.wholphin.services.ScreensaverService
-import com.github.damontecres.wholphin.services.ScreensaverState
 import com.github.damontecres.wholphin.services.eventKey
 import com.github.damontecres.wholphin.services.presentationKey
 import com.github.damontecres.wholphin.services.requestPresentationKey
@@ -52,8 +50,8 @@ private const val REQUEST_SUBMISSION_TIMEOUT_MILLIS = 6_000L
 
 /**
  * The request status chips (the old `RequestChipHost`): a nonmodal card in the bottom end corner when a request is
- * ready or has news, and a short "Request sent" confirmation. Never over playback, the screensaver, a dialog (the
- * window loses focus), text entry or the tour; a chip hidden by one of those is not used up.
+ * ready or has news, and a short "Request sent" confirmation. Never over playback, a dialog (the window loses
+ * focus), text entry or the tour; a chip hidden by one of those is not used up.
  *
  * The card takes focus when it appears (after 500 ms, so navigation settles), OK only counts 700 ms after it appeared,
  * BACK closes it, and it closes itself after a minute without input. Closing gives focus back to where it was.
@@ -62,7 +60,6 @@ internal class RequestChipHost(
     private val host: FrameLayout,
     private val repository: RequestStatusRepository,
     private val navigation: NavigationManager,
-    private val screensaver: ScreensaverService,
     private val ownerRowId: Int,
     private val presentationBlocked: Flow<Boolean>,
     private val lifecycle: Lifecycle,
@@ -75,7 +72,6 @@ internal class RequestChipHost(
     val environment = MutableStateFlow(0)
 
     private var state = RequestsState()
-    private var saver = ScreensaverState(false, false, false, false)
     private var blocked = false
     private val progressHost = Any()
 
@@ -111,10 +107,9 @@ internal class RequestChipHost(
         coroutineScope = scope
         jobs +=
             scope.launch {
-                combine(repository.state, screensaver.state, presentationBlocked, environment) { s, sv, b, _ -> Triple(s, sv, b) }
-                    .collect { (s, sv, b) ->
+                combine(repository.state, presentationBlocked, environment) { s, b, _ -> s to b }
+                    .collect { (s, b) ->
                         state = s
-                        saver = sv
                         blocked = b
                         evaluate()
                     }
@@ -154,7 +149,7 @@ internal class RequestChipHost(
 
     private fun pageSafe(): Boolean =
         state.ownerRowId == ownerRowId && state.connected && windowFocused && resumed && !playback &&
-            !saver.show && !saver.showDim && !textInputActive && !blocked
+            !textInputActive && !blocked
 
     private fun candidates(): List<RequestEvent> {
         val deliveredKeys = state.notifications.delivered.mapTo(mutableSetOf()) { it.requestPresentationKey() }

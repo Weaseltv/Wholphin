@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">Информация</string>
-    <string name="add_favorite">В избранное</string>
     <string name="add_server">Добавить сервер</string>
     <string name="add_user">Добавить Пользователя</string>
     <string name="audio">Аудиодорожка</string>
@@ -15,7 +14,6 @@
     <string name="collection">Коллекция</string>
     <string name="collections">Коллекции</string>
     <string name="community_rating">Оценка сообщества</string>
-    <string name="compose_error_message_title">Произошла ошибка! Нажмите клавишу, чтобы отправить файл журнала на ваш сервер.</string>
     <string name="confirm">Подтвердить</string>
     <string name="continue_watching">Продолжить просмотр</string>
     <string name="critic_rating">Оценка критиков</string>
@@ -31,7 +29,6 @@
     <string name="enter_server_url">Введите IP или URL сервера</string>
     <string name="episodes">Эпизоды</string>
     <string name="error_loading_collection">Ошибка при загрузке коллекции %1$s</string>
-    <string name="favorites">Избранное</string>
     <string name="ac3_supported">Устройство поддерживает AC3/Dolby Digital</string>
     <string name="advanced_settings">Расширенные настройки</string>
     <string name="app_theme">Тема оформления</string>
@@ -68,7 +65,6 @@
     <string name="recently_added_in">Недавно добавленное в %1$s</string>
     <string name="recently_added">Недавно добавленное</string>
     <string name="recommended">Рекомендовано Вам</string>
-    <string name="remove_favorite">Убрать из избранного</string>
     <string name="resume">Продолжить</string>
     <string name="save">Сохранить</string>
     <string name="search_and_download">Найти и скачать</string>
@@ -221,7 +217,6 @@
     <string name="ui_interface">Интерфейс</string>
     <string name="play_count">Количество воспроизведений</string>
     <string name="recap">Краткое содержание</string>
-    <string name="use_server_credentials">Вход через сервер</string>
     <string name="press_enter_to_confirm">Нажмите центральную клавишу для подтверждения</string>
     <string name="require_pin_code">Требовать ПИН-код профиля</string>
     <string name="confirm_pin">Подтвердите ПИН-код</string>
@@ -274,7 +269,6 @@
     <string name="background_opacity">Прозрачность фона</string>
     <string name="install_update">Установить обновление</string>
     <string name="installed_version">Версия приложения</string>
-    <string name="send_app_logs">Отправить журнал на текущий сервер</string>
     <string name="send_crash_reports_summary">Совершит попытку отправки на последний подключённый сервер</string>
     <string name="go_to_series">Перейти к сериалу</string>
     <string name="update_url">Ссылка для обновлениий</string>
@@ -401,13 +395,11 @@
     <string name="green">Зелёный</string>
     <string name="blue">Синий</string>
     <string name="brightness">Яркость</string>
-    <string name="seerr_integration">Интеграция с Seerr</string>
     <string name="search_for">Найти %s</string>
     <string name="select_all">Выбрать всё</string>
     <string name="subtitle_delay">Задержка субтитров</string>
     <string name="play_trailer">Воспроизвести трейлер</string>
     <string name="no_trailers">Трейлеров нет</string>
-    <string name="duration">Длительность</string>
     <string name="photos">Фотографии</string>
     <string name="purple">Фиолетовый</string>
     <string name="orange">Оранжевый</string>
@@ -441,7 +433,6 @@
         <item quantity="many">%1$d лет</item>
         <item quantity="other">%1$d лет</item>
     </plurals>
-    <string name="profile_specific_settings_from_server">Использовать настройки профиля с сервера</string>
     <string name="trailers_title">Трейлеры</string>
     <string name="behind_the_scenes_title">За кадром</string>
     <string name="theme_songs_title">Тематические Песни</string>
@@ -451,7 +442,6 @@
     <string name="interviews_title">Интервью</string>
     <string name="scenes_title">Сцены</string>
     <string name="require_login">Требуется логин для профиля</string>
-    <string name="pin_digits_hint">[0–9]</string>
     <string name="avc">AVC</string>
     <string name="sdr">SDR</string>
     <string name="hdr10">HDR10</string>
@@ -470,7 +460,6 @@
     <string name="dts">DTS</string>
     <string name="force_dovi_profile_7">Прямое воспроизведение Dolby Vision Profile 7</string>
     <string name="server_version_not_supported">Серверная версия не поддерживается</string>
-    <string name="favorite_items_title">Избранное %s</string>
     <string name="disable_audio_offload_summary">Отключение выгрузки аудио-декодирования может исправить фризы воспроизведения на некоторых устройствах</string>
     <string name="nal">NAL</string>
     <string name="show_titles">Показывать названия</string>
@@ -483,21 +472,15 @@
     <string name="local">Локальный</string>
     <string name="clear_track_choices">Очистить выбор дорожки</string>
     <string name="force_dovi_profile_7_summary">Игнорировать проверки совместимости устройства</string>
-    <string name="discover">Обзор</string>
     <string name="request">Запрос</string>
     <string name="pending">В ожидании</string>
-    <string name="remove_seerr_server">Удалить сервер Seerr</string>
     <string name="seerr_server_added">Сервер Seerr добавлен</string>
-    <string name="quick_connect">Быстрое Поключение</string>
-    <string name="quick_connect_summary">Авторизовать другое устройство для поключения к вашей учетной записи</string>
-    <string name="quick_connect_code">Ввести код Быстрого Подключения</string>
     <string name="quick_connect_code_error">В коде должно быть 6 цифр</string>
     <string name="quick_connect_success">Устройство авторизовано успешно</string>
     <string name="url">URL</string>
     <string name="trending">В тренде</string>
     <string name="upcoming_tv">Ожидаемые сериалы</string>
     <string name="upcoming_movies">Ожидаемые фильмы</string>
-    <string name="request_4k">Запросить в 4K</string>
     <string name="software_decoding_av1">Программное декодирование AV1</string>
     <string name="upgrade_mpv_toast">MPV сейчас плеер по умолчанию исключая HDR.\nВы можете изменить это в настройках.</string>
     <string name="play_slideshow">Воспроизвести слайдшоу</string>

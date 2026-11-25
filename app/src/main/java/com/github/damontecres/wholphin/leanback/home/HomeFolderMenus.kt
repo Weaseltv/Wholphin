@@ -265,7 +265,7 @@ internal class FilterButton(
         mainOpen = true
         val menu = AppDropdownMenu(button)
         if (count > 0) {
-            removeRow(menu) {
+            removeRow(menu, R.string.remove_all_filters) {
                 menu.dismiss()
                 onFilterChange(current.delete(options))
             }
@@ -394,12 +394,14 @@ internal class FilterButton(
     private fun LinearLayout.indexOfChildFocusable(value: FilterValueOption): Int =
         (0 until childCount).firstOrNull { getChildAt(it).tag == value } ?: -1
 
+    /** [text] is [R.string.remove_all_filters] at the top of the filter list, "Remove" inside one filter */
     private fun removeRow(
         menu: AppDropdownMenu?,
+        text: Int = R.string.remove,
         onClick: () -> Unit,
     ): DropdownMenuItemView {
         val row = DropdownMenuItemView(context)
-        row.setText(context.getString(R.string.remove))
+        row.setText(context.getString(text))
         row.setLeadingIcon(R.drawable.lb_widget_ctl_ic_delete, tint = withAlpha(0xFFFF0000.toInt(), .8f))
         row.onContentColor = { color ->
             row.textView.setTextColor(if (row.isFocused) AppTheme.palette.onError else AppTheme.palette.error)

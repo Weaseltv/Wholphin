@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">O aplikaci</string>
-    <string name="add_favorite">Oblíbené</string>
     <string name="add_server">Přidat server</string>
     <string name="add_user">Přidat uživatele</string>
     <string name="audio">Zvuk</string>
@@ -15,7 +14,6 @@
     <string name="collection">Sbírka</string>
     <string name="collections">Kolekce</string>
     <string name="community_rating">Hodnocení Komunity</string>
-    <string name="compose_error_message_title">Došlo k chybě! Stiskněte tlačítko pro odeslání protokolů na server.</string>
     <string name="confirm">Potvrdit</string>
     <string name="continue_watching">Pokračovat ve sledování</string>
     <string name="critic_rating">Hodnocení kritiků</string>
@@ -35,7 +33,6 @@
     <string name="episodes">Epizody</string>
     <string name="error_loading_collection">Chyba při načítání kolekce %1$s</string>
     <string name="external_track">Externí</string>
-    <string name="favorites">Oblíbený</string>
     <string name="file_size">Velikost</string>
     <string name="forced_track">Nucené</string>
     <string name="genres">Žánry</string>
@@ -91,7 +88,6 @@
     <string name="recently_added">Nedávno přidáno</string>
     <string name="recently_released">Nedávno vydané</string>
     <string name="recommended">Doporučeno</string>
-    <string name="remove_favorite">Odebrat z oblíbených</string>
     <string name="restart">Restart</string>
     <string name="resume">Pokračovat</string>
     <string name="save">Uložit</string>
@@ -251,7 +247,6 @@
     <string name="rewatch_next_up">Povolit opakované sledování v dalším videu</string>
     <string name="seek_bar_steps">Kroky Seek baru</string>
     <string name="send_app_logs_summary">Užitečné pro ladění</string>
-    <string name="send_app_logs">Odeslat protokoly aplikací na aktuální server</string>
     <string name="send_crash_reports_summary">Pokusím se odeslat na poslední připojený server</string>
     <string name="send_crash_reports">Odesílat zprávy o selhání</string>
     <string name="settings">Nastavení</string>
@@ -301,7 +296,6 @@
     <string name="verbose_logging">Podrobné protokolování</string>
     <string name="enter_pin">Zadejte PIN</string>
     <string name="sign_in_auto">Automatické přihlášení</string>
-    <string name="use_server_credentials">Přihlášení přes server</string>
     <string name="press_enter_to_confirm">Stiskněte středové tlačítko pro potvrzení</string>
     <string name="require_pin_code">Vyžadovat PIN pro profil</string>
     <string name="confirm_pin">Potvrdit PIN</string>
@@ -369,11 +363,8 @@
     <string name="dts">DTS</string>
     <string name="force_dovi_profile_7">Direct play Dolby Vision Profil 7</string>
     <string name="force_dovi_profile_7_summary">Ignoruj kontrolu kompatibility zařízení</string>
-    <string name="discover">Najít</string>
     <string name="request">Žádost</string>
     <string name="pending">Čeká na vyřízení</string>
-    <string name="seerr_integration">Seerr integrace</string>
-    <string name="remove_seerr_server">Odstranit Seerr Server</string>
     <string name="seerr_server_added">Seerr server přidán</string>
     <string name="password">Heslo</string>
     <string name="username">Uživatelské jméno</string>
@@ -381,7 +372,6 @@
     <string name="upcoming_movies">Nadcházející filmy</string>
     <string name="trending">Trendy</string>
     <string name="upcoming_tv">Nadcházející TV pořady</string>
-    <string name="request_4k">Žádost ve 4K</string>
     <string name="software_decoding_av1">Softwarové dekódování AV1</string>
     <string name="commercial">Komerční</string>
     <string name="download_and_update">Download &amp; Update</string>
@@ -440,9 +430,6 @@
     </plurals>
     <string name="no_limit">Bez omezení</string>
     <string name="max_days_next_up">Max. počet dnů v Dalších v pořadí</string>
-    <string name="quick_connect">Rychlé připojení</string>
-    <string name="quick_connect_summary">Autorizovat jiné zařízení k přihlášení k vašemu účtu</string>
-    <string name="quick_connect_code">Zadejte kód Rychlého připojení</string>
     <string name="quick_connect_code_error">Kód musí mít 6 číslic</string>
     <string name="quick_connect_success">Zařízení úspěšně autorizováno</string>
     <string name="add_row">Přidat řádek</string>
@@ -452,9 +439,6 @@
     <string name="apply_all_rows">Použít na všechny řádky</string>
     <string name="customize_home">Přizpůsobit domovskou stránku</string>
     <string name="home_rows">Řádky na domovské stránce</string>
-    <string name="load_from_server">Načíst ze serverového uživatelského profilu</string>
-    <string name="save_to_server">Uložit do serverového uživatelského profilu</string>
-    <string name="load_from_web_client">Načíst z webového klienta</string>
     <string name="use_series">Použít obrázek seriálu</string>
     <string name="add_row_for">Přidat řádek pro %1$s</string>
     <string name="overwrite_server_settings">Přepsat nastavení na serveru?</string>
@@ -468,14 +452,11 @@
     <string name="display_presets">Zobrazit předvolby</string>
     <string name="display_presets_description">Vestavěné předvolby pro rychlou úpravu všech řádků</string>
     <string name="customize_home_summary">Vyberte řádky a obrázky na domovské stránce</string>
-    <string name="favorite_items_title">Oblíbené %s</string>
     <string name="content_scale_fit">Přizpůsobit</string>
     <string name="content_scale_crop">Oříznout</string>
     <string name="content_scale_fill">Vyplnit</string>
     <string name="content_scale_fill_width">Vyplnit šířku</string>
     <string name="content_scale_fill_height">Vyplnit výšku</string>
-    <string name="display_preset_default">Výchozí předvolba Wholphin</string>
-    <string name="display_preset_compact">Wholphin kompaktní</string>
     <string name="display_preset_series_thumb">Obrázky náhledů seriálů</string>
     <string name="display_preset_episode_thumbnails">Obrázky náhledů epizod</string>
     <string name="volume_lowest">Nejnižší</string>
@@ -531,7 +512,6 @@
     <string name="duration_seconds">%1$ds</string>
     <string name="movies_title">Filmy</string>
     <string name="people_title">Osoby</string>
-    <string name="profile_specific_settings_from_server">Nastavení uživatelského profilu ze serveru</string>
     <string name="time_left">%1$s zbývá</string>
     <string name="trailers_title">Ukázky</string>
     <string name="tv_shows_title">TV Seriály</string>
@@ -551,7 +531,6 @@
         <item quantity="other">%s minut</item>
     </plurals>
     <string name="require_login">Požaduje přihlášení pro profil</string>
-    <string name="pin_digits_hint">[0–9]</string>
     <string name="disable_audio_offload">Vypnout hardwarové zpracování zvuku</string>
     <string name="disable_audio_offload_summary">Vypnutí hardwarového dekódování zvuku může u některých zařízení vyřešit zamrzání přehrávání</string>
     <string name="combined_search_results">Společné výsledky vyhledávání</string>

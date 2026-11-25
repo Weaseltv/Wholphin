@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">เกี่ยวกับแอปนี้</string>
-    <string name="add_favorite">ชื่นชอบ</string>
     <string name="add_server">เพิ่มเซิร์ฟเวอร์</string>
     <string name="add_user">เพิ่มผู้ใช้</string>
     <string name="audio">เสียง</string>
@@ -16,7 +15,6 @@
     <string name="collections">คอลเลกชัน</string>
     <string name="commercial">ทางการค้า</string>
     <string name="community_rating">การให้คะแนนของชุมชน</string>
-    <string name="compose_error_message_title">เกิดข้อผิดพลาด! กดปุ่มเพื่อส่งบันทึกไปยังเซิร์ฟเวอร์ของคุณ</string>
     <string name="confirm">ตกลง</string>
     <string name="continue_watching">ดูต่อ</string>
     <string name="critic_rating">การจัดอันดับนักวิจารณ์</string>
@@ -37,7 +35,6 @@
     <string name="episodes">ตอน</string>
     <string name="error_loading_collection">เกิดข้อผิดพลาดในการโหลดคอลเล็กชัน %1$s</string>
     <string name="external_track">ภายนอก</string>
-    <string name="favorites">ชื่นชอบ</string>
     <string name="file_size">ขนาด</string>
     <string name="forced_track">บังคับ</string>
     <string name="genres">แนวเนื้อหา</string>
@@ -92,7 +89,6 @@
     <string name="recently_added">ที่เพิ่งเพิ่ม</string>
     <string name="recently_released">ที่เพิ่งวางขาย</string>
     <string name="recommended">แนะนำ</string>
-    <string name="remove_favorite">ไม่เป็นที่ชื่นชอบ</string>
     <string name="restart">เริ่มใหม่</string>
     <string name="resume">เล่นต่อ</string>
     <string name="save">บันทึก</string>
@@ -205,7 +201,6 @@
     <plurals name="shorts">
         <item quantity="other">หนังสั้น</item>
     </plurals>
-    <string name="favorite_items_title">ชื่นชอบ %s</string>
     <string name="ac3_supported">อุปกรณ์รองรับระบบเสียง AC3/Dolby Digital</string>
     <string name="advanced_settings">การตั้งค่าขั้นสูง</string>
     <string name="advanced_ui">UI ขั้นสูง</string>
@@ -235,7 +230,6 @@
     <string name="rewatch_next_up">เปิดใช้งานการรับชมซ้ำในครั้งต่อไป</string>
     <string name="seek_bar_steps">ค้นหาขั้นบันได</string>
     <string name="send_app_logs_summary">มีประโยชน์สำหรับการแก้ไขข้อผิดพลาด</string>
-    <string name="send_app_logs">ส่งบันทึกแอปไปยังเซิร์ฟเวอร์ปัจจุบัน</string>
     <string name="send_crash_reports_summary">จะพยายามส่งไปยังเซิร์ฟเวอร์ที่เชื่อมต่อล่าสุด</string>
     <string name="send_crash_reports">ส่งรายงานข้อขัดข้อง</string>
     <string name="settings">ตั้งค่า</string>
@@ -283,7 +277,6 @@
     <string name="verbose_logging">การบันทึกข้อมูลแบบละเอียด</string>
     <string name="enter_pin">ป้อนรหัส PIN</string>
     <string name="sign_in_auto">ลงชื่อเข้าใช้โดยอัตโนมัติ</string>
-    <string name="use_server_credentials">เข้าสู่ระบบผ่านเซิร์ฟเวอร์</string>
     <string name="press_enter_to_confirm">กดตรงกลางเพื่อยืนยัน</string>
     <string name="require_pin_code">ต้องใส่รหัส PIN สำหรับโปรไฟล์</string>
     <string name="confirm_pin">ยืนยันรหัส PIN</string>
@@ -354,15 +347,9 @@
     <string name="dts">DTS</string>
     <string name="force_dovi_profile_7">เล่น Dolby Vision Profile 7 โดยตรง</string>
     <string name="force_dovi_profile_7_summary">ไม่สนใจการตรวจสอบความเข้ากันได้ของอุปกรณ์</string>
-    <string name="discover">ค้นพบ</string>
     <string name="request">คำขอ</string>
     <string name="pending">รอดำเนินการ</string>
-    <string name="seerr_integration">การผสานรวม Seerr</string>
-    <string name="remove_seerr_server">ลบเซิร์ฟเวอร์ Seerr</string>
     <string name="seerr_server_added">เพิ่มเซิร์ฟเวอร์ Seerr แล้ว</string>
-    <string name="quick_connect">เชื่อมต่อด่วน</string>
-    <string name="quick_connect_summary">อนุญาตให้อุปกรณ์อื่นเข้าสู่ระบบบัญชีของคุณ</string>
-    <string name="quick_connect_code">ป้อนรหัสการเชื่อมต่อด่วน</string>
     <string name="quick_connect_code_error">รหัสต้องมี 6 หลัก</string>
     <string name="quick_connect_success">อนุญาตอุปกรณ์สำเร็จแล้ว</string>
     <string name="password">รหัสผ่าน</string>
@@ -371,7 +358,6 @@
     <string name="trending">เทรนด์</string>
     <string name="upcoming_movies">ภาพยนตร์ที่จะเกิดขึ้น</string>
     <string name="upcoming_tv">รายการทีวีที่จะออกอากาศเร็วๆ นี้</string>
-    <string name="request_4k">ขอในความละเอียด 4K</string>
     <string name="software_decoding_av1">ถอดรหัส AV1 ด้วยซอฟต์แวร์</string>
     <string name="upgrade_mpv_toast">ขณะนี้ MPV เป็นโปรแกรมเล่นวิดีโอเริ่มต้น ยกเว้นวิดีโอ HDR\nคุณสามารถเปลี่ยนการตั้งค่านี้ได้ในเมนูการตั้งค่า</string>
     <string name="hdr_subtitle_style">รูปแบบคำบรรยาย HDR</string>
@@ -408,9 +394,6 @@
     <string name="apply_all_rows">นำไปใช้กับทุกแถว</string>
     <string name="customize_home">ปรับแต่งหน้าแรก</string>
     <string name="home_rows">แถวที่หน้าแรก</string>
-    <string name="load_from_server">โหลดจากโปรไฟล์ผู้ใช้เซิร์ฟเวอร์</string>
-    <string name="save_to_server">ดาวน์โหลดจากโปรไฟล์ผู้ใช้คืนนี้</string>
-    <string name="load_from_web_client">โหลดจากเว็บไคลเอ็นต์</string>
     <string name="use_series">ใช้ภาพของซีรีส์</string>
     <string name="add_row_for">เพิ่มแถวสำหรับ %1$s</string>
     <string name="overwrite_server_settings">ตั้งค่าทับบนเซิร์ฟเวอร์หรือไม่?</string>
@@ -424,26 +407,13 @@
     <string name="display_presets">แสดงค่าที่ตั้งไว้ล่วงหน้า</string>
     <string name="display_presets_description">รูปแบบที่ตั้งไว้ล่วงหน้าเพื่อจัดรูปแบบได้อย่างรวดเร็ว</string>
     <string name="customize_home_summary">เลือกแถวและรูปภาพบนหน้าแรก</string>
-    <string name="start_after">เริ่มหลังจาก</string>
-    <string name="animate">เคลื่อนไหว</string>
-    <string name="max_age_rating">ระดับอายุสูงสุด</string>
-    <string name="no_max">ไม่มีสูงสุด</string>
-    <string name="for_all_ages">สำหรับทุกเพศทุกวัย</string>
-    <string name="up_to_age">อายุไม่เกิน %s</string>
-    <string name="screensaver">รักษาหน้าจอ</string>
-    <string name="screensaver_settings">การตั้งค่าโปรแกรมรักษาหน้าจอ</string>
-    <string name="start_screensaver">เริ่มโปรแกรมรักษาหน้าจอ</string>
-    <string name="duration">ระยะเวลา</string>
     <string name="photos">ภาพถ่าย</string>
     <string name="include_types">รวมประเภท</string>
-    <string name="include_types_summary">ควรแสดงภาพสินค้าประเภทใดบ้าง</string>
     <string name="content_scale_fit">พอดี</string>
     <string name="content_scale_crop">ครอบตัด</string>
     <string name="content_scale_fill">ยืดเต็มจอ</string>
     <string name="content_scale_fill_width">ยืดตามความกว้าง</string>
     <string name="content_scale_fill_height">ยืดตามความสูง</string>
-    <string name="display_preset_default">Wholphin ค่าเริ่มต้น</string>
-    <string name="display_preset_compact">Wholphin คอมแพค</string>
     <string name="display_preset_series_thumb">ภาพขนาดย่อของซีรี่ส์</string>
     <string name="display_preset_episode_thumbnails">ภาพขนาดย่อของตอน</string>
     <string name="volume_lowest">เบาสุด</string>
@@ -491,7 +461,6 @@
     <string name="search_and_download_subtitles"><![CDATA[ค้นหาและดาวน์โหลดคำบรรยาย]]></string>
     <string name="no_subtitles_found">ไม่พบคำบรรยายระยะไกล</string>
     <string name="series_continueing">ปัจจุบัน</string>
-    <string name="in_app_screensaver">ใช้โปรแกรมรักษาหน้าจอในแอป</string>
     <string name="delete_item">คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้?</string>
     <string name="show_media_management">แสดงตัวเลือกการจัดการสื่อ</string>
     <string name="search_for">ค้นหา %s</string>
@@ -515,7 +484,6 @@
     <string name="select_all">เลือกทั้งหมด</string>
     <string name="separate_types">แยกประเภท</string>
     <string name="prefer_logos">แสดงโลโก้แทนชื่อเรื่อง</string>
-    <string name="updated_toast">Wolphin อัปเดตเวอร์ชั่นเป็น %s แล้ว</string>
     <string name="remove_continue_watching">นำออกจากรายการดูต่อ</string>
     <string name="remove_next_up">นำซีรีส์ออกจากรายการถัดไป</string>
     <string name="play_with">เล่นโดย</string>
@@ -528,11 +496,9 @@
     <string name="combined_search_results_off">แสดงผลลัพธ์ตามหมวดหมู่</string>
     <string name="results">ผลลัพธ์</string>
     <string name="combined_search_results_on">แสดงผลลัพธ์ในรายการเดียว</string>
-    <string name="pin_digits_hint">[0-9]</string>
     <string name="system_default">ค่าเริ่มต้นของระบบ</string>
     <string name="ass_subtitle_mode_transcode">ฝังคำบรรยายลงในวิดีโอโดยการแปลงบนเซิร์ฟเวอร์</string>
     <string name="ass_subtitle_playback">การแสดงคำบรรยาย SSA/ASS</string>
-    <string name="cinema_mode">รูปแบบโรงภาพยนตร์</string>
     <string name="transcoding">แปลงไฟล์</string>
     <plurals name="downloads">
         <item quantity="other">%s ดาวน์โหลด</item>
@@ -557,7 +523,5 @@
     <string name="view_removed_next_up">ดูซีรี่ส์ที่ลบออกจาก ตอนถัดไป</string>
     <string name="show_more">ดู %1$s เพิ่มเติม</string>
     <string name="last_played">เล่นล่าสุด</string>
-    <string name="discover_tv">รายการทีวีที่ค้นพบ</string>
-    <string name="discover_movies">ภาพยนตร์ที่ค้นพบ</string>
     <string name="studios_in">สตูดิโอของเรื่อง %1$s</string>
 </resources>

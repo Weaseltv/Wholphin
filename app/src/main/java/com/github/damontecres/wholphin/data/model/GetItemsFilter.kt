@@ -97,10 +97,6 @@ data class GetItemsFilter(
                 years?.letNotEmpty(::addAll)
                 decades?.forEach { addAll(it..<(it + 10)) }
             },
-        is4k =
-            videoTypes?.letNotEmpty {
-                videoTypes.contains(FilterVideoType.FOUR_K).takeIf { it }
-            },
         isHd =
             videoTypes?.letNotEmpty {
                 if (videoTypes.contains(FilterVideoType.HD)) {

@@ -519,32 +519,6 @@ class HomeSettingsViewModel
             }
         }
 
-        fun loadFromRemoteWeb() {
-            viewModelScope.launchIO {
-                serverRepository.currentUser?.let { user ->
-                    Timber.d("Loading home settings from web")
-                    try {
-                        _state.update { it.copy(loading = LoadingState.Loading) }
-                        val result = homeSettingsService.parseFromWebConfig(user.id)
-                        if (result != null) {
-                            Timber.v("Got web settings")
-                            idCounter = result.rows.maxOfOrNull { it.id }?.plus(1) ?: 0
-                            _state.update {
-                                it.copy(rows = result.rows)
-                            }
-                        } else {
-                            Timber.v("No web settings")
-                            showToast(context, "No server-side web settings found")
-                        }
-                        fetchRowData()
-                    } catch (ex: Exception) {
-                        Timber.e(ex)
-                        showToast(context, "Error: ${ex.localizedMessage}")
-                    }
-                }
-            }
-        }
-
         fun saveToLocal() {
             // This uses injected ioScope so that it will still run when the page is closing
             ioScope.launchIO {

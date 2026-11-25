@@ -19,7 +19,7 @@
     <string name="collections">Collections</string>
     <string name="commercial">Commercial</string>
     <string name="community_rating">Community Rating</string>
-    <string name="compose_error_message_title">An error occurred! Press the button to send logs to your server.</string>
+    <string name="compose_error_message_title">Something went wrong. Select Send report so support can look into it.</string>
     <string name="confirm">Confirm</string>
     <string name="continue_watching">Continue watching</string>
     <string name="critic_rating">Critic Rating</string>
@@ -90,10 +90,11 @@
     <string name="playback_speed">Playback Speed</string>
     <string name="playback">Playback</string>
     <string name="playlist">Playlist</string>
+    <string name="playlist_order">Playlist order</string>
     <string name="playlists">Playlists</string>
     <string name="preview">Preview</string>
     <string name="profile_specific_settings">User Profile Settings</string>
-    <string name="profile_specific_settings_from_server">User profile settings from server</string>
+    <string name="profile_specific_settings_from_server">Your account settings</string>
     <string name="queue">Queue</string>
     <string name="recap">Recap</string>
     <string name="recently_added_in">Recently added in %1$s</string>
@@ -347,7 +348,7 @@
     <string name="rewatch_next_up">Enable rewatching in next up</string>
     <string name="seek_bar_steps">Seek bar steps</string>
     <string name="send_app_logs_summary">Useful for debugging</string>
-    <string name="send_app_logs">Send app logs to current server</string>
+    <string name="send_app_logs">Send report to support</string>
     <string name="send_crash_reports_summary">Will try to send to last connected server</string>
     <string name="send_crash_reports">Send Crash Reports</string>
     <string name="settings">Settings</string>
@@ -393,6 +394,7 @@
     <string name="year">Year</string>
     <string name="decade">Decade</string>
     <string name="remove">Remove</string>
+    <string name="remove_all_filters">Remove all filters</string>
     <string name="dolby_vision">Dolby Vision</string>
     <string name="dolby_atmos">Dolby Atmos</string>
     <string name="mpv_use_gpu_next">MPV: Use gpu-next</string>
@@ -402,7 +404,7 @@
     <string name="verbose_logging">Verbose logging</string>
     <string name="enter_pin">Enter PIN</string>
     <string name="sign_in_auto">Sign in automatically</string>
-    <string name="use_server_credentials">Login via server</string>
+    <string name="use_server_credentials">Sign in with a code instead</string>
     <string name="press_enter_to_confirm">Press center to confirm</string>
     <string name="require_pin_code">Require PIN for profile</string>
     <string name="require_login">Require login for profile</string>
@@ -410,7 +412,6 @@
     <string name="incorrect">Incorrect</string>
     <string name="pin_too_short">PIN must be 4 keys or longer</string>
     <string name="will_remove_pin">Will remove PIN</string>
-    <string name="pin_digits_hint">[0–9]</string>
     <string name="image_cache_size">Image disk cache size (MB)</string>
     <string name="disable_audio_offload">Disable audio hardware offload</string>
     <string name="disable_audio_offload_summary">Disabling offloading audio decoding may fix playback freezes on some devices</string>
@@ -489,16 +490,17 @@
     <string name="request">Request</string>
     <string name="requests_history">History</string>
     <string name="pending">Pending</string>
-    <string name="seerr_integration">Seerr integration</string>
-    <string name="remove_seerr_server">Remove Seerr Server</string>
+    <string name="seerr_integration">Requests connection</string>
+    <string name="remove_seerr_server">Disconnect requests</string>
     <string name="seerr_server_added">Seerr server added</string>
-    <string name="quick_connect">Quick Connect</string>
-    <string name="quick_connect_summary">Authorize another device to log in to your account</string>
-    <string name="quick_connect_code">Enter Quick Connect code</string>
+    <string name="requests_not_connected">Not connected</string>
+    <string name="quick_connect">Sign in another device</string>
+    <string name="quick_connect_summary">Enter the code another device shows to sign it in to your account</string>
+    <string name="quick_connect_code">Enter the code</string>
     <string name="quick_connect_code_error">Code must be 6 digits</string>
     <string name="quick_connect_success">Device authorized successfully</string>
     <string name="quick_connect_scan_hint">Scan with your phone, or go to %1$s and enter the code</string>
-    <string name="connect_account_intro">To start watching connect your WeaselPlex account to the app.</string>
+    <string name="connect_account_intro">To start watching, connect your WeaselPlex account.</string>
     <string name="getting_code">Getting your code…</string>
     <string name="get_new_code">Get a new code</string>
     <string name="password">Password</string>
@@ -507,7 +509,6 @@
     <string name="trending">Trending</string>
     <string name="upcoming_movies">Upcoming Movies</string>
     <string name="upcoming_tv">Upcoming TV Shows</string>
-    <string name="request_4k">Request in 4K</string>
     <string name="software_decoding_av1">AV1 software decoding</string>
     <string name="upgrade_mpv_toast">MPV is now the default player except for HDR.\nYou can change this in settings.</string>
     <string name="hdr_subtitle_style">HDR subtitle style</string>
@@ -543,9 +544,8 @@
     <string name="apply_all_rows">Apply to all rows</string>
     <string name="customize_home">Customize home page</string>
     <string name="home_rows">Home rows</string>
-    <string name="load_from_server">Load from server user profile</string>
-    <string name="save_to_server">Save to server user profile</string>
-    <string name="load_from_web_client">Load from web client</string>
+    <string name="load_from_server">Load from my account</string>
+    <string name="save_to_server">Save to my account</string>
     <string name="use_series">Use series image</string>
     <string name="add_row_for">Add row for %1$s</string>
     <string name="overwrite_server_settings">Overwrite settings on server?</string>
@@ -554,26 +554,15 @@
     <string name="suggestions_for">Suggestions for %1$s</string>
     <string name="increase_all_cards_size">Increase size for all cards</string>
     <string name="decrease_all_cards_size">Decrease size for all cards</string>
-    <string name="use_thumb_images">Use thumb images</string>
+    <string name="use_thumb_images">Use thumbnail images</string>
     <string name="settings_saved">Settings saved</string>
     <string name="display_presets">Display presets</string>
     <string name="display_presets_description">Built-in presets to quickly style all rows</string>
     <string name="customize_home_summary">Choose rows and images on the home page</string>
     <string name="prefer_ac3_for_surround_summary"><![CDATA[Transcode non-stereo audio to AC3/Dolby Digital]]></string>
     <string name="prefer_ac3_for_surround">Use AC3 for surround sound audio</string>
-    <string name="start_after">Start after</string>
-    <string name="animate">Animate</string>
-    <string name="max_age_rating">Max age rating</string>
-    <string name="no_max">No max</string>
-    <string name="for_all_ages">For all ages</string>
-    <string name="up_to_age">Up to age %s</string>
-    <string name="screensaver">Screensaver</string>
-    <string name="screensaver_settings">Screensaver settings</string>
-    <string name="start_screensaver">Start screensaver</string>
-    <string name="duration">Duration</string>
     <string name="photos">Photos</string>
     <string name="include_types">Include types</string>
-    <string name="include_types_summary">What types of items to show images for</string>
     <string name="content_scale_fit">Fit</string>
     <string name="content_scale_crop">Crop</string>
     <string name="content_scale_fill">Fill</string>
@@ -581,8 +570,8 @@
     <string name="content_scale_fill_height">Fill height</string>
     <string name="display_preset_default">Wholphin Default</string>
     <string name="display_preset_compact">Wholphin Compact</string>
-    <string name="display_preset_series_thumb">Series Thumb images</string>
-    <string name="display_preset_episode_thumbnails">Episode Thumbnail images</string>
+    <string name="display_preset_series_thumb">Series thumbnail images</string>
+    <string name="display_preset_episode_thumbnails">Episode thumbnail images</string>
 
     <string name="volume_lowest">Lowest</string>
     <string name="volume_low">Low</string>
@@ -717,7 +706,7 @@
     </string-array>
 
     <string name="image_type_primary">Primary</string>
-    <string name="image_type_thumb">Thumb</string>
+    <string name="image_type_thumb">Thumbnail</string>
     <string-array name="image_types">
         <item>@string/image_type_primary</item>
         <item>@string/image_type_thumb</item>
@@ -740,9 +729,8 @@
     <string name="seerr_jellyfin_user">Jellyfin user</string>
     <string name="seerr_local_user">Local user</string>
     <string name="search_and_download_subtitles"><![CDATA[Search & download subtitles]]></string>
-    <string name="no_subtitles_found">No remote subtitles were found</string>
+    <string name="no_subtitles_found">No subtitles found online.</string>
     <string name="series_continueing">Present</string>
-    <string name="in_app_screensaver">Use in-app screensaver</string>
     <string name="delete_item">Are you sure you want to delete this item?</string>
     <string name="show_media_management">Show media management options</string>
     <string-array name="backdrop_style_options">
@@ -751,11 +739,6 @@
         <item>@string/none</item>
     </string-array>
 
-    <string-array name="screensaver_item_types">
-        <item>@string/movies_title</item>
-        <item>@string/tv_shows_title</item>
-        <item>@string/photos</item>
-    </string-array>
 
     <string-array name="display_toggle_types">
         <item>@string/official_rating</item>
@@ -804,7 +787,6 @@
     <string name="ass_subtitle_mode_exoplayer">Direct play with ExoPlayer built-in</string>
     <string name="ass_subtitle_mode_transcode">Burn in/transcode on server</string>
     <string name="ass_subtitle_playback">SSA/ASS subtitle playback</string>
-    <string name="cinema_mode">Cinema mode</string>
     <string name="remote_control">Play On from other devices</string>
     <string name="remote_control_summary_on">Other apps signed in as you can start and control playback here</string>
     <string name="remote_control_summary_off">This device is hidden from Play On in other apps</string>
@@ -847,7 +829,7 @@
     <string name="different_for_hdr">Use different style for HDR</string>
     <string name="experimental_settings">Experimental settings</string>
     <string name="confirm_enable_experimental_title">Enable experimental settings?</string>
-    <string name="confirm_enable_experimental_body">Experimental settings may be unstable!\n\n These may removed or changed in any release.</string>
+    <string name="confirm_enable_experimental_body">Experimental settings may be unstable!\n\nThese may be removed or changed in any release.</string>
     <string name="video_tunneling">Video tunneling</string>
 
     <string name="d_pad_seek_mode_title">D-Pad seek bar mode</string>
@@ -904,14 +886,11 @@
     <string name="books">Books</string>
     <string name="audio_books">Audio books</string>
     <string name="server_version_not_supported">Server version not supported</string>
-    <string name="dim_after_delay">Dim screen after delay</string>
-    <string name="dim_percentage">Dim percentage</string>
-    <string name="dim_screen">Dim screen</string>
     <string name="photo_albums">Photo albums</string>
     <string name="no_favorites_found">No favorites found!</string>
     <string name="remove_from_playlist">Remove from playlist</string>
-    <string name="login_credentials_expired">Credentials expired, please login in again</string>
-    <string name="login_not_authorized">You are not authorized to access the server at this time</string>
+    <string name="login_credentials_expired">Your sign-in expired. Please sign in again.</string>
+    <string name="login_not_authorized">Your account can\'t watch WeaselPlex right now.</string>
     <string name="streaming_all">All</string>
     <string name="streaming_shows">Shows</string>
     <string name="reorder">Reorder</string>
@@ -959,8 +938,8 @@
     <string name="kid_parent_pin_title">%1$s\'s PIN</string>
     <string name="kid_profile_locked">%1$s is locked. Another parent can unlock it.</string>
     <string name="kid_ask_parent">A parent needs to unlock %1$s</string>
-    <string name="kid_sign_in_quick_connect">Sign %1$s in with Quick Connect</string>
-    <string name="kid_sign_in_auto_always_on">Always on: more than one profile</string>
+    <string name="kid_sign_in_quick_connect">Sign %1$s in with a code</string>
+    <string name="kid_sign_in_auto_always_on">Not available with more than one profile.</string>
     <string name="kid_pin_removal_blocked">Kid protection is on, so this PIN can\'t be removed</string>
     <string name="kid_turn_off_protection">Turn off kid protection on this TV</string>
     <string name="kid_turn_off_protection_summary">Needs your PIN. Only when no kid profiles are left on this TV.</string>

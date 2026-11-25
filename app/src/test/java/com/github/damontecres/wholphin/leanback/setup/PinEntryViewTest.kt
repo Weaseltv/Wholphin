@@ -33,7 +33,6 @@ class PinEntryViewTest {
     private fun entry(
         onSubmit: suspend (String) -> Unit,
         length: Int = PinRules.LENGTH,
-        allowDigits: Boolean = true,
         lockedUntilMillis: Long = 0L,
         onClickServerAuth: (() -> Unit)? = null,
         outcome: PinOutcome = PinOutcome.OTHER,
@@ -48,7 +47,6 @@ class PinEntryViewTest {
                         outcome
                     },
                     length = length,
-                    allowDigits = allowDigits,
                     lockedUntilMillis = lockedUntilMillis,
                     onClickServerAuth = onClickServerAuth,
                 ),
@@ -152,15 +150,13 @@ class PinEntryViewTest {
     }
 
     @Test
-    fun `a new pin takes arrows only, a saved one accepts number keys`() {
-        val chosen = mutableListOf<String>()
-        val newPin = entry(onSubmit = { chosen += it }, allowDigits = false)
-        newPin.press(KeyEvent.KEYCODE_1, KeyEvent.KEYCODE_NUMPAD_2, *arrows)
-        assertEquals(listOf("URDL"), chosen)
+    fun `number keys never count, only arrows`() {
         val checked = mutableListOf<String>()
-        val saved = entry(onSubmit = { checked += it })
-        saved.press(KeyEvent.KEYCODE_1, KeyEvent.KEYCODE_2, KeyEvent.KEYCODE_3, KeyEvent.KEYCODE_4)
-        assertEquals(listOf("1234"), checked)
+        val view = entry(onSubmit = { checked += it })
+        view.press(KeyEvent.KEYCODE_1, KeyEvent.KEYCODE_2, KeyEvent.KEYCODE_3, KeyEvent.KEYCODE_NUMPAD_4)
+        assertEquals(emptyList<String>(), checked)
+        view.press(*arrows)
+        assertEquals(listOf("URDL"), checked)
     }
 
     @Test

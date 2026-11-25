@@ -36,6 +36,10 @@ sealed interface PlaylistItem {
             get() = item.id
     }
 
+    /**
+     * A server pre-roll played before the main item. Nothing creates these since Cinema mode was
+     * removed (owner, 2026-11-24); the type stays so upstream merges and the playback branches line up.
+     */
     data class Intro(
         override val item: BaseItem,
     ) : PlaylistItem {

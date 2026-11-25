@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">Sobre</string>
-    <string name="add_favorite">Favorito</string>
     <string name="add_server">Adicionar Servidor</string>
     <string name="add_user">Adicionar Utilizador</string>
     <string name="audio">Áudio</string>
@@ -22,14 +21,12 @@
     <string name="enabled">Activado</string>
     <string name="episodes">Episódios</string>
     <string name="external_track">Externo</string>
-    <string name="favorites">Favoritos</string>
     <string name="file_size">Tamanho</string>
     <string name="forced_track">Forçado</string>
     <string name="go_to">Ir para</string>
     <string name="birthplace">Local de Nascimento</string>
     <string name="bitrate">Bitrate</string>
     <string name="born">Nascido</string>
-    <string name="compose_error_message_title">Ocorreu um erro! Pressiona o botão para enviar o registo para o teu servidor.</string>
     <string name="continue_watching">Continuar a ver</string>
     <string name="died">Morreu</string>
     <string name="discovered_servers">Servidores Detectados</string>
@@ -82,7 +79,6 @@
     <string name="recently_added">Adicionado recentemente</string>
     <string name="recently_released">Lançado Recentemente</string>
     <string name="recommended">Recomendado</string>
-    <string name="remove_favorite">Desmarcar como favorito</string>
     <string name="restart">Reiniciar</string>
     <string name="resume">Resumir</string>
     <string name="save">Guardar</string>
@@ -251,7 +247,6 @@
     <string name="rewatch_next_up">Activar a revisão em \'A seguir\'</string>
     <string name="seek_bar_steps">Passos da barra de pesquisa</string>
     <string name="send_app_logs_summary">Útil para depuração</string>
-    <string name="send_app_logs">Enviar registos da aplicação para o servidor atual</string>
     <string name="send_crash_reports_summary">Tentará enviar para o último servidor conectado</string>
     <string name="send_crash_reports">Enviar Relatórios de Falhas</string>
     <string name="settings">Definições</string>
@@ -302,7 +297,6 @@
     <string name="verbose_logging">Registro detalhado</string>
     <string name="enter_pin">Inserir PIN</string>
     <string name="sign_in_auto">Entrar automaticamente</string>
-    <string name="use_server_credentials">Iniciar sessão através do servidor</string>
     <string name="press_enter_to_confirm">Pressione centro para confirmar</string>
     <string name="require_pin_code">Exigir PIN para o perfil</string>
     <string name="confirm_pin">Confirmar PIN</string>
@@ -378,17 +372,13 @@
     <string name="only_forced_subtitles">Apenas Legendas Forçadas</string>
     <string name="force_dovi_profile_7">Reprodução direta Dolby Vision Profile 7</string>
     <string name="force_dovi_profile_7_summary">Ignora as verificações de compatibilidade do dispositivo</string>
-    <string name="discover">Descobrir</string>
     <string name="request">Pedir</string>
     <string name="pending">Pendente</string>
-    <string name="seerr_integration">Integração com Seerr</string>
-    <string name="remove_seerr_server">Remover Servidor Seerr</string>
     <string name="seerr_server_added">Servidor Seerr adicionado</string>
     <string name="url">URL</string>
     <string name="trending">Popular</string>
     <string name="upcoming_movies">Filmes em Breve</string>
     <string name="upcoming_tv">Séries em Breve</string>
-    <string name="request_4k">Pedir em 4K</string>
     <string name="password">Palavra-passe</string>
     <string name="username">Utilizador</string>
     <string name="voice_search">Pesquisa por voz</string>
@@ -440,9 +430,6 @@
     <string name="send_media_info_log_to_server">Enviar registo de informações de mídia para o servidor</string>
     <string name="no_limit">Sem limite</string>
     <string name="max_days_next_up">Dias máximos em \'A Seguir\'</string>
-    <string name="quick_connect">Ligação Rápida</string>
-    <string name="quick_connect_summary">Autorize outro dispositivo a iniciar sessão na sua conta</string>
-    <string name="quick_connect_code">Insira o código de Ligação Rápida</string>
     <string name="quick_connect_code_error">Código deve ter 6 dígitos</string>
     <string name="quick_connect_success">Dispositivo autorizado com sucesso</string>
     <string name="add_row">Adicionar linha</string>
@@ -452,9 +439,6 @@
     <string name="apply_all_rows">Aplicar a todas as linhas</string>
     <string name="customize_home">Personalizar página inicial</string>
     <string name="home_rows">Linhas da página inicial</string>
-    <string name="load_from_server">Carregar do perfil de utilizador do servidor</string>
-    <string name="save_to_server">Guardar no perfil de utilizador do servidor</string>
-    <string name="load_from_web_client">Carregar a partir do cliente web</string>
     <string name="use_series">Usar imagem da série</string>
     <string name="add_row_for">Adicionar linha para %1$s</string>
     <string name="overwrite_server_settings">Substituir as definições no servidor?</string>
@@ -468,32 +452,18 @@
     <string name="display_presets_description">Predefinições embarcadas para definir todas as linhas rapidamente</string>
     <string name="customize_home_summary">Escolha as linhas e imagens na página inicial</string>
     <string name="decrease_all_cards_size">Diminuir o tamanho de todos os cartões</string>
-    <string name="favorite_items_title">Favoritos %s</string>
     <plurals name="minutes">
         <item quantity="one">%s minuto</item>
         <item quantity="many">%s minutos</item>
         <item quantity="other">%s minutos</item>
     </plurals>
-    <string name="start_after">Começar depois</string>
-    <string name="animate">Animado</string>
-    <string name="max_age_rating">Idade máxima</string>
-    <string name="no_max">Sem máximo</string>
-    <string name="for_all_ages">Para todas as idades</string>
-    <string name="up_to_age">Até a idade %s</string>
-    <string name="screensaver">Proteção de ecrã</string>
-    <string name="screensaver_settings">Definições de protecção de ecrã</string>
-    <string name="start_screensaver">Iniciar protecção de ecrã</string>
-    <string name="duration">Duração</string>
     <string name="photos">Fotos</string>
     <string name="include_types">Incluir tipos</string>
-    <string name="include_types_summary">Que tipos de itens devem mostrar imagens</string>
     <string name="content_scale_fit">Ajustar</string>
     <string name="content_scale_crop">Recortar</string>
     <string name="content_scale_fill">Preencher</string>
     <string name="content_scale_fill_width">Preencher largura</string>
     <string name="content_scale_fill_height">Preencher altura</string>
-    <string name="display_preset_default">Padrão do Wholphin</string>
-    <string name="display_preset_compact">Wholphin Compacto</string>
     <string name="display_preset_series_thumb">Imagens em miniatura da série</string>
     <string name="display_preset_episode_thumbnails">Imagens em miniatura do episódio</string>
     <string name="volume_lowest">Mínimo</string>
@@ -541,7 +511,6 @@
     <string name="search_and_download_subtitles"><![CDATA[Procurar e transferir legendas]]></string>
     <string name="no_subtitles_found">Não foram encontradas legendas remotas</string>
     <string name="series_continueing">Em curso</string>
-    <string name="in_app_screensaver">Usar protetor de ecrã da aplicação</string>
     <string name="actor">Ator</string>
     <string name="composer">Compositor</string>
     <string name="writer">Argumentista</string>
@@ -565,13 +534,10 @@
     <string name="continue_string">Continuar</string>
     <string name="separate_types">Separar por tipos</string>
     <string name="prefer_logos">Prefiro mostrar logótipos nos títulos</string>
-    <string name="updated_toast">Wholphin foi atualizado para %s</string>
     <string name="remove_continue_watching">Remover de «Continuar a ver»</string>
     <string name="remove_next_up">Remover série do «Continuar a ver»</string>
     <string name="view_removed_next_up">Ver séries removidas do «Continuar a ver»</string>
     <string name="view_more">Ver mais</string>
-    <string name="discover_tv">Descobrir Séries</string>
-    <string name="discover_movies">Descobrir Filmes</string>
     <string name="studios_in">Estúdios em %1$s</string>
     <string name="next_up_never">Nunca</string>
     <string name="external_player">Reprodutor Externo</string>
@@ -581,13 +547,11 @@
     <string name="ass_subtitle_mode_exoplayer">Reprodução directa com ExoPlayer integrado</string>
     <string name="ass_subtitle_mode_transcode">Incorporar/transcodificar no servidor</string>
     <string name="ass_subtitle_playback">Reprodução de legendas SSA/ASS</string>
-    <string name="cinema_mode">Modo Cinema</string>
     <string name="show_more">Mostrar %1$s mais</string>
     <string name="skip_behavior">Comportamento de saltar</string>
     <string name="skip_behavior_summary">Para intros, créditos, etc</string>
     <string name="play_with">Reproduzir com</string>
     <string name="transcoding">Transcodificar</string>
-    <string name="pin_digits_hint">[0–9]</string>
     <string name="combined_search_results">Combinar resultados da pesquisa</string>
     <string name="combined_search_results_on">Mostrar todos os resultados numa única lista</string>
     <string name="combined_search_results_off">Mostrar resultados por categoria</string>
@@ -643,7 +607,6 @@
     <string name="duration_hours">%1$dh</string>
     <string name="duration_minutes">%1$dm</string>
     <string name="duration_seconds">%1$ds</string>
-    <string name="profile_specific_settings_from_server">Definições do perfil do utilizador a partir do servidor</string>
     <string name="time_left">%1$s restantes</string>
     <string name="prefer_ac3_for_surround_summary"><![CDATA[Transcodificar áudio não estéreo para AC3/Dolby Digital]]></string>
     <string name="prefer_ac3_for_surround">Utilize o AC3 para áudio surround</string>
@@ -689,9 +652,6 @@
     <string name="server_version_not_supported">Versão do servidor não suportada</string>
     <string name="disable_audio_offload">Desativar a processamento de áudio por hardware</string>
     <string name="disable_audio_offload_summary">Desativar o processamento de áudio por hardware pode resolver os bloqueios de reprodução em alguns dispositivos</string>
-    <string name="dim_after_delay">Escurecimento do ecrã após tempo de inatividade</string>
-    <string name="dim_percentage">Percentagem do escurecimento</string>
-    <string name="dim_screen">Escurecer ecrã</string>
     <string name="photo_albums">Álbum de fotos</string>
     <string name="no_favorites_found">Não foram encontrados favoritos!</string>
     <string name="duration_hours_seconds">%1$dh %2$ds</string>
