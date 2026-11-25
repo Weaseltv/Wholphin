@@ -26,6 +26,7 @@ import com.github.damontecres.wholphin.leanback.theme.dpF
 import com.github.damontecres.wholphin.leanback.theme.provideNeonScope
 import com.github.damontecres.wholphin.leanback.theme.resolveNeonScope
 import com.github.damontecres.wholphin.leanback.theme.surfaceAtElevation
+import kotlin.math.ceil
 
 /**
  * A row of a dropdown menu (`TvDropdownMenuItem`, a Material3 `DropdownMenuItem`): optional leading icon, the text
@@ -215,9 +216,25 @@ class AppDropdownMenu(
     fun clear() = column.removeAllViews()
 
     fun show() {
-        popup.showAsDropDown(anchor, anchor.context.dp(offsetXDp), anchor.context.dp(offsetYDp), Gravity.START)
+        popup.showAsDropDown(anchor, anchor.context.dp(offsetXDp), anchor.context.dp(offsetYDp) + belowFocusedAnchor(), Gravity.START)
         (0 until column.childCount).map { column.getChildAt(it) }.firstOrNull { it.isFocusable }?.requestFocus()
     }
 
     fun dismiss() = popup.dismiss()
+
+    /**
+     * How far below the anchor's bottom the menu starts. A focused button grows (1.1 for buttons) past its bounds, and
+     * the menu used to start at the bounds, covering the button's bottom border (owner, 2026-11-25). Now it starts
+     * below the grown button with a small gap. The focused scale comes from the button's style, since the button may
+     * still be growing back after the press when the menu opens.
+     */
+    private fun belowFocusedAnchor(): Int {
+        val scale = (anchor as? AppButton)?.surface?.style?.scale?.focused ?: anchor.scaleY
+        val grown = (scale - 1f).coerceAtLeast(0f) * (anchor.height - anchor.pivotY)
+        return ceil(grown).toInt() + context.dp(MENU_GAP_DP)
+    }
+
+    private companion object {
+        const val MENU_GAP_DP = 4f
+    }
 }
