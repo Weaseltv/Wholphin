@@ -174,8 +174,8 @@ Ship branch is **`weaselfin`** (not upstream `main`). All WeaselPlex release tag
 Release signing: release builds need the WeaselFin signing keystore (same key as prior installs). Unsigned APKs will not upgrade over existing installs.
 
 - The release key is on all three machines: the VPS, the ThinkCentre and t3-ovh. The t3-ovh copy was made on 2026-11-12 at the owner's request, from the VPS. So a release is built and signed on the thread's own machine, like everything else.
-- On each machine: `~/keystores/weaselfin-release.jks` (directory 0700, file 0600), its signing settings in `~/keystores/weaselfin-release.properties` (0600), and the same settings installed as the gitignored `local.properties` (0600) in the main checkout `~/work/weaselfin/Wholphin`.
-- To build in any other checkout or worktree, copy that `.properties` file in as `local.properties` (mode 0600) and delete it when the build is done.
+- On each machine: `~/keystores/weaselfin-release.jks` (directory 0700, file 0600). Its signing settings are in the gitignored `local.properties` (0600) of the main checkout `~/work/weaselfin/Wholphin`, and their `weaselfin.storeFile` points to that `.jks`. t3-ovh also keeps an identical copy as `~/keystores/weaselfin-release.properties`; the VPS and the ThinkCentre have no such file (checked 2026-11-24).
+- To build in any other checkout or worktree, copy the main checkout's `local.properties` in (mode 0600) and delete the copy when the build is done.
 - Never print, log or commit the key, the settings file or their values. To inspect the settings, show names only. The file has Windows line endings, which Gradle reads correctly; do not rewrite it. A shell check of the key path must strip the `\r` first (`tr -d '\r'`).
 - Do not copy the key to any other machine, or anywhere else on these three, unless the owner asks.
 
