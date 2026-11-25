@@ -229,7 +229,12 @@ class AppDropdownMenu(
      * still be growing back after the press when the menu opens.
      */
     private fun belowFocusedAnchor(): Int {
-        val scale = (anchor as? AppButton)?.surface?.style?.scale?.focused ?: anchor.scaleY
+        val scale =
+            (anchor as? AppButton)
+                ?.surface
+                ?.style
+                ?.scale
+                ?.focused ?: anchor.scaleY
         val grown = (scale - 1f).coerceAtLeast(0f) * (anchor.height - anchor.pivotY)
         return ceil(grown).toInt() + context.dp(MENU_GAP_DP)
     }

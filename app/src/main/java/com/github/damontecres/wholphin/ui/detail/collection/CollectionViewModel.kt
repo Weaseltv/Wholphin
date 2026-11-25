@@ -629,7 +629,18 @@ class CollectionViewModel
                 // A streaming list (NEW, Popular, Trending, Top 10) is a plain list with no page to fetch again: show the
                 // server's answer on the card. Until 2026-11-25 nothing changed, so "Mark as unwatched" seemed to do nothing
                 _state.update { s ->
-                    s.copy(items = s.items.map { if (it != null && it.id == itemId) it.copy(data = it.data.copy(userData = userData)) else it })
+                    s.copy(
+                        items =
+                            s.items.map {
+                                if (it != null &&
+                                    it.id == itemId
+                                ) {
+                                    it.copy(data = it.data.copy(userData = userData))
+                                } else {
+                                    it
+                                }
+                            },
+                    )
                 }
             } else if (position != null) {
                 refreshItem(itemId, position, false)
