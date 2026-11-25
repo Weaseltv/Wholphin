@@ -33,6 +33,14 @@ private val notes1244 =
 
 internal val WhatsNewNotes: Map<String, List<String>> =
     mapOf(
+        "1.2.50" to
+            listOf(
+                "WeaselPlex has been rebuilt for your TV, and scrolling stays smooth even when you hold a button down.",
+                "New \"Remove all filters\" button, a tidier playlist page, and show pages open on the episode you got to.",
+                "Collections open much faster on kids' profiles, and the side menu is easier to get around.",
+                "Movies start sooner now that Cinema mode is gone, and messages across the app are clearer.",
+                "WeaselPlex's own screensaver and 4K requests are gone. Your TV's screensaver and sleep timer now apply.",
+            ),
         "1.2.49" to
             listOf(
                 "Home appears right away when you open WeaselPlex, then its rows update.",
