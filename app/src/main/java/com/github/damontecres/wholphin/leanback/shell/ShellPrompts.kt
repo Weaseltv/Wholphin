@@ -11,6 +11,7 @@ import android.graphics.RadialGradient
 import android.graphics.Shader
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
@@ -18,6 +19,7 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatDialog
 import com.github.damontecres.wholphin.R
@@ -387,14 +389,32 @@ internal class WhatsNewController(
             View(context).apply { setBackgroundColor(NeonColors.LINE) },
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, context.dp(1)).apply { topMargin = context.dp(14) },
         )
-        entry.notes.forEachIndexed { i, note ->
-            column.addView(
+        val list = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+        entry.notes.forEach { note ->
+            list.addView(
                 bullet(note, yellow),
                 LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                     topMargin = context.dp(14)
                 },
             )
         }
+        // The notes scroll when they don't all fit on the screen with the title and OK; the bottom edge fades while
+        // there is more below
+        val notesHeight = (context.resources.displayMetrics.heightPixels - context.dp(250)).coerceAtLeast(context.dp(120))
+        val notes =
+            CappedScrollView(context, notesHeight).apply {
+                isFocusable = false
+                descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                overScrollMode = View.OVER_SCROLL_NEVER
+                isVerticalScrollBarEnabled = false
+                isVerticalFadingEdgeEnabled = true
+                setFadingEdgeLength(context.dp(32))
+                addView(list)
+            }
+        column.addView(
+            notes,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT),
+        )
         // As in the mockup: a dark fill and white OK; the yellow border and glow come from the button's own focus
         // style under the yellow accent
         val ok =
@@ -409,6 +429,18 @@ internal class WhatsNewController(
                 ShellType.button(this)
                 setPadding(context.dp(10), context.dp(4), context.dp(10), context.dp(4))
                 refresh()
+                // OK keeps the focus: Down and Up scroll the notes while there is more that way
+                setOnKeyListener { _, keyCode, event ->
+                    val direction =
+                        when (keyCode) {
+                            KeyEvent.KEYCODE_DPAD_DOWN -> 1
+                            KeyEvent.KEYCODE_DPAD_UP -> -1
+                            else -> 0
+                        }
+                    if (direction == 0 || !notes.canScrollVertically(direction)) return@setOnKeyListener false
+                    if (event.action == KeyEvent.ACTION_DOWN) notes.smoothScrollBy(0, direction * context.dp(72))
+                    true
+                }
             }
         column.addView(
             ok,
@@ -478,5 +510,20 @@ internal class WhatsNewController(
         dialog?.setOnCancelListener(null)
         dialog?.dismiss()
         dialog = null
+    }
+}
+
+/** A [ScrollView] never taller than [maxHeight] */
+private class CappedScrollView(
+    context: Context,
+    private val maxHeight: Int,
+) : ScrollView(context) {
+    override fun onMeasure(
+        widthMeasureSpec: Int,
+        heightMeasureSpec: Int,
+    ) {
+        val size = MeasureSpec.getSize(heightMeasureSpec)
+        val cap = if (MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.UNSPECIFIED) maxHeight else minOf(maxHeight, size)
+        super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(cap, MeasureSpec.AT_MOST))
     }
 }

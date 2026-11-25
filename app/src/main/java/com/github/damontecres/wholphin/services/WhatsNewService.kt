@@ -19,8 +19,9 @@ data class WhatsNewEntry(
 
 /**
  * What's New bullets for each release, rewritten from its GitHub release notes for everyday
- * viewers: 3 to 5 short lines in US English. Add the new version's entry before tagging a
- * release. A version without an entry shows no pop-up.
+ * viewers: short lines in US English covering only the main changes. The pop-up scrolls when
+ * they don't all fit. Add the new version's entry before tagging a release. A version without
+ * an entry shows no pop-up.
  */
 private val notes1244 =
     listOf(
@@ -35,11 +36,14 @@ internal val WhatsNewNotes: Map<String, List<String>> =
     mapOf(
         "1.2.50" to
             listOf(
-                "WeaselPlex has been rebuilt for your TV, and scrolling stays smooth even when you hold a button down.",
-                "New \"Remove all filters\" button, a tidier playlist page, and show pages open on the episode you got to.",
-                "Collections open much faster on kids' profiles, and the side menu is easier to get around.",
-                "Movies start sooner now that Cinema mode is gone, and messages across the app are clearer.",
-                "WeaselPlex's own screensaver and 4K requests are gone. Your TV's screensaver and sleep timer now apply.",
+                "WeaselPlex has been rebuilt for Android TV, and scrolling is smoother, even when you hold a button down.",
+                "New \"Remove all filters\" button at the top of every filter list.",
+                "The playlist page has a cleaner layout.",
+                "After watching episodes back to back, the show's page opens on the episode you got to.",
+                "Collections open much faster on kids' profiles.",
+                "Movies start sooner, and the Cinema mode setting has been removed.",
+                "WeaselPlex no longer has its own screensaver. Your TV's screensaver and sleep timer work as normal.",
+                "Requests no longer offer 4K.",
             ),
         "1.2.49" to
             listOf(
