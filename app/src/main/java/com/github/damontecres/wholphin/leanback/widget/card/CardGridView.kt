@@ -268,6 +268,17 @@ class CardGridView(
 
     private var refreshWhenSettled = false
 
+    /**
+     * The grid is about to change height (a page header above it shows or hides): stop the scroll that focus has just
+     * started, and once laid out at the new height show the focused card whole, without animating. The collection page
+     * hides its header as focus enters the grid; the scroll that fitted the card into the short grid stayed, cut off the
+     * top of the first row, and kept UP from leaving the grid.
+     */
+    fun onHeightChanging() {
+        grid.stopScroll()
+        grid.doOnNextLayout { grid.post { grid.revealSelected() } }
+    }
+
     /** Refresh whenever [changes] emits (eg `RequestPager.changes`) while [owner] is started */
     fun observeChanges(
         owner: LifecycleOwner,
@@ -566,6 +577,42 @@ class CardVerticalGrid(
             return true
         }
         return super.onRequestFocusInDescendants(direction, previouslyFocusedRect)
+    }
+
+    /**
+     * Focus coming in from outside (the buttons above, the side menu, the letter bar) lands on the selected card, as the
+     * Compose grid's focus restorer did. Leanback's keep-visible strategy (WeaselTV) offers every fully visible card
+     * instead, and the one nearest the button that had focus won: UP from the third card to the buttons and DOWN again
+     * landed on the first. A selected card out of view falls back to Leanback's choice.
+     */
+    override fun addFocusables(
+        views: ArrayList<View>,
+        direction: Int,
+        focusableMode: Int,
+    ) {
+        if (!hasFocus() && focusScrollStrategy != BaseGridView.FOCUS_SCROLL_ALIGNED && descendantFocusability != FOCUS_BLOCK_DESCENDANTS) {
+            val selected = layoutManager?.findViewByPosition(selectedPosition)
+            if (selected != null && selected.isShown && selected.bottom > 0 && selected.top < height) {
+                val before = views.size
+                selected.addFocusables(views, direction, focusableMode)
+                if (views.size > before) return
+            }
+        }
+        super.addFocusables(views, direction, focusableMode)
+    }
+
+    /** Scroll at once so the selected card is whole inside the padding (on the first row: back to the top) */
+    internal fun revealSelected() {
+        val view = layoutManager?.findViewByPosition(selectedPosition) ?: return
+        val above = view.top - paddingTop
+        val below = view.bottom - (height - paddingBottom)
+        val dy =
+            when {
+                above < 0 -> above
+                below > 0 -> minOf(below, above)
+                else -> 0
+            }
+        if (dy != 0) scrollBy(0, dy)
     }
 
     internal fun applyScroll(mode: GridScrollMode) {

@@ -393,6 +393,7 @@ class CollectionDetailsFragment : DetailPageFragment() {
 
         private fun showItemHeader() {
             itemsContentHasFocus = true
+            prepareContentMove()
             collectionBlock.visibility = View.GONE
             itemBlock.visibility = View.VISIBLE
             itemFitted.visibility = if (state?.viewOptions?.cardViewOptions?.showDetails == true) View.VISIBLE else View.GONE
@@ -403,6 +404,7 @@ class CollectionDetailsFragment : DetailPageFragment() {
         private fun showCollectionHeader() {
             if (!itemsContentHasFocus) return
             itemsContentHasFocus = false
+            prepareContentMove()
             // Focus moves to the buttons before the item header (holding the focus target) goes away
             collectionBlock.visibility = View.VISIBLE
             buttons.restoreTarget?.requestFocus()
@@ -412,14 +414,41 @@ class CollectionDetailsFragment : DetailPageFragment() {
             state?.collection?.let { setBackdrop(it) }
         }
 
+        /**
+         * The header is about to switch, which moves the items up or down and changes their height. The items slide to
+         * their new place over 220 ms instead of jumping (the old header switch's SizeTransform), and the grid keeps the
+         * focused card whole at its new height ([CardGridView.onHeightChanging]).
+         */
+        private fun prepareContentMove() {
+            if (grid.visibility == View.VISIBLE) grid.onHeightChanging()
+            val from = contentBox.top + contentBox.translationY
+            androidx.core.view.OneShotPreDrawListener.add(contentBox) {
+                contentBox.animate().cancel()
+                val offset = from - contentBox.top
+                contentBox.translationY = offset
+                if (offset != 0f) {
+                    contentBox
+                        .animate()
+                        .translationY(0f)
+                        .setDuration(220)
+                        .setInterpolator(enter)
+                        .start()
+                }
+            }
+        }
+
         private fun bindItemHeader() {
             val s = state ?: return
-            itemHeader.pageStyle = pageStyle
-            itemHeader.displayToggles = enabledDisplayToggles(preferences.appPreferences)
-            itemHeader.showLogo = preferences.appPreferences.interfacePreferences.showLogos
-            itemHeader.bind(focusedItem)
+            val details = s.viewOptions.cardViewOptions.showDetails
+            itemFitted.visibility = if (details) View.VISIBLE else View.GONE
+            // Without details the item header never shows: binding it anyway laid the whole page out on every move
+            if (details) {
+                itemHeader.pageStyle = pageStyle
+                itemHeader.displayToggles = enabledDisplayToggles(preferences.appPreferences)
+                itemHeader.showLogo = preferences.appPreferences.interfacePreferences.showLogos
+                itemHeader.bind(focusedItem)
+            }
             focusedItem?.let { setBackdrop(it) }
-            itemFitted.visibility = if (s.viewOptions.cardViewOptions.showDetails) View.VISIBLE else View.GONE
         }
 
         private fun onFocusItem(item: BaseItem?) {
