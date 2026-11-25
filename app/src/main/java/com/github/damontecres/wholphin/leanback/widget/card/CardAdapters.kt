@@ -349,6 +349,17 @@ class CardGridAdapter<T : CardGridItem>(
         notifyDataSetChanged()
     }
 
+    /** [items] in place of the shown list of the same size, without rebinding; the grid rebinds what changed ([refreshAt]) */
+    internal fun replaceItems(items: List<T?>) {
+        check(items.size == count) { "replaceItems needs a list of the same size" }
+        this.items = items
+    }
+
+    /** Rebind the card at [position] */
+    internal fun refreshAt(position: Int) {
+        if (position in 0 until count) notifyItemChanged(position, REFRESH)
+    }
+
     /** The list changed in place (a page loaded or its size changed): rebind the cards shown */
     fun refresh() {
         val n = items.size

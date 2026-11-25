@@ -33,6 +33,7 @@ import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
+import org.jellyfin.sdk.model.api.UserItemDataDto
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import timber.log.Timber
 import java.io.File
@@ -52,7 +53,8 @@ import kotlin.time.Duration.Companion.seconds
  * filters, are then built from it instantly. Popular, Trending and Top 10 follow the server's saved
  * lists ([JustWatchRowService.serviceList]), or JustWatch's rankings matched here when it has none.
  * Snapshots older than [REFRESH_AFTER] are shown and refreshed in the background for next time;
- * older than [MAX_AGE] they're fetched again first.
+ * older than [MAX_AGE] they're fetched again first. Watched and favourite changes made in the app since a snapshot was
+ * taken are shown over it ([userDataChanged]).
  *
  * Work runs in this service's own scope and is shared, so leaving a page or moving focus never
  * throws away a load, and asking again joins the load already running.
@@ -146,6 +148,8 @@ class StreamingQuickListService
         data class Progress(
             val items: List<BaseItem>,
             val complete: Boolean,
+            /** When the server was asked for [items]; changes made after it are shown over them */
+            val takenAt: Long = 0,
         )
 
         private class Load(
@@ -170,7 +174,7 @@ class StreamingQuickListService
                     val key = key(userId, collectionId)
                     emitAll(
                         snapshot(key).progress.transformWhile {
-                            emit(it.copy(items = visibleNow(key, it.items)))
+                            emit(it.copy(items = visibleNow(key, withChanges(key.userId, it.items, it.takenAt))))
                             !it.complete
                         },
                     )
@@ -225,8 +229,81 @@ class StreamingQuickListService
                 }
             val types = filter.includeItemTypes
             val filtered = if (types.isNullOrEmpty()) members else members.filter { it.type in types }
-            val visible = visibleNow(key, filtered)
+            val visible = visibleNow(key, withChanges(key.userId, filtered, snapshot.savedAt))
             return if (list == StreamingQuickList.TOP_10) visible.take(10) else visible
+        }
+
+        /**
+         * Watched and favourite changes made in the app or found by a streaming page's re-check, by "<user id>_<item id>":
+         * when, and the server's answer. A snapshot taken before a change shows the change over it (owner, 2026-11-25:
+         * "Mark as unwatched" on Netflix's page left the title marked watched, there and on every visit after, because
+         * the page showed the saved snapshot). Saved beside the snapshots so they still apply after a restart; dropped
+         * after [MAX_AGE], when no snapshot taken before them is shown any more.
+         */
+        @Serializable
+        private data class Change(
+            val at: Long,
+            val userData: UserItemDataDto,
+        )
+
+        private val changesLock = Any()
+        private var changes: MutableMap<String, Change>? = null
+
+        /** The changes, read from the cache directory the first time; call with [changesLock] held */
+        private fun changes(): MutableMap<String, Change> =
+            changes ?: runCatching { json.decodeFromString<Map<String, Change>>(changesFile().readText()) }
+                .getOrNull()
+                .orEmpty()
+                .filterValues { age(it.at) < MAX_AGE.inWholeMilliseconds }
+                .toMutableMap()
+                .also { changes = it }
+
+        /**
+         * [userId] changed [itemId]'s watched or favourite status, and the server answered [userData]: lists from
+         * snapshots taken before now show it (FavoriteWatchManager calls this for every change made in the app).
+         */
+        fun userDataChanged(
+            userId: UUID,
+            itemId: UUID,
+            userData: UserItemDataDto,
+        ) = userDataChanged(userId, mapOf(itemId to userData))
+
+        /** [userDataChanged] for several titles, eg those a streaming page's re-check found changed */
+        fun userDataChanged(
+            userId: UUID,
+            userData: Map<UUID, UserItemDataDto>,
+        ) {
+            if (userData.isEmpty()) return
+            synchronized(changesLock) {
+                val all = changes()
+                all.values.removeAll { age(it.at) >= MAX_AGE.inWholeMilliseconds }
+                val now = System.currentTimeMillis()
+                userData.forEach { (itemId, data) -> all["${userId}_$itemId"] = Change(now, data) }
+            }
+            scope.launch {
+                synchronized(changesLock) {
+                    runCatching {
+                        changesFile().apply { parentFile?.mkdirs() }.writeText(json.encodeToString(changes().toMap()))
+                    }.onFailure { Timber.w(it, "Couldn't save watched changes") }
+                }
+            }
+        }
+
+        /** [items] with [userId]'s changes made after [takenAt] */
+        private fun withChanges(
+            userId: UUID,
+            items: List<BaseItem>,
+            takenAt: Long,
+        ): List<BaseItem> {
+            val prefix = "${userId}_"
+            val newer =
+                synchronized(changesLock) {
+                    changes().entries.mapNotNull { (key, change) ->
+                        if (change.at > takenAt && key.startsWith(prefix)) key.removePrefix(prefix) to change.userData else null
+                    }
+                }.toMap()
+            if (newer.isEmpty() || items.isEmpty()) return items
+            return items.map { item -> newer[item.id.toString()]?.let { item.copy(data = item.data.copy(userData = it)) } ?: item }
         }
 
         /** Whether [filter] only chooses types, so [items] can apply it without the server. */
@@ -346,14 +423,14 @@ class StreamingQuickListService
                         // Show what's saved now and refresh it for next time
                         scope.launch { runCatching { fetchAndSave(key, progress = null, background = true) } }
                     }
-                    progress.value = Progress(saved.items, true)
+                    progress.value = Progress(saved.items, true, saved.savedAt)
                     saved
                 } else {
                     fetchAndSave(key, progress, background = false)
                 }
             } catch (ex: Exception) {
                 // Let anything waiting on the progress finish
-                progress.value = Progress(progress.value.items, true)
+                progress.value = progress.value.copy(complete = true)
                 throw ex
             }
 
@@ -401,13 +478,14 @@ class StreamingQuickListService
             if (session != null && !session.made(kidContentGuard.sessionOf(response.headers))) throw StaleSessionException()
             val items = response.content.items.distinctBy { it.id }
             Timber.d("Snapshot for %s: %s items in %s ms", key.collectionId, items.size, System.currentTimeMillis() - started)
-            val now = System.currentTimeMillis()
+            // The members as the server had them when asked: a change made while it answered is still shown over them
+            val now = started
             stillCurrent()
             runCatching {
                 file(key).apply { parentFile?.mkdirs() }.writeText(json.encodeToString(SavedSnapshot(now, items, key.rules)))
             }.onFailure { Timber.w(it, "Couldn't save snapshot for %s", key.collectionId) }
             val snapshot = Snapshot(now, items.map { BaseItem(it, true) })
-            progress?.value = Progress(snapshot.items, true)
+            progress?.value = Progress(snapshot.items, true, snapshot.savedAt)
             return snapshot
         }
 
@@ -429,6 +507,8 @@ class StreamingQuickListService
         private fun age(time: Long) = System.currentTimeMillis() - time
 
         private fun file(key: Key) = File(context.cacheDir, "streaming-collections/${key.userId}_${key.collectionId}.json")
+
+        private fun changesFile() = File(context.cacheDir, "streaming-collections/changes.json")
 
         companion object {
             private const val MEMORY_SNAPSHOTS = 3

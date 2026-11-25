@@ -1,5 +1,6 @@
 package com.github.damontecres.wholphin.services
 
+import com.github.damontecres.wholphin.data.CurrentUser
 import com.github.damontecres.wholphin.data.ServerRepository
 import com.github.damontecres.wholphin.data.model.BaseItem
 import kotlinx.coroutines.CancellationException
@@ -24,6 +25,7 @@ class FavoriteWatchManager
         private val datePlayedService: DatePlayedService,
         private val latestNextUpService: LatestNextUpService,
         private val serverRepository: ServerRepository,
+        private val quickListService: StreamingQuickListService,
     ) {
         suspend fun setWatched(
             itemId: UUID,
@@ -37,6 +39,7 @@ class FavoriteWatchManager
                 } else {
                     api.playStateApi.markUnplayedItem(itemId).content
                 }
+            noteChange(owner, itemId, result)
             if (played && owner != null && serverRepository.current.value == owner) {
                 try {
                     val item = api.userLibraryApi.getItem(itemId = itemId).content
@@ -58,12 +61,28 @@ class FavoriteWatchManager
         suspend fun setFavorite(
             itemId: UUID,
             favorite: Boolean,
-        ): UserItemDataDto =
-            if (favorite) {
-                api.userLibraryApi.markFavoriteItem(itemId).content
-            } else {
-                api.userLibraryApi.unmarkFavoriteItem(itemId).content
+        ): UserItemDataDto {
+            val owner = serverRepository.current.value
+            val result =
+                if (favorite) {
+                    api.userLibraryApi.markFavoriteItem(itemId).content
+                } else {
+                    api.userLibraryApi.unmarkFavoriteItem(itemId).content
+                }
+            noteChange(owner, itemId, result)
+            return result
+        }
+
+        /** Streaming pages show saved lists; they show [result] for [itemId] from now on (see [StreamingQuickListService.userDataChanged]) */
+        private fun noteChange(
+            owner: CurrentUser?,
+            itemId: UUID,
+            result: UserItemDataDto,
+        ) {
+            if (owner != null && serverRepository.current.value == owner) {
+                quickListService.userDataChanged(owner.user.id, itemId, result)
             }
+        }
 
         suspend fun removeContinueWatching(item: BaseItem) {
         }

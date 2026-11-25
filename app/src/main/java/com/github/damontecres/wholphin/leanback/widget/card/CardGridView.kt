@@ -39,6 +39,7 @@ import com.github.damontecres.wholphin.leanback.theme.neonGlowAccent
 import com.github.damontecres.wholphin.leanback.theme.withAlpha
 import com.github.damontecres.wholphin.ui.detail.CardGridItem
 import com.github.damontecres.wholphin.util.ExceptionHandler
+import com.github.damontecres.wholphin.util.RequestPager
 import com.github.damontecres.wholphin.util.WholphinDispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
@@ -166,7 +167,10 @@ class CardGridView(
                     recyclerView: RecyclerView,
                     newState: Int,
                 ) {
-                    if (newState == RecyclerView.SCROLL_STATE_IDLE && refreshWhenSettled) refresh()
+                    if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                        if (refreshWhenSettled) refresh()
+                        refreshChanged()
+                    }
                 }
             },
         )
@@ -189,6 +193,7 @@ class CardGridView(
         pageStyle?.let { alphabet.setAccent(it.sectionAccent) }
         @Suppress("UNCHECKED_CAST")
         val existing = adapter as? CardGridAdapter<T>
+        val samePresenter = existing?.presenter === presenter
         val typed =
             when {
                 existing == null -> CardGridAdapter(presenter)
@@ -227,8 +232,11 @@ class CardGridView(
             grid.adapter = typed
         }
         typed.cellWidthPx = grid.cellWidthFor(grid.width)
-        if (!initialized && items.isNotEmpty()) {
+        if (initialized && samePresenter && typed === existing && replaceChanged(typed, items)) {
+            // Only a few titles changed (eg their watched status): just their cards were rebound
+        } else if (!initialized && items.isNotEmpty()) {
             // The first time there are cards: start at the initial position
+            pendingChanged.clear()
             initialized = true
             focusedIndex = config.initialPosition.coerceIn(0, items.size - 1)
             previouslyFocusedIndex = 0
@@ -238,15 +246,51 @@ class CardGridView(
             // A new list in place of the shown one (eg a page refreshing on return) while a card has focus: keep focus
             // on the card at the same position once the new list is laid out (the rebind dropped it before)
             val keep = focusedIndex.coerceIn(0, items.size - 1)
+            pendingChanged.clear()
             typed.setItems(items)
             grid.setSelectedPosition(
                 keep,
                 ViewHolderTask { holder -> if (!holder.itemView.hasFocus()) holder.itemView.requestFocus() },
             )
         } else {
+            pendingChanged.clear()
             typed.setItems(items)
         }
         onItemCountChanged(items.size)
+    }
+
+    /** Positions whose card [replaceChanged] will rebind once the grid stops scrolling */
+    private val pendingChanged = mutableSetOf<Int>()
+
+    /**
+     * [items] in place of the shown list, when both are plain lists (not pagers, whose reads load pages) of the same size
+     * and at most [MAX_CHANGED] positions hold a different item: rebind only those cards, after any scroll settles (a grid
+     * laid out while it scrolls jumps). A streaming page's re-check of its titles' watched status (2026-11-25) changes a
+     * few cards this way; a full rebind would redraw every card shown. False when it doesn't apply.
+     */
+    private fun <T : CardGridItem> replaceChanged(
+        adapter: CardGridAdapter<T>,
+        items: List<T?>,
+    ): Boolean {
+        val old = adapter.items
+        if (items === old || items is RequestPager<*> || old is RequestPager<*> || items.size != old.size) return false
+        val changed = ArrayList<Int>()
+        for (i in items.indices) {
+            if (items[i] !== old[i]) {
+                changed.add(i)
+                if (changed.size > MAX_CHANGED) return false
+            }
+        }
+        adapter.replaceItems(items)
+        pendingChanged.addAll(changed)
+        if (grid.scrollState == RecyclerView.SCROLL_STATE_IDLE) refreshChanged()
+        return true
+    }
+
+    private fun refreshChanged() {
+        val a = adapter ?: return
+        pendingChanged.forEach { a.refreshAt(it) }
+        pendingChanged.clear()
     }
 
     /**
@@ -267,6 +311,17 @@ class CardGridView(
     }
 
     private var refreshWhenSettled = false
+
+    /**
+     * The grid is about to change height (a page header above it shows or hides): stop the scroll that focus has just
+     * started, and once laid out at the new height show the focused card whole, without animating. The collection page
+     * hides its header as focus enters the grid; the scroll that fitted the card into the short grid stayed, cut off the
+     * top of the first row, and kept UP from leaving the grid.
+     */
+    fun onHeightChanging() {
+        grid.stopScroll()
+        grid.doOnNextLayout { grid.post { grid.revealSelected() } }
+    }
 
     /** Refresh whenever [changes] emits (eg `RequestPager.changes`) while [owner] is started */
     fun observeChanges(
@@ -506,6 +561,9 @@ class CardGridView(
     val selectedIndex: Int get() = focusedIndex
 
     companion object {
+        /** At most this many changed cards are rebound one by one ([replaceChanged]); more is a new list */
+        private const val MAX_CHANGED = 72
+
         /**
          * `cardGridRowHeight`: the first-row height a grid of [GridCardView]s needs in a detail page header, from the
          * grid's geometry: top padding, a card with a one-line title, and an 8dp gutter.
@@ -566,6 +624,42 @@ class CardVerticalGrid(
             return true
         }
         return super.onRequestFocusInDescendants(direction, previouslyFocusedRect)
+    }
+
+    /**
+     * Focus coming in from outside (the buttons above, the side menu, the letter bar) lands on the selected card, as the
+     * Compose grid's focus restorer did. Leanback's keep-visible strategy (WeaselTV) offers every fully visible card
+     * instead, and the one nearest the button that had focus won: UP from the third card to the buttons and DOWN again
+     * landed on the first. A selected card out of view falls back to Leanback's choice.
+     */
+    override fun addFocusables(
+        views: ArrayList<View>,
+        direction: Int,
+        focusableMode: Int,
+    ) {
+        if (!hasFocus() && focusScrollStrategy != BaseGridView.FOCUS_SCROLL_ALIGNED && descendantFocusability != FOCUS_BLOCK_DESCENDANTS) {
+            val selected = layoutManager?.findViewByPosition(selectedPosition)
+            if (selected != null && selected.isShown && selected.bottom > 0 && selected.top < height) {
+                val before = views.size
+                selected.addFocusables(views, direction, focusableMode)
+                if (views.size > before) return
+            }
+        }
+        super.addFocusables(views, direction, focusableMode)
+    }
+
+    /** Scroll at once so the selected card is whole inside the padding (on the first row: back to the top) */
+    internal fun revealSelected() {
+        val view = layoutManager?.findViewByPosition(selectedPosition) ?: return
+        val above = view.top - paddingTop
+        val below = view.bottom - (height - paddingBottom)
+        val dy =
+            when {
+                above < 0 -> above
+                below > 0 -> minOf(below, above)
+                else -> 0
+            }
+        if (dy != 0) scrollBy(0, dy)
     }
 
     internal fun applyScroll(mode: GridScrollMode) {
