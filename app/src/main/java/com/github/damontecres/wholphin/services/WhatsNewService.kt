@@ -34,6 +34,13 @@ private val notes1244 =
 
 internal val WhatsNewNotes: Map<String, List<String>> =
     mapOf(
+        "1.2.51" to
+            listOf(
+                "Streaming service pages scroll smoothly again, and the top row of posters is no longer cut off.",
+                "Going up to the buttons and back down returns you to the same title.",
+                "Watched marks on streaming service pages stay up to date, including right after you mark a title watched or unwatched.",
+                "Sort and filter menus no longer cover their button.",
+            ),
         "1.2.50" to
             listOf(
                 "WeaselPlex has been rebuilt for Android TV, and scrolling is smoother, even when you hold a button down.",

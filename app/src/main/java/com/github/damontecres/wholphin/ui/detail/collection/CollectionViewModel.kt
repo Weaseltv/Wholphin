@@ -53,6 +53,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -289,7 +290,10 @@ class CollectionViewModel
                 }
                 _state.update { it.copy(quickListLoading = null) }
                 // If nothing could be loaded this way, use the server's sorted list below
-                if (shown) return
+                if (shown) {
+                    recheckStatus()
+                    return
+                }
             } else if (useQuickList && quickList != null) {
                 // Keep the current posters while the list loads; the button shows it's loading
                 _state.update { it.copy(quickListLoading = quickList) }
@@ -313,6 +317,7 @@ class CollectionViewModel
                         it
                     }
                 }
+                recheckStatus()
                 return
             }
             _state.update {
@@ -617,6 +622,63 @@ class CollectionViewModel
             onUserDataChanged(itemId, userData, position)
         }
 
+        /** The grid's focused position, for [recheckStatus] */
+        var focusedPosition = 0
+
+        private var recheckJob: Job? = null
+
+        /**
+         * A streaming list (NEW, Popular, Trending, Top 10) comes from a saved snapshot up to a day old, so a title's
+         * watched or favourite status can be out of date: watched since, marked on another TV, or a show whose episodes
+         * were added (owner, 2026-11-25). Ask the server for the status of the titles around [focusedPosition], by id
+         * (quick for the server, unlike the whole collection), and update the cards whose status changed. Runs when the
+         * list is shown and when the page comes back into view; the list itself shows at once, without waiting.
+         */
+        fun recheckStatus() {
+            val current = state.value
+            if (!current.isStreaming || current.items is ApiRequestPager<*> || current.items.isEmpty()) return
+            val userId = serverRepository.currentUser?.id ?: return
+            val from = (focusedPosition - RECHECK_BEFORE).coerceIn(0, current.items.size)
+            val to = (focusedPosition + RECHECK_AFTER).coerceIn(from, current.items.size)
+            val shown =
+                current.items
+                    .subList(from, to)
+                    .filterNotNull()
+                    .associateBy { it.id }
+            if (shown.isEmpty()) return
+            recheckJob?.cancel()
+            recheckJob =
+                viewModelScope.launchIO {
+                    try {
+                        val request =
+                            GetItemsRequest(
+                                userId = userId,
+                                ids = shown.keys,
+                                enableImages = false,
+                                enableTotalRecordCount = false,
+                            )
+                        val fresh = GetItemsRequestHandler.execute(api, request).content.items
+                        val changed =
+                            fresh
+                                .mapNotNull { dto ->
+                                    val userData = dto.userData ?: return@mapNotNull null
+                                    val old = shown[dto.id] ?: return@mapNotNull null
+                                    if (old.data.userData.cardStatus() == userData.cardStatus()) null else dto.id to userData
+                                }.toMap()
+                        if (changed.isEmpty() || serverRepository.currentUser?.id != userId) return@launchIO
+                        Timber.d("Re-check: %s of %s titles changed status", changed.size, shown.size)
+                        quickListService.userDataChanged(userId, changed)
+                        _state.update { s ->
+                            s.copy(items = s.items.map { item -> item?.let { i -> changed[i.id]?.let { i.withUserData(it) } } ?: item })
+                        }
+                    } catch (ex: CancellationException) {
+                        throw ex
+                    } catch (ex: Exception) {
+                        Timber.w(ex, "Couldn't re-check the titles' status")
+                    }
+                }
+        }
+
         private suspend fun onUserDataChanged(
             itemId: UUID,
             userData: UserItemDataDto,
@@ -628,20 +690,7 @@ class CollectionViewModel
             } else if (current.items !is ApiRequestPager<*> && !current.viewOptions.separateTypes) {
                 // A streaming list (NEW, Popular, Trending, Top 10) is a plain list with no page to fetch again: show the
                 // server's answer on the card. Until 2026-11-25 nothing changed, so "Mark as unwatched" seemed to do nothing
-                _state.update { s ->
-                    s.copy(
-                        items =
-                            s.items.map {
-                                if (it != null &&
-                                    it.id == itemId
-                                ) {
-                                    it.copy(data = it.data.copy(userData = userData))
-                                } else {
-                                    it
-                                }
-                            },
-                    )
-                }
+                _state.update { s -> s.copy(items = s.items.map { if (it != null && it.id == itemId) it.withUserData(userData) else it }) }
             } else if (position != null) {
                 refreshItem(itemId, position, false)
             }
@@ -753,6 +802,16 @@ data class CollectionState(
 }
 
 private const val QUICK_LIST_CHUNK = 100
+
+/** Titles before and after the focused one that [CollectionViewModel.recheckStatus] asks about: a few rows each way */
+private const val RECHECK_BEFORE = 24
+private const val RECHECK_AFTER = 48
+
+/** What a card shows of a title's status: watched, favourite, unwatched episodes and progress */
+private fun UserItemDataDto?.cardStatus() =
+    listOf(this?.played, this?.isFavorite, this?.unplayedItemCount, this?.playbackPositionTicks, this?.playedPercentage)
+
+private fun BaseItem.withUserData(userData: UserItemDataDto) = copy(data = data.copy(userData = userData))
 
 private data class DataKey(
     val sort: SortAndDirection,

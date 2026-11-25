@@ -234,11 +234,11 @@ class StreamingQuickListService
         }
 
         /**
-         * Watched and favourite changes made in the app, by "<user id>_<item id>": when, and the server's answer. A
-         * snapshot taken before a change shows the change over it (owner, 2026-11-25: "Mark as unwatched" on Netflix's
-         * page left the title marked watched, there and on every visit after, because the page showed the saved
-         * snapshot). Saved beside the snapshots so they still apply after a restart; dropped after [MAX_AGE], when no
-         * snapshot taken before them is shown any more.
+         * Watched and favourite changes made in the app or found by a streaming page's re-check, by "<user id>_<item id>":
+         * when, and the server's answer. A snapshot taken before a change shows the change over it (owner, 2026-11-25:
+         * "Mark as unwatched" on Netflix's page left the title marked watched, there and on every visit after, because
+         * the page showed the saved snapshot). Saved beside the snapshots so they still apply after a restart; dropped
+         * after [MAX_AGE], when no snapshot taken before them is shown any more.
          */
         @Serializable
         private data class Change(
@@ -266,11 +266,19 @@ class StreamingQuickListService
             userId: UUID,
             itemId: UUID,
             userData: UserItemDataDto,
+        ) = userDataChanged(userId, mapOf(itemId to userData))
+
+        /** [userDataChanged] for several titles, eg those a streaming page's re-check found changed */
+        fun userDataChanged(
+            userId: UUID,
+            userData: Map<UUID, UserItemDataDto>,
         ) {
+            if (userData.isEmpty()) return
             synchronized(changesLock) {
                 val all = changes()
                 all.values.removeAll { age(it.at) >= MAX_AGE.inWholeMilliseconds }
-                all["${userId}_$itemId"] = Change(System.currentTimeMillis(), userData)
+                val now = System.currentTimeMillis()
+                userData.forEach { (itemId, data) -> all["${userId}_$itemId"] = Change(now, data) }
             }
             scope.launch {
                 synchronized(changesLock) {

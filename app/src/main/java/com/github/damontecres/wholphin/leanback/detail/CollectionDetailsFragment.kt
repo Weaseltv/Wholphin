@@ -120,6 +120,11 @@ class CollectionDetailsFragment : DetailPageFragment() {
         render(viewModel.state.value)
     }
 
+    // Coming back to a streaming page (eg after watching a title): its cards' watched status may have changed
+    override fun onPageActive() {
+        viewModel.recheckStatus()
+    }
+
     override fun onScreenFocus(restoring: Boolean) {
         if (!restoring) page?.firstFocus()?.let { if (it.isAttachedToWindow && it.requestFocus()) return }
         super.onScreenFocus(restoring)
@@ -503,7 +508,10 @@ class CollectionDetailsFragment : DetailPageFragment() {
                         onLongClick = { index, item -> onLongClickItem(RowColumn(0, index), item, grid.findFocus()) },
                         onClickPlay = { _, item -> viewModel.navigateTo(Destination.Playback(item = item)) },
                         letterPosition = viewModel::letterPosition,
-                        onPosition = { _, position -> onFocusItem(state.items.getOrNull(position)) },
+                        onPosition = { _, position ->
+                            viewModel.focusedPosition = position
+                            onFocusItem(state.items.getOrNull(position))
+                        },
                     ),
                 config =
                     CardGridConfig(
