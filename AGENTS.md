@@ -99,19 +99,25 @@ for. Taildrop files *from* the PC arrive with `tailscale file get <dir>`.
 - Asking to merge a PR does not authorize a customer release either. Merge the
   code without creating a release tag or publishing APKs unless separately asked.
 
-### User-guide capture Shield (owner, 2026-11-12 and 2026-11-20)
+### User-guide capture Shield (owner, 2026-11-12, 2026-11-20 and 2026-11-25)
 
-- The no-launch/no-input/no-screen-capture rules under "Fast Alpha iteration" below are about
-  the household Shield and the owner's own verification. They do not apply to the owner's
-  **spare capture Shield** (`192.168.0.113:5555`), which exists for the WeaselPlex user guide
-  (`Weaseltv/weaseltv-guides`). There, agents may install, reboot, drive the app and capture.
-- Reach the spare Shield only over ADB from the ThinkCentre (`ssh thinkcentre`), not over
-  Tailscale (owner, 2026-11-20). Build on the thread's machine and copy the APK to the
-  ThinkCentre under `~/work/`.
+- Since 2026-11-25 the WeaselPlex user guide (`Weaseltv/weaseltv-guides`) is captured on the
+  household Shield at `192.168.0.24:5555` on the home network. The spare Shield
+  (`192.168.0.113`) is no longer used.
+- For the guide, agents may use this Shield however the work needs. They may sign out or remove
+  any profile, including the owner's, clear WeaselPlex app data, and install any build: the stable
+  release, Alphas and the guide capture build. They may also sign in the demo accounts (Alex,
+  Sam with a PIN, kid profiles), reboot, drive the app and capture. They don't need to restore it
+  afterwards (owner, 2026-11-25).
+- The no-launch/no-input/no-screen-capture rules under "Fast Alpha iteration" below are about the
+  owner's own Alpha verification. They don't apply to guide work on this Shield.
+- Reach it only over ADB from the ThinkCentre (`ssh thinkcentre`, then
+  `adb -s 192.168.0.24:5555`), not over Tailscale. Build on the thread's machine and copy the APK
+  to the ThinkCentre under `~/work/`.
 - The guide capture build (`scripts/build-alpha.sh --guide-capture`, which never sets
-  `FLAG_SECURE`) goes only on the spare Shield. It is never installed on the household Shield
-  (`100.105.135.30`), never published and never built as a release (Gradle refuses).
-- Leave other apps on the spare Shield alone; they are not part of the guide.
+  `FLAG_SECURE`) is never published and never built as a release (Gradle refuses).
+- Leave the Shield's other apps (Projectivy, Tailscale, WeaselTV) alone; they aren't part of the
+  guide.
 
 ### Fast Alpha iteration (owner policy, 2026-10-07)
 

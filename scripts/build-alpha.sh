@@ -10,8 +10,8 @@ Defaults to arm64-v8a. Supported ABIs: arm64-v8a, armeabi-v7a, x86_64.
 --install connects to a network ADB target and replaces the Alpha app.
 No tests, lint, device launch or visual checks are run.
 --guide-capture builds the user-guide capture build: an Alpha that never blocks
-screen capture (no FLAG_SECURE on PIN profiles). It is only for the spare
-capture Shield and refuses to install on the household Shield.
+screen capture (no FLAG_SECURE on PIN profiles). It is only for the guide capture
+Shield (192.168.0.24:5555, over ADB from the ThinkCentre) and refuses a Tailscale address.
 EOF
 }
 
@@ -59,7 +59,7 @@ fi
 if [[ "$guide_capture" == true ]]; then
     case "$alpha_device" in
         100.105.135.30*|shield.taildbfaa7.ts.net*)
-            echo "The guide capture build never goes on the household Shield." >&2
+            echo "Install the guide capture build over ADB from the ThinkCentre (192.168.0.24:5555), not over Tailscale." >&2
             exit 2
             ;;
     esac
