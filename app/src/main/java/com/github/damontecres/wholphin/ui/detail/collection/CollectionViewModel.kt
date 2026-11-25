@@ -76,6 +76,7 @@ import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
+import org.jellyfin.sdk.model.api.UserItemDataDto
 import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import timber.log.Timber
 import java.util.UUID
@@ -603,12 +604,8 @@ class CollectionViewModel
             played: Boolean,
             position: RowColumn?,
         ) = viewModelScope.launch(WholphinDispatchers.IO + ExceptionHandler()) {
-            favoriteWatchManager.setWatched(itemId, played)
-            if (itemId == state.value.collection?.id) {
-                refreshCollection()
-            } else if (position != null) {
-                refreshItem(itemId, position, false)
-            }
+            val userData = favoriteWatchManager.setWatched(itemId, played)
+            onUserDataChanged(itemId, userData, position)
         }
 
         fun setFavorite(
@@ -616,9 +613,24 @@ class CollectionViewModel
             favorite: Boolean,
             position: RowColumn?,
         ) = viewModelScope.launch(ExceptionHandler() + WholphinDispatchers.IO) {
-            favoriteWatchManager.setFavorite(itemId, favorite)
-            if (itemId == state.value.collection?.id) {
+            val userData = favoriteWatchManager.setFavorite(itemId, favorite)
+            onUserDataChanged(itemId, userData, position)
+        }
+
+        private suspend fun onUserDataChanged(
+            itemId: UUID,
+            userData: UserItemDataDto,
+            position: RowColumn?,
+        ) {
+            val current = state.value
+            if (itemId == current.collection?.id) {
                 refreshCollection()
+            } else if (current.items !is ApiRequestPager<*> && !current.viewOptions.separateTypes) {
+                // A streaming list (NEW, Popular, Trending, Top 10) is a plain list with no page to fetch again: show the
+                // server's answer on the card. Until 2026-11-25 nothing changed, so "Mark as unwatched" seemed to do nothing
+                _state.update { s ->
+                    s.copy(items = s.items.map { if (it != null && it.id == itemId) it.copy(data = it.data.copy(userData = userData)) else it })
+                }
             } else if (position != null) {
                 refreshItem(itemId, position, false)
             }
