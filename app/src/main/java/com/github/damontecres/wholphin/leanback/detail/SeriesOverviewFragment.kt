@@ -326,6 +326,9 @@ class SeriesOverviewFragment : DetailPageFragment() {
                 reportDetailRowHeight(0)
             }
         private var epPosition = -1
+
+        /** The episode a new list must still be scrolled to (a Next Up episode, say); -1 once the strip is on it */
+        private var pendingEpisode = -1
         private var shownEpisodes: List<BaseItem?>? = null
         private val presenter =
             cardPresenter<BaseItem, BannerCardView>(::BannerCardView) { card, episode, index, _ ->
@@ -355,7 +358,15 @@ class SeriesOverviewFragment : DetailPageFragment() {
                         episodeMenu(ep, true, kid)
                     },
                     onFocus = { index, _ ->
-                        if (index != position.episodeRowIndex) viewModel.position.value = position.copy(episodeRowIndex = index)
+                        val pending = pendingEpisode
+                        if (pending >= 0 && index != pending) {
+                            // Focus reached another card (Leanback's first card) before the strip got to the page's
+                            // episode, which also stops its scroll: carry on to the episode instead of taking this one
+                            strip.post { settleOnEpisode(pending) }
+                        } else {
+                            pendingEpisode = -1
+                            if (index != position.episodeRowIndex) viewModel.position.value = position.copy(episodeRowIndex = index)
+                        }
                     },
                     onKey = { _, ep, event ->
                         if (ep != null && isPlayKeyUp(event)) {
@@ -498,6 +509,26 @@ class SeriesOverviewFragment : DetailPageFragment() {
             }
         }
 
+        /** Bring the strip to [target], the new list's episode, and focus it if focus is in the strip */
+        private fun settleOnEpisode(target: Int) {
+            if (pendingEpisode != target) return
+            val holder = strip.findViewHolderForAdapterPosition(target)
+            if (holder != null && target == strip.selectedPosition) {
+                pendingEpisode = -1
+                if (strip.hasFocus() && !holder.itemView.hasFocus()) {
+                    (holder.itemView as? BaseCardView)?.frame?.requestFocus() ?: holder.itemView.requestFocus()
+                }
+                return
+            }
+            strip.setSelectedPositionSmooth(
+                target,
+                ViewHolderTask { h ->
+                    if (pendingEpisode == target) pendingEpisode = -1
+                    if (strip.hasFocus()) (h.itemView as? BaseCardView)?.frame?.requestFocus() ?: h.itemView.requestFocus()
+                },
+            )
+        }
+
         /** Back from another page the episode row may show another episode: the page's position counts again */
         fun forgetClickedEpisode() {
             epPosition = -1
@@ -609,24 +640,17 @@ class SeriesOverviewFragment : DetailPageFragment() {
                         val newList = shownEpisodes != null
                         shownEpisodes = eps.episodes
                         if (epPosition < 0) epPosition = pos.episodeRowIndex
-                        adapter.setItems(eps.episodes)
-                        // Select the page's episode once the strip has laid out the new list: selecting it in the same
-                        // frame as the data change left the strip at its first episode (Leanback)
                         val target = pos.episodeRowIndex.coerceIn(0, (eps.episodes.size - 1).coerceAtLeast(0))
-                        // Scroll to it once the strip has laid out the new list, outside that layout pass. A plain
+                        pendingEpisode = target
+                        adapter.setItems(eps.episodes)
+                        // Select the page's episode with the new list, so the page's first focus (which can come before
+                        // the strip has scrolled) aims at it rather than at the first episode
+                        strip.selectedPosition = target
+                        // Then scroll to it once the strip has laid out the new list, outside that layout pass. A plain
                         // selection waits for a layout request the nested detail list doesn't always pass on, so the
                         // strip stayed at its first episode; a smooth scroll moves the strip directly, like the D-pad.
                         // If focus is already in the strip (the page's first focus), the episode takes it.
-                        strip.doOnNextLayout {
-                            strip.post {
-                                if (target != strip.selectedPosition || strip.findViewHolderForAdapterPosition(target) == null) {
-                                    strip.setSelectedPositionSmooth(
-                                        target,
-                                        ViewHolderTask { holder -> if (strip.hasFocus()) holder.itemView.requestFocus() },
-                                    )
-                                }
-                            }
-                        }
+                        strip.doOnNextLayout { strip.post { settleOnEpisode(target) } }
                         if (requestFocusAfterSeason) {
                             // Changing seasons: move focus once the new episodes are loaded
                             requestFocusAfterSeason = false
