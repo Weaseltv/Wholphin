@@ -34,6 +34,11 @@ private val notes1244 =
 
 internal val WhatsNewNotes: Map<String, List<String>> =
     mapOf(
+        "1.2.52" to
+            listOf(
+                "Fixed a crash on a show's season and episode page.",
+                "Picking an episode from Next Up or Continue Watching opens the show with that episode selected, so you no longer have to scroll to it.",
+            ),
         "1.2.51" to
             listOf(
                 "Streaming service pages scroll smoothly again, and the top row of posters is no longer cut off.",

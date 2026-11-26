@@ -317,7 +317,38 @@ class DetailListAdapter : RecyclerView.Adapter<DetailListAdapter.Holder>() {
 
     val keys: List<String> get() = rows.map { it.key }
 
+    private var list: RecyclerView? = null
+
+    /** Rows that arrived while the list was laying out, waiting for [submit] to apply them just after */
+    private var deferredRows: List<DetailRowSpec>? = null
+
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        list = recyclerView
+    }
+
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        if (list === recyclerView) list = null
+    }
+
     fun submit(newRows: List<DetailRowSpec>) {
+        val rv = list
+        if (rv != null && rv.isComputingLayout) {
+            // A page can redraw in the middle of the list's layout: Leanback focuses a card while laying out its row,
+            // and the page reacts to the focus at once (the season page's episode row, v1.2.51 crash reports).
+            // Changing the rows then throws "Cannot call this method while RecyclerView is computing a layout", so
+            // they change right after it instead (the latest rows win)
+            val alreadyPosted = deferredRows != null
+            deferredRows = newRows
+            if (!alreadyPosted) {
+                rv.post {
+                    val rows = deferredRows ?: return@post
+                    deferredRows = null
+                    submit(rows)
+                }
+            }
+            return
+        }
+        deferredRows = null
         val old = rows
         rows = newRows
         newRows.forEach { spec ->
