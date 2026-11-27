@@ -111,6 +111,7 @@ class SearchFragment : DestinationFragment() {
     private lateinit var seerrResults: CombinedResultsView<DiscoverItem>
     private val typeRows = HashMap<BaseItemKind, ResultRow<BaseItem>>()
     private var discoverRow: ResultRow<DiscoverItem>? = null
+    private var noResultsRow: PlaceholderRowView? = null
     private var focusListener: ViewTreeObserver.OnGlobalFocusChangeListener? = null
 
     private var viewOptionsDialog: SearchViewOptionsDialog? = null
@@ -476,8 +477,8 @@ class SearchFragment : DestinationFragment() {
         libraryResults.view.visibility = if (isLibraryTab && combinedMode) View.VISIBLE else View.GONE
         seerrResults.view.visibility = if (!isLibraryTab && combinedMode) View.VISIBLE else View.GONE
         when {
-            isLibraryTab && combinedMode -> libraryResults.bind(state.combinedResults)
-            !isLibraryTab && combinedMode -> seerrResults.bind(state.seerrResults)
+            isLibraryTab && combinedMode -> libraryResults.bind(state.combinedResults, query)
+            !isLibraryTab && combinedMode -> seerrResults.bind(state.seerrResults, query)
             isLibraryTab -> renderRows(state, discoverShown)
         }
     }
@@ -525,6 +526,24 @@ class SearchFragment : DestinationFragment() {
                     discoverRow = this
                 }
             if (row.bind(getString(R.string.discover), state.seerrResults)) shown += row.view
+        }
+        // Every row came back empty: say so instead of leaving the page blank
+        val allEmpty =
+            shown.isEmpty() &&
+                query.isNotBlank() &&
+                state.includedSearchableTypes.isNotEmpty() &&
+                state.includedSearchableTypes.all { state.results[it] is SearchResult.Success }
+        if (allEmpty) {
+            val row = noResultsRow ?: PlaceholderRowView(context).also { noResultsRow = it }
+            row.bind(
+                getString(R.string.results),
+                context.noResultsText(query, pageStyle.sectionAccent),
+                pageStyle.sectionAccent,
+                focusableRow = false,
+                insetStartPx = context.gutterStartPx() + context.dp(16),
+                insetEndPx = context.gutterEndPx() + context.dp(16),
+            )
+            shown += row
         }
         rowsList.setRows(shown)
     }

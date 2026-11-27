@@ -19,7 +19,7 @@ import com.github.damontecres.wholphin.ui.detail.CardGridItem
 import com.github.damontecres.wholphin.ui.search.SearchResult
 
 /**
- * Combined results (`SearchCombinedResults`): "Searching…", the error or "No results" under a Results title (16dp
+ * Combined results (`SearchCombinedResults`): "Searching…", the error or "No results found for “query”" under a Results title (16dp
  * padding), or the Results title over a 6-column grid of cards.
  */
 internal class CombinedResultsView<T : CardGridItem>(
@@ -29,7 +29,11 @@ internal class CombinedResultsView<T : CardGridItem>(
     private val callbacks: CardGridCallbacks<T>,
 ) {
     val view = FrameLayout(context).apply { clipChildren = false }
-    private val placeholderBox = FrameLayout(context).apply { clipChildren = false }
+    private val placeholderBox =
+        FrameLayout(context).apply {
+            clipChildren = false
+            clipToPadding = false
+        }
     private val placeholder = PlaceholderRowView(context)
     private val gridColumn =
         LinearLayout(context).apply {
@@ -66,12 +70,15 @@ internal class CombinedResultsView<T : CardGridItem>(
     val showsGrid: Boolean get() = view.visibility == View.VISIBLE && gridColumn.visibility == View.VISIBLE
 
     @Suppress("UNCHECKED_CAST")
-    fun bind(result: SearchResult) {
+    fun bind(
+        result: SearchResult,
+        query: String,
+    ) {
         val context = view.context
         val resultsTitle = context.getString(R.string.results)
 
         fun message(
-            text: String,
+            text: CharSequence,
             error: Boolean,
         ) {
             lastWasGrid = false
@@ -90,7 +97,7 @@ internal class CombinedResultsView<T : CardGridItem>(
 
         fun showGrid(items: List<T?>) {
             if (items.isEmpty()) {
-                message(context.getString(R.string.no_results), false)
+                message(context.noResultsText(query, pageStyle().sectionAccent), false)
                 return
             }
             if (!lastWasGrid) {

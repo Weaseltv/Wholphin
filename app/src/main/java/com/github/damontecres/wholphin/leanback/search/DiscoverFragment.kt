@@ -344,7 +344,7 @@ class DiscoverFragment : DestinationFragment() {
         } else {
             queueBox.visibility = View.GONE
             results.view.visibility = View.VISIBLE
-            results.bind(result)
+            results.bind(result, query)
         }
         updateQueueVisible()
     }

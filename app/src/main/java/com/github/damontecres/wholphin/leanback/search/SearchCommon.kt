@@ -5,6 +5,9 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import android.text.InputType
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
@@ -17,6 +20,7 @@ import androidx.leanback.widget.GridLayoutManager
 import androidx.leanback.widget.VerticalGridView
 import androidx.leanback.widget.ViewHolderTask
 import androidx.recyclerview.widget.RecyclerView
+import com.github.damontecres.wholphin.R
 import com.github.damontecres.wholphin.data.model.DiscoverItem
 import com.github.damontecres.wholphin.leanback.theme.AppTheme
 import com.github.damontecres.wholphin.leanback.theme.CardDimens
@@ -44,6 +48,24 @@ internal fun Context.gutterStartPx(): Int = if (AppTheme.isNeon) dp(CardDimens.N
 
 /** The WeaselTV page gutter at the screen edge that section rules reach into (0 on other themes) */
 internal fun Context.gutterEndPx(): Int = if (AppTheme.isNeon) dp(CardDimens.NEON_RULE_INSET_END_DP) else 0
+
+/**
+ * The empty-results message: "No results found for “query”" with the query in [accent] (as the iOS app shows it),
+ * or "No results" without a query.
+ */
+internal fun Context.noResultsText(
+    query: String,
+    accent: Int,
+): CharSequence {
+    val q = query.trim()
+    if (q.isEmpty()) return getString(R.string.no_results)
+    val quoted = "\u201C$q\u201D"
+    val text = getString(R.string.no_results_for, quoted)
+    val start = text.indexOf(quoted)
+    return SpannableString(text).apply {
+        if (start >= 0) setSpan(ForegroundColorSpan(accent), start, start + quoted.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+    }
+}
 
 /** Lay this view across the page gutters (negative margins), for rows whose section rules reach the edges */
 internal fun <T : ViewGroup.MarginLayoutParams> T.bleedIntoGutters(context: Context): T =
