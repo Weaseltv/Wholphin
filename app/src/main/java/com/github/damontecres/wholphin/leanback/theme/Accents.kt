@@ -66,7 +66,9 @@ object RailAccents {
     val USER = NeonColors.VOLT
     val SEARCH = NeonSections.Search.border
     val HOME = NeonSections.Home.border
-    val SETTINGS = 0xFFEAF2FF.toInt()
+
+    /** The phone apps' Settings yellow (`NeonBoard.electricYellow`, owner 2026-11-27; was ice white 0xFFEAF2FF) */
+    val SETTINGS = 0xFFFFEA00.toInt()
 }
 
 /** Owner section palette, 2026-10-08: every sidebar section keeps its own color pair */

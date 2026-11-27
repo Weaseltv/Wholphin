@@ -37,7 +37,7 @@ internal interface SettingsRow {
 
 /** Styles a bound row: type, colours, focus background, long press and focus callbacks */
 internal fun PreferenceViewHolder.bindSettingsRow(row: SettingsRow) {
-    (findViewById(android.R.id.title) as? TextView)?.let(SettingsLook::styleTitle)
+    (findViewById(android.R.id.title) as? TextView)?.let { SettingsLook.styleTitle(it, row.accent) }
     (findViewById(android.R.id.summary) as? TextView)?.let { SettingsLook.styleSummary(it, row.accent) }
     itemView.background = SettingsLook.rowBackground(itemView.context, row.accent)
     val neon = SettingsLook.neon
@@ -141,7 +141,12 @@ internal class SettingsSwitchPreference(
     override fun onBindViewHolder(holder: PreferenceViewHolder) {
         super.onBindViewHolder(holder)
         holder.bindSettingsRow(this)
-        (holder.findViewById(androidx.preference.R.id.switchWidget) as? SettingsSwitchView)?.let { styleSwitch(it, accent) }
+        (holder.findViewById(androidx.preference.R.id.switchWidget) as? SettingsSwitchView)?.let {
+            styleSwitch(it, accent)
+            // Follows the row's focus, for the bold look's colours on the solid row
+            it.isDuplicateParentStateEnabled = true
+            it.refreshDrawableState()
+        }
     }
 }
 
@@ -149,6 +154,10 @@ internal class SettingsSwitchPreference(
  * The switch colours of the old `SwitchColors()`: Neon tracks `line2` / accent with `mid` / `onAccent` knobs,
  * stock colours elsewhere (the Material 3 thumbs in `onPrimary` on the GREEN to BROWN themes). The outline of an off
  * switch is the off track colour on the Neon theme and the theme `border` colour elsewhere (tv-material3 defaults).
+ *
+ * The Settings area's bold look uses the phone apps' switch (`NeonBoard.switchTrackOff/ThumbOn/ThumbOff`): an
+ * accent track with a dark knob when on, a `#343A3E` track with a white knob when off. On the focused (solid accent)
+ * row an on switch turns dark with an accent knob so it stays visible.
  */
 internal fun styleSwitch(
     switch: SettingsSwitchView,
@@ -176,8 +185,25 @@ internal fun styleSwitch(
     switch.trackOn = trackOn
     switch.trackOff = trackOff
     switch.outlineOff = if (AppTheme.theme == AppThemeColors.WEASELTV) NeonColors.LINE2 else palette.border
+    if (SettingsLook.bold(accent)) {
+        switch.thumbOn = BOLD_SWITCH_THUMB_ON
+        switch.thumbOff = BOLD_SWITCH_THUMB_OFF
+        switch.trackOn = accent
+        switch.trackOff = BOLD_SWITCH_TRACK_OFF
+        switch.outlineOff = BOLD_SWITCH_TRACK_OFF
+        switch.filledThumbOn = accent
+        switch.filledTrackOn = BOLD_SWITCH_THUMB_ON
+    } else {
+        switch.filledThumbOn = null
+        switch.filledTrackOn = null
+    }
     switch.invalidate()
 }
+
+/** The phone apps' switch colours (`NeonBoard.switchThumbOn`, `switchThumbOff`, `switchTrackOff`) */
+private const val BOLD_SWITCH_THUMB_ON = 0xFF090B0B.toInt()
+private const val BOLD_SWITCH_THUMB_OFF = 0xFFFFFFFF.toInt()
+private const val BOLD_SWITCH_TRACK_OFF = 0xFF343A3E.toInt()
 
 /** A single choice row; the choices open in Leanback's list panel (the old `ChoicePreference` dialog) */
 internal class SettingsListPreference(
@@ -359,6 +385,9 @@ internal class SettingsCategory(
     /** A fixed type role instead (the debug page's section titles) */
     var role: com.github.damontecres.wholphin.leanback.theme.TextRole? = null
 
+    /** The page accent: the Settings area's headings take the bold look ([SettingsLook.bold]) */
+    var accent: Int = RailAccents.SETTINGS
+
     init {
         layoutResource = R.layout.lb_settings_category
         isPersistent = false
@@ -376,9 +405,12 @@ internal class SettingsCategory(
         val c = holder.itemView.context
         val big = large && SettingsLook.neon && role == null
         val fixedRole = role
+        title.isAllCaps = false
         if (fixedRole != null) {
             title.applyTextRole(fixedRole)
             title.setTextColor(AppTheme.palette.onSurface)
+        } else if (SettingsLook.bold(accent)) {
+            SettingsLook.styleCategory(title, accent)
         } else if (big) {
             SettingsLook.styleCategory(title)
         } else {

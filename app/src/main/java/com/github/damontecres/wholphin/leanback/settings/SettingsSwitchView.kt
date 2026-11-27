@@ -38,6 +38,33 @@ class SettingsSwitchView
         var trackOff: Int = 0
         var outlineOff: Int = 0
 
+        /**
+         * The on colours while the row behind is filled with the accent (the Settings bold look), or null to keep
+         * [thumbOn] / [trackOn]. The switch is on a filled row while [onFilledRow] is set, or, when it duplicates the
+         * row's state, while the row is focused or pressed.
+         */
+        var filledThumbOn: Int? = null
+        var filledTrackOn: Int? = null
+
+        var onFilledRow: Boolean = false
+            set(value) {
+                if (field != value) {
+                    field = value
+                    invalidate()
+                }
+            }
+
+        private val filled: Boolean
+            get() =
+                onFilledRow ||
+                    (
+                        isDuplicateParentStateEnabled &&
+                            (
+                                drawableState.contains(android.R.attr.state_focused) ||
+                                    drawableState.contains(android.R.attr.state_pressed)
+                            )
+                    )
+
         init {
             isFocusable = false
             isClickable = false
@@ -53,6 +80,11 @@ class SettingsSwitchView
 
         override fun toggle() {
             setChecked(!checkedState)
+        }
+
+        override fun drawableStateChanged() {
+            super.drawableStateChanged()
+            if (filledTrackOn != null) invalidate()
         }
 
         override fun setEnabled(enabled: Boolean) {
@@ -79,7 +111,10 @@ class SettingsSwitchView
             rect.set(left, top, left + trackWidth, top + trackHeight)
             val radius = trackHeight / 2f
             paint.style = Paint.Style.FILL
-            paint.color = withAlpha(if (checkedState) trackOn else trackOff, alpha)
+            val onFill = filled
+            val trackOnColor = filledTrackOn?.takeIf { onFill } ?: trackOn
+            val thumbOnColor = filledThumbOn?.takeIf { onFill } ?: thumbOn
+            paint.color = withAlpha(if (checkedState) trackOnColor else trackOff, alpha)
             canvas.drawRoundRect(rect, radius, radius, paint)
             if (!checkedState) {
                 paint.style = Paint.Style.STROKE
@@ -89,7 +124,7 @@ class SettingsSwitchView
                 canvas.drawRoundRect(rect, radius - outlineWidth / 2f, radius - outlineWidth / 2f, paint)
             }
             paint.style = Paint.Style.FILL
-            paint.color = withAlpha(if (checkedState) thumbOn else thumbOff, alpha)
+            paint.color = withAlpha(if (checkedState) thumbOnColor else thumbOff, alpha)
             val handle = context.dpF(if (checkedState) HANDLE_ON_DP else HANDLE_OFF_DP)
             val centerX = if (checkedState) left + trackWidth - radius else left + radius
             canvas.drawCircle(centerX, top + radius, handle / 2f, paint)

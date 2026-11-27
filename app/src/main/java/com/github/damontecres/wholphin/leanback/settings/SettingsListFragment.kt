@@ -115,6 +115,7 @@ class SettingsListFragment : BaseLeanbackPreferenceFragmentCompat() {
                 val pref = group.getPreference(i)
                 (pref as? SettingsRow)?.accent = accent
                 (pref as? SettingsSearchPreference)?.accent = accent
+                (pref as? SettingsCategory)?.accent = accent
                 if (pref is androidx.preference.PreferenceGroup) walk(pref)
             }
         }
