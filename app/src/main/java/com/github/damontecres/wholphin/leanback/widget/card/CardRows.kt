@@ -802,7 +802,7 @@ class PlaceholderRowView(
      */
     fun bind(
         title: String,
-        message: String,
+        message: CharSequence,
         accent: Int,
         isError: Boolean = false,
         focusableRow: Boolean = true,
@@ -830,8 +830,12 @@ class PlaceholderRowView(
         )
         messageView.text = message
         val messageStart = if (focusableRow) context.dp(8) else 0
-        (messageView.layoutParams as LinearLayout.LayoutParams).marginStart =
-            insetStartPx.takeIf { neon || !focusableRow } ?: 0
+        // Set through layoutParams: a start margin changed in place is not resolved again once the view has been
+        // laid out, so the text stayed at 0 and the search results' padding clipped its first letters (2026-11-27)
+        messageView.layoutParams =
+            (messageView.layoutParams as LinearLayout.LayoutParams).apply {
+                marginStart = insetStartPx.takeIf { neon || !focusableRow } ?: 0
+            }
         messageView.setPaddingRelative(messageStart, messageView.paddingTop, 0, messageView.paddingBottom)
 
         val lp = fill.layoutParams as LayoutParams

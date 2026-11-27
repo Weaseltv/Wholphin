@@ -76,6 +76,7 @@
     <string name="next_up">Next Up</string>
     <string name="no_data">No data</string>
     <string name="no_results">No results</string>
+    <string name="no_results_for">No results found for %1$s</string>
     <string name="no_servers_found">No servers found</string>
     <string name="no_update_available">No update available</string>
     <string name="none">None</string>
