@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Settings → Help → the official WeaselPlex TV user guide on theweasel.tv, opened on a phone from a QR code -->
+<!-- Settings → Help → the official WeaselPlex TV user guide on theweasel.tv, shown full screen in the app -->
 <resources>
     <string name="user_guide_title">Official user guide</string>
-    <string name="user_guide_summary">Open the WeaselPlex TV guide on your phone</string>
-    <string name="user_guide_body">Scan the code with your phone\'s camera, or go to %1$s. Sign in with your theweasel.tv account to read it.</string>
-    <string name="user_guide_close">Close</string>
+    <string name="user_guide_summary">The WeaselPlex guide for this TV app</string>
 </resources>

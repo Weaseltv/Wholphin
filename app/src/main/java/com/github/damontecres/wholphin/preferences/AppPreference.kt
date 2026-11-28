@@ -709,7 +709,7 @@ sealed interface AppPreference<Pref, T> {
                 valueToIndex = { if (it != MediaExtensionStatus.UNRECOGNIZED) it.number else 0 },
             )
 
-        /** Settings → Help: the official user guide on the website, as a QR code for the phone (owner, 2026-11-28) */
+        /** Settings → Help: the official user guide on the website, full screen in the app (owner, 2026-11-28) */
         val UserGuide =
             AppClickablePreference<AppPreferences>(
                 title = R.string.user_guide_title,
