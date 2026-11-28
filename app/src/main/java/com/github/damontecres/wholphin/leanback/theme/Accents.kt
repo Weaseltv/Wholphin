@@ -63,7 +63,6 @@ val ApprovedCollectionCardAppearanceView: HomeCardAppearance =
     ApprovedHomeLayout.CARD_APPEARANCE.copy(borderOpacityPercent = 100)
 
 object RailAccents {
-    val USER = NeonColors.VOLT
     val SEARCH = NeonSections.Search.border
     val HOME = NeonSections.Home.border
 
@@ -116,14 +115,11 @@ fun navigationSectionAccent(
                     NeonSections.Requests.border
                 }
 
+                // "More user profile settings" opens from Settings and takes its yellow too (owner, 2026-11-28; was volt)
                 is Destination.Settings, Destination.HomeSettings, is Destination.SubtitleSettings,
-                is Destination.UpdateApp, Destination.License, Destination.Debug,
+                is Destination.UpdateApp, Destination.License, Destination.Debug, Destination.UserAppPreferences,
                 -> {
                     RailAccents.SETTINGS
-                }
-
-                Destination.UserAppPreferences -> {
-                    RailAccents.USER
                 }
 
                 else -> {
