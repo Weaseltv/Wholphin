@@ -19,6 +19,7 @@ import com.github.damontecres.wholphin.leanback.theme.AppFonts
 import com.github.damontecres.wholphin.leanback.theme.AppTheme
 import com.github.damontecres.wholphin.leanback.theme.NeonColors
 import com.github.damontecres.wholphin.leanback.theme.NeonSections
+import com.github.damontecres.wholphin.leanback.theme.RailAccents
 import com.github.damontecres.wholphin.leanback.theme.TextRole
 import com.github.damontecres.wholphin.leanback.theme.applyTextRole
 import com.github.damontecres.wholphin.leanback.theme.compositeOver
@@ -37,6 +38,19 @@ import kotlin.math.ln
 internal object SettingsLook {
     /** The Neon Board recipe is active (the old `isWeaselTv()`) */
     val neon: Boolean get() = AppTheme.isNeon
+
+    /**
+     * The Settings area's bold yellow look (owner's pick, "Option C", 2026-11-27) on the WeaselTV theme: yellow
+     * headings and title, a solid accent row with dark text while focused, grey values at rest. Only rows in the
+     * Settings accent take it; panels elsewhere (eg a library's view options) keep the Neon look in their accent.
+     */
+    fun bold(accent: Int?): Boolean = neon && accent == RailAccents.SETTINGS
+
+    /** Values at rest in the bold look (`NeonBoard.mid`) */
+    const val BOLD_VALUE = NeonColors.MID
+
+    /** Text on the solid accent row (`NeonBoard.stage`) */
+    const val ON_FILL = NeonColors.ON_ACCENT
 
     /** tv-material3 `surfaceColorAtElevation`: primary tinted over surface by the elevation */
     fun surfaceAt(elevationDp: Float): Int {
@@ -71,12 +85,26 @@ internal object SettingsLook {
     /** Row label colour while focused: Neon keeps `text`; tv-material3 rows switch to `inverseOnSurface` */
     val focusedTextColor: Int get() = if (neon) NeonColors.TEXT else AppTheme.palette.inverseOnSurface
 
-    /** Row summary colour: the Neon value is the page accent; other themes keep the content colour */
-    fun summaryColor(accent: Int): Int = if (neon) accent else withAlpha(AppTheme.palette.onSurface, .8f)
+    /**
+     * Row summary colour: the Neon value is the page accent (grey in the bold look); other themes keep the content
+     * colour
+     */
+    fun summaryColor(accent: Int): Int =
+        when {
+            bold(accent) -> BOLD_VALUE
+            neon -> accent
+            else -> withAlpha(AppTheme.palette.onSurface, .8f)
+        }
 
-    fun focusedSummaryColor(accent: Int): Int = if (neon) accent else withAlpha(AppTheme.palette.inverseOnSurface, .8f)
+    fun focusedSummaryColor(accent: Int): Int =
+        when {
+            bold(accent) -> ON_FILL
+            neon -> accent
+            else -> withAlpha(AppTheme.palette.inverseOnSurface, .8f)
+        }
 
-    fun titleColors(): ColorStateList =
+    /** Label colours; [accent] picks the bold look's dark label on the focused row */
+    fun titleColors(accent: Int? = null): ColorStateList =
         ColorStateList(
             arrayOf(
                 intArrayOf(-android.R.attr.state_enabled),
@@ -84,7 +112,9 @@ internal object SettingsLook {
                 intArrayOf(android.R.attr.state_pressed),
                 intArrayOf(),
             ),
-            intArrayOf(withAlpha(textColor, NeonColors.DISABLED_ALPHA), focusedTextColor, focusedTextColor, textColor),
+            (if (bold(accent)) ON_FILL else focusedTextColor).let { focused ->
+                intArrayOf(withAlpha(textColor, NeonColors.DISABLED_ALPHA), focused, focused, textColor)
+            },
         )
 
     fun summaryColors(accent: Int): ColorStateList =
@@ -104,13 +134,16 @@ internal object SettingsLook {
         )
 
     /** A row's label: Neon `settingsLabel` (Exo 2 17 / 500 / 1.3), otherwise `titleSmall` */
-    fun styleTitle(view: TextView) {
+    fun styleTitle(
+        view: TextView,
+        accent: Int? = null,
+    ) {
         if (neon) {
             view.setFont(17f, 500, 1.3f)
         } else {
             view.applyTextRole(TextRole.TITLE_SMALL)
         }
-        view.setTextColor(titleColors())
+        view.setTextColor(titleColors(accent))
     }
 
     /** A row's value: Neon `settingsValue` (Exo 2 15 / 600 / 1.3, accent), otherwise `bodySmall` */
@@ -126,8 +159,21 @@ internal object SettingsLook {
         view.setTextColor(summaryColors(accent))
     }
 
-    /** A group heading: Neon `titleMedium` at 22 / 28 bold, otherwise `titleMedium` */
-    fun styleCategory(view: TextView) {
+    /**
+     * A group heading: Neon `titleMedium` at 22 / 28 bold, otherwise `titleMedium`. The bold look's headings are
+     * small tracked capitals in the accent (Exo 2 14 / 700, like the phone apps' section labels).
+     */
+    fun styleCategory(
+        view: TextView,
+        accent: Int? = null,
+    ) {
+        view.isAllCaps = bold(accent)
+        if (bold(accent)) {
+            view.setFont(14f, 700, 1.25f)
+            view.letterSpacing = BOLD_HEADING_TRACKING
+            view.setTextColor(accent!!)
+            return
+        }
         if (neon) {
             view.applyTextRole(TextRole.TITLE_MEDIUM, sizeSp = 22f, weight = 700)
             view.setLineHeightPx(view.context, 28f)
@@ -220,6 +266,9 @@ internal object SettingsLook {
             cornerRadius = context.dpF(radiusDp)
         }
 
+    /** The bold look's heading tracking (2.5px on 18px in the approved mockup) */
+    const val BOLD_HEADING_TRACKING = .14f
+
     /** tv-material3 `ListItemDefaults.scale` focused scale */
     const val LIST_ITEM_FOCUS_SCALE = 1.02f
 
@@ -234,7 +283,8 @@ internal object SettingsLook {
 /**
  * The settings row background (`neonListItemColors/Border/Glow` on the WeaselTV theme, the stock tv-material3 list
  * item otherwise): transparent at rest; focused or pressed it is `chipOn(accent)` with a 1dp accent border and a
- * 10dp accent glow drawn outside the row (Neon, square corners), or `inverseSurface` with 8dp corners.
+ * 10dp accent glow drawn outside the row (Neon, square corners), or `inverseSurface` with 8dp corners. In the
+ * Settings area's bold look ([SettingsLook.bold]) it is the solid accent in the same glow, without the border.
  *
  * The glow paints outside the view, so the list holding the rows must not clip its children.
  */
@@ -243,6 +293,7 @@ internal class SettingsRowBackground(
     private val accent: Int,
 ) : Drawable() {
     private val neon = SettingsLook.neon
+    private val bold = SettingsLook.bold(accent)
     private val density = context.resources.displayMetrics.density
     private val radius = if (neon) 0f else 8f * density
     private val border = ApprovedHomeLayout.CARD_APPEARANCE.borderWidthDp * density
@@ -268,7 +319,12 @@ internal class SettingsRowBackground(
     override fun draw(canvas: Canvas) {
         if (!active) return
         rect.set(bounds)
-        if (neon) {
+        if (bold) {
+            // The bold look: a solid accent row in its glow, no outline
+            drawGlow(canvas)
+            fill.color = accent
+            canvas.drawRect(rect, fill)
+        } else if (neon) {
             drawGlow(canvas)
             fill.color = NeonColors.chipOn(accent)
             canvas.drawRect(rect, fill)

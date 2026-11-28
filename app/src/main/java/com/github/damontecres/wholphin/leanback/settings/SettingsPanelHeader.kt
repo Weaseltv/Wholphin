@@ -17,6 +17,7 @@ import com.github.damontecres.wholphin.leanback.theme.AppTheme
 import com.github.damontecres.wholphin.leanback.theme.TextRole
 import com.github.damontecres.wholphin.leanback.theme.applyTextRole
 import com.github.damontecres.wholphin.leanback.theme.dp
+import com.github.damontecres.wholphin.leanback.theme.withAlpha
 import java.util.Locale
 
 /**
@@ -35,12 +36,30 @@ internal class SettingsPanelHeader(
     private val neon = SettingsLook.neon && !plain
     private var rule: SettingsRuleView? = null
 
-    /** The page accent (the rule) */
+    /** The page accent (the rule, and the title in the Settings area's bold look) */
     var accent: Int = accent
         set(value) {
             field = value
             rule?.accent = value
+            styleBoldTitle()
         }
+
+    /** The bold look ([SettingsLook.bold]): the title in the accent with a soft glow, otherwise as built */
+    private fun styleBoldTitle() {
+        if (!neon) return
+        if (SettingsLook.bold(accent)) {
+            titleView.setTextColor(accent)
+            titleView.setShadowLayer(
+                resources.displayMetrics.density * BOLD_TITLE_GLOW_DP,
+                0f,
+                0f,
+                withAlpha(SettingsLook.glowFor(accent), BOLD_TITLE_GLOW_ALPHA),
+            )
+        } else {
+            titleView.setTextColor(AppTheme.palette.onSurface)
+            titleView.setShadowLayer(0f, 0f, 0f, 0)
+        }
+    }
 
     init {
         orientation = VERTICAL
@@ -76,6 +95,7 @@ internal class SettingsPanelHeader(
                 },
             )
         }
+        styleBoldTitle()
     }
 
     var title: CharSequence
@@ -83,6 +103,12 @@ internal class SettingsPanelHeader(
         set(value) {
             titleView.text = if (neon) value.toString().uppercase(Locale.getDefault()) else value
         }
+
+    private companion object {
+        /** The bold title's glow (10px at 40 % in the approved mockup) */
+        const val BOLD_TITLE_GLOW_DP = 8f
+        const val BOLD_TITLE_GLOW_ALPHA = .4f
+    }
 }
 
 /**

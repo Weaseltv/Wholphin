@@ -46,6 +46,7 @@ import com.github.damontecres.wholphin.ui.preferences.PreferenceScreenOption
 import com.github.damontecres.wholphin.ui.preferences.PreferencesViewModel
 import com.github.damontecres.wholphin.ui.setup.UpdateViewModel
 import com.github.damontecres.wholphin.ui.setup.seerr.SwitchSeerrViewModel
+import com.github.damontecres.wholphin.ui.setup.userGuideUrl
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import com.github.damontecres.wholphin.util.LoadingState
@@ -78,6 +79,8 @@ class AppSettingsFragment : SettingsPageFragment() {
     @Inject lateinit var requestStatus: RequestStatusRepository
 
     @Inject lateinit var coachMarkTour: CoachMarkTour
+
+    @Inject lateinit var userGuideLinkApi: UserGuideLinkApi
 
     private val option: PreferenceScreenOption get() = requireDestination<Destination.Settings>().screen
 
@@ -255,6 +258,14 @@ class AppSettingsFragment : SettingsPageFragment() {
                             )
                         row.summary = if (updateAvailable) release?.version?.toString() else null
                     }
+                }
+            }
+
+            AppPreference.UserGuide -> {
+                SettingsClickPreference(ctx).apply {
+                    title = getString(pref.title)
+                    summary = pref.summary(ctx, null)
+                    onClick = { userGuideUrl()?.let(::openUserGuide) }
                 }
             }
 
@@ -715,6 +726,20 @@ class AppSettingsFragment : SettingsPageFragment() {
                 }
             }
         dialog.setOnDismissListener { job.cancel() }
+    }
+
+    /**
+     * The official user guide, full screen in the app (UserGuide.kt). It opens at once; the one-time signed-in link
+     * loads when the website answers, or the guide's own address (its sign-in page) when it doesn't.
+     */
+    private fun openUserGuide(guideUrl: String) {
+        val dialog = UserGuideDialog(requireContext())
+        track(dialog).show()
+        val token = viewModel.currentUser.value?.accessToken
+        viewLifecycleOwner.lifecycleScope.launch {
+            val link = token?.let { userGuideLinkApi.signedInLink(it) }
+            if (dialog.isShowing) dialog.load(link ?: guideUrl)
+        }
     }
 
     private fun track(dialog: Dialog): Dialog {

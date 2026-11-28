@@ -91,15 +91,29 @@ class SettingsListDialogFragment : LeanbackListPreferenceDialogFragmentCompat() 
     ) {
         item.background = SettingsLook.rowBackground(item.context, accent)
         item.minimumHeight = item.context.dp(48)
-        item.findViewById<TextView>(android.R.id.title)?.let(SettingsLook::styleTitle)
+        item.findViewById<TextView>(android.R.id.title)?.let { SettingsLook.styleTitle(it, accent) }
+        val bold = SettingsLook.bold(accent)
         (item as? ViewGroup)?.children?.filterIsInstance<CompoundButton>()?.forEach { button ->
             val on = if (SettingsLook.neon) accent else AppTheme.palette.primary
             val off = if (SettingsLook.neon) NeonColors.MID else AppTheme.palette.onSurfaceVariant
             button.buttonTintList =
-                android.content.res.ColorStateList(
-                    arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
-                    intArrayOf(on, off),
-                )
+                if (bold) {
+                    // The bold look's solid focused row: the radio button or check box turns dark on it
+                    button.isDuplicateParentStateEnabled = true
+                    android.content.res.ColorStateList(
+                        arrayOf(
+                            intArrayOf(android.R.attr.state_focused),
+                            intArrayOf(android.R.attr.state_checked),
+                            intArrayOf(),
+                        ),
+                        intArrayOf(SettingsLook.ON_FILL, on, off),
+                    )
+                } else {
+                    android.content.res.ColorStateList(
+                        arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                        intArrayOf(on, off),
+                    )
+                }
         }
     }
 

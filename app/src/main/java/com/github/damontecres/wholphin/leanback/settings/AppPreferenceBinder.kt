@@ -73,6 +73,7 @@ internal class AppPreferenceBinder<P : Any>(
                     key = "${keyPrefix}g$groupIndex"
                     title = if (headed) context.getString(group.title) else null
                     large = largeCategories
+                    accent = this@AppPreferenceBinder.accent
                     if (!headed) layoutResource = R.layout.lb_settings_group_spacer
                 }
             parent.addPreference(category)

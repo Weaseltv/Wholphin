@@ -87,20 +87,25 @@ internal class SettingsReorderPreference(
         super.onBindViewHolder(holder)
         val row = holder.itemView
         val ctx = row.context
-        (holder.findViewById(android.R.id.title) as? TextView)?.let(SettingsLook::styleTitle)
-        (holder.findViewById(android.R.id.summary) as? TextView)?.let { SettingsLook.styleSummary(it, accent) }
+        val titleView = holder.findViewById(android.R.id.title) as? TextView
+        val summaryView = holder.findViewById(android.R.id.summary) as? TextView
+        titleView?.let(SettingsLook::styleTitle)
+        summaryView?.let { SettingsLook.styleSummary(it, accent) }
+        val bold = SettingsLook.bold(accent)
         val frame = holder.findViewById(android.R.id.widget_frame) as LinearLayout
         frame.removeAllViews()
         frame.visibility = View.VISIBLE
-        checked?.let { isChecked ->
-            val switch =
-                SettingsSwitchView(ctx).apply {
-                    setChecked(isChecked)
-                    isDuplicateParentStateEnabled = false
-                }
-            styleSwitch(switch, accent)
-            frame.addView(switch)
-        }
+        val switchView =
+            checked?.let { isChecked ->
+                val switch =
+                    SettingsSwitchView(ctx).apply {
+                        setChecked(isChecked)
+                        isDuplicateParentStateEnabled = false
+                    }
+                styleSwitch(switch, accent)
+                frame.addView(switch)
+                switch
+            }
         val buttonViews =
             buttons.mapIndexed { index, button ->
                 AppCompatTextView(ctx).apply {
@@ -126,6 +131,13 @@ internal class SettingsReorderPreference(
             val zone = if (hasFocus) currentZone() else -1
             // The row background shows only while its main part has focus; a button shows its own focus
             row.background = if (zone == 0) mainBackground else null
+            if (bold) {
+                // The bold look's solid row shows only for the main part: dark text on it, the resting colours off it
+                val onFill = zone == 0
+                titleView?.setTextColor(if (onFill) SettingsLook.ON_FILL else SettingsLook.textColor)
+                summaryView?.setTextColor(if (onFill) SettingsLook.ON_FILL else SettingsLook.BOLD_VALUE)
+                switchView?.onFilledRow = onFill
+            }
             buttonViews.forEachIndexed { i, v -> v.isSelected = zone == i + 1 }
         }
         render(row.isFocused)
