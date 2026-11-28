@@ -42,6 +42,15 @@ fun forgotPinUrl(): String? =
         ?.let { "${it.trimEnd('/')}/weaselplex/profiles" }
 
 /**
+ * The official WeaselPlex TV user guide on the website (sign-in required), `https://theweasel.tv/weaselplex/guide/tv/`,
+ * or null on every flavor without the WeaselPlex website.
+ */
+fun userGuideUrl(): String? =
+    BuildConfig.WEASELPLEX_WEBSITE_URL
+        .takeIf { it.isNotBlank() }
+        ?.let { "${it.trimEnd('/')}/weaselplex/guide/tv/" }
+
+/**
  * The website's Kids profiles page (contract 12.3), where a kid's page pairs it to a TV, eg
  * `https://theweasel.tv/weaselplex/profiles/kids`, or null on every flavor without the WeaselPlex website.
  */

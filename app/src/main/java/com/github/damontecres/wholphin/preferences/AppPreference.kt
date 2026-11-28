@@ -14,6 +14,7 @@ import com.github.damontecres.wholphin.ui.preferences.ConditionalPreferences
 import com.github.damontecres.wholphin.ui.preferences.PreferenceGroup
 import com.github.damontecres.wholphin.ui.preferences.PreferenceScreenOption
 import com.github.damontecres.wholphin.ui.preferences.PreferenceValidation
+import com.github.damontecres.wholphin.ui.setup.userGuideUrl
 import com.github.damontecres.wholphin.util.DebugLogTree
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
@@ -708,6 +709,13 @@ sealed interface AppPreference<Pref, T> {
                 valueToIndex = { if (it != MediaExtensionStatus.UNRECOGNIZED) it.number else 0 },
             )
 
+        /** Settings → Help: the official user guide on the website, as a QR code for the phone (owner, 2026-11-28) */
+        val UserGuide =
+            AppClickablePreference<AppPreferences>(
+                title = R.string.user_guide_title,
+                summary = R.string.user_guide_summary,
+            )
+
         /** Settings → Help: starts the coach-mark tour on Home */
         val CoachMarkTour =
             AppClickablePreference<AppPreferences>(
@@ -1095,12 +1103,11 @@ val kidHiddenPreferences: Set<AppPreference<*, *>> =
 
 val basicPreferences =
     listOfNotNull(
-        // Help sits at the top, before Interface
-        if (BuildConfig.COACH_MARK_TOUR_ENABLED) {
-            PreferenceGroup(title = R.string.coach_help, preferences = listOf(AppPreference.CoachMarkTour))
-        } else {
-            null
-        },
+        // Help sits at the top, before Interface; the user guide is its first row
+        listOfNotNull(
+            AppPreference.UserGuide.takeIf { userGuideUrl() != null },
+            AppPreference.CoachMarkTour.takeIf { BuildConfig.COACH_MARK_TOUR_ENABLED },
+        ).takeIf { it.isNotEmpty() }?.let { PreferenceGroup(title = R.string.coach_help, preferences = it) },
         PreferenceGroup(
             title = R.string.ui_interface,
             preferences =

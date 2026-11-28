@@ -1,14 +1,21 @@
 package com.github.damontecres.wholphin.leanback.settings
 
 import android.app.Dialog
+import android.graphics.Typeface
 import android.graphics.drawable.BitmapDrawable
 import android.os.Bundle
 import android.text.InputType
+import android.text.SpannableString
 import android.text.SpannableStringBuilder
 import android.text.Spanned
+import android.text.style.ForegroundColorSpan
 import android.text.style.ImageSpan
+import android.text.style.StyleSpan
+import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.widget.AppCompatTextView
 import androidx.fragment.app.viewModels
@@ -46,6 +53,7 @@ import com.github.damontecres.wholphin.ui.preferences.PreferenceScreenOption
 import com.github.damontecres.wholphin.ui.preferences.PreferencesViewModel
 import com.github.damontecres.wholphin.ui.setup.UpdateViewModel
 import com.github.damontecres.wholphin.ui.setup.seerr.SwitchSeerrViewModel
+import com.github.damontecres.wholphin.ui.setup.userGuideUrl
 import com.github.damontecres.wholphin.util.DataLoadingState
 import com.github.damontecres.wholphin.util.ExceptionHandler
 import com.github.damontecres.wholphin.util.LoadingState
@@ -255,6 +263,14 @@ class AppSettingsFragment : SettingsPageFragment() {
                             )
                         row.summary = if (updateAvailable) release?.version?.toString() else null
                     }
+                }
+            }
+
+            AppPreference.UserGuide -> {
+                SettingsClickPreference(ctx).apply {
+                    title = getString(pref.title)
+                    summary = pref.summary(ctx, null)
+                    onClick = { userGuideUrl()?.let(::showUserGuideDialog) }
                 }
             }
 
@@ -715,6 +731,76 @@ class AppSettingsFragment : SettingsPageFragment() {
                 }
             }
         dialog.setOnDismissListener { job.cancel() }
+    }
+
+    /**
+     * The official user guide: a QR code that opens it on a phone (a TV has no browser to show it), with its address
+     * for typing by hand. The guide needs the website sign-in, so the text says so.
+     */
+    private fun showUserGuideDialog(url: String) {
+        val ctx = requireContext()
+        val accent = this.accent
+        val dialog = SettingsDialog(ctx, widthDp = 560)
+        dialog.column.addView(
+            AppCompatTextView(ctx).apply { styleDialogTitle(getString(R.string.user_guide_title)) },
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ),
+        )
+        val shown = url.removePrefix("https://").removePrefix("http://").trimEnd('/')
+        val body = getString(R.string.user_guide_body, shown)
+        dialog.column.addView(
+            LinearLayout(ctx).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                addView(
+                    ImageView(ctx).apply {
+                        setImageBitmap(settingsQrCode(url))
+                        contentDescription = getString(R.string.user_guide_title)
+                    },
+                    LinearLayout.LayoutParams(ctx.dp(160), ctx.dp(160)),
+                )
+                addView(
+                    AppCompatTextView(ctx).apply {
+                        SettingsLook.styleBody(this)
+                        text =
+                            SpannableString(body).apply {
+                                val start = body.indexOf(shown)
+                                if (start >= 0) {
+                                    val end = start + shown.length
+                                    setSpan(StyleSpan(Typeface.BOLD), start, end, 0)
+                                    if (SettingsLook.neon) {
+                                        setSpan(ForegroundColorSpan(accent), start, end, 0)
+                                    }
+                                }
+                            }
+                    },
+                    LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                        marginStart = ctx.dp(20)
+                    },
+                )
+            },
+            LinearLayout
+                .LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ).apply { topMargin = ctx.dp(16) },
+        )
+        val close = settingsButton(ctx, getString(R.string.user_guide_close), accent) { dialog.dismiss() }
+        dialog.column.addView(
+            LinearLayout(ctx).apply {
+                gravity = Gravity.END
+                addView(close)
+            },
+            LinearLayout
+                .LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ).apply { topMargin = ctx.dp(16) },
+        )
+        track(dialog).show()
+        close.requestFocus()
     }
 
     private fun track(dialog: Dialog): Dialog {
