@@ -141,12 +141,8 @@ internal class SettingsSwitchPreference(
     override fun onBindViewHolder(holder: PreferenceViewHolder) {
         super.onBindViewHolder(holder)
         holder.bindSettingsRow(this)
-        (holder.findViewById(androidx.preference.R.id.switchWidget) as? SettingsSwitchView)?.let {
-            styleSwitch(it, accent)
-            // Follows the row's focus, for the bold look's colours on the solid row
-            it.isDuplicateParentStateEnabled = true
-            it.refreshDrawableState()
-        }
+        // The switch follows the row's focus (duplicateParentState in its layout) for the bold look's solid row
+        (holder.findViewById(androidx.preference.R.id.switchWidget) as? SettingsSwitchView)?.let { styleSwitch(it, accent) }
     }
 }
 

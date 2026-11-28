@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The switch of a settings row, drawn like the tv-material3 Switch; the row takes the focus and the click
-     (no-Compose UI) -->
+     (no-Compose UI). It duplicates the row's state so the Settings bold look can recolor it on the focused yellow
+     row; set here, because the frame only refreshes children that duplicate its state when they are added. -->
 <com.github.damontecres.wholphin.leanback.settings.SettingsSwitchView xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@id/switchWidget"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:background="@null"
     android:clickable="false"
+    android:duplicateParentState="true"
     android:focusable="false" />

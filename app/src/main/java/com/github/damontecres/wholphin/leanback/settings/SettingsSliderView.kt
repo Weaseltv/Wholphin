@@ -17,7 +17,8 @@ import com.github.damontecres.wholphin.preferences.AppThemeColors
 
 /**
  * The bar of a slider setting (the old `SliderBar` as the settings rows drew it): 6dp tall, 12dp while its row is
- * focused, inset 4dp, with a white knob at the value. On the WeaselTV theme it is a black pill outlined and filled in
+ * focused, with a white knob at the value (4dp beyond the bar's half height: 7dp, 10dp focused). The bar is inset by
+ * the focused knob's radius so the knob is never cut off at either end (it was at 0 and at the maximum). On the WeaselTV theme it is a black pill outlined and filled in
  * ice white; other themes draw the theme's active and inactive tracks. The row handles the keys.
  */
 class SettingsSliderView
@@ -31,7 +32,7 @@ class SettingsSliderView
         private val rect = RectF()
         private var percent = 0f
         private var focusedState = false
-        private var barHeight = 6f * density
+        private var barHeight = BAR_DP * density
         private var animator: ValueAnimator? = null
 
         /** The page accent (unused by the Neon recipe, which is ice white in settings) */
@@ -53,7 +54,7 @@ class SettingsSliderView
                 focusedState = focused
                 animator?.cancel()
                 animator =
-                    ValueAnimator.ofFloat(barHeight, (if (focused) 12f else 6f) * density).apply {
+                    ValueAnimator.ofFloat(barHeight, (if (focused) FOCUSED_BAR_DP else BAR_DP) * density).apply {
                         duration = NeonColors.FOCUS_MS
                         addUpdateListener {
                             barHeight = it.animatedValue as Float
@@ -65,7 +66,7 @@ class SettingsSliderView
         }
 
         override fun onDraw(canvas: Canvas) {
-            val inset = 4f * density
+            val inset = (FOCUSED_BAR_DP / 2f + KNOB_EXTRA_DP + 1f) * density
             val left = paddingLeft + inset
             val right = width - paddingRight - inset
             val width = (right - left).coerceAtLeast(0f)
@@ -97,7 +98,7 @@ class SettingsSliderView
             }
             paint.style = Paint.Style.FILL
             paint.color = Color.WHITE
-            canvas.drawCircle(x, cy, barHeight + 2, paint)
+            canvas.drawCircle(x, cy, (barHeight / 2f + KNOB_EXTRA_DP * density).coerceAtMost(height / 2f), paint)
         }
 
         /** `sliderActiveColor`: the filled side */
@@ -130,6 +131,14 @@ class SettingsSliderView
                     withAlpha(palette.secondaryContainer, .66f)
                 }
             }
+        }
+
+        private companion object {
+            const val BAR_DP = 6f
+            const val FOCUSED_BAR_DP = 12f
+
+            /** How far the knob reaches beyond the bar's half height */
+            const val KNOB_EXTRA_DP = 4f
         }
 
         override fun onDetachedFromWindow() {
